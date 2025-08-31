@@ -20,9 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
-	"net/http"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -33,13 +34,17 @@ type Client struct {
 	logger logger.Logger
 }
 
-func NewClient(parentLogger logger.Logger) leaderCommon.ClientOps {
+func NewClient(parentLogger logger.Logger) *Client {
 	return &Client{
 		logger: parentLogger.GetChild("leader-client-iguazio"),
 	}
 }
 
 func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
+	if projectConfig == nil {
+		return nil, errors.New("Project config is nil")
+	}
+
 	project := NewProjectFromProjectConfig(projectConfig)
 	return json.Marshal(project)
 }
@@ -136,6 +141,9 @@ func (c *Client) GetJobIdUrl(address, jobID string) string {
 }
 
 func (c *Client) ValidateJobState(ctx context.Context, job leaderCommon.JobResponse, projectName string) error {
+	if job == nil {
+		return errors.New("JobResponse is nil")
+	}
 	if job.GetState() != leaderCommon.JobStateCompleted {
 		var jobResult struct {
 			ProjectID string `json:"project_id,omitempty"`

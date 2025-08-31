@@ -22,8 +22,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/nuclio/errors"
-	"github.com/stretchr/testify/mock"
 	"io"
 	"net/http"
 	"strings"
@@ -36,8 +34,10 @@ import (
 	mockClient "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 

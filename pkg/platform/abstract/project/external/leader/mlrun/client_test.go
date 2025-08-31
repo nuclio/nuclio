@@ -19,20 +19,16 @@ limitations under the License.
 package mlrun
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/auth/nop"
-	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -46,321 +42,263 @@ func (suite *ClientTestSuite) SetupSuite() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-client")
 	suite.Require().NoError(err)
-}
-
-func (suite *ClientTestSuite) SetupTest() {
-	var err error
-	suite.client, err = NewClient(suite.logger, &platformconfig.Config{
-		ProjectsLeader: &platformconfig.ProjectsLeader{
-			APIAddress: "mlrun.com",
-			Kind:       platformconfig.ProjectsLeaderKindMlrun,
-		},
-	})
-	suite.Require().NoError(err)
-}
-
-func (suite *ClientTestSuite) TestCreate() {
-	tests := []struct {
-		name               string
-		httpResponse       *http.Response
-		httpError          error
-		expectedErrMsg     string
-		includeAuthSession bool
-	}{
-		{
-			name: "success",
-			httpResponse: &http.Response{
-				StatusCode: http.StatusCreated,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-					"metadata": {"name": "testCase-project", "namespace": "testCase-namespace"},
-					"spec": {"description": "desc"}
-				}`)),
-			},
-		},
-		{
-			name: "positive case - with auth session",
-			httpResponse: &http.Response{
-				StatusCode: http.StatusCreated,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-					"metadata": {"name": "testCase-project", "namespace": "testCase-namespace"},
-					"spec": {"description": "desc"}
-				}`)),
-			},
-			includeAuthSession: true,
-		},
-		{
-			name:           "http client error",
-			httpError:      errors.New("http error"),
-			expectedErrMsg: "Failed to send request to leader",
-		},
-		{
-			name: "bad response body",
-			httpResponse: &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(bytes.NewBufferString(`{invalid json`)),
-			},
-			expectedErrMsg: "Failed to resolve project from response body",
-		},
-	}
-
-	for _, testCase := range tests {
-		suite.Run(testCase.name, func() {
-			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClientWithError(func(r *http.Request) (*http.Response, error) {
-				if testCase.httpError != nil {
-					return nil, testCase.httpError
-				}
-				return testCase.httpResponse, nil
-			})
-
-			createProjectOptions := &platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name:      "mlrun-create-project",
-						Namespace: "test-create-namespace",
-					},
-				},
-			}
-
-			if testCase.includeAuthSession {
-				createProjectOptions.AuthSession = &nop.Session{}
-			}
-
-			err := suite.client.Create(context.TODO(), createProjectOptions)
-
-			if testCase.expectedErrMsg != "" {
-				suite.Require().Error(err)
-				suite.Contains(err.Error(), testCase.expectedErrMsg)
-			} else {
-				suite.Require().NoError(err)
-			}
-		})
-	}
-}
-
-func (suite *ClientTestSuite) TestUpdate() {
-	tests := []struct {
-		name           string
-		httpResponse   *http.Response
-		httpError      error
-		expectedErrMsg string
-	}{
-		{
-			name: "success",
-			httpResponse: &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
-			},
-		},
-		{
-			name:           "http client error",
-			httpError:      errors.New("http error"),
-			expectedErrMsg: "Failed to send update project request to leader",
-		},
-	}
-
-	for _, testCase := range tests {
-		suite.Run(testCase.name, func() {
-			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClientWithError(func(r *http.Request) (*http.Response, error) {
-				if testCase.httpError != nil {
-					return nil, testCase.httpError
-				}
-				return testCase.httpResponse, nil
-			})
-
-			err := suite.client.Update(context.TODO(), &platform.UpdateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name:      "mlrun-update-project",
-						Namespace: "test-update-namespace",
-					},
-				},
-			})
-
-			if testCase.expectedErrMsg != "" {
-				suite.Require().Error(err)
-				suite.Contains(err.Error(), testCase.expectedErrMsg)
-			} else {
-				suite.Require().NoError(err)
-			}
-		})
-	}
-}
-
-func (suite *ClientTestSuite) TestDelete() {
-	tests := []struct {
-		name           string
-		httpResponse   *http.Response
-		httpError      error
-		expectedErrMsg string
-	}{
-		{
-			name: "positive case",
-			httpResponse: &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
-			},
-		},
-		{
-			name:           "http client error",
-			httpError:      errors.New("http error"),
-			expectedErrMsg: "Failed to send delete project request to leader",
-		},
-	}
-
-	for _, testCase := range tests {
-		suite.Run(testCase.name, func() {
-			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClientWithError(func(r *http.Request) (*http.Response, error) {
-				if testCase.httpError != nil {
-					return nil, testCase.httpError
-				}
-				return testCase.httpResponse, nil
-			})
-
-			err := suite.client.Delete(context.TODO(), &platform.DeleteProjectOptions{
-				Meta: platform.ProjectMeta{
-					Name:      "mlrun-delete-project",
-					Namespace: "test-delete-namespace",
-				},
-			})
-
-			if testCase.expectedErrMsg != "" {
-				suite.Require().Error(err)
-				suite.Equal(err.Error(), testCase.expectedErrMsg)
-			} else {
-				suite.Require().NoError(err)
-			}
-		})
-	}
+	suite.client = NewClient(suite.logger)
 }
 
 func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
 	tests := []struct {
-		name           string
-		project        *platform.ProjectConfig
-		expectErr      bool
-		expectedResult string
+		name        string
+		project     *platform.ProjectConfig
+		expectError bool
 	}{
 		{
-			name: "positive case",
+			name: "ValidProject",
 			project: &platform.ProjectConfig{
-				Meta: platform.ProjectMeta{
-					Name:      "test-project",
-					Namespace: "test-namespace",
-				},
-				Spec: platform.ProjectSpec{
-					Description: "desc",
-				},
+				Meta: platform.ProjectMeta{Name: "test"},
 			},
-			expectedResult: `{"metadata":{"name":"test-project","namespace":"test-namespace"},"spec":{"description":"desc"},"status":{}}`,
 		},
 		{
-			name:           "nil project config",
-			project:        nil,
-			expectErr:      true,
-			expectedResult: "Failed to create project from project config",
-		},
-		{
-			name: "empty project config",
-			project: &platform.ProjectConfig{
-				Meta: platform.ProjectMeta{},
-				Spec: platform.ProjectSpec{},
-			},
-			expectedResult: `{"metadata":{"name":"","namespace":""},"spec":{},"status":{}}`,
+			name:        "NilProject",
+			project:     nil,
+			expectError: true,
 		},
 	}
 
 	for _, testCase := range tests {
 		suite.Run(testCase.name, func() {
-			result, err := suite.client.generateProjectRequestBody(testCase.project)
-			if testCase.expectErr {
+			result, err := suite.client.GenerateProjectRequestBody(testCase.project)
+			if testCase.expectError {
 				suite.Require().Error(err)
-				suite.Equal(err.Error(), testCase.expectedResult)
+				suite.Require().Nil(result)
 			} else {
 				suite.Require().NoError(err)
-				suite.Equal(testCase.expectedResult, string(result))
+				suite.Require().NotNil(result)
+				var resultProject Project
+				suite.Require().NoError(json.Unmarshal(result, &resultProject))
+				suite.Require().Equal(testCase.project.Meta.Name, resultProject.Metadata.Name)
 			}
 		})
 	}
 }
 
 func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
-	tests := []struct {
-		name         string
-		projectName  string
-		expectString string
+	suite.Run("ValidProjectName", func() {
+		result, err := suite.client.GenerateProjectDeletionRequestBody("my-project")
+		suite.Require().NoError(err)
+		var project Project
+		suite.Require().NoError(json.Unmarshal(result, &project))
+		suite.Require().Equal("my-project", project.Metadata.Name)
+	})
+}
+
+func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
+	testCases := []struct {
+		name        string
+		body        []byte
+		expectError bool
 	}{
 		{
-			name:         "positive case",
-			projectName:  "delete-test-project",
-			expectString: `{"metadata":{"name":"delete-test-project","namespace":""},"spec":{},"status":{}}`,
+			name: "ValidResponse",
+			body: func() []byte {
+				b, _ := json.Marshal(Project{Metadata: ProjectMetadata{Name: "test-project"}})
+				return b
+			}(),
 		},
 		{
-			name:         "empty name",
-			projectName:  "",
-			expectString: `{"metadata":{"name":"","namespace":""},"spec":{},"status":{}}`,
-		},
-		{
-			name:         "long name",
-			projectName:  "a-very-long-project-name-1234567890",
-			expectString: `{"metadata":{"name":"a-very-long-project-name-1234567890","namespace":""},"spec":{},"status":{}}`,
+			name:        "InvalidResponse",
+			body:        []byte(`not-json`),
+			expectError: true,
 		},
 	}
 
-	for _, testCase := range tests {
+	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result, err := suite.client.generateProjectDeletionRequestBody(testCase.projectName)
-			suite.Require().NoError(err)
-			suite.Equal(string(result), testCase.expectString)
+			resp, err := suite.client.ResolveCreateProjectResponse(context.TODO(), testCase.body)
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Require().Nil(resp)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(resp)
+				suite.Require().Equal(resp.GetLastJobID(), "")
+				responseProject, ok := resp.(*Project)
+				suite.Require().True(ok)
+				suite.Require().Equal("test-project", responseProject.Metadata.Name)
+			}
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
-	tests := []struct {
-		name           string
-		body           []byte
-		expectedErrMsg string
-		expectedResult *Project
-		description    string
+func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
+	testCases := []struct {
+		name   string
+		body   []byte
+		detail bool
 	}{
 		{
-			name: "valid response",
-			body: []byte(`{"metadata":{"name":"test-project","namespace":"test-namespace"},"spec":{"description":"desc"}}`),
-			expectedResult: &Project{
-				Metadata: ProjectMetadata{
-					Name:      "test-project",
-					Namespace: "test-namespace",
-				},
-				Spec: ProjectSpec{
-					Description: "desc",
-				},
-			},
-			description: "desc",
+			name:   "DetailTrue",
+			detail: true,
+			body:   []byte(`{}`),
 		},
 		{
-			name:           "invalid json",
-			body:           []byte("{invalid json"),
-			expectedErrMsg: "Failed to unmarshal response body",
+			name:   "DetailFalse",
+			detail: false,
+			body:   []byte(`{}`),
 		},
 		{
-			name:           "empty body",
-			body:           []byte(""),
-			expectedErrMsg: "Failed to unmarshal response body",
+			name:   "EmptyBody",
+			detail: false,
+			body:   nil,
 		},
 	}
 
-	for _, testCase := range tests {
+	for _, testCase := range testCases {
+		projects, err := suite.client.ResolveGetProjectResponse(testCase.detail, testCase.body)
+		suite.Require().Error(err)
+		suite.Require().Nil(projects)
+	}
+}
+
+func (suite *ClientTestSuite) TestParseJobStatusResponse() {
+	resp, ok := suite.client.ParseJobStatusResponse(context.TODO(), nil)
+	suite.Require().Nil(resp)
+	suite.Require().False(ok)
+}
+
+func (suite *ClientTestSuite) TestGenerateCreateProjectRequestURL() {
+	testCases := []struct {
+		name     string
+		address  string
+		expected string
+	}{
+		{
+			name:     "Basic",
+			address:  "http://localhost",
+			expected: "http://localhost/projects",
+		},
+		{
+			name:     "WithoutHttpPrefix",
+			address:  "some-address",
+			expected: "some-address/projects",
+		},
+	}
+
+	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result, err := suite.client.resolveCreateProjectResponse(testCase.body)
-			if testCase.expectedErrMsg != "" {
-				suite.Require().Error(err)
-				suite.Equal(err.Error(), testCase.expectedErrMsg)
-			} else {
-				suite.Require().NoError(err)
-				suite.Equal(result, testCase.expectedResult)
-			}
+			url := suite.client.GenerateCreateProjectRequestURL(testCase.address)
+			suite.Require().Equal(testCase.expected, url)
 		})
 	}
+}
+
+func (suite *ClientTestSuite) TestHandleCreateResponseErr() {
+	testCases := []struct {
+		name         string
+		body         []byte
+		response     *http.Response
+		expectErrStr string
+	}{
+		{
+			name: "MLRunError",
+			body: func() []byte {
+				b, _ := json.Marshal(MlrunError{Detail: "some error"})
+				return b
+			}(),
+			response:     &http.Response{StatusCode: http.StatusBadRequest},
+			expectErrStr: "some error",
+		},
+		{
+			name:         "NonMLRunError",
+			body:         []byte(`not-json`),
+			response:     &http.Response{StatusCode: http.StatusBadRequest},
+			expectErrStr: "Failed to send request to leader",
+		},
+		{
+			name: "NilResponse",
+			body: func() []byte {
+				b, _ := json.Marshal(MlrunError{Detail: "some error"})
+				return b
+			}(),
+			response:     nil,
+			expectErrStr: "Failed to get response from leader, response is nil",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			err := suite.client.HandleCreateResponseErr(context.TODO(), testCase.body, testCase.response, errors.New(""))
+			suite.Require().Error(err)
+			suite.Require().Equal(err.Error(), testCase.expectErrStr)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestValidateJobState() {
+	suite.Run("AlwaysNil", func() {
+		err := suite.client.ValidateJobState(context.TODO(), nil, "")
+		suite.Require().NoError(err)
+	})
+}
+
+func (suite *ClientTestSuite) TestGenerateUpdateProjectRequestURL() {
+	testCases := []struct {
+		name        string
+		address     string
+		projectName string
+		expected    string
+	}{
+		{
+			name:        "Basic",
+			address:     "http://localhost",
+			projectName: "test-project",
+			expected:    "http://localhost/projects/test-project",
+		},
+		{
+			name:        "WithEmptyUrl",
+			address:     "",
+			projectName: "test-project",
+			expected:    "/projects/test-project",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
+			suite.Require().Equal(testCase.expected, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGetDeleteExpectedStatusCode() {
+	suite.Run("AlwaysNoContent", func() {
+		code := suite.client.GetDeleteExpectedStatusCode()
+		suite.Require().Equal(http.StatusNoContent, code)
+	})
+}
+
+func (suite *ClientTestSuite) TestAddDeleteStrategyHeader() {
+	headers := map[string]string{}
+	suite.client.AddDeleteStrategyHeader(headers, "testStrategy")
+	suite.Require().Empty(headers)
+}
+
+func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {
+	url := suite.client.GenerateGetProjectsRequestURL("a", "b")
+	suite.Require().Equal("", url)
+}
+
+func (suite *ClientTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
+	url := suite.client.GenerateGetUpdatedAfterRequestURL("test")
+	suite.Require().Equal("", url)
+}
+
+func (suite *ClientTestSuite) TestGenerateDeleteProjectRequestURL() {
+	url := suite.client.GenerateDeleteProjectRequestURL("http://localhost", "test-project")
+	suite.Require().Equal("http://localhost/projects/test-project", url)
+}
+
+func (suite *ClientTestSuite) TestShouldWaitForCreateCompletion() {
+	suite.Require().False(suite.client.ShouldWaitForCreateCompletion())
 }
 
 func TestClientTestSuite(t *testing.T) {

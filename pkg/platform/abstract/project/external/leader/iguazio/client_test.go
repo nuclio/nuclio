@@ -24,17 +24,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	detailedResponseTestCase  = "DetailedResponse"
+	createOkJobFailedTestCase = "CreateOkJobFailed"
 )
 
 type ClientTestSuite struct {
@@ -51,377 +53,525 @@ func (suite *ClientTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	// mock internal client
-	suite.client, err = NewClient(suite.logger, &platformconfig.Config{
-		ProjectsLeader: &platformconfig.ProjectsLeader{
-			APIAddress: "somewhere.com",
-		},
-	})
-	suite.Require().NoError(err)
+	suite.client = NewClient(suite.logger)
 }
 
-func (suite *ClientTestSuite) TestCreate() {
-
-	for _, testCase := range []struct {
-		name                         string
-		createProjectResponse        *http.Response
-		getProjectCreationJobResults *http.Response
-		expectedFailure              bool
+func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
+	testCases := []struct {
+		name        string
+		project     *platform.ProjectConfig
+		expectError bool
 	}{
 		{
-			name: "create-ok-job-success",
-			createProjectResponse: &http.Response{
-				StatusCode: http.StatusCreated,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "data": {
-        "type": "project",
-        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
-        "attributes": {
-            "name": "some-dummy-project",
-            "description": "an example project",
-            "created_at": "2021-08-23T19:39:50.522000+00:00",
-            "updated_at": "2021-08-23T19:39:50.608000+00:00",
-            "admin_status": "online",
-            "operational_status": "creating",
-            "labels": [],
-            "annotations": []
-        },
-        "relationships": {
-            "owner": {
-                "data": {
-                    "type": "user",
-                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
-                }
-            },
-            "tenant": {
-                "data": {
-                    "type": "tenant",
-                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
-                }
-            },
-            "project_group": {
-                "data": {
-                    "type": "project_group",
-                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
-                }
-            },
-            "last_job": {
-                "data": {
-                    "type": "job",
-                    "id": "some-job-id"
-                }
-            }
-        }
-    },
-    "included": [],
-    "meta": {
-        "ctx": "13756324163199886387"
-    }
-}`)),
-			},
-			getProjectCreationJobResults: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "data": {
-        "type": "job",
-        "id": "4f4c834d-7cb5-4244-8ec4-8e21e88f4bc4",
-        "attributes": {
-            "kind": "project.creation",
-            "state": "completed",
-            "result": "",
-            "created_at": "2021-08-23T18:55:35.363000+00:00",
-            "updated_at": "2021-08-23T18:55:45.628000+00:00",
-            "handler": "igz0.project.0"
-        }
-    },
-    "included": [],
-    "meta": {
-        "ctx": "09337526008427605089"
-    }
-}`)),
+			name: "ValidProject",
+			project: &platform.ProjectConfig{
+				Meta: platform.ProjectMeta{Name: "test"},
 			},
 		},
 		{
-			name:            "create-failed",
-			expectedFailure: true,
-			createProjectResponse: &http.Response{
-				StatusCode: http.StatusBadRequest,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "errors": [
-		{ "status": 400, "detail": "Failed to get user id for username" }
-    ],
-    "meta": {
-        "ctx": "12391980595089803596"
-    }
-}`)),
-			},
+			name:        "NilProject",
+			project:     nil,
+			expectError: true,
 		},
-		{
-			name: "create-ok-job-failed",
-			createProjectResponse: &http.Response{
-				StatusCode: http.StatusCreated,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "data": {
-        "type": "project",
-        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
-        "attributes": {
-            "name": "some-dummy-project",
-            "description": "an example project",
-            "created_at": "2021-08-23T19:39:50.522000+00:00",
-            "updated_at": "2021-08-23T19:39:50.608000+00:00",
-            "admin_status": "online",
-            "operational_status": "creating",
-            "labels": [],
-            "annotations": []
-        },
-        "relationships": {
-            "owner": {
-                "data": {
-                    "type": "user",
-                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
-                }
-            },
-            "tenant": {
-                "data": {
-                    "type": "tenant",
-                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
-                }
-            },
-            "project_group": {
-                "data": {
-                    "type": "project_group",
-                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
-                }
-            },
-            "last_job": {
-                "data": {
-                    "type": "job",
-                    "id": "some-job-id"
-                }
-            }
-        }
-    },
-    "included": [],
-    "meta": {
-        "ctx": "13756324163199886387"
-    }
-}`)),
-			},
-			getProjectCreationJobResults: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "data": {
-        "type": "job",
-        "id": "5e1db3b8-5870-4475-96c7-f858a3e1b198",
-        "attributes": {
-            "kind": "project.creation",
-            "delay": 0.0,
-            "state": "failed",
-            "result": "{\"project_id\": \"e5d6c635-6a84-4cd8-b779-2d53884c8186\", \"status\": 400, \"message\": \"blablabla\"}",
-            "created_at": "2021-08-23T18:56:31.346000+00:00",
-            "updated_at": "2021-08-23T18:56:56.717000+00:00",
-            "handler": "igz0.project.0"
-        }
-    },
-    "included": [],
-    "meta": {
-        "ctx": "11002224568351879094"
-    }
-}`)),
-			},
-			expectedFailure: true,
-		},
-		{
-			name: "create-ok-job-failed-b",
-			createProjectResponse: &http.Response{
-				StatusCode: http.StatusCreated,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "data": {
-        "type": "project",
-        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
-        "attributes": {
-            "name": "some-dummy-project",
-            "description": "an example project",
-            "created_at": "2021-08-23T19:39:50.522000+00:00",
-            "updated_at": "2021-08-23T19:39:50.608000+00:00",
-            "admin_status": "online",
-            "operational_status": "creating",
-            "labels": [],
-            "annotations": []
-        },
-        "relationships": {
-            "owner": {
-                "data": {
-                    "type": "user",
-                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
-                }
-            },
-            "tenant": {
-                "data": {
-                    "type": "tenant",
-                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
-                }
-            },
-            "project_group": {
-                "data": {
-                    "type": "project_group",
-                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
-                }
-            },
-            "last_job": {
-                "data": {
-                    "type": "job",
-                    "id": "some-job-id"
-                }
-            }
-        }
-    },
-    "included": [],
-    "meta": {
-        "ctx": "13756324163199886387"
-    }
-}`)),
-			},
-			getProjectCreationJobResults: &http.Response{
-				StatusCode: http.StatusOK,
-				Body: io.NopCloser(bytes.NewBufferString(`{
-    "data": {
-        "type": "job",
-        "id": "5e1db3b8-5870-4475-96c7-f858a3e1b198",
-        "attributes": {
-			"kind":"project.creation",
-			"state":"failed",
-			"result":"{\"project_id\": \"72b28f22-f212-4001-b344-168ff3493989\", \"status\": null, \"message\": \"Failed to execute command by the given deadline. Last Exception: Job in progress. State: in_progress\"}"},
-			"jobID":"a726f5d0-4d92-476e-afd7-51be8ee629ab"
-    },
-    "included": [],
-    "meta": {
-        "ctx": "11002224568351879094"
-    }
-}`)),
-			},
-			expectedFailure: true,
-		},
-	} {
+	}
+
+	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
-
-				// post to create the project
-				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.String(), "/projects") {
-					return testCase.createProjectResponse
-				}
-
-				if r.Method == http.MethodGet && strings.HasSuffix(r.URL.String(), "/jobs/some-job-id") {
-					return testCase.getProjectCreationJobResults
-				}
-
-				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
-			})
-
-			err := suite.client.Create(context.TODO(),
-				&platform.CreateProjectOptions{
-					ProjectConfig: &platform.ProjectConfig{
-						Meta: platform.ProjectMeta{
-							Name: "dummy-project",
-						},
-					},
-					WaitForCreateCompletion: true,
-				})
-			if testCase.expectedFailure {
+			result, err := suite.client.GenerateProjectRequestBody(testCase.project)
+			if testCase.expectError {
 				suite.Require().Error(err)
-				return
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(result)
 			}
-			suite.Require().NoError(err)
 		})
-
 	}
 }
 
-func (suite *ClientTestSuite) TestGetUpdatedAfter() {
-	zeroUpdatedAfterTime := time.Time{}
-	nowUpdatedAfterTime := time.Now()
-	for _, testCase := range []struct {
-		name             string
-		updatedAfterTime *time.Time
-		response         func(*http.Request) *http.Response
+func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
+	testCases := []struct {
+		name        string
+		projectName string
 	}{
 		{
-			name:             "sanity",
-			updatedAfterTime: &nowUpdatedAfterTime,
-			response: func(r *http.Request) *http.Response {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       suite.mockIgzAPIGetProject(false),
-				}
-			},
+			name:        "ValidProjectName",
+			projectName: "my-project",
 		},
-		{
-			name:             "retryOnError",
-			updatedAfterTime: &zeroUpdatedAfterTime,
-			response: func(r *http.Request) *http.Response {
-				if strings.Contains(r.URL.RawQuery, "0001-01-01T00:00:00Z") {
-					suite.FailNow("updated_after should not be zero")
-				} else if strings.Contains(r.URL.RawQuery, "1970-01-01T00:00:00Z") {
-					return &http.Response{
-						StatusCode: http.StatusInternalServerError,
-						Body:       io.NopCloser(bytes.NewBufferString("")),
-					}
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       suite.mockIgzAPIGetProject(false),
-				}
-			},
-		},
-	} {
+	}
+
+	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
-				suite.Require().LessOrEqual(strings.Count(r.URL.RawQuery, "updated_at"), 1)
-				return testCase.response(r)
-			})
-			projects, err := suite.client.GetUpdatedAfter(context.TODO(), testCase.updatedAfterTime)
+			result, err := suite.client.GenerateProjectDeletionRequestBody(testCase.projectName)
 			suite.Require().NoError(err)
-			suite.Require().Len(projects, 1)
-			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")
+			suite.Require().NotNil(result)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestGet() {
-	for _, testCase := range []struct {
-		name   string
-		detail bool
+func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
+	testCases := []struct {
+		name        string
+		body        []byte
+		expectError bool
 	}{
 		{
-			name:   "detail",
+			name: "ValidResponse",
+			body: []byte(`{"data":{"type":"project","id":"id","attributes":{"name":"test"}},"meta":{"ctx":"ctx"}}`),
+		},
+		{
+			name:        "InvalidResponse",
+			body:        []byte(`not-json`),
+			expectError: true,
+		},
+		{
+			name: "DetailedResponse",
+			body: suite.mockIgzAPIResponseBody(detailedResponseTestCase),
+		},
+		{
+			name: "BadResponse",
+			body: []byte(`{
+    		"errors": [
+				{ "status": 400, "detail": "Failed to get user id for username" }
+    		],
+			"meta": {
+        		"ctx": "1234567890"
+    			}
+			}`),
+		},
+		{
+			name: "CreateOkJobFailed",
+			body: suite.mockIgzAPIResponseBody(createOkJobFailedTestCase),
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			resp, err := suite.client.ResolveCreateProjectResponse(context.TODO(), testCase.body)
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Require().Nil(resp)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(resp)
+			}
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
+	testCases := []struct {
+		name       string
+		detail     bool
+		body       []byte
+		shouldFail bool
+	}{
+		{
+			name:   "DetailTrue",
 			detail: true,
 		},
 		{
-			name:   "list",
+			name:   "DetailFalse",
 			detail: false,
 		},
-	} {
+		{
+			name:       "InvalidBody",
+			detail:     false,
+			body:       []byte(`not-json`),
+			shouldFail: true,
+		},
+	}
+
+	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       suite.mockIgzAPIGetProject(testCase.detail),
-				}
-			})
-
-			getProjectOptions := &platform.GetProjectsOptions{}
-			if testCase.detail {
-				getProjectOptions.Meta = platform.ProjectMeta{
-					Name: "some-project",
-				}
+			body := testCase.body
+			if body == nil {
+				var err error
+				body, err = io.ReadAll(suite.mockIgzAPIGetProject(testCase.detail))
+				suite.Require().NoError(err)
 			}
-			projects, err := suite.client.Get(context.TODO(), getProjectOptions)
-			suite.Require().NoError(err)
-			suite.Require().Len(projects, 1)
-			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")
 
+			projects, err := suite.client.ResolveGetProjectResponse(testCase.detail, body)
+			if testCase.shouldFail {
+				suite.Require().Error(err)
+				suite.Require().Nil(projects)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().NotNil(projects)
+			}
 		})
 	}
+}
+
+func (suite *ClientTestSuite) TestParseJobStatusResponse() {
+	testCases := []struct {
+		name        string
+		body        []byte
+		expectValid bool
+	}{
+		{
+			name:        "ValidJob",
+			body:        []byte(`{"data":{"attributes":{"state":"completed"}},"meta":{"ctx":"ctx"}}`),
+			expectValid: true,
+		},
+		{
+			name:        "InvalidJob",
+			body:        []byte(`not-json`),
+			expectValid: false,
+		},
+		{
+			name:        "InternalServerErrorJob",
+			body:        []byte(""),
+			expectValid: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			job, valid := suite.client.ParseJobStatusResponse(context.TODO(), testCase.body)
+			if testCase.expectValid {
+				suite.Require().NotNil(job)
+				suite.Require().True(valid)
+			} else {
+				suite.Require().Nil(job)
+				suite.Require().False(valid)
+			}
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGenerateCreateProjectRequestURL() {
+	testCases := []struct {
+		name     string
+		address  string
+		expected string
+	}{
+		{
+			name:     "Basic",
+			address:  "http://localhost",
+			expected: "http://localhost/projects",
+		},
+		{
+			name:     "WithTrailingSlash",
+			address:  "http://localhost/",
+			expected: "http://localhost//projects",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GenerateCreateProjectRequestURL(testCase.address)
+			suite.Require().Equal(testCase.expected, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestHandleCreateResponseErr() {
+	testCases := []struct {
+		name         string
+		body         []byte
+		expectErrStr string
+	}{
+		{
+			name:         "WithErrorResponse",
+			body:         suite.mockIgzAPIResponseBody(detailedResponseTestCase),
+			expectErrStr: "Failed to send request to leader",
+		},
+		{
+			name:         "WithNoErrorResponse",
+			body:         []byte(`not-json`),
+			expectErrStr: "Failed to send request to leader",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			err := suite.client.HandleCreateResponseErr(context.TODO(), testCase.body, nil, fmt.Errorf("fail"))
+			suite.Require().Error(err)
+			suite.Require().Equal(err.Error(), testCase.expectErrStr)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGetJobIdUrl() {
+	testCases := []struct {
+		name    string
+		address string
+		jobID   string
+		expect  string
+	}{
+		{
+			name:    "Basic",
+			address: "http://localhost",
+			jobID:   "job123",
+			expect:  "http://localhost/jobs/job123",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GetJobIdUrl(testCase.address, testCase.jobID)
+			suite.Require().Equal(testCase.expect, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestValidateJobState() {
+	testCases := []struct {
+		name      string
+		job       leaderCommon.JobResponse
+		expectErr bool
+	}{
+		{
+			name:      "NilJob",
+			job:       nil,
+			expectErr: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			err := suite.client.ValidateJobState(context.TODO(), testCase.job, "test-project")
+			if testCase.expectErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGenerateUpdateProjectRequestURL() {
+	testCases := []struct {
+		name        string
+		address     string
+		projectName string
+		expected    string
+	}{
+		{
+			name:        "Basic",
+			address:     "http://localhost",
+			projectName: "proj1",
+			expected:    "http://localhost/projects/__name__/proj1",
+		},
+		{
+			name:        "WithTrailingSlash",
+			address:     "http://localhost/",
+			projectName: "proj2",
+			expected:    "http://localhost//projects/__name__/proj2",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
+			suite.Require().Equal(testCase.expected, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGetDeleteExpectedStatusCode() {
+	suite.Run("AlwaysAccepted", func() {
+		code := suite.client.GetDeleteExpectedStatusCode()
+		suite.Require().Equal(http.StatusAccepted, code)
+	})
+}
+
+func (suite *ClientTestSuite) TestAddDeleteStrategyHeader() {
+	testCases := []struct {
+		name     string
+		strategy platform.DeleteProjectStrategy
+	}{
+		{
+			name:     "DefaultStrategy",
+			strategy: platform.DeleteProjectStrategyCascading,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			headers := map[string]string{}
+			suite.client.AddDeleteStrategyHeader(headers, testCase.strategy)
+			suite.Require().Equal(string(testCase.strategy), headers["igz-project-deletion-strategy"])
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {
+	testCases := []struct {
+		name        string
+		address     string
+		projectName string
+		expected    string
+	}{
+		{
+			name:        "WithProjectName",
+			address:     "http://localhost",
+			projectName: "proj1",
+			expected:    "http://localhost/projects/__name__/proj1?include=owner&enrich_namespace=true",
+		},
+		{
+			name:        "WithoutProjectName",
+			address:     "http://localhost",
+			projectName: "",
+			expected:    "http://localhost/projects?include=owner&enrich_namespace=true",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GenerateGetProjectsRequestURL(testCase.address, testCase.projectName)
+			suite.Require().Equal(testCase.expected, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
+	testCases := []struct {
+		name    string
+		address string
+		expect  string
+	}{
+		{
+			name:    "Basic",
+			address: "http://localhost",
+			expect:  "http://localhost/projects?include=owner&enrich_namespace=true",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GenerateGetUpdatedAfterRequestURL(testCase.address)
+			suite.Require().Equal(testCase.expect, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestGenerateDeleteProjectRequestURL() {
+	testCases := []struct {
+		name    string
+		address string
+		expect  string
+	}{
+		{
+			name:    "Basic",
+			address: "http://localhost",
+			expect:  "http://localhost/projects",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			url := suite.client.GenerateDeleteProjectRequestURL(testCase.address, "")
+			suite.Require().Equal(testCase.expect, url)
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestShouldWaitForCreateCompletion() {
+	suite.Run("AlwaysTrue", func() {
+		suite.Require().True(suite.client.ShouldWaitForCreateCompletion())
+	})
+}
+
+func (suite *ClientTestSuite) mockIgzAPIResponseBody(testCase string) []byte {
+	var rawData *bytes.Buffer
+	switch testCase {
+	case detailedResponseTestCase:
+		rawData = bytes.NewBufferString(`{
+    "data": {
+        "type": "project",
+        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
+        "attributes": {
+            "name": "some-dummy-project",
+            "description": "an example project",
+            "created_at": "2021-08-23T19:39:50.522000+00:00",
+            "updated_at": "2021-08-23T19:39:50.608000+00:00",
+            "admin_status": "online",
+            "operational_status": "creating",
+            "labels": [],
+            "annotations": []
+        },
+        "relationships": {
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
+                }
+            },
+            "project_group": {
+                "data": {
+                    "type": "project_group",
+                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
+                }
+            },
+            "last_job": {
+                "data": {
+                    "type": "job",
+                    "id": "some-job-id"
+                }
+            }
+        }
+    },
+    "included": [],
+    "meta": {
+        "ctx": "13756324163199886387"
+    }
+	}`)
+	case createOkJobFailedTestCase:
+		rawData = bytes.NewBufferString(`{
+    "data": {
+        "type": "project",
+        "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
+        "attributes": {
+            "name": "some-dummy-project",
+            "description": "an example project",
+            "created_at": "2021-08-23T19:39:50.522000+00:00",
+            "updated_at": "2021-08-23T19:39:50.608000+00:00",
+            "admin_status": "online",
+            "operational_status": "creating",
+            "labels": [],
+            "annotations": []
+        },
+        "relationships": {
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "4274ecab-633a-4e99-8533-5df2e59bb358"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "b7c663b1-a8ee-49a9-ad62-ceae7e751ec8"
+                }
+            },
+            "project_group": {
+                "data": {
+                    "type": "project_group",
+                    "id": "33c160ff-86e8-4152-9456-faa751592bc0"
+                }
+            },
+            "last_job": {
+                "data": {
+                    "type": "job",
+                    "id": "some-job-id"
+                }
+            }
+        }
+    },
+    "included": [],
+    "meta": {
+        "ctx": "13756324163199886387"
+    }
+	}`)
+	}
+	return rawData.Bytes()
 }
 
 func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {

@@ -49,17 +49,17 @@ type JobResponseMock struct {
 	mock.Mock
 }
 
-func (j *JobResponseMock)GetState() leaderCommon.JobState{
+func (j *JobResponseMock) GetState() leaderCommon.JobState {
 	args := j.Called()
 	return leaderCommon.JobState(args.String(0))
 }
 
-func (j *JobResponseMock) GetResult() string{
+func (j *JobResponseMock) GetResult() string {
 	args := j.Called()
 	return args.String(0)
 }
 
-func (j *JobResponseMock) GetJobCreationCtx() string{
+func (j *JobResponseMock) GetJobCreationCtx() string {
 	args := j.Called()
 	return args.String(0)
 }
