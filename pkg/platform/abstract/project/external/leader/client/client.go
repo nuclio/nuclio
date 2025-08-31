@@ -88,7 +88,7 @@ func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProject
 		cookies,
 		http.StatusOK)
 	if err != nil {
-		c.logLeaderInternalServerResponseError(ctx, response, "Failed to get project from leader")
+		c.logLeaderResponseError(ctx, response, "Failed to get project from leader")
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
 	return c.leader.ResolveGetProjectResponse(getSingleProject, responseBody)
@@ -118,7 +118,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 		cookies,
 		http.StatusCreated)
 	if err != nil {
-		c.logLeaderInternalServerResponseError(ctx, response, "Failed to create project on leader")
+		c.logLeaderResponseError(ctx, response, "Failed to create project on leader")
 		return c.leader.HandleCreateResponseErr(ctx, responseBody, response, err)
 	}
 
@@ -164,7 +164,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 		cookies,
 		http.StatusOK)
 	if err != nil {
-		c.logLeaderInternalServerResponseError(ctx, response, "Failed to update project on leader")
+		c.logLeaderResponseError(ctx, response, "Failed to update project on leader")
 		return errors.Wrap(err, "Failed to send update project request to leader")
 	}
 
@@ -201,7 +201,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 		requestHeaders,
 		cookies,
 		c.leader.GetDeleteExpectedStatusCode()); err != nil {
-		c.logLeaderInternalServerResponseError(ctx, response, "Failed to delete project on leader")
+		c.logLeaderResponseError(ctx, response, "Failed to delete project on leader")
 		return errors.Wrap(err, "Failed to send delete project request to leader")
 	}
 
@@ -233,7 +233,7 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 	return c.leader.ResolveGetProjectResponse(false, responseBody)
 }
 
-func (c *Client) logLeaderInternalServerResponseError(ctx context.Context,
+func (c *Client) logLeaderResponseError(ctx context.Context,
 	response *http.Response,
 	errMessage string) {
 	if response == nil {
@@ -246,7 +246,14 @@ func (c *Client) logLeaderInternalServerResponseError(ctx context.Context,
 			"statusCode", response.StatusCode,
 			"response", response,
 		)
+		return
 	}
+
+	c.logger.DebugWithCtx(ctx,
+		errMessage,
+		"statusCode", response.StatusCode,
+		"response", response,
+	)
 }
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {
@@ -295,7 +302,7 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 				[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
 				http.StatusOK)
 			if err != nil {
-				c.logLeaderInternalServerResponseError(ctx, response, "Failed to get job status")
+				c.logLeaderResponseError(ctx, response, "Failed to get job status")
 				c.logger.DebugWithCtx(ctx,
 					"Failed to get job state",
 					"responseBody", string(responseBody))
@@ -332,7 +339,7 @@ func (c *Client) getUpdatedAfter(ctx context.Context,
 		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
 		http.StatusOK)
 	if err != nil {
-		c.logLeaderInternalServerResponseError(ctx, response, "Failed to get updated after from leader")
+		c.logLeaderResponseError(ctx, response, "Failed to get updated after from leader")
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
 	return responseBody, nil
