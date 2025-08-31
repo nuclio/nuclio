@@ -276,10 +276,9 @@ func (suite *ClientTestSuite) TestGetDeleteExpectedStatusCode() {
 	})
 }
 
-func (suite *ClientTestSuite) TestAddDeleteStrategyHeader() {
-	headers := map[string]string{}
-	suite.client.AddDeleteStrategyHeader(headers, "testStrategy")
-	suite.Require().Empty(headers)
+func (suite *ClientTestSuite) TestGetDeleteStrategyHeaderName() {
+	header := suite.client.GetDeleteStrategyHeaderName()
+	suite.Require().Equal(header, "x-mlrun-deletion-strategy")
 }
 
 func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {

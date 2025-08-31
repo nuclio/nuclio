@@ -376,24 +376,9 @@ func (suite *ClientTestSuite) TestGetDeleteExpectedStatusCode() {
 	})
 }
 
-func (suite *ClientTestSuite) TestAddDeleteStrategyHeader() {
-	testCases := []struct {
-		name     string
-		strategy platform.DeleteProjectStrategy
-	}{
-		{
-			name:     "DefaultStrategy",
-			strategy: platform.DeleteProjectStrategyCascading,
-		},
-	}
-
-	for _, testCase := range testCases {
-		suite.Run(testCase.name, func() {
-			headers := map[string]string{}
-			suite.client.AddDeleteStrategyHeader(headers, testCase.strategy)
-			suite.Require().Equal(string(testCase.strategy), headers["igz-project-deletion-strategy"])
-		})
-	}
+func (suite *ClientTestSuite) TestGetDeleteStrategyHeaderName() {
+	header := suite.client.GetDeleteStrategyHeaderName()
+	suite.Require().Equal(header, "igz-project-deletion-strategy")
 }
 
 func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {

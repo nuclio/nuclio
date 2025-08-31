@@ -709,7 +709,7 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 	case deleteTestSuite:
 		newClient.On("GenerateDeleteProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
 		newClient.On("GenerateProjectDeletionRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
-		newClient.On("AddDeleteStrategyHeader", mock.Anything, mock.Anything).Return()
+		newClient.On("GetDeleteStrategyHeaderName", mock.Anything, mock.Anything).Return("test-header")
 		newClient.On("GetDeleteExpectedStatusCode").Return(statusCode)
 	}
 

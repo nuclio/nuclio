@@ -118,7 +118,9 @@ func (c *Client) GetDeleteExpectedStatusCode() int {
 	return http.StatusNoContent
 }
 
-func (c *Client) AddDeleteStrategyHeader(_ map[string]string, _ platform.DeleteProjectStrategy) {}
+func (c *Client) GetDeleteStrategyHeaderName() string {
+	return "x-mlrun-deletion-strategy"
+}
 
 func (c *Client) GenerateGetProjectsRequestURL(_, _ string) string {
 	return ""

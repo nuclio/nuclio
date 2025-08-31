@@ -183,8 +183,8 @@ func (c *Client) GetDeleteExpectedStatusCode() int {
 	return http.StatusAccepted
 }
 
-func (c *Client) AddDeleteStrategyHeader(headers map[string]string, strategy platform.DeleteProjectStrategy) {
-	headers["igz-project-deletion-strategy"] = string(strategy)
+func (c *Client) GetDeleteStrategyHeaderName() string {
+	return "igz-project-deletion-strategy"
 }
 
 func (c *Client) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {

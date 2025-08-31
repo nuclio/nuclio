@@ -57,7 +57,7 @@ func NewClient(parentLogger logger.Logger,
 	}
 
 	return &Client{
-		logger:              parentLogger.GetChild("project-leader"),
+		logger: parentLogger.GetChild("project-leader"),
 		httpClient: &http.Client{
 			Timeout: defaultRequestTimeout,
 			Transport: &http.Transport{
@@ -181,8 +181,9 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	projectNamespace := deleteProjectOptions.Meta.Namespace
 	requestURL := c.leader.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
 	requestHeaders, cookies := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession, deleteProjectOptions.SessionCookie)
-	c.logger.DebugWith("KAWABANGA", "strategy", deleteProjectOptions.Strategy, "deleteProjectOptions", deleteProjectOptions)
-	c.leader.AddDeleteStrategyHeader(requestHeaders, deleteProjectOptions.Strategy)
+	headerName := c.leader.GetDeleteStrategyHeaderName()
+	requestHeaders[headerName] = string(deleteProjectOptions.Strategy)
+
 	requestBody, err := c.leader.GenerateProjectDeletionRequestBody(projectName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project deletion request body")

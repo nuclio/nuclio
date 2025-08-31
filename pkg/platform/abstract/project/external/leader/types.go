@@ -88,8 +88,8 @@ type ClientOps interface {
 	// GetDeleteExpectedStatusCode returns the expected status code from the http response
 	GetDeleteExpectedStatusCode() int
 
-	// AddDeleteStrategyHeader adds the delete strategy header to the request
-	AddDeleteStrategyHeader(map[string]string, platform.DeleteProjectStrategy)
+	// GetDeleteStrategyHeaderName gets the delete strategy header to the request
+	GetDeleteStrategyHeaderName() string
 
 	// Get operations
 

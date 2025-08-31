@@ -166,8 +166,9 @@ func (c *Client) GetDeleteExpectedStatusCode() int {
 	return args.Int(0)
 }
 
-func (c *Client) AddDeleteStrategyHeader(headers map[string]string, strategy platform.DeleteProjectStrategy) {
-	c.Called(headers, strategy)
+func (c *Client) GetDeleteStrategyHeaderName() string {
+	args := c.Called()
+	return args.String(0)
 }
 
 func (c *Client) GenerateGetProjectsRequestURL(projectName, projectID string) string {
