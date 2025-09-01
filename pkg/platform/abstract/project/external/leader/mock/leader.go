@@ -20,9 +20,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -66,12 +68,12 @@ func (l *Leader) GetJobIdUrl(projectName, jobID string) string {
 	return args.String(0)
 }
 
-func (l *Leader) IsJobTerminated(ctx context.Context, body []byte) (leaderCommon.JobResponse, bool) {
+func (l *Leader) ParseJobStatusResponse(ctx context.Context, body []byte) (leaderCommon.JobResponse, bool) {
 	args := l.Called(ctx, body)
 	return args.Get(0).(leaderCommon.JobResponse), args.Bool(1)
 }
 
-func (l *Leader) ValidateJobState(ctx context.Context, jobResponse leaderCommon.JobResponse, expectedState string) error {
+func (l *Leader) IsJobCompleted(ctx context.Context, jobResponse leaderCommon.JobResponse, expectedState string) error {
 	args := l.Called(ctx, jobResponse, expectedState)
 	// If the return value is a function, call it with the arguments
 	if fn, ok := args.Get(0).(func(context.Context, leaderCommon.JobResponse, string) error); ok {
@@ -81,7 +83,7 @@ func (l *Leader) ValidateJobState(ctx context.Context, jobResponse leaderCommon.
 	if err, ok := args.Get(0).(error); ok {
 		return err
 	}
-	return fmt.Errorf("unexpected return type from ValidateJobState mock: %T", args.Get(0))
+	return fmt.Errorf("unexpected return type from IsJobCompleted mock: %T", args.Get(0))
 }
 
 func (l *Leader) GenerateUpdateProjectRequestURL(projectName, projectID string) string {
@@ -121,5 +123,15 @@ func (l *Leader) ResolveGetProjectResponse(isSingle bool, body []byte) ([]platfo
 
 func (l *Leader) GenerateGetUpdatedAfterRequestURL(updatedAfter string) string {
 	args := l.Called(updatedAfter)
+	return args.String(0)
+}
+
+func (l *Leader) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie {
+	args := l.Called()
+	return args.Get(0).([]*http.Cookie)
+}
+
+func (l *Leader) GetJobRequestFilter(updatedAfterTime *time.Time) string {
+	args := l.Called(updatedAfterTime)
 	return args.String(0)
 }

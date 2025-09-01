@@ -295,6 +295,7 @@ func (c *Client) generateRequestHeadersAndCookies(
 func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName string) error {
 	c.logger.DebugWithCtx(ctx, "Waiting for job completion", "jobID", jobID)
 	var job leader.JobResponse
+	requestCookies := c.leader.GetJobStatusRequestCookies(c.platformConfiguration)
 
 	err := common.RetryUntilSuccessful(time.Minute*5,
 		time.Second*5,
@@ -305,7 +306,7 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 				c.leader.GetJobIdUrl(c.apiAddress, jobID),
 				nil,
 				c.generateCommonRequestHeaders(),
-				[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
+				requestCookies,
 				http.StatusOK)
 			if err != nil {
 				c.logLeaderResponseError(ctx, response, "Failed to get job status")
@@ -316,14 +317,14 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 			}
 
 			var isTerminated bool
-			job, isTerminated = c.leader.IsJobTerminated(ctx, responseBody)
+			job, isTerminated = c.leader.ParseJobStatusResponse(ctx, responseBody)
 			return isTerminated
 		})
 	if err != nil {
 		return errors.Wrap(err, "Exhausting waiting for job completion")
 	}
 
-	return c.leader.ValidateJobState(ctx, job, projectName)
+	return c.leader.IsJobCompleted(ctx, job, projectName)
 }
 
 func (c *Client) getUpdatedAfter(ctx context.Context,
@@ -331,9 +332,9 @@ func (c *Client) getUpdatedAfter(ctx context.Context,
 	requestHeaders map[string]string,
 	updatedAfterTime *time.Time) ([]byte, error) {
 	var requestURLFilterByURL string
+	requestCookies := c.leader.GetJobStatusRequestCookies(c.platformConfiguration)
 	if updatedAfterTime != nil {
-		requestURLFilterByURL = fmt.Sprintf("&filter[updated_at]=[$gt]%s",
-			updatedAfterTime.Format(time.RFC3339Nano))
+		requestURLFilterByURL = c.leader.GetJobRequestFilter(updatedAfterTime)
 	}
 
 	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
@@ -342,7 +343,7 @@ func (c *Client) getUpdatedAfter(ctx context.Context,
 		requestURL+requestURLFilterByURL,
 		nil,
 		requestHeaders,
-		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
+		requestCookies,
 		http.StatusOK)
 	if err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to get updated after from leader")

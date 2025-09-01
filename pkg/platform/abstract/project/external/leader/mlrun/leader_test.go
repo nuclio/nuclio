@@ -160,7 +160,7 @@ func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 }
 
 func (suite *LeaderTestSuite) TestParseJobStatusResponse() {
-	resp, ok := suite.leader.IsJobTerminated(context.TODO(), nil)
+	resp, ok := suite.leader.ParseJobStatusResponse(context.TODO(), nil)
 	suite.Require().Nil(resp)
 	suite.Require().False(ok)
 }
@@ -233,9 +233,9 @@ func (suite *LeaderTestSuite) TestHandleCreateResponseErr() {
 	}
 }
 
-func (suite *LeaderTestSuite) TestValidateJobState() {
+func (suite *LeaderTestSuite) TestIsJobCompleted() {
 	suite.Run("AlwaysNil", func() {
-		err := suite.leader.ValidateJobState(context.TODO(), nil, "")
+		err := suite.leader.IsJobCompleted(context.TODO(), nil, "")
 		suite.Require().NoError(err)
 	})
 }

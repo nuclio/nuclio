@@ -25,9 +25,11 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -227,7 +229,7 @@ func (suite *LeaderTestSuite) TestParseJobStatusResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			job, valid := suite.leader.IsJobTerminated(context.TODO(), testCase.body)
+			job, valid := suite.leader.ParseJobStatusResponse(context.TODO(), testCase.body)
 			if testCase.expectValid {
 				suite.Require().NotNil(job)
 				suite.Require().True(valid)
@@ -315,7 +317,7 @@ func (suite *LeaderTestSuite) TestGetJobIdUrl() {
 	}
 }
 
-func (suite *LeaderTestSuite) TestValidateJobState() {
+func (suite *LeaderTestSuite) TestIsJobCompleted() {
 	testCases := []struct {
 		name      string
 		job       leaderCommon.JobResponse
@@ -330,7 +332,7 @@ func (suite *LeaderTestSuite) TestValidateJobState() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.leader.ValidateJobState(context.TODO(), testCase.job, "test-project")
+			err := suite.leader.IsJobCompleted(context.TODO(), testCase.job, "test-project")
 			if testCase.expectErr {
 				suite.Require().Error(err)
 			} else {
@@ -456,6 +458,60 @@ func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {
 	suite.Run("AlwaysTrue", func() {
 		suite.Require().True(suite.leader.ShouldWaitForCreateCompletion())
 	})
+}
+
+func (suite *LeaderTestSuite) TestGetJobStatusRequestCookies() {
+	testCases := []struct {
+		name           string
+		config         *platformconfig.Config
+		expectedResult string
+		shouldBeEmpty  bool
+	}{
+		{
+			name: "Basic",
+			config: &platformconfig.Config{
+				IguazioSessionCookie: "session",
+			},
+			expectedResult: "session",
+		}, {
+			name:          "NoSessionCookie",
+			config:        &platformconfig.Config{},
+			shouldBeEmpty: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			cookie := suite.leader.GetJobStatusRequestCookies(testCase.config)
+			if testCase.shouldBeEmpty {
+				suite.Require().Empty(cookie)
+			} else {
+				suite.Require().NotEmpty(cookie)
+				suite.Require().Equal(testCase.expectedResult, cookie[0].Value)
+			}
+		})
+	}
+}
+
+func (suite *LeaderTestSuite) TestGetJobRequestFilter() {
+	testCases := []struct {
+		name           string
+		time           *time.Time
+		expectedResult string
+	}{
+		{
+			name:           "Basic",
+			time:           func() *time.Time { t := time.Date(2025, 9, 1, 12, 0, 0, 0, time.UTC); return &t }(),
+			expectedResult: "&filter[updated_at]=[$gt]2025-09-01T12:00:00Z",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			result := suite.leader.GetJobRequestFilter(testCase.time)
+			suite.Require().Equal(testCase.expectedResult, result)
+		})
+	}
 }
 
 func (suite *LeaderTestSuite) mockIgzAPIResponseBody(testCase string) []byte {

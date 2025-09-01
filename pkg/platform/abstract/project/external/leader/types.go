@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 )
 
 type Client interface {
@@ -66,11 +67,17 @@ type LeaderOps interface {
 	// GetJobIdUrl generates the URL to get job status
 	GetJobIdUrl(string, string) string
 
-	// IsJobTerminated parses the job status response and returns whether the job and if it is terminated
-	IsJobTerminated(context.Context, []byte) (JobResponse, bool)
+	// ParseJobStatusResponse parses the job status response and returns whether the job and if it is terminated
+	ParseJobStatusResponse(context.Context, []byte) (JobResponse, bool)
 
-	// ValidateJobState validates the job state
-	ValidateJobState(context.Context, JobResponse, string) error
+	// IsJobCompleted validates the job state
+	IsJobCompleted(context.Context, JobResponse, string) error
+
+	// GetJobStatusRequestCookies returns any cookies needed for the job status request
+	GetJobStatusRequestCookies(*platformconfig.Config) []*http.Cookie
+
+	// GetJobRequestFilter returns any filter needed for the job status request URL
+	GetJobRequestFilter(*time.Time) string
 
 	// Update operations
 

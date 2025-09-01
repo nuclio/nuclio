@@ -674,13 +674,13 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 		} else {
 			testJobResponse.On("GetState").Return(string(leader.JobStateCompleted))
 		}
-		newClient.On("IsJobTerminated", mock.Anything, mock.Anything).Return(&testJobResponse, true)
+		newClient.On("ParseJobStatusResponse", mock.Anything, mock.Anything).Return(&testJobResponse, true)
 		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
 		newClient.On("GenerateCreateProjectRequestURL", mock.Anything).Return("test-url" + projectSuffix)
 		newClient.On("ResolveCreateProjectResponse", mock.Anything, mock.Anything).Return(mockClient.CreateProjectResponseMock{}, nil)
 		newClient.On("ShouldWaitForCreateCompletion").Return(true)
 		newClient.On("GetJobIdUrl", mock.Anything, mock.Anything).Return("test-url" + getCreateProjectSuffix)
-		newClient.On("ValidateJobState", mock.Anything, mock.Anything, mock.Anything).
+		newClient.On("IsJobCompleted", mock.Anything, mock.Anything, mock.Anything).
 			Return(func(_ context.Context, jobResponse leader.JobResponse, _ string) error {
 				if jobResponse.GetState() != leader.JobStateCompleted {
 					return fmt.Errorf("job failed: expected state %s", jobResponse.GetState())
@@ -688,6 +688,7 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 				return nil
 			})
 		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Failed to send request to leader"))
+		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
 	case getTestSuite:
 		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
 		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
@@ -695,6 +696,8 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
 		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
 		newClient.On("GenerateGetUpdatedAfterRequestURL", mock.Anything).Return("some-url")
+		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
+		newClient.On("GetJobRequestFilter", mock.Anything).Return("")
 	case updateTestSuite:
 		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
 		newClient.On("GenerateUpdateProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)

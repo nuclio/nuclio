@@ -21,9 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	leadercommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -90,7 +92,7 @@ func (l *Leader) ResolveGetProjectResponse(detail bool, body []byte) ([]platform
 	return projectStructure.ToSingleProjectList(), nil
 }
 
-func (l *Leader) IsJobTerminated(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
+func (l *Leader) ParseJobStatusResponse(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
 	var job JobDetailResponse
 	if err := json.Unmarshal(responseBody, &job); err != nil {
 		l.logger.DebugWithCtx(ctx, "Failed to unmarshal response body",
@@ -140,7 +142,7 @@ func (l *Leader) GetJobIdUrl(apiAddress, jobID string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "jobs", jobID)
 }
 
-func (l *Leader) ValidateJobState(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
+func (l *Leader) IsJobCompleted(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
 	if job == nil {
 		return errors.New("JobResponse is nil")
 	}
@@ -209,6 +211,18 @@ func (l *Leader) GenerateDeleteProjectRequestURL(apiAddress string, _ string) st
 }
 
 func (l *Leader) ShouldWaitForCreateCompletion() bool { return true }
+
+func (l *Leader) GetJobStatusRequestCookies(config *platformconfig.Config) []*http.Cookie {
+	var cookies []*http.Cookie
+	if config.IguazioSessionCookie != "" {
+		cookies = []*http.Cookie{{Name: "session", Value: config.IguazioSessionCookie}}
+	}
+	return cookies
+}
+
+func (l *Leader) GetJobRequestFilter(updatedAfterTime *time.Time) string {
+	return fmt.Sprintf("&filter[updated_at]=[$gt]%s", updatedAfterTime.Format(time.RFC3339Nano))
+}
 
 func (l *Leader) projectRequestURL(apiAddress string) string {
 	return fmt.Sprintf("%s/%s", apiAddress, "projects")

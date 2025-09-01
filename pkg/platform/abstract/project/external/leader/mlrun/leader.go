@@ -21,9 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -73,7 +75,7 @@ func (l *Leader) ResolveGetProjectResponse(_ bool, _ []byte) ([]platform.Project
 	return nil, nuclio.ErrNotImplemented
 }
 
-func (l *Leader) IsJobTerminated(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
+func (l *Leader) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
 	// MLRun does not have async job handling, so this is a placeholder
 	return nil, false
 }
@@ -105,7 +107,7 @@ func (l *Leader) GetJobIdUrl(_, _ string) string {
 	return ""
 }
 
-func (l *Leader) ValidateJobState(_ context.Context, _ leaderCommon.JobResponse, _ string) error {
+func (l *Leader) IsJobCompleted(_ context.Context, _ leaderCommon.JobResponse, _ string) error {
 	// MLRun does not have async job handling, so this is a placeholder
 	return nil
 }
@@ -135,6 +137,10 @@ func (l *Leader) GenerateDeleteProjectRequestURL(apiAddress, projectName string)
 }
 
 func (l *Leader) ShouldWaitForCreateCompletion() bool { return false }
+
+func (l *Leader) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie { return nil }
+
+func (l *Leader) GetJobRequestFilter(_ *time.Time) string { return "" }
 
 func (l *Leader) projectRequestURL(apiAddress, projectName string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects", projectName)
