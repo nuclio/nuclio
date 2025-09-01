@@ -42,7 +42,7 @@ type Client interface {
 	GetUpdatedAfter(context.Context, *time.Time) ([]platform.Project, error)
 }
 
-type ClientOps interface {
+type LeaderOps interface {
 
 	// Create operations
 

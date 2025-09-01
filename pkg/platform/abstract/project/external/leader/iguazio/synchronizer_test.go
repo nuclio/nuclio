@@ -72,7 +72,7 @@ func (suite *SynchronizerTestSuite) SetupTest() {
 	suite.mockInternalProjectsClient = &internalmock.Client{}
 
 	//mock leader client
-	suite.mockLeaderProjectsClient = &leadermock.Client{}
+	suite.mockLeaderProjectsClient = leadermock.NewClient()
 
 	// create synchronizer
 	suite.synchronizer = Synchronizer{

@@ -32,20 +32,20 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type ClientTestSuite struct {
+type LeaderTestSuite struct {
 	suite.Suite
 	logger logger.Logger
-	client *Client
+	leader *Leader
 }
 
-func (suite *ClientTestSuite) SetupSuite() {
+func (suite *LeaderTestSuite) SetupSuite() {
 	var err error
-	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-client")
+	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-leader")
 	suite.Require().NoError(err)
-	suite.client = NewClient(suite.logger)
+	suite.leader = NewLeader(suite.logger)
 }
 
-func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
+func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
 	tests := []struct {
 		name        string
 		project     *platform.ProjectConfig
@@ -66,7 +66,7 @@ func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
 
 	for _, testCase := range tests {
 		suite.Run(testCase.name, func() {
-			result, err := suite.client.GenerateProjectRequestBody(testCase.project)
+			result, err := suite.leader.GenerateProjectRequestBody(testCase.project)
 			if testCase.expectError {
 				suite.Require().Error(err)
 				suite.Require().Nil(result)
@@ -81,9 +81,9 @@ func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
 	}
 }
 
-func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
+func (suite *LeaderTestSuite) TestGenerateProjectDeletionRequestBody() {
 	suite.Run("ValidProjectName", func() {
-		result, err := suite.client.GenerateProjectDeletionRequestBody("my-project")
+		result, err := suite.leader.GenerateProjectDeletionRequestBody("my-project")
 		suite.Require().NoError(err)
 		var project MLRunProject
 		suite.Require().NoError(json.Unmarshal(result, &project))
@@ -91,7 +91,7 @@ func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
 	})
 }
 
-func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
+func (suite *LeaderTestSuite) TestResolveCreateProjectResponse() {
 	testCases := []struct {
 		name        string
 		body        []byte
@@ -113,7 +113,7 @@ func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			resp, err := suite.client.ResolveCreateProjectResponse(context.TODO(), testCase.body)
+			resp, err := suite.leader.ResolveCreateProjectResponse(context.TODO(), testCase.body)
 			if testCase.expectError {
 				suite.Require().Error(err)
 				suite.Require().Nil(resp)
@@ -129,7 +129,7 @@ func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
 	}
 }
 
-func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
+func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 	testCases := []struct {
 		name   string
 		body   []byte
@@ -153,19 +153,19 @@ func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
 	}
 
 	for _, testCase := range testCases {
-		projects, err := suite.client.ResolveGetProjectResponse(testCase.detail, testCase.body)
+		projects, err := suite.leader.ResolveGetProjectResponse(testCase.detail, testCase.body)
 		suite.Require().Error(err)
 		suite.Require().Nil(projects)
 	}
 }
 
-func (suite *ClientTestSuite) TestParseJobStatusResponse() {
-	resp, ok := suite.client.IsJobTerminated(context.TODO(), nil)
+func (suite *LeaderTestSuite) TestParseJobStatusResponse() {
+	resp, ok := suite.leader.IsJobTerminated(context.TODO(), nil)
 	suite.Require().Nil(resp)
 	suite.Require().False(ok)
 }
 
-func (suite *ClientTestSuite) TestGenerateCreateProjectRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateCreateProjectRequestURL() {
 	testCases := []struct {
 		name     string
 		address  string
@@ -185,13 +185,13 @@ func (suite *ClientTestSuite) TestGenerateCreateProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateCreateProjectRequestURL(testCase.address)
+			url := suite.leader.GenerateCreateProjectRequestURL(testCase.address)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestHandleCreateResponseErr() {
+func (suite *LeaderTestSuite) TestHandleCreateResponseErr() {
 	testCases := []struct {
 		name         string
 		body         []byte
@@ -226,21 +226,21 @@ func (suite *ClientTestSuite) TestHandleCreateResponseErr() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.client.HandleCreateResponseErr(context.TODO(), testCase.body, testCase.response, errors.New(""))
+			err := suite.leader.HandleCreateResponseErr(context.TODO(), testCase.body, testCase.response, errors.New(""))
 			suite.Require().Error(err)
 			suite.Require().Equal(err.Error(), testCase.expectErrStr)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestValidateJobState() {
+func (suite *LeaderTestSuite) TestValidateJobState() {
 	suite.Run("AlwaysNil", func() {
-		err := suite.client.ValidateJobState(context.TODO(), nil, "")
+		err := suite.leader.ValidateJobState(context.TODO(), nil, "")
 		suite.Require().NoError(err)
 	})
 }
 
-func (suite *ClientTestSuite) TestGenerateUpdateProjectRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 	testCases := []struct {
 		name        string
 		address     string
@@ -263,43 +263,43 @@ func (suite *ClientTestSuite) TestGenerateUpdateProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
+			url := suite.leader.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestGetDeleteExpectedStatusCode() {
+func (suite *LeaderTestSuite) TestGetDeleteExpectedStatusCode() {
 	suite.Run("AlwaysNoContent", func() {
-		code := suite.client.GetDeleteExpectedStatusCode()
+		code := suite.leader.GetDeleteExpectedStatusCode()
 		suite.Require().Equal(http.StatusNoContent, code)
 	})
 }
 
-func (suite *ClientTestSuite) TestGetDeleteStrategyHeaderName() {
-	header := suite.client.GetDeleteStrategyHeaderName()
+func (suite *LeaderTestSuite) TestGetDeleteStrategyHeaderName() {
+	header := suite.leader.GetDeleteStrategyHeaderName()
 	suite.Require().Equal(header, "x-mlrun-deletion-strategy")
 }
 
-func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {
-	url := suite.client.GenerateGetProjectsRequestURL("a", "b")
+func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
+	url := suite.leader.GenerateGetProjectsRequestURL("a", "b")
 	suite.Require().Equal("", url)
 }
 
-func (suite *ClientTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
-	url := suite.client.GenerateGetUpdatedAfterRequestURL("test")
+func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
+	url := suite.leader.GenerateGetUpdatedAfterRequestURL("test")
 	suite.Require().Equal("", url)
 }
 
-func (suite *ClientTestSuite) TestGenerateDeleteProjectRequestURL() {
-	url := suite.client.GenerateDeleteProjectRequestURL("http://localhost", "test-project")
+func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
+	url := suite.leader.GenerateDeleteProjectRequestURL("http://localhost", "test-project")
 	suite.Require().Equal("http://localhost/projects/test-project", url)
 }
 
-func (suite *ClientTestSuite) TestShouldWaitForCreateCompletion() {
-	suite.Require().False(suite.client.ShouldWaitForCreateCompletion())
+func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {
+	suite.Require().False(suite.leader.ShouldWaitForCreateCompletion())
 }
 
-func TestClientTestSuite(t *testing.T) {
-	suite.Run(t, new(ClientTestSuite))
+func TestLeaderTestSuite(t *testing.T) {
+	suite.Run(t, new(LeaderTestSuite))
 }

@@ -42,15 +42,16 @@ const (
 type Client struct {
 	logger                logger.Logger
 	httpClient            *http.Client
-	leader                leader.ClientOps
+	leader                leader.LeaderOps
 	platformConfiguration *platformconfig.Config
 	apiAddress            string
 }
 
+// NewClient creates a new project leader client for communicating with the external leader service.
 func NewClient(parentLogger logger.Logger,
 	skipTLSVerification bool,
 	platformConfiguration *platformconfig.Config,
-	clientOps leader.ClientOps,
+	clientOps leader.LeaderOps,
 ) (*Client, error) {
 	if platformConfiguration.ProjectsLeader == nil {
 		return nil, errors.New("Projects leader configuration is missing")
@@ -70,6 +71,7 @@ func NewClient(parentLogger logger.Logger,
 	}, nil
 }
 
+// Get retrieves projects from the leader
 func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	projectName := getProjectOptions.Meta.Name
 	requestHeaders, cookies := c.generateRequestHeadersAndCookies(getProjectOptions.AuthSession, getProjectOptions.SessionCookie)
@@ -94,6 +96,7 @@ func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProject
 	return c.leader.ResolveGetProjectResponse(getSingleProject, responseBody)
 }
 
+// Create sends a request to the leader to create a new project
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 	projectName := createProjectOptions.ProjectConfig.Meta.Name
 	projectNamespace := createProjectOptions.ProjectConfig.Meta.Namespace
@@ -141,6 +144,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 	return nil
 }
 
+// Update sends a request to the leader to update an existing project
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	projectName := updateProjectOptions.ProjectConfig.Meta.Name
 	projectNamespace := updateProjectOptions.ProjectConfig.Meta.Namespace
@@ -176,6 +180,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 	return nil
 }
 
+// Delete sends a request to the leader to delete a project
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 	projectNamespace := deleteProjectOptions.Meta.Namespace
@@ -212,6 +217,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	return nil
 }
 
+// GetUpdatedAfter retrieves projects from the leader that were updated after the specified time.
 func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
 	requestURL := c.leader.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
 	requestHeaders := c.generateCommonRequestHeaders()

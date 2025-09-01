@@ -39,24 +39,24 @@ const (
 	createOkJobFailedTestCase = "CreateOkJobFailed"
 )
 
-type ClientTestSuite struct {
+type LeaderTestSuite struct {
 	suite.Suite
 
 	logger logger.Logger
-	client *Client
+	leader *Leader
 }
 
-func (suite *ClientTestSuite) SetupTest() {
+func (suite *LeaderTestSuite) SetupTest() {
 	var err error
 
 	// create logger
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	suite.client = NewClient(suite.logger)
+	suite.leader = NewLeader(suite.logger)
 }
 
-func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
+func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
 	testCases := []struct {
 		name        string
 		project     *platform.ProjectConfig
@@ -77,7 +77,7 @@ func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result, err := suite.client.GenerateProjectRequestBody(testCase.project)
+			result, err := suite.leader.GenerateProjectRequestBody(testCase.project)
 			if testCase.expectError {
 				suite.Require().Error(err)
 			} else {
@@ -88,7 +88,7 @@ func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
 	}
 }
 
-func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
+func (suite *LeaderTestSuite) TestGenerateProjectDeletionRequestBody() {
 	testCases := []struct {
 		name        string
 		projectName string
@@ -101,14 +101,14 @@ func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result, err := suite.client.GenerateProjectDeletionRequestBody(testCase.projectName)
+			result, err := suite.leader.GenerateProjectDeletionRequestBody(testCase.projectName)
 			suite.Require().NoError(err)
 			suite.Require().NotNil(result)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
+func (suite *LeaderTestSuite) TestResolveCreateProjectResponse() {
 	testCases := []struct {
 		name        string
 		body        []byte
@@ -146,7 +146,7 @@ func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			resp, err := suite.client.ResolveCreateProjectResponse(context.TODO(), testCase.body)
+			resp, err := suite.leader.ResolveCreateProjectResponse(context.TODO(), testCase.body)
 			if testCase.expectError {
 				suite.Require().Error(err)
 				suite.Require().Nil(resp)
@@ -158,7 +158,7 @@ func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
 	}
 }
 
-func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
+func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 	testCases := []struct {
 		name       string
 		detail     bool
@@ -190,7 +190,7 @@ func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
 				suite.Require().NoError(err)
 			}
 
-			projects, err := suite.client.ResolveGetProjectResponse(testCase.detail, body)
+			projects, err := suite.leader.ResolveGetProjectResponse(testCase.detail, body)
 			if testCase.shouldFail {
 				suite.Require().Error(err)
 				suite.Require().Nil(projects)
@@ -202,7 +202,7 @@ func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
 	}
 }
 
-func (suite *ClientTestSuite) TestParseJobStatusResponse() {
+func (suite *LeaderTestSuite) TestParseJobStatusResponse() {
 	testCases := []struct {
 		name        string
 		body        []byte
@@ -227,7 +227,7 @@ func (suite *ClientTestSuite) TestParseJobStatusResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			job, valid := suite.client.IsJobTerminated(context.TODO(), testCase.body)
+			job, valid := suite.leader.IsJobTerminated(context.TODO(), testCase.body)
 			if testCase.expectValid {
 				suite.Require().NotNil(job)
 				suite.Require().True(valid)
@@ -239,7 +239,7 @@ func (suite *ClientTestSuite) TestParseJobStatusResponse() {
 	}
 }
 
-func (suite *ClientTestSuite) TestGenerateCreateProjectRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateCreateProjectRequestURL() {
 	testCases := []struct {
 		name     string
 		address  string
@@ -259,13 +259,13 @@ func (suite *ClientTestSuite) TestGenerateCreateProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateCreateProjectRequestURL(testCase.address)
+			url := suite.leader.GenerateCreateProjectRequestURL(testCase.address)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestHandleCreateResponseErr() {
+func (suite *LeaderTestSuite) TestHandleCreateResponseErr() {
 	testCases := []struct {
 		name         string
 		body         []byte
@@ -285,14 +285,14 @@ func (suite *ClientTestSuite) TestHandleCreateResponseErr() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.client.HandleCreateResponseErr(context.TODO(), testCase.body, nil, fmt.Errorf("fail"))
+			err := suite.leader.HandleCreateResponseErr(context.TODO(), testCase.body, nil, fmt.Errorf("fail"))
 			suite.Require().Error(err)
 			suite.Require().Equal(err.Error(), testCase.expectErrStr)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestGetJobIdUrl() {
+func (suite *LeaderTestSuite) TestGetJobIdUrl() {
 	testCases := []struct {
 		name    string
 		address string
@@ -309,13 +309,13 @@ func (suite *ClientTestSuite) TestGetJobIdUrl() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GetJobIdUrl(testCase.address, testCase.jobID)
+			url := suite.leader.GetJobIdUrl(testCase.address, testCase.jobID)
 			suite.Require().Equal(testCase.expect, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestValidateJobState() {
+func (suite *LeaderTestSuite) TestValidateJobState() {
 	testCases := []struct {
 		name      string
 		job       leaderCommon.JobResponse
@@ -330,7 +330,7 @@ func (suite *ClientTestSuite) TestValidateJobState() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.client.ValidateJobState(context.TODO(), testCase.job, "test-project")
+			err := suite.leader.ValidateJobState(context.TODO(), testCase.job, "test-project")
 			if testCase.expectErr {
 				suite.Require().Error(err)
 			} else {
@@ -340,7 +340,7 @@ func (suite *ClientTestSuite) TestValidateJobState() {
 	}
 }
 
-func (suite *ClientTestSuite) TestGenerateUpdateProjectRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 	testCases := []struct {
 		name        string
 		address     string
@@ -363,25 +363,25 @@ func (suite *ClientTestSuite) TestGenerateUpdateProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
+			url := suite.leader.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestGetDeleteExpectedStatusCode() {
+func (suite *LeaderTestSuite) TestGetDeleteExpectedStatusCode() {
 	suite.Run("AlwaysAccepted", func() {
-		code := suite.client.GetDeleteExpectedStatusCode()
+		code := suite.leader.GetDeleteExpectedStatusCode()
 		suite.Require().Equal(http.StatusAccepted, code)
 	})
 }
 
-func (suite *ClientTestSuite) TestGetDeleteStrategyHeaderName() {
-	header := suite.client.GetDeleteStrategyHeaderName()
+func (suite *LeaderTestSuite) TestGetDeleteStrategyHeaderName() {
+	header := suite.leader.GetDeleteStrategyHeaderName()
 	suite.Require().Equal(header, "igz-project-deletion-strategy")
 }
 
-func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
 	testCases := []struct {
 		name        string
 		address     string
@@ -404,13 +404,13 @@ func (suite *ClientTestSuite) TestGenerateGetProjectsRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateGetProjectsRequestURL(testCase.address, testCase.projectName)
+			url := suite.leader.GenerateGetProjectsRequestURL(testCase.address, testCase.projectName)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 	testCases := []struct {
 		name    string
 		address string
@@ -425,13 +425,13 @@ func (suite *ClientTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateGetUpdatedAfterRequestURL(testCase.address)
+			url := suite.leader.GenerateGetUpdatedAfterRequestURL(testCase.address)
 			suite.Require().Equal(testCase.expect, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestGenerateDeleteProjectRequestURL() {
+func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
 	testCases := []struct {
 		name    string
 		address string
@@ -446,19 +446,19 @@ func (suite *ClientTestSuite) TestGenerateDeleteProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.client.GenerateDeleteProjectRequestURL(testCase.address, "")
+			url := suite.leader.GenerateDeleteProjectRequestURL(testCase.address, "")
 			suite.Require().Equal(testCase.expect, url)
 		})
 	}
 }
 
-func (suite *ClientTestSuite) TestShouldWaitForCreateCompletion() {
+func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {
 	suite.Run("AlwaysTrue", func() {
-		suite.Require().True(suite.client.ShouldWaitForCreateCompletion())
+		suite.Require().True(suite.leader.ShouldWaitForCreateCompletion())
 	})
 }
 
-func (suite *ClientTestSuite) mockIgzAPIResponseBody(testCase string) []byte {
+func (suite *LeaderTestSuite) mockIgzAPIResponseBody(testCase string) []byte {
 	var rawData *bytes.Buffer
 	switch testCase {
 	case detailedResponseTestCase:
@@ -559,7 +559,7 @@ func (suite *ClientTestSuite) mockIgzAPIResponseBody(testCase string) []byte {
 	return rawData.Bytes()
 }
 
-func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
+func (suite *LeaderTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
 	projectData := `{
         "attributes": {
             "admin_status": "online",
@@ -591,6 +591,6 @@ func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
 	return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
 }
 
-func TestClientTestSuite(t *testing.T) {
-	suite.Run(t, new(ClientTestSuite))
+func TestLeaderTestSuite(t *testing.T) {
+	suite.Run(t, new(LeaderTestSuite))
 }

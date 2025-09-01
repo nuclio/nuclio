@@ -141,25 +141,25 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 
 func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (leader.Client, error) {
 	var skipTLSVerification bool
-	var clientOps leader.ClientOps
+	var leaderOps leader.LeaderOps
 	switch platformConfiguration.ProjectsLeader.Kind {
 
 	// mlrun projects leader
 	case platformconfig.ProjectsLeaderKindMlrun:
 		skipTLSVerification = true
-		clientOps = mlrun.NewClient(parentLogger)
+		leaderOps = mlrun.NewLeader(parentLogger)
 
 	// iguazio projects leader
 	case platformconfig.ProjectsLeaderKindIguazio:
 		skipTLSVerification = true
-		clientOps = iguazio.NewClient(parentLogger)
+		leaderOps = iguazio.NewLeader(parentLogger)
 
 	case platformconfig.ProjectsLeaderKindMock:
-		clientOps = mock.NewClient()
+		leaderOps = mock.NewLeader()
 	default:
 		return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 	}
 
-	leaderClient, err := client.NewClient(parentLogger, skipTLSVerification, platformConfiguration, clientOps)
+	leaderClient, err := client.NewClient(parentLogger, skipTLSVerification, platformConfiguration, leaderOps)
 	return leaderClient, err
 }

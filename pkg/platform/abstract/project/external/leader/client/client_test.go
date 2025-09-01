@@ -654,8 +654,8 @@ func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
 	return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
 }
 
-func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failureJobState bool, statusCode int) leader.ClientOps {
-	newClient := mockClient.NewClient()
+func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failureJobState bool, statusCode int) leader.LeaderOps {
+	newClient := mockClient.NewLeader()
 	testProject := &mockClient.MockProject{}
 	testProject.On("GetConfig").Return(&platform.ProjectConfig{
 		Meta: platform.ProjectMeta{

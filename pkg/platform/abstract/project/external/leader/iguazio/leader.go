@@ -30,17 +30,17 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type Client struct {
+type Leader struct {
 	logger logger.Logger
 }
 
-func NewClient(parentLogger logger.Logger) *Client {
-	return &Client{
+func NewLeader(parentLogger logger.Logger) *Leader {
+	return &Leader{
 		logger: parentLogger.GetChild("iguazio"),
 	}
 }
 
-func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
+func (l *Leader) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	if projectConfig == nil {
 		return nil, errors.New("Project config is missing")
 	}
@@ -49,7 +49,7 @@ func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfi
 	return json.Marshal(project)
 }
 
-func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
+func (l *Leader) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
 	return json.Marshal(IguazioProject{
 		Data: ProjectData{
 			Type: ProjectType,
@@ -60,13 +60,13 @@ func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte,
 	})
 }
 
-func (c *Client) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leadercommon.CreateProjectResponse, error) {
+func (l *Leader) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leadercommon.CreateProjectResponse, error) {
 	project := ProjectDetailResponse{}
 	if err := json.Unmarshal(body, &project); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
 	}
 
-	c.logger.DebugWithCtx(ctx,
+	l.logger.DebugWithCtx(ctx,
 		"Successfully sent create project request to leader",
 		"igzCtx", project.Meta.Ctx,
 		"projectData", project.Data)
@@ -74,7 +74,7 @@ func (c *Client) ResolveCreateProjectResponse(ctx context.Context, body []byte) 
 	return &project, nil
 }
 
-func (c *Client) ResolveGetProjectResponse(detail bool, body []byte) ([]platform.Project, error) {
+func (l *Leader) ResolveGetProjectResponse(detail bool, body []byte) ([]platform.Project, error) {
 
 	var projectStructure GetProjectResponse
 	if detail {
@@ -90,15 +90,15 @@ func (c *Client) ResolveGetProjectResponse(detail bool, body []byte) ([]platform
 	return projectStructure.ToSingleProjectList(), nil
 }
 
-func (c *Client) IsJobTerminated(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
+func (l *Leader) IsJobTerminated(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
 	var job JobDetailResponse
 	if err := json.Unmarshal(responseBody, &job); err != nil {
-		c.logger.DebugWithCtx(ctx, "Failed to unmarshal response body",
+		l.logger.DebugWithCtx(ctx, "Failed to unmarshal response body",
 			"responseBody", responseBody)
 		return nil, false
 	}
 
-	c.logger.DebugWithCtx(ctx,
+	l.logger.DebugWithCtx(ctx,
 		"Inspecting job state",
 		"jobId", job.Meta,
 		"igzCtx", job.Meta.Ctx,
@@ -110,16 +110,16 @@ func (c *Client) IsJobTerminated(ctx context.Context, responseBody []byte) (lead
 	})
 }
 
-func (c *Client) GenerateCreateProjectRequestURL(apiAddress string) string {
-	return c.projectRequestURL(apiAddress)
+func (l *Leader) GenerateCreateProjectRequestURL(apiAddress string) string {
+	return l.projectRequestURL(apiAddress)
 }
 
-func (c *Client) HandleCreateResponseErr(ctx context.Context, responseBody []byte, _ *http.Response, err error) error {
+func (l *Leader) HandleCreateResponseErr(ctx context.Context, responseBody []byte, _ *http.Response, err error) error {
 	var responseError CreateProjectErrorResponse
 
 	// try peek at error response
 	if unmarshalErr := json.Unmarshal(responseBody, &responseError); unmarshalErr == nil {
-		c.logger.ErrorWithCtx(ctx,
+		l.logger.ErrorWithCtx(ctx,
 			"Create project has failed",
 			"err", err,
 			"responseError", responseError)
@@ -136,11 +136,11 @@ func (c *Client) HandleCreateResponseErr(ctx context.Context, responseBody []byt
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (c *Client) GetJobIdUrl(apiAddress, jobID string) string {
+func (l *Leader) GetJobIdUrl(apiAddress, jobID string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "jobs", jobID)
 }
 
-func (c *Client) ValidateJobState(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
+func (l *Leader) ValidateJobState(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
 	if job == nil {
 		return errors.New("JobResponse is nil")
 	}
@@ -153,7 +153,7 @@ func (c *Client) ValidateJobState(ctx context.Context, job leadercommon.JobRespo
 
 		// try peek at job results to see if it has a meaningful error message
 		if err := json.Unmarshal([]byte(job.GetResult()), &jobResult); err == nil {
-			c.logger.ErrorWithCtx(ctx, "Create project has failed", "jobResult", jobResult)
+			l.logger.ErrorWithCtx(ctx, "Create project has failed", "jobResult", jobResult)
 
 			// assume server internal error if no status was given
 			if jobResult.Status == 0 {
@@ -168,27 +168,27 @@ func (c *Client) ValidateJobState(ctx context.Context, job leadercommon.JobRespo
 		return errors.Errorf("Create project has failed with unexpected state: %s",
 			job.GetState())
 	}
-	c.logger.DebugWithCtx(ctx, "Successfully created project",
+	l.logger.DebugWithCtx(ctx, "Successfully created project",
 		"projectName", projectName,
 		"projectJobCreationCtx", job.GetJobCreationCtx())
 
 	return nil
 }
 
-func (c *Client) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
+func (l *Leader) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects/__name__", projectName)
 }
 
-func (c *Client) GetDeleteExpectedStatusCode() int {
+func (l *Leader) GetDeleteExpectedStatusCode() int {
 	return http.StatusAccepted
 }
 
-func (c *Client) GetDeleteStrategyHeaderName() string {
+func (l *Leader) GetDeleteStrategyHeaderName() string {
 	return "igz-project-deletion-strategy"
 }
 
-func (c *Client) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
-	requestURL := c.projectRequestURL(apiAddress)
+func (l *Leader) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
+	requestURL := l.projectRequestURL(apiAddress)
 	if projectName != "" {
 		requestURL += fmt.Sprintf("/__name__/%s", projectName)
 	}
@@ -198,18 +198,18 @@ func (c *Client) GenerateGetProjectsRequestURL(apiAddress, projectName string) s
 	return requestURL
 }
 
-func (c *Client) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
-	requestURL := c.projectRequestURL(apiAddress)
+func (l *Leader) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
+	requestURL := l.projectRequestURL(apiAddress)
 	requestURL += "?include=owner&enrich_namespace=true"
 	return requestURL
 }
 
-func (c *Client) GenerateDeleteProjectRequestURL(apiAddress string, _ string) string {
-	return c.projectRequestURL(apiAddress)
+func (l *Leader) GenerateDeleteProjectRequestURL(apiAddress string, _ string) string {
+	return l.projectRequestURL(apiAddress)
 }
 
-func (c *Client) ShouldWaitForCreateCompletion() bool { return true }
+func (l *Leader) ShouldWaitForCreateCompletion() bool { return true }
 
-func (c *Client) projectRequestURL(apiAddress string) string {
+func (l *Leader) projectRequestURL(apiAddress string) string {
 	return fmt.Sprintf("%s/%s", apiAddress, "projects")
 }
