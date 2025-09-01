@@ -67,11 +67,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # checkout from development
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -103,11 +103,11 @@ jobs:
     steps:
 
       # checkout from development
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -143,7 +143,7 @@ jobs:
           fi
 
       - name: Scan image
-        uses: anchore/scan-action@16910ac423301c6d30554b83a7f71ac6ff4a51f3 # 6.4.0
+        uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # 6.5.1
         id: scan
         with:
           image: ${{ env.image_name }}
@@ -166,11 +166,11 @@ jobs:
     steps:
 
       # checkout from development
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -188,7 +188,7 @@ jobs:
           fi
 
       - name: Scan fs
-        uses: anchore/scan-action@16910ac423301c6d30554b83a7f71ac6ff4a51f3 # 6.4.0
+        uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # 6.5.1
         id: scan
         with:
           path: "."

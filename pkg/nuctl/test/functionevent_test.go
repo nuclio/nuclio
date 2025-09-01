@@ -44,9 +44,10 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		runtimeName, _ := common.GetRuntimeNameAndVersion("shell")
 		functionName := fmt.Sprintf("function-%d", functionEventIdx)
 		namedArgs := map[string]string{
-			"path":    path.Join(suite.GetExamples(), runtimeName, "empty", "empty.sh"),
-			"runtime": "shell",
-			"handler": "empty.sh:main",
+			"path":         path.Join(suite.GetExamples(), runtimeName, "empty", "empty.sh"),
+			"runtime":      "shell",
+			"handler":      "empty.sh:main",
+			"project-name": suite.projectName,
 		}
 		suite.logger.DebugWith("Deploying function",
 			"functionName", functionName,

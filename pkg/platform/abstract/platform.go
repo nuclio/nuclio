@@ -51,7 +51,6 @@ import (
 	"github.com/samber/lo"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -310,10 +309,6 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 // EnrichLabels enriches labels with default project name
 func (ap *Platform) EnrichLabels(ctx context.Context, labels map[string]string) {
-	if labels[common.NuclioResourceLabelKeyProjectName] == "" {
-		labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
-		ap.Logger.DebugCtx(ctx, "No project name specified. Setting to default")
-	}
 	ap.enrichUsernameAndDomainLabels(ctx, labels)
 }
 
@@ -536,14 +531,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
 	deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
-	switch projectName {
-	case platform.DefaultProjectName:
-
-		// projects is controlled by a leader. when not set, do not allow deleting the only project
-		if ap.Config.ProjectsLeader == nil {
-			return nuclio.NewErrPreconditionFailed("Cannot delete the default project")
-		}
-	case "":
+	if projectName == "" {
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
@@ -860,13 +848,14 @@ func (ap *Platform) GetFunctionProject(ctx context.Context, functionConfig *func
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
+
 	switch len(projects) {
 	case 1:
 		return projects[0], nil
 	case 0:
-		return nil, errors.Wrap(err, "Project was not found for given function")
+		return nil, errors.New("Project was not found for given function")
 	default:
-		return nil, errors.Wrap(err, "More than one project were found for given function")
+		return nil, errors.New("More than one project were found for given function")
 	}
 }
 
@@ -1217,52 +1206,6 @@ func (ap *Platform) GetProjectResources(ctx context.Context,
 		return nil, nil, errors.Wrap(err, "Failed to get project resources")
 	}
 	return functions, apiGateways, nil
-}
-
-func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
-	projects, err := ap.platform.GetProjects(ctx, &platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name:      platform.DefaultProjectName,
-			Namespace: ap.DefaultNamespace,
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get projects")
-	}
-
-	if len(projects) == 0 {
-
-		// if we're here the default project doesn't exist. create it
-		projectConfig := platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
-				Namespace: ap.DefaultNamespace,
-			},
-			Spec: platform.ProjectSpec{},
-		}
-		newProject, err := platform.NewAbstractProject(ap.Logger, ap.platform, projectConfig)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create abstract default project")
-		}
-
-		if err := ap.platform.CreateProject(ctx, &platform.CreateProjectOptions{
-			ProjectConfig: newProject.GetConfig(),
-		}); err != nil {
-
-			// if project already exists, return
-			if apierrors.IsAlreadyExists(errors.RootCause(err)) {
-				return nil
-			}
-
-			return errors.Wrap(err, "Failed to create default project")
-		}
-
-		ap.Logger.DebugWithCtx(ctx, "Default project was successfully created",
-			"name", platform.DefaultProjectName,
-			"namespace", ap.DefaultNamespace)
-	}
-
-	return nil
 }
 
 // ResolveProjectNameFromLabelsStr resolves first project name from label string
@@ -1796,6 +1739,9 @@ func (ap *Platform) validateProcessingMode(triggerInstance functionconfig.Trigge
 			triggerInstance.AsyncConfig.MaxConnectionsNumber,
 		))
 	}
+	if _, err := triggerInstance.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
 
 	return nil
 }
@@ -2016,6 +1962,16 @@ func (ap *Platform) enrichProcessingMode(
 			"minConnectionsNumber", triggerInstance.AsyncConfig.MaxConnectionsNumber,
 		)
 		triggerInstance.AsyncConfig.MinConnectionsNumber = triggerInstance.AsyncConfig.MaxConnectionsNumber
+	}
+
+	if triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout == "" {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching ConnectionAvailabilityTimeout for function trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+			"connectionAvailabilityTimeout", functionconfig.DefaultConnectionAvailabilityTimeout,
+		)
+		triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout = functionconfig.DefaultConnectionAvailabilityTimeout
 	}
 
 	return nil

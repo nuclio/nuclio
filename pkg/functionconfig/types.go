@@ -116,10 +116,37 @@ type BatchConfiguration struct {
 	Timeout   string    `json:"timeout,omitempty"`
 }
 
+const DefaultConnectionAvailabilityTimeout = "10s"
+
 type AsyncConfig struct {
-	MinConnectionsNumber   int                    `json:"minConnectionsNumber,omitempty"`
-	MaxConnectionsNumber   int                    `json:"maxConnectionsNumber,omitempty"`
-	ConnectionCreationMode ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
+	MinConnectionsNumber          int                    `json:"minConnectionsNumber,omitempty"`
+	MaxConnectionsNumber          int                    `json:"maxConnectionsNumber,omitempty"`
+	ConnectionCreationMode        ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
+	ConnectionAvailabilityTimeout string                 `json:"connectionAvailabilityTimeout,omitempty"`
+
+	connectionAvailabilityTimeoutDuration time.Duration
+}
+
+func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration, error) {
+	if a.ConnectionAvailabilityTimeout == "" {
+		return 0, nil
+	}
+
+	if a.connectionAvailabilityTimeoutDuration != 0 {
+		return a.connectionAvailabilityTimeoutDuration, nil
+	}
+
+	timeout, err := time.ParseDuration(a.ConnectionAvailabilityTimeout)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse connection availability timeout %q", a.ConnectionAvailabilityTimeout)
+	}
+
+	if timeout <= 0 {
+		return 0, errors.New("connection availability timeout must be greater than zero")
+	}
+
+	a.connectionAvailabilityTimeoutDuration = timeout
+	return a.connectionAvailabilityTimeoutDuration, nil
 }
 
 type ConnectionCreationMode string

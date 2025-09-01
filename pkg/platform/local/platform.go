@@ -153,16 +153,13 @@ func NewPlatform(ctx context.Context,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize(ctx context.Context) error {
+func (p *Platform) Initialize(_ context.Context) error {
 	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
-	// ensure default project existence only when projects aren't managed by external leader
-	if p.Config.ProjectsLeader == nil {
-		if err := p.EnsureDefaultProjectExistence(ctx); err != nil {
-			return errors.Wrap(err, "Failed to ensure default project existence")
-		}
+	if _, err := p.localStore.Initialize(); err != nil {
+		return errors.Wrap(err, "Failed to initialize local store")
 	}
 
 	return nil

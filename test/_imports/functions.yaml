@@ -18,6 +18,8 @@ test-function-1:
       skip-build: "true"
       skip-deploy: "true"
     name: test-function-1
+    labels:
+      nuclio.io/project-name: test-project
   spec:
     build:
       codeEntryType: sourceCode
@@ -31,6 +33,8 @@ test-function-2:
       skip-build: "true"
       skip-deploy: "true"
     name: test-function-2
+    labels:
+      nuclio.io/project-name: test-project
   spec:
     build:
       codeEntryType: sourceCode

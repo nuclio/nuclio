@@ -20,10 +20,8 @@ package test
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -34,13 +32,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"sigs.k8s.io/yaml"
 )
@@ -56,13 +54,13 @@ type Suite struct {
 	logger               logger.Logger
 	dockerClient         dockerclient.Client
 	shellClient          *cmdrunner.ShellRunner
-	outputBuffer         bytes.Buffer
-	stdinReader          *strings.Reader
 	defaultWaitDuration  time.Duration
 	defaultWaitInterval  time.Duration
 	tempDir              string
 	namespace            string
+	projectName          string
 	ctx                  context.Context
+	nuctlRunner          *NuctlRunner
 }
 
 func (suite *Suite) SetupSuite() {
@@ -108,15 +106,17 @@ func (suite *Suite) SetupSuite() {
 
 	suite.ctx = context.Background()
 
-	// create project
-	suite.ExecuteNuctl([]string{"create", "project", platform.DefaultProjectName}, map[string]string{}) // nolint: errcheck
+	suite.projectName = "test-project-" + xid.New().String()
+	suite.nuctlRunner = NewNuctlRunner(suite.namespace, suite.logger)
+	err = suite.ExecuteNuctl([]string{"create", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 func (suite *Suite) SetupTest() {
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	// each test initializes it upon usage
-	suite.stdinReader = nil
+	suite.nuctlRunner.stdinReader = nil
 }
 
 func (suite *Suite) TearDownSuite() {
@@ -128,8 +128,8 @@ func (suite *Suite) TearDownSuite() {
 
 	err = os.RemoveAll(suite.tempDir)
 	suite.Require().NoError(err, "Failed to remove temp dir - %s", suite.tempDir)
-	// remove project
-	suite.ExecuteNuctl([]string{"delete", "project", platform.DefaultProjectName}, map[string]string{}) // nolint: errcheck
+	err = suite.ExecuteNuctl([]string{"delete", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to delete project")
 
 	suite.logger.Debug("Suite tear down completed")
 }
@@ -137,43 +137,7 @@ func (suite *Suite) TearDownSuite() {
 // ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell
 func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	namedArgs map[string]string) error {
-
-	// reset buffer to ensure it contains only last executed command
-	suite.outputBuffer.Reset()
-	rootCommandeer := command.NewRootCommandeer()
-
-	// set the output, so we can capture it (but also output to stdout)
-	rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
-
-	// set the input so we can write to stdin
-	if suite.stdinReader != nil {
-		rootCommandeer.GetCmd().SetIn(suite.stdinReader)
-	}
-
-	var argsStringSlice []string
-
-	// add positional arguments
-	argsStringSlice = append(argsStringSlice, positionalArgs...)
-
-	for argName, argValue := range namedArgs {
-		argsStringSlice = append(argsStringSlice, fmt.Sprintf("--%s", argName), argValue)
-	}
-
-	if suite.isNamespaceRequired() && !suite.namespaceInArgs(positionalArgs, namedArgs) {
-		// prepend namespace to args
-		argsStringSlice = common.PrependStringsToStringSlice(argsStringSlice, "--namespace", suite.namespace)
-	}
-
-	// since args[0] is the executable name, just shove the binary there
-	argsStringSlice = common.PrependStringToStringSlice(argsStringSlice, "nuctl")
-
-	// override os.Args (this can't go wrong horribly, can it?)
-	os.Args = argsStringSlice
-
-	suite.logger.DebugWith("Executing nuctl", "args", argsStringSlice)
-
-	// execute
-	return rootCommandeer.Execute()
+	return suite.nuctlRunner.Run(positionalArgs, namedArgs)
 }
 
 // RetryExecuteNuctlUntilSuccessful executes nuctl until expectFailure is met
@@ -188,8 +152,8 @@ func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 			defer func() {
 
 				// upon retry, ensure stdin data is readable again
-				if suite.stdinReader != nil {
-					suite.stdinReader.Seek(0, io.SeekStart) // nolint: errcheck
+				if suite.nuctlRunner.stdinReader != nil {
+					suite.nuctlRunner.stdinReader.Seek(0, io.SeekStart) // nolint: errcheck
 				}
 			}()
 
@@ -237,7 +201,7 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 	foundPatternsMustNotExist := make([]bool, len(patternsMustNotExist))
 
 	// iterate over all lines in result
-	scanner := bufio.NewScanner(&suite.outputBuffer)
+	scanner := bufio.NewScanner(&suite.nuctlRunner.outputBuffer)
 	for scanner.Scan() {
 
 		for patternIdx, patternName := range patternsMustExist {
@@ -270,14 +234,14 @@ func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMus
 func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName string) {
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "agw", apiGatewayName}, map[string]string{
 		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
 	apiGateway := platform.APIGatewayConfig{}
-	apiGatewayBodyBytes := suite.outputBuffer.Bytes()
+	apiGatewayBodyBytes := suite.nuctlRunner.outputBuffer.Bytes()
 	err = yaml.Unmarshal(apiGatewayBodyBytes, &apiGateway)
 	suite.Require().NoError(err)
 
@@ -288,14 +252,14 @@ func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName s
 func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, map[string]string{
 		"output": nuctlcommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
 	function := functionconfig.Config{}
-	functionBodyBytes := suite.outputBuffer.Bytes()
+	functionBodyBytes := suite.nuctlRunner.outputBuffer.Bytes()
 	err = yaml.Unmarshal(functionBodyBytes, &function)
 	suite.Require().NoError(err)
 
@@ -313,7 +277,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 
 func (suite *Suite) getFunctionInFormat(functionName string,
 	outputFormat string) (*functionconfig.ConfigWithStatus, error) {
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 	var err error
 
 	suite.Require().NotEmpty(outputFormat, "Output format must not be empty")
@@ -332,9 +296,9 @@ func (suite *Suite) getFunctionInFormat(functionName string,
 	// unmarshal response correspondingly to output format
 	switch outputFormat {
 	case nuctlcommon.OutputFormatJSON:
-		err = json.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
+		err = json.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &parsedFunction)
 	case nuctlcommon.OutputFormatYAML:
-		err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &parsedFunction)
+		err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &parsedFunction)
 	default:
 		return nil, errors.Errorf("Invalid output format %s", outputFormat)
 	}
@@ -393,20 +357,4 @@ func (suite *Suite) ensureRunningOnPlatform(expectedPlatformKind string) {
 			expectedPlatformKind,
 			suite.origPlatformKind)
 	}
-}
-
-func (suite *Suite) namespaceInArgs(positionalArgs []string, namedArgs map[string]string) bool {
-	if common.StringSliceContainsString(positionalArgs, "--namespace") || common.StringSliceContainsString(positionalArgs, "-n") {
-		return true
-	}
-
-	if _, ok := namedArgs["namespace"]; ok {
-		return true
-	}
-
-	return false
-}
-
-func (suite *Suite) isNamespaceRequired() bool {
-	return suite.namespace != "" && common.GetKubeconfigPath("") != ""
 }

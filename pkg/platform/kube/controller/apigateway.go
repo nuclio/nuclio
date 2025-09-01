@@ -98,9 +98,8 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 		apiGateway.Labels = map[string]string{}
 	}
 
-	// set default project-name if none given
 	if apiGateway.Labels[common.NuclioResourceLabelKeyProjectName] == "" {
-		apiGateway.Labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
+		return errors.New("API gateway must have a project name label set")
 	}
 
 	// validate api gateway name is according to k8s convention
