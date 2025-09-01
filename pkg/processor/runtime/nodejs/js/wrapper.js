@@ -150,7 +150,7 @@ function writeDuration(start, end) {
 async function handleEvent(handlerFunction, incomingEvent) {
     let response = {}
     try {
-        incomingEvent.body = new Buffer.from(incomingEvent['body'], 'base64')
+        incomingEvent.body = Buffer.from(incomingEvent['body'], 'base64')
         incomingEvent.timestamp = new Date(incomingEvent['timestamp'] * 1000)
 
         const start = new Date()
