@@ -51,7 +51,7 @@ type Client struct {
 func NewClient(parentLogger logger.Logger,
 	skipTLSVerification bool,
 	platformConfiguration *platformconfig.Config,
-	clientOps leader.LeaderOps,
+	leaderOps leader.LeaderOps,
 ) (*Client, error) {
 	if platformConfiguration.ProjectsLeader == nil {
 		return nil, errors.New("Projects leader configuration is missing")
@@ -65,7 +65,7 @@ func NewClient(parentLogger logger.Logger,
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerification},
 			},
 		},
-		leader:                clientOps,
+		leader:                leaderOps,
 		platformConfiguration: platformConfiguration,
 		apiAddress:            platformConfiguration.ProjectsLeader.APIAddress,
 	}, nil
