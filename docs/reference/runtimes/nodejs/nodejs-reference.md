@@ -27,7 +27,7 @@ See [Deploying Functions from a Dockerfile](../../../tasks/deploy-functions-from
 ```
 ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=node:10.20-alpine
+ARG NUCLIO_BASE_IMAGE=node:20
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck

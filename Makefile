@@ -97,17 +97,17 @@ ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm32v7/alpine:3.20
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm32v7/golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
-	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm32v7/node:14.21
+	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm64v8/alpine:3.20
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm64v8/golang
 	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-jdk-slim-bullseye
-	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm64v8/node:14.21
+	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm64v8/node:20
 else
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/alpine:3.20
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
-	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:14.21
+	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:20
 endif
 
 NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
@@ -890,7 +890,7 @@ test-nodejs:
 	 --volume $(NUCLIO_PATH)/test:/nuclio/test \
 	 --workdir /nuclio/nodejs \
 	 --env RUN_MODE=CI \
-	 node:16-alpine \
+	 $(NODE_IMAGE_NAME) \
 	 sh -c 'npm install && npm run lint && npm run test'
 
 .PHONY: test-python
