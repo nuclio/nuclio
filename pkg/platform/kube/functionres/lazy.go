@@ -1995,7 +1995,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		for _, sidecar := range function.Spec.Sidecars {
 			for _, port := range sidecar.Ports {
 				spec.Ports = lc.addOrUpdatePort(spec.Ports, v1.ServicePort{
-					Name:       sidecar.Name,
+					Name:       port.Name,
 					Port:       port.ContainerPort,
 					TargetPort: intstr.FromInt32(port.ContainerPort),
 				})
