@@ -35,7 +35,7 @@ import (
 
 type Client struct {
 	platformConfiguration *platformconfig.Config
-	synchronizer          *iguazio.Synchronizer
+	synchronizer          *client.Synchronizer
 	internalClient        project.Client
 	leaderClient          leader.Client
 }
@@ -67,7 +67,7 @@ func NewClient(parentLogger logger.Logger,
 		namespaces = append(namespaces, common.ResolveDefaultNamespace("@nuclio.selfNamespace"))
 	}
 
-	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger,
+	newClient.synchronizer, err = client.NewSynchronizer(parentLogger,
 		synchronizationIntervalStr,
 		namespaces,
 		newClient.leaderClient,
