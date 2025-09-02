@@ -226,7 +226,7 @@ func (l *LeaderOps) GetJobRequestFilter(updatedAfterTime *time.Time) string {
 	return fmt.Sprintf("&filter[updated_at]=[$gt]%s", updatedAfterTime.Format(time.RFC3339Nano))
 }
 
-func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie{
+func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie {
 	return &http.Cookie{
 		Name:  "session",
 		Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, authSession.GetPassword())),

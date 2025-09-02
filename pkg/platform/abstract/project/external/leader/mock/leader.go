@@ -137,7 +137,7 @@ func (l *LeaderOps) GetJobRequestFilter(updatedAfterTime *time.Time) string {
 	return args.String(0)
 }
 
-func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie{
+func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie {
 	args := l.Called(authSession)
 	return args.Get(0).(*http.Cookie)
 }
