@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 )
@@ -61,6 +62,12 @@ type LeaderOps interface {
 
 	// ShouldWaitForCreateCompletion indicates whether to wait for job completion after project creation
 	ShouldWaitForCreateCompletion() bool
+
+	// GetAuthSessionCookie returns the authentication session cookie for the request
+	GetAuthSessionCookie(auth.Session) *http.Cookie
+
+	// AddAuthSessionHeaders adds authentication session headers to the request
+	AddAuthSessionHeaders(map[string]string, auth.Session)
 
 	// WaitForJobCompletion operations
 

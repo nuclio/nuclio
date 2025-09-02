@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -134,4 +135,13 @@ func (l *LeaderOps) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http
 func (l *LeaderOps) GetJobRequestFilter(updatedAfterTime *time.Time) string {
 	args := l.Called(updatedAfterTime)
 	return args.String(0)
+}
+
+func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie{
+	args := l.Called(authSession)
+	return args.Get(0).(*http.Cookie)
+}
+
+func (l *LeaderOps) AddAuthSessionHeaders(headers map[string]string, authSession auth.Session) {
+	l.Called(headers, authSession)
 }

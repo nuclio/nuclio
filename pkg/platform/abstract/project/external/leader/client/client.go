@@ -19,9 +19,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -277,11 +275,10 @@ func (c *Client) generateRequestHeadersAndCookies(
 
 	requestHeaders := c.generateCommonRequestHeaders()
 	if authSession != nil {
-		requestHeaders["authorization"] = authSession.CompileAuthorizationBasicHeader()
-		cookies = append(cookies, &http.Cookie{
-			Name:  "session",
-			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, authSession.GetPassword())),
-		})
+		c.leaderOps.AddAuthSessionHeaders(requestHeaders, authSession)
+		if cookie := c.leaderOps.GetAuthSessionCookie(authSession); cookie != nil {
+			cookies = append(cookies, cookie)
+		}
 	}
 
 	// attach session cookie

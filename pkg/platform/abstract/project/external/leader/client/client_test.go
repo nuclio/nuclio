@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	authIgzV1 "github.com/nuclio/nuclio/pkg/auth/iguazio/v1"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
@@ -345,6 +346,12 @@ func (suite *ClientTestSuite) TestCreate() {
 						},
 					},
 					WaitForCreateCompletion: true,
+					AuthSession: authIgzV1.NewSession(
+						"test-username",
+						"some-access",
+						"time",
+						[]string{"groupID"},
+					),
 				})
 			if testCase.errorExpected != "" {
 				suite.Require().Error(err)
@@ -689,6 +696,8 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 			})
 		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Failed to send request to leader"))
 		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
+		newClient.On("AddAuthSessionHeaders", mock.Anything, mock.Anything).Return()
+		newClient.On("GetAuthSessionCookie", mock.Anything).Return(&http.Cookie{})
 	case getTestSuite:
 		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
 		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)

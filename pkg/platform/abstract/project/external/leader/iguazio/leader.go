@@ -21,8 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	leadercommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -222,6 +224,17 @@ func (l *LeaderOps) GetJobStatusRequestCookies(config *platformconfig.Config) []
 
 func (l *LeaderOps) GetJobRequestFilter(updatedAfterTime *time.Time) string {
 	return fmt.Sprintf("&filter[updated_at]=[$gt]%s", updatedAfterTime.Format(time.RFC3339Nano))
+}
+
+func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie{
+	return &http.Cookie{
+		Name:  "session",
+		Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, authSession.GetPassword())),
+	}
+}
+
+func (l *LeaderOps) AddAuthSessionHeaders(headers map[string]string, authSession auth.Session) {
+	headers["authorization"] = authSession.CompileAuthorizationBasicHeader()
 }
 
 func (l *LeaderOps) projectRequestURL(apiAddress string) string {

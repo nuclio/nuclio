@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -141,6 +142,10 @@ func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return false }
 func (l *LeaderOps) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie { return nil }
 
 func (l *LeaderOps) GetJobRequestFilter(_ *time.Time) string { return "" }
+
+func (l *LeaderOps) GetAuthSessionCookie(_ auth.Session) *http.Cookie { return nil }
+
+func (l *LeaderOps) AddAuthSessionHeaders(_ map[string]string, _ auth.Session) {}
 
 func (l *LeaderOps) projectRequestURL(apiAddress, projectName string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects", projectName)
