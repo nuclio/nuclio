@@ -334,7 +334,7 @@ func (suite *ClientTestSuite) TestCreate() {
 
 				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
 			})
-			suite.client.leader = suite.generateMocksForClient(createTestSuite, testCase.errorExpected != "", 0)
+			suite.client.leaderOps = suite.generateMocksForClient(createTestSuite, testCase.errorExpected != "", 0)
 
 			err := suite.client.Create(context.TODO(),
 				&platform.CreateProjectOptions{
@@ -398,7 +398,7 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 				suite.Require().LessOrEqual(strings.Count(r.URL.RawQuery, "updated_at"), 1)
 				return testCase.response(r)
 			})
-			suite.client.leader = suite.generateMocksForClient(getUpdatedAfter, true, 0)
+			suite.client.leaderOps = suite.generateMocksForClient(getUpdatedAfter, true, 0)
 			projects, err := suite.client.GetUpdatedAfter(context.TODO(), testCase.updatedAfterTime)
 			suite.Require().NoError(err)
 			suite.Require().Len(projects, 1)
@@ -428,7 +428,7 @@ func (suite *ClientTestSuite) TestGet() {
 					Body:       suite.mockIgzAPIGetProject(testCase.detail),
 				}
 			})
-			suite.client.leader = suite.generateMocksForClient(getTestSuite, true, 0)
+			suite.client.leaderOps = suite.generateMocksForClient(getTestSuite, true, 0)
 
 			getProjectOptions := &platform.GetProjectsOptions{}
 			if testCase.detail {
@@ -527,7 +527,7 @@ func (suite *ClientTestSuite) TestUpdate() {
 				}
 				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
 			})
-			suite.client.leader = suite.generateMocksForClient(updateTestSuite, true, 0)
+			suite.client.leaderOps = suite.generateMocksForClient(updateTestSuite, true, 0)
 
 			err := suite.client.Update(context.TODO(), &platform.UpdateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
@@ -604,7 +604,7 @@ func (suite *ClientTestSuite) TestDelete() {
 				}
 				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
 			})
-			suite.client.leader = suite.generateMocksForClient(deleteTestSuite, true, testCase.statusCode)
+			suite.client.leaderOps = suite.generateMocksForClient(deleteTestSuite, true, testCase.statusCode)
 
 			err := suite.client.Delete(context.TODO(), &platform.DeleteProjectOptions{
 				Meta: platform.ProjectMeta{
@@ -655,7 +655,7 @@ func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
 }
 
 func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failureJobState bool, statusCode int) leader.LeaderOps {
-	newClient := mockClient.NewLeader()
+	newClient := mockClient.NewLeaderOps()
 	testProject := &mockClient.MockProject{}
 	testProject.On("GetConfig").Return(&platform.ProjectConfig{
 		Meta: platform.ProjectMeta{

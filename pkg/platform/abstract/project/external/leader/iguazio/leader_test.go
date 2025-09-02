@@ -44,8 +44,8 @@ const (
 type LeaderTestSuite struct {
 	suite.Suite
 
-	logger logger.Logger
-	leader *Leader
+	logger    logger.Logger
+	leaderOps *LeaderOps
 }
 
 func (suite *LeaderTestSuite) SetupTest() {
@@ -55,7 +55,7 @@ func (suite *LeaderTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	suite.leader = NewLeader(suite.logger)
+	suite.leaderOps = NewLeaderOps(suite.logger)
 }
 
 func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
@@ -79,7 +79,7 @@ func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result, err := suite.leader.GenerateProjectRequestBody(testCase.project)
+			result, err := suite.leaderOps.GenerateProjectRequestBody(testCase.project)
 			if testCase.expectError {
 				suite.Require().Error(err)
 			} else {
@@ -103,7 +103,7 @@ func (suite *LeaderTestSuite) TestGenerateProjectDeletionRequestBody() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result, err := suite.leader.GenerateProjectDeletionRequestBody(testCase.projectName)
+			result, err := suite.leaderOps.GenerateProjectDeletionRequestBody(testCase.projectName)
 			suite.Require().NoError(err)
 			suite.Require().NotNil(result)
 		})
@@ -148,7 +148,7 @@ func (suite *LeaderTestSuite) TestResolveCreateProjectResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			resp, err := suite.leader.ResolveCreateProjectResponse(context.TODO(), testCase.body)
+			resp, err := suite.leaderOps.ResolveCreateProjectResponse(context.TODO(), testCase.body)
 			if testCase.expectError {
 				suite.Require().Error(err)
 				suite.Require().Nil(resp)
@@ -192,7 +192,7 @@ func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 				suite.Require().NoError(err)
 			}
 
-			projects, err := suite.leader.ResolveGetProjectResponse(testCase.detail, body)
+			projects, err := suite.leaderOps.ResolveGetProjectResponse(testCase.detail, body)
 			if testCase.shouldFail {
 				suite.Require().Error(err)
 				suite.Require().Nil(projects)
@@ -229,7 +229,7 @@ func (suite *LeaderTestSuite) TestParseJobStatusResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			job, valid := suite.leader.ParseJobStatusResponse(context.TODO(), testCase.body)
+			job, valid := suite.leaderOps.ParseJobStatusResponse(context.TODO(), testCase.body)
 			if testCase.expectValid {
 				suite.Require().NotNil(job)
 				suite.Require().True(valid)
@@ -261,7 +261,7 @@ func (suite *LeaderTestSuite) TestGenerateCreateProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.leader.GenerateCreateProjectRequestURL(testCase.address)
+			url := suite.leaderOps.GenerateCreateProjectRequestURL(testCase.address)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
@@ -287,7 +287,7 @@ func (suite *LeaderTestSuite) TestHandleCreateResponseErr() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.leader.HandleCreateResponseErr(context.TODO(), testCase.body, nil, fmt.Errorf("fail"))
+			err := suite.leaderOps.HandleCreateResponseErr(context.TODO(), testCase.body, nil, fmt.Errorf("fail"))
 			suite.Require().Error(err)
 			suite.Require().Equal(err.Error(), testCase.expectErrStr)
 		})
@@ -311,7 +311,7 @@ func (suite *LeaderTestSuite) TestGetJobIdUrl() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.leader.GetJobIdUrl(testCase.address, testCase.jobID)
+			url := suite.leaderOps.GetJobIdUrl(testCase.address, testCase.jobID)
 			suite.Require().Equal(testCase.expect, url)
 		})
 	}
@@ -332,7 +332,7 @@ func (suite *LeaderTestSuite) TestIsJobCompleted() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.leader.IsJobCompleted(context.TODO(), testCase.job, "test-project")
+			err := suite.leaderOps.IsJobCompleted(context.TODO(), testCase.job, "test-project")
 			if testCase.expectErr {
 				suite.Require().Error(err)
 			} else {
@@ -365,7 +365,7 @@ func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.leader.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
+			url := suite.leaderOps.GenerateUpdateProjectRequestURL(testCase.address, testCase.projectName)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
@@ -373,13 +373,13 @@ func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 
 func (suite *LeaderTestSuite) TestGetDeleteExpectedStatusCode() {
 	suite.Run("AlwaysAccepted", func() {
-		code := suite.leader.GetDeleteExpectedStatusCode()
+		code := suite.leaderOps.GetDeleteExpectedStatusCode()
 		suite.Require().Equal(http.StatusAccepted, code)
 	})
 }
 
 func (suite *LeaderTestSuite) TestGetDeleteStrategyHeaderName() {
-	header := suite.leader.GetDeleteStrategyHeaderName()
+	header := suite.leaderOps.GetDeleteStrategyHeaderName()
 	suite.Require().Equal(header, "igz-project-deletion-strategy")
 }
 
@@ -406,7 +406,7 @@ func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.leader.GenerateGetProjectsRequestURL(testCase.address, testCase.projectName)
+			url := suite.leaderOps.GenerateGetProjectsRequestURL(testCase.address, testCase.projectName)
 			suite.Require().Equal(testCase.expected, url)
 		})
 	}
@@ -427,7 +427,7 @@ func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.leader.GenerateGetUpdatedAfterRequestURL(testCase.address)
+			url := suite.leaderOps.GenerateGetUpdatedAfterRequestURL(testCase.address)
 			suite.Require().Equal(testCase.expect, url)
 		})
 	}
@@ -448,7 +448,7 @@ func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			url := suite.leader.GenerateDeleteProjectRequestURL(testCase.address, "")
+			url := suite.leaderOps.GenerateDeleteProjectRequestURL(testCase.address, "")
 			suite.Require().Equal(testCase.expect, url)
 		})
 	}
@@ -456,7 +456,7 @@ func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
 
 func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {
 	suite.Run("AlwaysTrue", func() {
-		suite.Require().True(suite.leader.ShouldWaitForCreateCompletion())
+		suite.Require().True(suite.leaderOps.ShouldWaitForCreateCompletion())
 	})
 }
 
@@ -482,7 +482,7 @@ func (suite *LeaderTestSuite) TestGetJobStatusRequestCookies() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			cookie := suite.leader.GetJobStatusRequestCookies(testCase.config)
+			cookie := suite.leaderOps.GetJobStatusRequestCookies(testCase.config)
 			if testCase.shouldBeEmpty {
 				suite.Require().Empty(cookie)
 			} else {
@@ -508,7 +508,7 @@ func (suite *LeaderTestSuite) TestGetJobRequestFilter() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			result := suite.leader.GetJobRequestFilter(testCase.time)
+			result := suite.leaderOps.GetJobRequestFilter(testCase.time)
 			suite.Require().Equal(testCase.expectedResult, result)
 		})
 	}

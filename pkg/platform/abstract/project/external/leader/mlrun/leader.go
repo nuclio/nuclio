@@ -32,17 +32,17 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type Leader struct {
+type LeaderOps struct {
 	logger logger.Logger
 }
 
-func NewLeader(parentLogger logger.Logger) *Leader {
-	return &Leader{
+func NewLeaderOps(parentLogger logger.Logger) *LeaderOps {
+	return &LeaderOps{
 		logger: parentLogger.GetChild("mlrun"),
 	}
 }
 
-func (l *Leader) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	project, err := NewProjectFromProjectConfig(projectConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project from project config")
@@ -50,7 +50,7 @@ func (l *Leader) GenerateProjectRequestBody(projectConfig *platform.ProjectConfi
 	return json.Marshal(project)
 }
 
-func (l *Leader) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
 	return json.Marshal(MLRunProject{
 		Metadata: ProjectMetadata{
 			Name: projectName,
@@ -58,7 +58,7 @@ func (l *Leader) GenerateProjectDeletionRequestBody(projectName string) ([]byte,
 	})
 }
 
-func (l *Leader) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leaderCommon.CreateProjectResponse, error) {
+func (l *LeaderOps) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leaderCommon.CreateProjectResponse, error) {
 	project := MLRunProject{}
 	if err := json.Unmarshal(body, &project); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
@@ -70,21 +70,21 @@ func (l *Leader) ResolveCreateProjectResponse(ctx context.Context, body []byte) 
 	return &project, nil
 }
 
-func (l *Leader) ResolveGetProjectResponse(_ bool, _ []byte) ([]platform.Project, error) {
+func (l *LeaderOps) ResolveGetProjectResponse(_ bool, _ []byte) ([]platform.Project, error) {
 	// will be implemented as part of synchronizer task
 	return nil, nuclio.ErrNotImplemented
 }
 
-func (l *Leader) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
+func (l *LeaderOps) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
 	// MLRun does not have async job handling, so this is a placeholder
 	return nil, false
 }
 
-func (l *Leader) GenerateCreateProjectRequestURL(apiAddress string) string {
+func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
 	return fmt.Sprintf("%s/%s", apiAddress, "projects")
 }
 
-func (l *Leader) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
+func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
 	// Try to parse MLRun error response
 	var mlrunError MlrunError
 
@@ -102,46 +102,46 @@ func (l *Leader) HandleCreateResponseErr(ctx context.Context, responseBody []byt
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (l *Leader) GetJobIdUrl(_, _ string) string {
+func (l *LeaderOps) GetJobIdUrl(_, _ string) string {
 	// MLRun does not have async job handling, so this is a placeholder
 	return ""
 }
 
-func (l *Leader) IsJobCompleted(_ context.Context, _ leaderCommon.JobResponse, _ string) error {
+func (l *LeaderOps) IsJobCompleted(_ context.Context, _ leaderCommon.JobResponse, _ string) error {
 	// MLRun does not have async job handling, so this is a placeholder
 	return nil
 }
 
-func (l *Leader) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
+func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
 	return l.projectRequestURL(apiAddress, projectName)
 }
 
-func (l *Leader) GetDeleteExpectedStatusCode() int {
+func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
 	return http.StatusNoContent
 }
 
-func (l *Leader) GetDeleteStrategyHeaderName() string {
+func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 	return "x-mlrun-deletion-strategy"
 }
 
-func (l *Leader) GenerateGetProjectsRequestURL(_, _ string) string {
+func (l *LeaderOps) GenerateGetProjectsRequestURL(_, _ string) string {
 	return ""
 }
 
-func (l *Leader) GenerateGetUpdatedAfterRequestURL(_ string) string {
+func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(_ string) string {
 	return ""
 }
 
-func (l *Leader) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
+func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
 	return l.projectRequestURL(apiAddress, projectName)
 }
 
-func (l *Leader) ShouldWaitForCreateCompletion() bool { return false }
+func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return false }
 
-func (l *Leader) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie { return nil }
+func (l *LeaderOps) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie { return nil }
 
-func (l *Leader) GetJobRequestFilter(_ *time.Time) string { return "" }
+func (l *LeaderOps) GetJobRequestFilter(_ *time.Time) string { return "" }
 
-func (l *Leader) projectRequestURL(apiAddress, projectName string) string {
+func (l *LeaderOps) projectRequestURL(apiAddress, projectName string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects", projectName)
 }

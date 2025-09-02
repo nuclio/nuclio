@@ -147,15 +147,15 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 	// mlrun projects leader
 	case platformconfig.ProjectsLeaderKindMlrun:
 		skipTLSVerification = true
-		leaderOps = mlrun.NewLeader(parentLogger)
+		leaderOps = mlrun.NewLeaderOps(parentLogger)
 
 	// iguazio projects leader
 	case platformconfig.ProjectsLeaderKindIguazio:
 		skipTLSVerification = true
-		leaderOps = iguazio.NewLeader(parentLogger)
+		leaderOps = iguazio.NewLeaderOps(parentLogger)
 
 	case platformconfig.ProjectsLeaderKindMock:
-		leaderOps = mock.NewLeader()
+		leaderOps = mock.NewLeaderOps()
 	default:
 		return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 	}

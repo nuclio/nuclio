@@ -42,7 +42,7 @@ const (
 type Client struct {
 	logger                logger.Logger
 	httpClient            *http.Client
-	leader                leader.LeaderOps
+	leaderOps             leader.LeaderOps
 	platformConfiguration *platformconfig.Config
 	apiAddress            string
 }
@@ -65,7 +65,7 @@ func NewClient(parentLogger logger.Logger,
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerification},
 			},
 		},
-		leader:                leaderOps,
+		leaderOps:             leaderOps,
 		platformConfiguration: platformConfiguration,
 		apiAddress:            platformConfiguration.ProjectsLeader.APIAddress,
 	}, nil
@@ -76,7 +76,7 @@ func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProject
 	projectName := getProjectOptions.Meta.Name
 	requestHeaders, cookies := c.generateRequestHeadersAndCookies(getProjectOptions.AuthSession, getProjectOptions.SessionCookie)
 	getSingleProject := projectName != ""
-	requestURL := c.leader.GenerateGetProjectsRequestURL(c.apiAddress, projectName)
+	requestURL := c.leaderOps.GenerateGetProjectsRequestURL(c.apiAddress, projectName)
 
 	c.logger.DebugWithCtx(ctx,
 		"Fetching projects from leader",
@@ -93,19 +93,19 @@ func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProject
 		c.logLeaderResponseError(ctx, response, "Failed to get project from leader")
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
-	return c.leader.ResolveGetProjectResponse(getSingleProject, responseBody)
+	return c.leaderOps.ResolveGetProjectResponse(getSingleProject, responseBody)
 }
 
 // Create sends a request to the leader to create a new project
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 	projectName := createProjectOptions.ProjectConfig.Meta.Name
 	projectNamespace := createProjectOptions.ProjectConfig.Meta.Namespace
-	requestBody, err := c.leader.GenerateProjectRequestBody(createProjectOptions.ProjectConfig)
+	requestBody, err := c.leaderOps.GenerateProjectRequestBody(createProjectOptions.ProjectConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project request body")
 	}
 
-	requestURL := c.leader.GenerateCreateProjectRequestURL(c.apiAddress)
+	requestURL := c.leaderOps.GenerateCreateProjectRequestURL(c.apiAddress)
 	requestHeaders, cookies := c.generateRequestHeadersAndCookies(createProjectOptions.AuthSession, createProjectOptions.SessionCookie)
 
 	c.logger.DebugWithCtx(ctx,
@@ -122,16 +122,16 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 		http.StatusCreated)
 	if err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to create project on leader")
-		return c.leader.HandleCreateResponseErr(ctx, responseBody, response, err)
+		return c.leaderOps.HandleCreateResponseErr(ctx, responseBody, response, err)
 	}
 
 	// resolve project
-	project, err := c.leader.ResolveCreateProjectResponse(ctx, responseBody)
+	project, err := c.leaderOps.ResolveCreateProjectResponse(ctx, responseBody)
 	if err != nil {
 		return errors.Wrap(err, "Failed to resolve project from response body")
 	}
 
-	if c.leader.ShouldWaitForCreateCompletion() && createProjectOptions.WaitForCreateCompletion {
+	if c.leaderOps.ShouldWaitForCreateCompletion() && createProjectOptions.WaitForCreateCompletion {
 		if err = c.waitForJobCompletion(ctx, project.GetLastJobID(), projectName); err != nil {
 			return errors.Wrap(err, "Failed waiting for create project job completion")
 		}
@@ -148,9 +148,9 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	projectName := updateProjectOptions.ProjectConfig.Meta.Name
 	projectNamespace := updateProjectOptions.ProjectConfig.Meta.Namespace
-	requestURL := c.leader.GenerateUpdateProjectRequestURL(c.apiAddress, projectName)
+	requestURL := c.leaderOps.GenerateUpdateProjectRequestURL(c.apiAddress, projectName)
 	requestHeaders, cookies := c.generateRequestHeadersAndCookies(updateProjectOptions.AuthSession, updateProjectOptions.SessionCookie)
-	requestBody, err := c.leader.GenerateProjectRequestBody(&updateProjectOptions.ProjectConfig)
+	requestBody, err := c.leaderOps.GenerateProjectRequestBody(&updateProjectOptions.ProjectConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project request body")
 	}
@@ -184,12 +184,12 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 	projectNamespace := deleteProjectOptions.Meta.Namespace
-	requestURL := c.leader.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
+	requestURL := c.leaderOps.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
 	requestHeaders, cookies := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession, deleteProjectOptions.SessionCookie)
-	headerName := c.leader.GetDeleteStrategyHeaderName()
+	headerName := c.leaderOps.GetDeleteStrategyHeaderName()
 	requestHeaders[headerName] = string(deleteProjectOptions.Strategy)
 
-	requestBody, err := c.leader.GenerateProjectDeletionRequestBody(projectName)
+	requestBody, err := c.leaderOps.GenerateProjectDeletionRequestBody(projectName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project deletion request body")
 	}
@@ -205,7 +205,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 		requestBody,
 		requestHeaders,
 		cookies,
-		c.leader.GetDeleteExpectedStatusCode()); err != nil {
+		c.leaderOps.GetDeleteExpectedStatusCode()); err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to delete project on leader")
 		return errors.Wrap(err, "Failed to send delete project request to leader")
 	}
@@ -219,7 +219,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 
 // GetUpdatedAfter retrieves projects from the leader that were updated after the specified time.
 func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
-	requestURL := c.leader.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
+	requestURL := c.leaderOps.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
 	requestHeaders := c.generateCommonRequestHeaders()
 	if updatedAfterTime != nil && updatedAfterTime.IsZero() {
 		updatedAfterTime = nil
@@ -236,7 +236,7 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 			return nil, errors.Wrap(err, "Failed to get projects from leader")
 		}
 	}
-	return c.leader.ResolveGetProjectResponse(false, responseBody)
+	return c.leaderOps.ResolveGetProjectResponse(false, responseBody)
 }
 
 func (c *Client) logLeaderResponseError(ctx context.Context,
@@ -295,7 +295,7 @@ func (c *Client) generateRequestHeadersAndCookies(
 func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName string) error {
 	c.logger.DebugWithCtx(ctx, "Waiting for job completion", "jobID", jobID)
 	var job leader.JobResponse
-	requestCookies := c.leader.GetJobStatusRequestCookies(c.platformConfiguration)
+	requestCookies := c.leaderOps.GetJobStatusRequestCookies(c.platformConfiguration)
 
 	err := common.RetryUntilSuccessful(time.Minute*5,
 		time.Second*5,
@@ -303,7 +303,7 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 			responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
 				c.httpClient,
 				http.MethodGet,
-				c.leader.GetJobIdUrl(c.apiAddress, jobID),
+				c.leaderOps.GetJobIdUrl(c.apiAddress, jobID),
 				nil,
 				c.generateCommonRequestHeaders(),
 				requestCookies,
@@ -317,14 +317,14 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 			}
 
 			var isTerminated bool
-			job, isTerminated = c.leader.ParseJobStatusResponse(ctx, responseBody)
+			job, isTerminated = c.leaderOps.ParseJobStatusResponse(ctx, responseBody)
 			return isTerminated
 		})
 	if err != nil {
 		return errors.Wrap(err, "Exhausting waiting for job completion")
 	}
 
-	return c.leader.IsJobCompleted(ctx, job, projectName)
+	return c.leaderOps.IsJobCompleted(ctx, job, projectName)
 }
 
 func (c *Client) getUpdatedAfter(ctx context.Context,
@@ -332,9 +332,9 @@ func (c *Client) getUpdatedAfter(ctx context.Context,
 	requestHeaders map[string]string,
 	updatedAfterTime *time.Time) ([]byte, error) {
 	var requestURLFilterByURL string
-	requestCookies := c.leader.GetJobStatusRequestCookies(c.platformConfiguration)
+	requestCookies := c.leaderOps.GetJobStatusRequestCookies(c.platformConfiguration)
 	if updatedAfterTime != nil {
-		requestURLFilterByURL = c.leader.GetJobRequestFilter(updatedAfterTime)
+		requestURLFilterByURL = c.leaderOps.GetJobRequestFilter(updatedAfterTime)
 	}
 
 	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,

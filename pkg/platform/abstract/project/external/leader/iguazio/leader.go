@@ -32,17 +32,17 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type Leader struct {
+type LeaderOps struct {
 	logger logger.Logger
 }
 
-func NewLeader(parentLogger logger.Logger) *Leader {
-	return &Leader{
+func NewLeaderOps(parentLogger logger.Logger) *LeaderOps {
+	return &LeaderOps{
 		logger: parentLogger.GetChild("iguazio"),
 	}
 }
 
-func (l *Leader) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	if projectConfig == nil {
 		return nil, errors.New("Project config is missing")
 	}
@@ -51,7 +51,7 @@ func (l *Leader) GenerateProjectRequestBody(projectConfig *platform.ProjectConfi
 	return json.Marshal(project)
 }
 
-func (l *Leader) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
 	return json.Marshal(IguazioProject{
 		Data: ProjectData{
 			Type: ProjectType,
@@ -62,7 +62,7 @@ func (l *Leader) GenerateProjectDeletionRequestBody(projectName string) ([]byte,
 	})
 }
 
-func (l *Leader) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leadercommon.CreateProjectResponse, error) {
+func (l *LeaderOps) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leadercommon.CreateProjectResponse, error) {
 	project := ProjectDetailResponse{}
 	if err := json.Unmarshal(body, &project); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
@@ -76,7 +76,7 @@ func (l *Leader) ResolveCreateProjectResponse(ctx context.Context, body []byte) 
 	return &project, nil
 }
 
-func (l *Leader) ResolveGetProjectResponse(detail bool, body []byte) ([]platform.Project, error) {
+func (l *LeaderOps) ResolveGetProjectResponse(detail bool, body []byte) ([]platform.Project, error) {
 
 	var projectStructure GetProjectResponse
 	if detail {
@@ -92,7 +92,7 @@ func (l *Leader) ResolveGetProjectResponse(detail bool, body []byte) ([]platform
 	return projectStructure.ToSingleProjectList(), nil
 }
 
-func (l *Leader) ParseJobStatusResponse(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
+func (l *LeaderOps) ParseJobStatusResponse(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
 	var job JobDetailResponse
 	if err := json.Unmarshal(responseBody, &job); err != nil {
 		l.logger.DebugWithCtx(ctx, "Failed to unmarshal response body",
@@ -112,11 +112,11 @@ func (l *Leader) ParseJobStatusResponse(ctx context.Context, responseBody []byte
 	})
 }
 
-func (l *Leader) GenerateCreateProjectRequestURL(apiAddress string) string {
+func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
 	return l.projectRequestURL(apiAddress)
 }
 
-func (l *Leader) HandleCreateResponseErr(ctx context.Context, responseBody []byte, _ *http.Response, err error) error {
+func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []byte, _ *http.Response, err error) error {
 	var responseError CreateProjectErrorResponse
 
 	// try peek at error response
@@ -138,11 +138,11 @@ func (l *Leader) HandleCreateResponseErr(ctx context.Context, responseBody []byt
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (l *Leader) GetJobIdUrl(apiAddress, jobID string) string {
+func (l *LeaderOps) GetJobIdUrl(apiAddress, jobID string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "jobs", jobID)
 }
 
-func (l *Leader) IsJobCompleted(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
+func (l *LeaderOps) IsJobCompleted(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
 	if job == nil {
 		return errors.New("JobResponse is nil")
 	}
@@ -177,19 +177,19 @@ func (l *Leader) IsJobCompleted(ctx context.Context, job leadercommon.JobRespons
 	return nil
 }
 
-func (l *Leader) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
+func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects/__name__", projectName)
 }
 
-func (l *Leader) GetDeleteExpectedStatusCode() int {
+func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
 	return http.StatusAccepted
 }
 
-func (l *Leader) GetDeleteStrategyHeaderName() string {
+func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 	return "igz-project-deletion-strategy"
 }
 
-func (l *Leader) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
+func (l *LeaderOps) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
 	requestURL := l.projectRequestURL(apiAddress)
 	if projectName != "" {
 		requestURL += fmt.Sprintf("/__name__/%s", projectName)
@@ -200,19 +200,19 @@ func (l *Leader) GenerateGetProjectsRequestURL(apiAddress, projectName string) s
 	return requestURL
 }
 
-func (l *Leader) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
+func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
 	requestURL := l.projectRequestURL(apiAddress)
 	requestURL += "?include=owner&enrich_namespace=true"
 	return requestURL
 }
 
-func (l *Leader) GenerateDeleteProjectRequestURL(apiAddress string, _ string) string {
+func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress string, _ string) string {
 	return l.projectRequestURL(apiAddress)
 }
 
-func (l *Leader) ShouldWaitForCreateCompletion() bool { return true }
+func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return true }
 
-func (l *Leader) GetJobStatusRequestCookies(config *platformconfig.Config) []*http.Cookie {
+func (l *LeaderOps) GetJobStatusRequestCookies(config *platformconfig.Config) []*http.Cookie {
 	var cookies []*http.Cookie
 	if config.IguazioSessionCookie != "" {
 		cookies = []*http.Cookie{{Name: "session", Value: config.IguazioSessionCookie}}
@@ -220,10 +220,10 @@ func (l *Leader) GetJobStatusRequestCookies(config *platformconfig.Config) []*ht
 	return cookies
 }
 
-func (l *Leader) GetJobRequestFilter(updatedAfterTime *time.Time) string {
+func (l *LeaderOps) GetJobRequestFilter(updatedAfterTime *time.Time) string {
 	return fmt.Sprintf("&filter[updated_at]=[$gt]%s", updatedAfterTime.Format(time.RFC3339Nano))
 }
 
-func (l *Leader) projectRequestURL(apiAddress string) string {
+func (l *LeaderOps) projectRequestURL(apiAddress string) string {
 	return fmt.Sprintf("%s/%s", apiAddress, "projects")
 }

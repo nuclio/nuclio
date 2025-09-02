@@ -29,51 +29,51 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type Leader struct {
+type LeaderOps struct {
 	mock.Mock
 }
 
-func NewLeader() *Leader {
-	return &Leader{}
+func NewLeaderOps() *LeaderOps {
+	return &LeaderOps{}
 }
 
 // LeaderOps methods
 
-func (l *Leader) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	args := l.Called(projectConfig)
 	return args.Get(0).([]byte), args.Error(1)
 }
 
-func (l *Leader) GenerateCreateProjectRequestURL(projectName string) string {
+func (l *LeaderOps) GenerateCreateProjectRequestURL(projectName string) string {
 	args := l.Called(projectName)
 	return args.String(0)
 }
 
-func (l *Leader) HandleCreateResponseErr(ctx context.Context, body []byte, resp *http.Response, err error) error {
+func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, body []byte, resp *http.Response, err error) error {
 	args := l.Called(ctx, body, resp, err)
 	return args.Error(0)
 }
 
-func (l *Leader) ResolveCreateProjectResponse(_ context.Context, _ []byte) (leaderCommon.CreateProjectResponse, error) {
+func (l *LeaderOps) ResolveCreateProjectResponse(_ context.Context, _ []byte) (leaderCommon.CreateProjectResponse, error) {
 	return &CreateProjectResponseMock{}, nil
 }
 
-func (l *Leader) ShouldWaitForCreateCompletion() bool {
+func (l *LeaderOps) ShouldWaitForCreateCompletion() bool {
 	args := l.Called()
 	return args.Bool(0)
 }
 
-func (l *Leader) GetJobIdUrl(projectName, jobID string) string {
+func (l *LeaderOps) GetJobIdUrl(projectName, jobID string) string {
 	args := l.Called(projectName, jobID)
 	return args.String(0)
 }
 
-func (l *Leader) ParseJobStatusResponse(ctx context.Context, body []byte) (leaderCommon.JobResponse, bool) {
+func (l *LeaderOps) ParseJobStatusResponse(ctx context.Context, body []byte) (leaderCommon.JobResponse, bool) {
 	args := l.Called(ctx, body)
 	return args.Get(0).(leaderCommon.JobResponse), args.Bool(1)
 }
 
-func (l *Leader) IsJobCompleted(ctx context.Context, jobResponse leaderCommon.JobResponse, expectedState string) error {
+func (l *LeaderOps) IsJobCompleted(ctx context.Context, jobResponse leaderCommon.JobResponse, expectedState string) error {
 	args := l.Called(ctx, jobResponse, expectedState)
 	// If the return value is a function, call it with the arguments
 	if fn, ok := args.Get(0).(func(context.Context, leaderCommon.JobResponse, string) error); ok {
@@ -86,52 +86,52 @@ func (l *Leader) IsJobCompleted(ctx context.Context, jobResponse leaderCommon.Jo
 	return fmt.Errorf("unexpected return type from IsJobCompleted mock: %T", args.Get(0))
 }
 
-func (l *Leader) GenerateUpdateProjectRequestURL(projectName, projectID string) string {
+func (l *LeaderOps) GenerateUpdateProjectRequestURL(projectName, projectID string) string {
 	args := l.Called(projectName, projectID)
 	return args.String(0)
 }
 
-func (l *Leader) GenerateDeleteProjectRequestURL(projectName, projectID string) string {
+func (l *LeaderOps) GenerateDeleteProjectRequestURL(projectName, projectID string) string {
 	args := l.Called(projectName, projectID)
 	return args.String(0)
 }
 
-func (l *Leader) GenerateProjectDeletionRequestBody(projectID string) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectDeletionRequestBody(projectID string) ([]byte, error) {
 	args := l.Called(projectID)
 	return args.Get(0).([]byte), args.Error(1)
 }
 
-func (l *Leader) GetDeleteExpectedStatusCode() int {
+func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
 	args := l.Called()
 	return args.Int(0)
 }
 
-func (l *Leader) GetDeleteStrategyHeaderName() string {
+func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 	args := l.Called()
 	return args.String(0)
 }
 
-func (l *Leader) GenerateGetProjectsRequestURL(projectName, projectID string) string {
+func (l *LeaderOps) GenerateGetProjectsRequestURL(projectName, projectID string) string {
 	args := l.Called(projectName, projectID)
 	return args.String(0)
 }
 
-func (l *Leader) ResolveGetProjectResponse(isSingle bool, body []byte) ([]platform.Project, error) {
+func (l *LeaderOps) ResolveGetProjectResponse(isSingle bool, body []byte) ([]platform.Project, error) {
 	args := l.Called(isSingle, body)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
-func (l *Leader) GenerateGetUpdatedAfterRequestURL(updatedAfter string) string {
+func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(updatedAfter string) string {
 	args := l.Called(updatedAfter)
 	return args.String(0)
 }
 
-func (l *Leader) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie {
+func (l *LeaderOps) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie {
 	args := l.Called()
 	return args.Get(0).([]*http.Cookie)
 }
 
-func (l *Leader) GetJobRequestFilter(updatedAfterTime *time.Time) string {
+func (l *LeaderOps) GetJobRequestFilter(updatedAfterTime *time.Time) string {
 	args := l.Called(updatedAfterTime)
 	return args.String(0)
 }
