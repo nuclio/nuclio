@@ -799,6 +799,11 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 		"Deleting project",
 		"projectMeta", deleteProjectOptions.Meta)
 	if err := p.projectsClient.Delete(ctx, deleteProjectOptions); err != nil {
+		// if the project delete was sent to the leader, that's not an actual error
+		if errors.Is(err, platform.ErrSuccessfulDeleteProjectLeader) {
+			return nil
+		}
+
 		return errors.Wrap(err, "Failed to delete project")
 	}
 

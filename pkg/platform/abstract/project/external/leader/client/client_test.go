@@ -1,7 +1,7 @@
 //go:build test_unit
 
 /*
-Copyright 2023 The Nuclio Authors.
+Copyright 2025 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package iguazio
+package client
 
 import (
 	"bytes"
@@ -28,13 +28,28 @@ import (
 	"testing"
 	"time"
 
+	authIgzV1 "github.com/nuclio/nuclio/pkg/auth/iguazio/v1"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	mockClient "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	projectSuffix          = "/projects"
+	getCreateProjectSuffix = "/jobs/some-job-id"
+	createTestSuite        = "create"
+	getTestSuite           = "get"
+	getUpdatedAfter        = "get-updated-after"
+	updateTestSuite        = "update"
+	deleteTestSuite        = "delete"
 )
 
 type ClientTestSuite struct {
@@ -52,24 +67,27 @@ func (suite *ClientTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	// mock internal client
-	suite.client, err = NewClient(suite.logger, &platformconfig.Config{
-		ProjectsLeader: &platformconfig.ProjectsLeader{
-			APIAddress: "somewhere.com",
+	suite.client, err = NewClient(suite.logger,
+		false,
+		&platformconfig.Config{
+			ProjectsLeader: &platformconfig.ProjectsLeader{
+				APIAddress: "somewhere.com",
+			},
 		},
-	})
+		nil,
+	)
 	suite.Require().NoError(err)
 }
 
 func (suite *ClientTestSuite) TestCreate() {
-
 	for _, testCase := range []struct {
 		name                         string
 		createProjectResponse        *http.Response
 		getProjectCreationJobResults *http.Response
-		expectedFailure              bool
+		errorExpected                string
 	}{
 		{
-			name: "create-ok-job-success",
+			name: "PositiveFlow",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusCreated,
 				Body: io.NopCloser(bytes.NewBufferString(`{
@@ -77,7 +95,7 @@ func (suite *ClientTestSuite) TestCreate() {
         "type": "project",
         "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
         "attributes": {
-            "name": "some-dummy-project",
+            "name": "test-project",
             "description": "an example project",
             "created_at": "2021-08-23T19:39:50.522000+00:00",
             "updated_at": "2021-08-23T19:39:50.608000+00:00",
@@ -142,8 +160,8 @@ func (suite *ClientTestSuite) TestCreate() {
 			},
 		},
 		{
-			name:            "create-failed",
-			expectedFailure: true,
+			name:          "FailedToRequestLeader",
+			errorExpected: "Failed to send request to leader",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusBadRequest,
 				Body: io.NopCloser(bytes.NewBufferString(`{
@@ -157,7 +175,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			},
 		},
 		{
-			name: "create-ok-job-failed",
+			name: "FailedToRequestJobStatus",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusCreated,
 				Body: io.NopCloser(bytes.NewBufferString(`{
@@ -165,7 +183,7 @@ func (suite *ClientTestSuite) TestCreate() {
         "type": "project",
         "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
         "attributes": {
-            "name": "some-dummy-project",
+            "name": "test-project",
             "description": "an example project",
             "created_at": "2021-08-23T19:39:50.522000+00:00",
             "updated_at": "2021-08-23T19:39:50.608000+00:00",
@@ -229,10 +247,10 @@ func (suite *ClientTestSuite) TestCreate() {
     }
 }`)),
 			},
-			expectedFailure: true,
+			errorExpected: "Failed waiting for create project job completion",
 		},
 		{
-			name: "create-ok-job-failed-b",
+			name: "FailedCreateJobDidNotComplete",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusCreated,
 				Body: io.NopCloser(bytes.NewBufferString(`{
@@ -240,7 +258,7 @@ func (suite *ClientTestSuite) TestCreate() {
         "type": "project",
         "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
         "attributes": {
-            "name": "some-dummy-project",
+            "name": "test-project",
             "description": "an example project",
             "created_at": "2021-08-23T19:39:50.522000+00:00",
             "updated_at": "2021-08-23T19:39:50.608000+00:00",
@@ -300,40 +318,48 @@ func (suite *ClientTestSuite) TestCreate() {
     }
 }`)),
 			},
-			expectedFailure: true,
+			errorExpected: "Failed waiting for create project job completion",
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+			*suite.client.httpClient = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 
 				// post to create the project
-				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.String(), "/projects") {
+				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.String(), projectSuffix) {
 					return testCase.createProjectResponse
 				}
 
-				if r.Method == http.MethodGet && strings.HasSuffix(r.URL.String(), "/jobs/some-job-id") {
+				if r.Method == http.MethodGet && strings.HasSuffix(r.URL.String(), getCreateProjectSuffix) {
 					return testCase.getProjectCreationJobResults
 				}
 
 				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
 			})
+			suite.client.leaderOps = suite.generateMocksForClient(createTestSuite, testCase.errorExpected != "", 0)
 
 			err := suite.client.Create(context.TODO(),
 				&platform.CreateProjectOptions{
 					ProjectConfig: &platform.ProjectConfig{
 						Meta: platform.ProjectMeta{
-							Name: "dummy-project",
+							Name:      "test-project",
+							Namespace: "test-namespace",
 						},
 					},
 					WaitForCreateCompletion: true,
+					AuthSession: authIgzV1.NewSession(
+						"test-username",
+						"some-access",
+						"time",
+						[]string{"groupID"},
+					),
 				})
-			if testCase.expectedFailure {
+			if testCase.errorExpected != "" {
 				suite.Require().Error(err)
-				return
+				suite.Require().Equal(err.Error(), testCase.errorExpected)
+			} else {
+				suite.Require().NoError(err)
 			}
-			suite.Require().NoError(err)
 		})
-
 	}
 }
 
@@ -346,7 +372,7 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 		response         func(*http.Request) *http.Response
 	}{
 		{
-			name:             "sanity",
+			name:             "Sanity",
 			updatedAfterTime: &nowUpdatedAfterTime,
 			response: func(r *http.Request) *http.Response {
 				return &http.Response{
@@ -356,7 +382,7 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 			},
 		},
 		{
-			name:             "retryOnError",
+			name:             "RetryOnError",
 			updatedAfterTime: &zeroUpdatedAfterTime,
 			response: func(r *http.Request) *http.Response {
 				if strings.Contains(r.URL.RawQuery, "0001-01-01T00:00:00Z") {
@@ -375,10 +401,11 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+			*suite.client.httpClient = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 				suite.Require().LessOrEqual(strings.Count(r.URL.RawQuery, "updated_at"), 1)
 				return testCase.response(r)
 			})
+			suite.client.leaderOps = suite.generateMocksForClient(getUpdatedAfter, true, 0)
 			projects, err := suite.client.GetUpdatedAfter(context.TODO(), testCase.updatedAfterTime)
 			suite.Require().NoError(err)
 			suite.Require().Len(projects, 1)
@@ -393,21 +420,22 @@ func (suite *ClientTestSuite) TestGet() {
 		detail bool
 	}{
 		{
-			name:   "detail",
+			name:   "Detail",
 			detail: true,
 		},
 		{
-			name:   "list",
+			name:   "List",
 			detail: false,
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+			*suite.client.httpClient = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       suite.mockIgzAPIGetProject(testCase.detail),
 				}
 			})
+			suite.client.leaderOps = suite.generateMocksForClient(getTestSuite, true, 0)
 
 			getProjectOptions := &platform.GetProjectsOptions{}
 			if testCase.detail {
@@ -419,7 +447,184 @@ func (suite *ClientTestSuite) TestGet() {
 			suite.Require().NoError(err)
 			suite.Require().Len(projects, 1)
 			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")
+		})
+	}
+}
 
+func (suite *ClientTestSuite) TestUpdate() {
+	for _, testCase := range []struct {
+		name           string
+		updateResponse *http.Response
+		expectedError  string
+	}{
+		{
+			name: "UpdateOkIGZResponse",
+			updateResponse: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewBufferString(`{
+					"data": {
+						"type": "project",
+						"id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
+						"attributes": {
+							"name": "test-project",
+							"description": "an updated project",
+							"created_at": "2021-08-23T19:39:50.522000+00:00",
+							"updated_at": "2021-08-23T19:40:50.608000+00:00",
+							"admin_status": "online",
+							"operational_status": "online",
+							"labels": [],
+							"annotations": []
+						}
+					},
+					"included": [],
+					"meta": {
+						"ctx": "13756324163199886387"
+					}
+				}`)),
+			},
+		},
+		{
+			name: "UpdateOkMLRunResponse",
+			updateResponse: &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewBufferString(`{
+						"metadata": {
+							"name": "test-project",
+							"namespace" : "test-namespace",
+							"created": "2021-08-23T19:39:50.522000+00:00"
+							"labels": {},
+							"annotations": {}
+						},
+						"spec": {
+							"description": "an updated project",
+						},
+						"status": {
+							"state": "completed"
+						}
+				}`)),
+			},
+		},
+		{
+			name: "UpdateFailed",
+			updateResponse: &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body: io.NopCloser(bytes.NewBufferString(`{
+					"errors": [
+						{ "status": 400, "detail": "Failed to update project" }
+					],
+					"meta": {
+						"ctx": "12391980595089803596"
+					}
+				}`)),
+			},
+			expectedError: "Failed to send update project request to leader",
+		},
+		{
+			name:          "SendHTTPRequestError",
+			expectedError: "Failed to send update project request to leader",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			*suite.client.httpClient = *testutils.CreateDummyHTTPClientWithError(func(r *http.Request) (*http.Response, error) {
+				if testCase.expectedError != "" {
+					return nil, errors.New(testCase.expectedError)
+				}
+				if r.Method == http.MethodPut && strings.HasSuffix(r.URL.String(), projectSuffix) {
+					return testCase.updateResponse, nil
+				}
+				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
+			})
+			suite.client.leaderOps = suite.generateMocksForClient(updateTestSuite, true, 0)
+
+			err := suite.client.Update(context.TODO(), &platform.UpdateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name:      "test-project",
+						Namespace: "test-namespace",
+					},
+				},
+			})
+			if testCase.expectedError != "" {
+				suite.Require().Error(err)
+				suite.Require().Equal(err.Error(), testCase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestDelete() {
+	for _, testCase := range []struct {
+		name           string
+		statusCode     int
+		deleteResponse *http.Response
+		expectedError  string
+	}{
+		{
+			name:       "DeleteOkIGZResponse",
+			statusCode: http.StatusAccepted,
+			deleteResponse: &http.Response{
+				StatusCode: http.StatusAccepted,
+				Body: io.NopCloser(bytes.NewBufferString(`{
+					"data": {
+						"type": "project",
+						"id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
+						"attributes": {
+							"name": "test-project",
+							"description": "a deleted project",
+							"created_at": "2021-08-23T19:39:50.522000+00:00",
+							"updated_at": "2021-08-23T19:40:50.608000+00:00",
+							"admin_status": "deleted",
+							"operational_status": "deleted",
+							"labels": [],
+							"annotations": []
+						}
+					},
+					"included": [],
+					"meta": {
+						"ctx": "13756324163199886387"
+					}
+				}`)),
+			},
+		},
+		{
+			name:       "DeleteOkMLRunResponse",
+			statusCode: http.StatusNoContent,
+			deleteResponse: &http.Response{
+				StatusCode: http.StatusNoContent,
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+			},
+		},
+		{
+			name:          "SendHTTPRequestError",
+			expectedError: "Failed to send delete project request to leader",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			*suite.client.httpClient = *testutils.CreateDummyHTTPClientWithError(func(r *http.Request) (*http.Response, error) {
+				if testCase.expectedError != "" {
+					return nil, errors.New(testCase.expectedError)
+				}
+				if r.Method == http.MethodDelete && strings.HasSuffix(r.URL.String(), projectSuffix) {
+					return testCase.deleteResponse, nil
+				}
+				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
+			})
+			suite.client.leaderOps = suite.generateMocksForClient(deleteTestSuite, true, testCase.statusCode)
+
+			err := suite.client.Delete(context.TODO(), &platform.DeleteProjectOptions{
+				Meta: platform.ProjectMeta{
+					Name:      "test-project",
+					Namespace: "test-namespace",
+				},
+			})
+			if testCase.expectedError != "" {
+				suite.Require().Error(err)
+				suite.Require().Equal(err.Error(), testCase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
 		})
 	}
 }
@@ -454,6 +659,73 @@ func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
 	}
 
 	return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
+}
+
+func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failureJobState bool, statusCode int) leader.LeaderOps {
+	newClient := mockClient.NewLeaderOps()
+	testProject := &mockClient.MockProject{}
+	testProject.On("GetConfig").Return(&platform.ProjectConfig{
+		Meta: platform.ProjectMeta{
+			Name: "test-project",
+		},
+		Spec: platform.ProjectSpec{
+			Owner: "admin",
+		},
+	})
+
+	switch testSuiteType {
+	case createTestSuite:
+		testJobResponse := mockClient.JobResponseMock{}
+		if failureJobState {
+			testJobResponse.On("GetState").Return(string(leader.JobStateFailed))
+		} else {
+			testJobResponse.On("GetState").Return(string(leader.JobStateCompleted))
+		}
+		newClient.On("ParseJobStatusResponse", mock.Anything, mock.Anything).Return(&testJobResponse, true)
+		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
+		newClient.On("GenerateCreateProjectRequestURL", mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("ResolveCreateProjectResponse", mock.Anything, mock.Anything).Return(mockClient.CreateProjectResponseMock{}, nil)
+		newClient.On("ShouldWaitForCreateCompletion").Return(true)
+		newClient.On("GetJobIdUrl", mock.Anything, mock.Anything).Return("test-url" + getCreateProjectSuffix)
+		newClient.On("IsJobCompleted", mock.Anything, mock.Anything, mock.Anything).
+			Return(func(_ context.Context, jobResponse leader.JobResponse, _ string) error {
+				if jobResponse.GetState() != leader.JobStateCompleted {
+					return fmt.Errorf("job failed: expected state %s", jobResponse.GetState())
+				}
+				return nil
+			})
+		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Failed to send request to leader"))
+		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
+		newClient.On("AddAuthSessionHeaders", mock.Anything, mock.Anything).Return()
+		newClient.On("GetAuthSessionCookie", mock.Anything).Return(&http.Cookie{})
+	case getTestSuite:
+		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
+		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
+	case getUpdatedAfter:
+		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
+		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
+		newClient.On("GenerateGetUpdatedAfterRequestURL", mock.Anything).Return("some-url")
+		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
+		newClient.On("GetJobRequestFilter", mock.Anything).Return("")
+	case updateTestSuite:
+		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
+		newClient.On("GenerateUpdateProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+			func(_ context.Context, _ []byte, resp *http.Response, _ error) error {
+				if resp.StatusCode != http.StatusOK {
+					return fmt.Errorf("update failed")
+				}
+				return nil
+			},
+		)
+	case deleteTestSuite:
+		newClient.On("GenerateDeleteProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("GenerateProjectDeletionRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
+		newClient.On("GetDeleteStrategyHeaderName", mock.Anything, mock.Anything).Return("test-header")
+		newClient.On("GetDeleteExpectedStatusCode").Return(statusCode)
+	}
+
+	return newClient
 }
 
 func TestClientTestSuite(t *testing.T) {

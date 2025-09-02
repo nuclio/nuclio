@@ -21,16 +21,53 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
 	"github.com/stretchr/testify/mock"
 )
+
+type MockProject struct {
+	mock.Mock
+}
+
+func (c *MockProject) GetConfig() *platform.ProjectConfig {
+	args := c.Called()
+	return args.Get(0).(*platform.ProjectConfig)
+}
+
+type CreateProjectResponseMock struct {
+	mock.Mock
+}
+
+func (c *CreateProjectResponseMock) GetLastJobID() string {
+	return "test-job-id"
+}
+
+type JobResponseMock struct {
+	mock.Mock
+}
+
+func (j *JobResponseMock) GetState() leaderCommon.JobState {
+	args := j.Called()
+	return leaderCommon.JobState(args.String(0))
+}
+
+func (j *JobResponseMock) GetResult() string {
+	args := j.Called()
+	return args.String(0)
+}
+
+func (j *JobResponseMock) GetJobCreationCtx() string {
+	args := j.Called()
+	return args.String(0)
+}
 
 type Client struct {
 	mock.Mock
 }
 
-func NewClient() (*Client, error) {
-	return &Client{}, nil
+func NewClient() *Client {
+	return &Client{}
 }
 
 func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {

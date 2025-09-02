@@ -17,22 +17,20 @@ limitations under the License.
 package iguazio
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/platform"
+	common "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 )
 
 const (
-	ProjectType       = "project"
-	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
+	ProjectType = "project"
 )
 
-type Project struct {
+type IguazioProject struct {
 	Data ProjectData `json:"data,omitempty"`
 }
 
-func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project {
-	return Project{
+func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) IguazioProject {
+	return IguazioProject{
 		Data: ProjectData{
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
@@ -46,8 +44,8 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project 
 	}
 }
 
-func (pl *Project) GetConfig() *platform.ProjectConfig {
-	updatedAt := pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
+func (pl *IguazioProject) GetConfig() *platform.ProjectConfig {
+	updatedAt := common.ParseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        pl.Data.Attributes.Name,
@@ -66,11 +64,6 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 			UpdatedAt:         &updatedAt,
 		},
 	}
-}
-
-func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
-	t, _ := time.Parse(ProjectTimeLayout, timestamp)
-	return t
 }
 
 type ResponseMeta struct {
@@ -114,15 +107,7 @@ type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
 
-type JobState string
-
-const (
-	JobStateCompleted JobState = "completed"
-	JobStateCanceled  JobState = "canceled"
-	JobStateFailed    JobState = "failed"
-)
-
-func JobStateInSlice(jobState JobState, slice []JobState) bool {
+func JobStateInSlice(jobState common.JobState, slice []common.JobState) bool {
 	for _, otherJobState := range slice {
 		if otherJobState == jobState {
 			return true
@@ -149,15 +134,27 @@ type JobDetailResponse struct {
 	Meta ResponseMeta
 }
 
+func (jd *JobDetailResponse) GetState() common.JobState {
+	return jd.Data.Attributes.State
+}
+
+func (jd *JobDetailResponse) GetResult() string {
+	return jd.Data.Attributes.Result
+}
+
+func (jd *JobDetailResponse) GetJobCreationCtx() string {
+	return jd.Meta.Ctx
+}
+
 type JobData struct {
 	Type       string        `json:"type,omitempty"`
 	Attributes JobAttributes `json:"attributes,omitempty"`
 }
 
 type JobAttributes struct {
-	Kind   string   `json:"kind,omitempty"`
-	State  JobState `json:"state,omitempty"`
-	Result string   `json:"result,omitempty"`
+	Kind   string          `json:"kind,omitempty"`
+	State  common.JobState `json:"state,omitempty"`
+	Result string          `json:"result,omitempty"`
 }
 
 type GetProjectResponse interface {
@@ -168,12 +165,12 @@ type ProjectList struct {
 	Data []ProjectData `json:"data,omitempty"`
 }
 
-// ToSingleProjectList returns list of Project
+// ToSingleProjectList returns list of IguazioProject
 func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	var projects []platform.Project
 
 	for _, projectData := range pl.Data {
-		projects = append(projects, &Project{Data: projectData})
+		projects = append(projects, &IguazioProject{Data: projectData})
 	}
 
 	return projects
@@ -188,9 +185,13 @@ type ProjectDetailResponse struct {
 	Meta ResponseMeta
 }
 
-// ToSingleProjectList returns list of Project
+func (pd *ProjectDetailResponse) GetLastJobID() string {
+	return pd.Data.Relationships.LastJob.Data.ID
+}
+
+// ToSingleProjectList returns list of IguazioProject
 func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
 	return []platform.Project{
-		&Project{Data: pl.Data},
+		&IguazioProject{Data: pl.Data},
 	}
 }

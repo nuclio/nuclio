@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/client"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mlrun"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
@@ -139,19 +140,26 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 }
 
 func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (leader.Client, error) {
+	var skipTLSVerification bool
+	var leaderOps leader.LeaderOps
 	switch platformConfiguration.ProjectsLeader.Kind {
 
 	// mlrun projects leader
 	case platformconfig.ProjectsLeaderKindMlrun:
-		return mlrun.NewClient(parentLogger, platformConfiguration)
+		skipTLSVerification = true
+		leaderOps = mlrun.NewLeaderOps(parentLogger)
 
 	// iguazio projects leader
 	case platformconfig.ProjectsLeaderKindIguazio:
-		return iguazio.NewClient(parentLogger, platformConfiguration)
+		skipTLSVerification = true
+		leaderOps = iguazio.NewLeaderOps(parentLogger)
 
 	case platformconfig.ProjectsLeaderKindMock:
-		return mock.NewClient()
+		leaderOps = mock.NewLeaderOps()
+	default:
+		return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 	}
 
-	return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
+	leaderClient, err := client.NewClient(parentLogger, skipTLSVerification, platformConfiguration, leaderOps)
+	return leaderClient, err
 }

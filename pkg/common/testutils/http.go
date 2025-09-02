@@ -43,3 +43,14 @@ func CreateDummyHTTPClient(handler func(r *http.Request) *http.Response) *http.C
 		return handler(req)
 	})
 }
+
+func CreateDummyHTTPClientWithError(fn func(*http.Request) (*http.Response, error)) *http.Client {
+	return CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		resp, err := fn(r)
+		// RoundTripFunc will return an error if response is nil
+		if err != nil {
+			return nil
+		}
+		return resp
+	})
+}
