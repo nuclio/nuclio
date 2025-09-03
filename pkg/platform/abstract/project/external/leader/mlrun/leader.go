@@ -71,9 +71,12 @@ func (l *LeaderOps) ResolveCreateProjectResponse(ctx context.Context, body []byt
 	return &project, nil
 }
 
-func (l *LeaderOps) ResolveGetProjectResponse(_ bool, _ []byte) ([]platform.Project, error) {
-	// will be implemented as part of synchronizer task
-	return nil, nuclio.ErrNotImplemented
+func (l *LeaderOps) ResolveGetProjectResponse(_ bool, body []byte) ([]platform.Project, error) {
+	var projects MLRunProjectList
+	if err := json.Unmarshal(body, &projects); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+	return projects.ToProjectList(), nil
 }
 
 func (l *LeaderOps) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
@@ -129,8 +132,9 @@ func (l *LeaderOps) GenerateGetProjectsRequestURL(_, _ string) string {
 	return ""
 }
 
-func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(_ string) string {
-	return ""
+func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
+	// TODO - for now there is no filter addition to the URL, should be added when MLRun supports updated_at
+	return fmt.Sprintf("%s/%s", apiAddress, "projects")
 }
 
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {

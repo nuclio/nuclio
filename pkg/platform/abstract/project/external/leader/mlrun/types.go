@@ -87,3 +87,20 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (MLRunPr
 		},
 	}, nil
 }
+
+type MLRunProjectList struct {
+	Projects []MLRunProject `json:"projects"`
+}
+
+// ToProjectList returns list of MLRunProject
+func (mpl *MLRunProjectList) ToProjectList() []platform.Project {
+	var projects []platform.Project
+	for _, mlrunProject := range mpl.Projects {
+		projects = append(projects, &MLRunProject{
+			Metadata: mlrunProject.Metadata,
+			Spec:     mlrunProject.Spec,
+			Status:   mlrunProject.Status,
+		})
+	}
+	return projects
+}
