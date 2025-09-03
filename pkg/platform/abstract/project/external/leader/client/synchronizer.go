@@ -73,7 +73,6 @@ func (c *Synchronizer) Start() error {
 
 	// start synchronization loop in the background
 	go c.startSynchronizationLoop(ctx, synchronizationInterval, c.managedNamespaces)
-
 	return nil
 }
 
@@ -81,7 +80,7 @@ func (c *Synchronizer) startSynchronizationLoop(ctx context.Context,
 	interval time.Duration, namespaces []string) {
 	namespaceToMostRecentUpdatedProjectTimeMap := map[string]*time.Time{}
 
-	// fil it up with default
+	// fill it up with default
 	for _, namespace := range namespaces {
 		namespaceToMostRecentUpdatedProjectTimeMap[namespace] = nil
 	}
