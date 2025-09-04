@@ -26,7 +26,7 @@ on:
         default: ''
         required: false
       runtimes:
-        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.11, default: all)'
+        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.12, default: all)'
         default: 'all'
         required: true
 
@@ -82,7 +82,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.12'
 
       - uses: actions/setup-go@v5
         with:
