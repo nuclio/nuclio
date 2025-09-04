@@ -137,7 +137,7 @@ The following Python versions are no longer supported in Nuclio, due to their En
 For more information, see the [Python version status](https://devguide.python.org/versions/) page.
 
 To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your
-code to Python 3.11 or higher.
+code to Python 3.12 or higher.
 
 <a id="function-configuration"></a>
 ## Function configuration

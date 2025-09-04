@@ -26,7 +26,7 @@ nuctl build function-name [options] [flags]
   -p, --path string                     Path to the function's source code
       --project-name string             The name of the function's parent project
   -r, --registry string                 URL of a container registry (env: NUCTL_REGISTRY)
-      --runtime string                  Runtime (for example, "golang", "python:3.11")
+      --runtime string                  Runtime (for example, "golang", "python:3.12")
       --source string                   The function's source code (overrides "path")
 ```
 
