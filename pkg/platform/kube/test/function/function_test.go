@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"io"
 	"os"
 	"path"
@@ -32,6 +31,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -1470,6 +1471,55 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
 		suite.Require().Equal("busybox", pod.Spec.Containers[1].Image)
 		suite.Require().Equal(commands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+		})
+		suite.Require().NoError(err)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarMultiplePorts() {
+	functionName := "func-with-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'Done'",
+	}
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    sidecarContainerName,
+			Image:   "busybox",
+			Command: commands,
+			Ports: []v1.ContainerPort{{Name: "port-1", ContainerPort: 8050, Protocol: v1.ProtocolTCP},
+				{Name: "port-2", ContainerPort: 22, Protocol: v1.ProtocolTCP},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal("busybox", pod.Spec.Containers[1].Image)
+		suite.Require().Equal(commands, pod.Spec.Containers[1].Command)
+		suite.Require().Equal(2, len(pod.Spec.Containers[1].Ports))
 
 		// get the logs from the sidecar container to validate it ran
 		podLogOpts := v1.PodLogOptions{
