@@ -1077,7 +1077,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-			"runtime":      "python:3.11",
+			"runtime":      "python:3.12",
 			"handler":      "reverser:handler",
 			"project-name": suite.projectName,
 		})
