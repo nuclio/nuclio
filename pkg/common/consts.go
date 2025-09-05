@@ -64,3 +64,5 @@ const FunctionConfigFileName = "function.yaml"
 const DefaultIngressHostTemplate = "@nuclio.fromDefault"
 
 const FunctionTagLatest = "latest"
+
+const FunctionContainerName = "nuclio"
