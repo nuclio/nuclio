@@ -133,8 +133,7 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 
 		// skip projects that their status is not online
 		if leaderProjectConfig == nil ||
-			leaderProjectConfig.Status.OperationalStatus != "online" ||
-			leaderProjectConfig.Status.AdminStatus != "online" {
+			leaderProject.IsProjectNotOnline() {
 			continue
 		}
 

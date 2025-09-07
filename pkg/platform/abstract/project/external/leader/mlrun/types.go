@@ -70,6 +70,10 @@ func (p *MLRunProject) GetConfig() *platform.ProjectConfig {
 	}
 }
 
+func (p *MLRunProject) IsProjectNotOnline() bool {
+	return p.Status.State != common.ProjectOnlineStatus
+}
+
 func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (MLRunProject, error) {
 	if projectConfig == nil {
 		return MLRunProject{}, errors.New("ProjectConfig is nil")

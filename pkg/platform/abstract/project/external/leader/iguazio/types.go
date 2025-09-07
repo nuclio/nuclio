@@ -66,6 +66,10 @@ func (pl *IguazioProject) GetConfig() *platform.ProjectConfig {
 	}
 }
 
+func (pl *IguazioProject) IsProjectNotOnline() bool {
+	return pl.Data.Attributes.AdminStatus != common.ProjectOnlineStatus || pl.Data.Attributes.OperationalStatus != common.ProjectOnlineStatus
+}
+
 type ResponseMeta struct {
 	Ctx string `json:"ctx"`
 }
