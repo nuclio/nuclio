@@ -36,13 +36,15 @@ type LeaderTestSuite struct {
 	suite.Suite
 	logger    logger.Logger
 	leaderOps *LeaderOps
+	namespace string
 }
 
 func (suite *LeaderTestSuite) SetupSuite() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-leader")
 	suite.Require().NoError(err)
-	suite.leaderOps = NewLeaderOps(suite.logger, "test-namespace")
+	suite.namespace = "test-namespace"
+	suite.leaderOps = NewLeaderOps(suite.logger, suite.namespace)
 }
 
 func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
@@ -157,6 +159,9 @@ func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 			projects, err := suite.leaderOps.ResolveGetProjectResponse(false, testCase.body)
 			suite.Require().NoError(err)
 			suite.Require().Len(projects, testCase.expectedLen)
+			for _, project := range projects {
+				suite.Require().Equal(suite.namespace, project.GetConfig().Meta.Namespace)
+			}
 		})
 	}
 }
