@@ -42,7 +42,7 @@ func (suite *LeaderTestSuite) SetupSuite() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-leader")
 	suite.Require().NoError(err)
-	suite.leaderOps = NewLeaderOps(suite.logger)
+	suite.leaderOps = NewLeaderOps(suite.logger, "test-namespace")
 }
 
 func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {

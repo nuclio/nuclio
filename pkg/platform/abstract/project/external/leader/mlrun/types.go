@@ -60,6 +60,7 @@ func (p *MLRunProject) GetConfig() *platform.ProjectConfig {
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        p.Metadata.Name,
+			Namespace:   p.Metadata.Namespace,
 			Annotations: p.Metadata.Annotations,
 			Labels:      p.Metadata.Labels,
 		},
@@ -97,14 +98,18 @@ type MLRunProjectList struct {
 }
 
 // ToProjectList returns list of MLRunProject
-func (mpl *MLRunProjectList) ToProjectList() []platform.Project {
+func (mpl *MLRunProjectList) ToProjectList(namespace string) []platform.Project {
 	var projects []platform.Project
 	for _, mlrunProject := range mpl.Projects {
-		projects = append(projects, &MLRunProject{
+		project := &MLRunProject{
 			Metadata: mlrunProject.Metadata,
 			Spec:     mlrunProject.Spec,
 			Status:   mlrunProject.Status,
-		})
+		}
+
+		// set the namespace since MLRun doesn't return it in the response
+		project.Metadata.Namespace = namespace
+		projects = append(projects, project)
 	}
 	return projects
 }

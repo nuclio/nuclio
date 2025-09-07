@@ -34,12 +34,14 @@ import (
 )
 
 type LeaderOps struct {
-	logger logger.Logger
+	logger    logger.Logger
+	namespace string
 }
 
-func NewLeaderOps(parentLogger logger.Logger) *LeaderOps {
+func NewLeaderOps(parentLogger logger.Logger, namespace string) *LeaderOps {
 	return &LeaderOps{
-		logger: parentLogger.GetChild("mlrun"),
+		logger:    parentLogger.GetChild("mlrun"),
+		namespace: namespace,
 	}
 }
 
@@ -76,7 +78,8 @@ func (l *LeaderOps) ResolveGetProjectResponse(_ bool, body []byte) ([]platform.P
 	if err := json.Unmarshal(body, &projects); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
 	}
-	return projects.ToProjectList(), nil
+
+	return projects.ToProjectList(l.namespace), nil
 }
 
 func (l *LeaderOps) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
