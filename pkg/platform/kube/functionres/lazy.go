@@ -1856,7 +1856,7 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 	}
 
 	// set default container annotation if not exists, for logging purposes
-	defaultContainerAnnotation := "kubectl.kubernetes.io/default-container"
+	defaultContainerAnnotation := common.AnnotationKubectlDefaultContainer
 	if _, ok := annotations[defaultContainerAnnotation]; !ok {
 		annotations[defaultContainerAnnotation] = common.FunctionContainerName
 	}

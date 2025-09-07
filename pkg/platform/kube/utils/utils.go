@@ -205,10 +205,10 @@ func GetProjectSecret(ctx context.Context, kubeClient kube.Client, projectSecret
 }
 
 func GetDefaultContainerName(annotations map[string]string) string {
-	defaultContainerAnnotation := "kubectl.kubernetes.io/default-container"
-	annotation, ok := annotations[defaultContainerAnnotation]
+	defaultContainerAnnotation := common.AnnotationKubectlDefaultContainer
+	containerName, ok := annotations[defaultContainerAnnotation]
 	if ok {
-		return annotation
+		return containerName
 	}
 	return common.FunctionContainerName
 }
