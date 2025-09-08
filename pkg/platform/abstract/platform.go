@@ -275,7 +275,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	// `python` is just an alias
 	if functionConfig.Spec.Runtime == "python" {
-		functionConfig.Spec.Runtime = "python:3.11"
+		functionConfig.Spec.Runtime = "python:3.12"
 	}
 
 	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {

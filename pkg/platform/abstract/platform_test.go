@@ -432,7 +432,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: -3,
 				Timeout:   "1s",
 			},
-			runtime:     "python:3.11",
+			runtime:     "python:3.12",
 			triggerKind: "http",
 			expectError: true,
 		},
@@ -443,7 +443,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: 1,
 				Timeout:   "test",
 			},
-			runtime:     "python:3.11",
+			runtime:     "python:3.12",
 			triggerKind: "http",
 			expectError: true,
 		},
@@ -474,7 +474,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: 1,
 				Timeout:   "1ms",
 			},
-			runtime:     "python:3.11",
+			runtime:     "python:3.12",
 			triggerKind: "cron",
 		},
 	} {
@@ -2324,7 +2324,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichPythonVersion() {
 	suite.Require().NoError(err, "Failed to enrich function")
 
 	// check that the python version is set to the default value
-	suite.Require().Equal("python:3.11",
+	suite.Require().Equal("python:3.12",
 		functionConfig.Spec.Runtime,
 		"Python version was not set to the default value")
 }

@@ -497,7 +497,7 @@ platform: {}
 #    defaultHTTPIngressClassName: ""
 #  imageRegistryOverrides:
 #    baseImageRegistries:
-#      "python:3.11": "myregistry"
+#      "python:3.12": "myregistry"
 #    onbuildImageRegistries:
 #      "golang": "myregistry"
 #  functionReadinessTimeout: 120s
