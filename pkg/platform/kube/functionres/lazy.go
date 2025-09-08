@@ -1205,7 +1205,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 	createDeployment := func() (interface{}, error) {
 		method := createDeploymentResourceMethod
-		container := v1.Container{Name: nuclio.FunctionContainerName}
+		container := v1.Container{Name: common.FunctionContainerName}
 		lc.populateDeploymentContainer(ctx, functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
@@ -1856,9 +1856,9 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 	}
 
 	// set default container annotation if not exists, for logging purposes
-	defaultContainerAnnotation := "kubectl.kubernetes.io/default-container"
+	defaultContainerAnnotation := common.AnnotationKubectlDefaultContainer
 	if _, ok := annotations[defaultContainerAnnotation]; !ok {
-		annotations[defaultContainerAnnotation] = nuclio.FunctionContainerName
+		annotations[defaultContainerAnnotation] = common.FunctionContainerName
 	}
 
 	return annotations, nil
