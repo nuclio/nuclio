@@ -44,30 +44,30 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) IguazioP
 	}
 }
 
-func (pl *IguazioProject) GetConfig() *platform.ProjectConfig {
-	updatedAt := common.ParseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
+func (ip *IguazioProject) GetConfig() *platform.ProjectConfig {
+	updatedAt := common.ParseTimeFromTimestamp(ip.Data.Attributes.UpdatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
-			Name:        pl.Data.Attributes.Name,
-			Namespace:   pl.Data.Attributes.Namespace,
-			Annotations: labelListToMap(pl.Data.Attributes.Annotations),
-			Labels:      labelListToMap(pl.Data.Attributes.Labels),
+			Name:        ip.Data.Attributes.Name,
+			Namespace:   ip.Data.Attributes.Namespace,
+			Annotations: labelListToMap(ip.Data.Attributes.Annotations),
+			Labels:      labelListToMap(ip.Data.Attributes.Labels),
 		},
 		Spec: platform.ProjectSpec{
-			Description:                 pl.Data.Attributes.Description,
-			Owner:                       pl.Data.Attributes.OwnerUsername,
-			DefaultFunctionNodeSelector: labelListToMap(pl.Data.Attributes.DefaultFunctionNodeSelector),
+			Description:                 ip.Data.Attributes.Description,
+			Owner:                       ip.Data.Attributes.OwnerUsername,
+			DefaultFunctionNodeSelector: labelListToMap(ip.Data.Attributes.DefaultFunctionNodeSelector),
 		},
 		Status: platform.ProjectStatus{
-			AdminStatus:       pl.Data.Attributes.AdminStatus,
-			OperationalStatus: pl.Data.Attributes.OperationalStatus,
+			AdminStatus:       ip.Data.Attributes.AdminStatus,
+			OperationalStatus: ip.Data.Attributes.OperationalStatus,
 			UpdatedAt:         &updatedAt,
 		},
 	}
 }
 
-func (pl *IguazioProject) IsProjectNotOnline() bool {
-	return pl.Data.Attributes.AdminStatus != common.ProjectOnlineStatus || pl.Data.Attributes.OperationalStatus != common.ProjectOnlineStatus
+func (ip *IguazioProject) IsProjectOnline() bool {
+	return ip.Data.Attributes.AdminStatus == common.ProjectOnlineStatus && ip.Data.Attributes.OperationalStatus == common.ProjectOnlineStatus
 }
 
 type ResponseMeta struct {
@@ -194,8 +194,8 @@ func (pd *ProjectDetailResponse) GetLastJobID() string {
 }
 
 // ToSingleProjectList returns list of IguazioProject
-func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
+func (pd *ProjectDetail) ToSingleProjectList() []platform.Project {
 	return []platform.Project{
-		&IguazioProject{Data: pl.Data},
+		&IguazioProject{Data: pd.Data},
 	}
 }

@@ -71,8 +71,8 @@ func (p *MLRunProject) GetConfig() *platform.ProjectConfig {
 	}
 }
 
-func (p *MLRunProject) IsProjectNotOnline() bool {
-	return p.Status.State != common.ProjectOnlineStatus
+func (p *MLRunProject) IsProjectOnline() bool {
+	return p.Status.State == common.ProjectOnlineStatus
 }
 
 func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (MLRunProject, error) {

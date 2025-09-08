@@ -34,7 +34,8 @@ import (
 )
 
 type LeaderOps struct {
-	logger    logger.Logger
+	logger logger.Logger
+	// namespace is used to enrich the MLRun responses, which omit the namespace
 	namespace string
 }
 

@@ -32,6 +32,7 @@ import (
 )
 
 const (
+	// NuclioSelfNamespace is used to get the namespace in which Nuclio is running
 	NuclioSelfNamespace = "@nuclio.selfNamespace"
 )
 

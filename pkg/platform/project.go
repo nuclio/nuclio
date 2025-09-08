@@ -37,8 +37,8 @@ type Project interface {
 	// GetConfig returns the project config
 	GetConfig() *ProjectConfig
 
-	// IsProjectNotOnline returns true if the project is offline
-	IsProjectNotOnline() bool
+	// IsProjectOnline returns true if the project is offline
+	IsProjectOnline() bool
 }
 
 type AbstractProject struct {
@@ -63,8 +63,8 @@ func (ap *AbstractProject) GetConfig() *ProjectConfig {
 	return &ap.ProjectConfig
 }
 
-func (ap *AbstractProject) IsProjectNotOnline() bool {
-	return ap.ProjectConfig.Status.AdminStatus != "online" || ap.ProjectConfig.Status.OperationalStatus != "online"
+func (ap *AbstractProject) IsProjectOnline() bool {
+	return ap.ProjectConfig.Status.AdminStatus == "online" && ap.ProjectConfig.Status.OperationalStatus == "online"
 }
 
 func (ap *AbstractProject) CreateAndWait(ctx context.Context, createProjectOptions *CreateProjectOptions) error {
