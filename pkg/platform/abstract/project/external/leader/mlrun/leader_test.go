@@ -36,13 +36,15 @@ type LeaderTestSuite struct {
 	suite.Suite
 	logger    logger.Logger
 	leaderOps *LeaderOps
+	namespace string
 }
 
 func (suite *LeaderTestSuite) SetupSuite() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-leader")
 	suite.Require().NoError(err)
-	suite.leaderOps = NewLeaderOps(suite.logger)
+	suite.namespace = "test-namespace"
+	suite.leaderOps = NewLeaderOps(suite.logger, suite.namespace)
 }
 
 func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
@@ -131,31 +133,36 @@ func (suite *LeaderTestSuite) TestResolveCreateProjectResponse() {
 
 func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 	testCases := []struct {
-		name   string
-		body   []byte
-		detail bool
+		name        string
+		body        []byte
+		expectedLen int
 	}{
 		{
-			name:   "DetailTrue",
-			detail: true,
-			body:   []byte(`{}`),
+			name:        "multipleProjects",
+			body:        []byte(`{"projects":[{"kind":"project","metadata":{"name":"curl-test","created":"2025-08-18T14:51:52.330000","labels":{},"annotations":{}},"spec":{"description":null,"owner":"admin","goals":null,"params":{},"functions":[],"workflows":[],"artifacts":[],"artifact_path":null,"conda":null,"source":null,"subpath":null,"origin_url":null,"desired_state":"online","custom_packagers":null,"default_image":null,"build":null},"status":{"state":"online"}},{"kind":"project","metadata":{"name":"curl-test2","created":"2025-08-20T06:25:30.227000","labels":{},"annotations":{}},"spec":{"description":null,"owner":"admin","goals":null,"params":{},"functions":[],"workflows":[],"artifacts":[],"artifact_path":null,"conda":null,"source":null,"subpath":null,"origin_url":null,"desired_state":"online","custom_packagers":null,"default_image":null,"build":null},"status":{"state":"online"}},{"kind":"project","metadata":{"name":"default","created":"2025-05-12T11:18:51.038000","labels":{},"annotations":{}},"spec":{"description":"Default Project","owner":null,"goals":null,"params":{},"functions":[],"workflows":[],"artifacts":[],"artifact_path":null,"conda":null,"source":null,"subpath":null,"origin_url":null,"desired_state":"online","custom_packagers":null,"default_image":null,"build":null},"status":{"state":"online"}}]}`),
+			expectedLen: 3,
 		},
 		{
-			name:   "DetailFalse",
-			detail: false,
-			body:   []byte(`{}`),
+			name:        "noProjects",
+			body:        []byte(`{"projects":[]}`),
+			expectedLen: 0,
 		},
 		{
-			name:   "EmptyBody",
-			detail: false,
-			body:   nil,
+			name:        "singleProject",
+			body:        []byte(`{"projects":[{"kind":"project","metadata":{"name":"asd","created":"2025-09-03T06:55:30.824045","labels":{},"annotations":{},"namespace":"mlrun"},"spec":{"description":null,"owner":null,"goals":null,"params":{},"functions":[],"workflows":[],"artifacts":[],"artifact_path":null,"conda":null,"source":null,"subpath":null,"origin_url":null,"desired_state":"online","custom_packagers":null,"default_image":null,"build":null,"default_function_node_selector":{}},"status":{"state":"online"}}]}`),
+			expectedLen: 1,
 		},
 	}
 
 	for _, testCase := range testCases {
-		projects, err := suite.leaderOps.ResolveGetProjectResponse(testCase.detail, testCase.body)
-		suite.Require().Error(err)
-		suite.Require().Nil(projects)
+		suite.Run(testCase.name, func() {
+			projects, err := suite.leaderOps.ResolveGetProjectResponse(false, testCase.body)
+			suite.Require().NoError(err)
+			suite.Require().Len(projects, testCase.expectedLen)
+			for _, project := range projects {
+				suite.Require().Equal(suite.namespace, project.GetConfig().Meta.Namespace)
+			}
+		})
 	}
 }
 
@@ -288,7 +295,7 @@ func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
 
 func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 	url := suite.leaderOps.GenerateGetUpdatedAfterRequestURL("test")
-	suite.Require().Equal("", url)
+	suite.Require().Equal("test/projects", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {

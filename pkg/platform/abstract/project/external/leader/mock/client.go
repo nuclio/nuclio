@@ -35,6 +35,11 @@ func (c *MockProject) GetConfig() *platform.ProjectConfig {
 	return args.Get(0).(*platform.ProjectConfig)
 }
 
+func (c *MockProject) IsProjectOnline() bool {
+	args := c.Called()
+	return args.Bool(0)
+}
+
 type CreateProjectResponseMock struct {
 	mock.Mock
 }

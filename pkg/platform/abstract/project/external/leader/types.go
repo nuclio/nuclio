@@ -138,7 +138,8 @@ const (
 )
 
 const (
-	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
+	ProjectTimeLayout   = "2006-01-02T15:04:05.000000+00:00"
+	ProjectOnlineStatus = "online"
 )
 
 func ParseTimeFromTimestamp(timestamp string) time.Time {

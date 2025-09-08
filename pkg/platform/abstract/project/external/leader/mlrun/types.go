@@ -60,6 +60,7 @@ func (p *MLRunProject) GetConfig() *platform.ProjectConfig {
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        p.Metadata.Name,
+			Namespace:   p.Metadata.Namespace,
 			Annotations: p.Metadata.Annotations,
 			Labels:      p.Metadata.Labels,
 		},
@@ -68,6 +69,10 @@ func (p *MLRunProject) GetConfig() *platform.ProjectConfig {
 			UpdatedAt: &updateAt,
 		},
 	}
+}
+
+func (p *MLRunProject) IsProjectOnline() bool {
+	return p.Status.State == common.ProjectOnlineStatus
 }
 
 func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (MLRunProject, error) {
@@ -86,4 +91,25 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (MLRunPr
 			Description: projectConfig.Spec.Description,
 		},
 	}, nil
+}
+
+type MLRunProjectList struct {
+	Projects []MLRunProject `json:"projects"`
+}
+
+// ToProjectList returns list of MLRunProject
+func (mpl *MLRunProjectList) ToProjectList(namespace string) []platform.Project {
+	var projects []platform.Project
+	for _, mlrunProject := range mpl.Projects {
+		project := &MLRunProject{
+			Metadata: mlrunProject.Metadata,
+			Spec:     mlrunProject.Spec,
+			Status:   mlrunProject.Status,
+		}
+
+		// set the namespace since MLRun doesn't return it in the response
+		project.Metadata.Namespace = namespace
+		projects = append(projects, project)
+	}
+	return projects
 }

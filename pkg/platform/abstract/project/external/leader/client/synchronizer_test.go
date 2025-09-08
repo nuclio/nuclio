@@ -34,7 +34,7 @@ limitations under the License.
 	            	  ext: (int64) 63761762082,
 */
 
-package iguazio
+package client
 
 import (
 	"context"
@@ -43,6 +43,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	common "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	leadermock "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	internalmock "github.com/nuclio/nuclio/pkg/platform/abstract/project/mock"
 
@@ -151,13 +152,13 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsNotUpdatedInternally() {
 		"updated",
 		"online",
 		testBeginningTime.Format(common.ProjectTimeLayout))
-	updatedProject.(*IguazioProject).Data.Attributes.Namespace = "some-namespace"
+	updatedProject.(*iguazio.IguazioProject).Data.Attributes.Namespace = "some-namespace"
 	notUpdatedProject := suite.compileProject("leader-project",
 		namespace,
 		"not-updated",
 		"online",
 		testBeginningTime.Format(common.ProjectTimeLayout))
-	notUpdatedProject.(*IguazioProject).Data.Attributes.Namespace = "some-namespace"
+	notUpdatedProject.(*iguazio.IguazioProject).Data.Attributes.Namespace = "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(
 		namespace,
 		[]platform.Project{updatedProject},
@@ -269,9 +270,9 @@ func (suite *SynchronizerTestSuite) compileProject(name string,
 	status string,
 	updatedAt string) platform.Project {
 
-	return &IguazioProject{
-		Data: ProjectData{
-			Attributes: ProjectAttributes{
+	return &iguazio.IguazioProject{
+		Data: iguazio.ProjectData{
+			Attributes: iguazio.ProjectAttributes{
 				Name:              name,
 				Namespace:         namespace,
 				Description:       description,
