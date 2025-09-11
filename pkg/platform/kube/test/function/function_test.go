@@ -2107,7 +2107,7 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 				cmpopts.IgnoreFields(createFunctionOptions.FunctionConfig.Meta,
 					"ResourceVersion"), // kubernetes opaque value
 				cmpopts.IgnoreFields(createFunctionOptions.FunctionConfig.Spec,
-					"Image", "ImageHash", "Resources"), // auto generated during deploy
+					"Image", "Resources"), // auto generated during deploy
 
 				// TODO: compare triggers as well
 				// currently block due to serviceType being converted to string during get functions)
