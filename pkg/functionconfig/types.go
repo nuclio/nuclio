@@ -480,7 +480,6 @@ type Spec struct {
 	EnvFrom                 []v1.EnvFromSource      `json:"envFrom,omitempty"`
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
-	ImageHash               string                  `json:"imageHash,omitempty"`
 	Replicas                *int                    `json:"replicas,omitempty"`
 	MinReplicas             *int                    `json:"minReplicas,omitempty"`
 	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`

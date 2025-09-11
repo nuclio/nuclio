@@ -1840,9 +1840,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
-	annotations := map[string]string{
-		"nuclio.io/image-hash": function.Spec.ImageHash,
-	}
+	annotations := map[string]string{}
 
 	// add annotations for prometheus pull
 	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
