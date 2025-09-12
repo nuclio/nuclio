@@ -4,7 +4,7 @@ This document describes the specific NodeJS build and deploy configurations.
 
 > **NOTE:**  NodeJS runtime is in tech-preview.
 
-#### In this document
+## In This Document
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)

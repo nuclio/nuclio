@@ -16,7 +16,7 @@ release = "1.12.8"
 
 extensions = [
     "sphinx.ext.napoleon",
-    "recommonmark",
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
@@ -25,10 +25,33 @@ extensions = [
     "sphinx_copybutton",
 ]
 
+
+# Enable extended syntax for links, tables, footnotes, etc.
+myst_enable_extensions = [
+    "colon_fence",        # ```{python} style code blocks
+    "deflist",            # definition lists
+    "linkify",            # auto-convert URLs to links
+    "substitution",       # substitution syntax
+    "tasklist",           # GitHub-style task lists
+    "html_admonition",   # allows HTML-style admonitions
+    "html_image",        # supports HTML <img> tags
+]
+
+# Automatically convert .md links to .html in HTML build
+myst_html_meta = {
+    "enable_auto_links": "true"
+}
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+myst_xref_missing = "ignore"
 
-linkcheck_ignore = {
+nitpick_ignore = [
+    ("any", "spec.build.codeEntryType"),  # add more as needed
+]
+
+suppress_warnings = ["myst.header"]
+
+linkcheck_ignore = [
     r'https:\/\/github\.com\/.*\/.*#L\d+-L\d+',
     # linkcheck doesn't work well with relative paths which contain anchor, so ignore them
     r'^.*\.html#.*$',
@@ -37,7 +60,7 @@ linkcheck_ignore = {
     # ignore links to kubernetes.io, since they often block the traffic
     r"https://kubernetes.io/.*"
 
-}
+]
 linkcheck_anchors = True
 linkcheck_timeout = 60
 
@@ -50,8 +73,13 @@ copybutton_prompt_text = "$ "
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
-    ".html": "html",
 }
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ["_static", "assets"]
+html_css_files = ["custom.css"]
 
 master_doc = "contents"
 
@@ -62,9 +90,7 @@ html_theme = "sphinx_book_theme"
 html_title = ""
 html_logo = "assets/images/logo.png"
 html_favicon = "./favicon.ico"
-extra_navbar = "<p>Your HTML</p>"
 nb_execution_mode = "off"
-html_sourcelink_suffix = ""
 autoclass_content = "both"
 
 html_theme_options = {
@@ -78,8 +104,8 @@ html_theme_options = {
     "repository_branch": "development",
     "show_navbar_depth": 1,
     "extra_footer": "",
-    "google_analytics_id": "",
 }
+myst_heading_anchors = 5
 
 html_sidebars = {
     "**": ["navbar-logo.html", "search-field.html", "sbt-sidebar-nav.html"]
@@ -87,51 +113,4 @@ html_sidebars = {
 
 
 def setup(app):
-    app.connect('source-read', process_tables)
-    app.connect('source-read', replace_md_links)
-
-import re
-import markdown
-from sphinx.util import logging
-
-logger = logging.getLogger(__name__)
-
-
-def process_tables(app, docname, source):
-    """
-    Convert markdown tables to html, since recommonmark can't. This requires 3 steps:
-        Snip out table sections from the markdown
-        Convert them to html
-        Replace the old markdown table with an html table
-
-    This function is called by sphinx for each document. `source` is a 1-item list. To update the document, replace
-    element 0 in `source`.
-    """
-    md = markdown.Markdown(extensions=['markdown.extensions.tables'])
-    table_processor = markdown.extensions.tables.TableProcessor(md.parser, {})
-
-    raw_markdown = source[0]
-    blocks = re.split(r'(\n{2,})', raw_markdown)
-
-    for i, block in enumerate(blocks):
-        if table_processor.test(None, block):
-            html = md.convert(block)
-            styled = html.replace('<table>', '<table border="1" class="docutils">', 1)  # apply styling
-            blocks[i] = styled
-
-    # re-assemble into markdown-with-tables-replaced
-    # must replace element 0 for changes to persist
-    source[0] = ''.join(blocks)
-
-
-def replace_md_links(app, docname, source):
-    """Replace .md#section links with .html#section links in Markdown files."""
-
-    # Regex pattern to match Markdown links with .md files and anchors
-    md_link_pattern = re.compile(r'\[([^]]+)]\(([^)]+)\.md(#.*?)\)')
-    new_source = md_link_pattern.sub(r'[\1](\2.html\3)', source[0])
-
-    if source[0] != new_source:
-        logger.warn(f'Updated markdown links in {docname}')
-
-    source[0] = new_source
+    pass

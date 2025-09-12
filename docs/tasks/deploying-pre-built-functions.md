@@ -2,7 +2,7 @@
 
 This guide goes through building functions to container images and then deploying them in a separate process.
 
-#### In this document
+## In This Document
 - [Motivation](#motivation)
 - [Building a function](#building-a-function)
 - [Deploying the pre-built function](#deploying-the-pre-built-function)

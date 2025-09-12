@@ -2,13 +2,12 @@
 
 ## In this document
 - [Overview](#overview)
-- [Consuming messages through a consumer group](#consume-messages)
+- [Consuming messages through a consumer group](#consuming-messages-through-a-consumer-group)
   - [Consumption example](#consumption-example)
   - [Explicit offset commits](#explicit-offset-commits)
-- [Dashboard configuration](#ui-config)
+- [Dashboard configuration](#dashboard-configuration)
 - [Example](#example)
 
-<a id="overview"></a>
 ## Overview
 
 The Nuclio `v3ioStream` trigger allows users to process messages that are sent to an Iguazio Data Science Platform (**"platform"**) data stream (a.k.a. **"v3io stream"**). To simplify, you send messages to a platform stream, instruct Nuclio to read from this stream, and then your function handler is called once for every stream message.
@@ -19,7 +18,6 @@ To this end, Nuclio leverages consumer groups that are built into the platform's
 
 When a Nuclio replica is assigned a set of shards, the replica can start using Nuclio workers to read from the shards and handle the records consumption. It's currently guaranteed that a given shard is handled only by one replica, and that the messages are processed sequentially; that is, a message is read and handled only after the handling of the previous message in the shard is completed.
 
-<a id="consume-messages"></a>
 ## Consuming messages through a consumer group
 
 When a function replica with a `v3ioStream` trigger starts up, it reads a stream state object that's stored alongside the stream shards. This object has an attribute for each consumer group that contains the following information:
@@ -36,7 +34,6 @@ Upon receiving its shard assignment, the replica spawns a Go routine ("thread") 
 
 For each read message, Nuclio "marks" the sequence number as handled. Periodically, the latest marked sequence number for each shard is "committed" (written to the shard's offset attribute). This allows future replicas to pick up where the previous replica left off without affecting performance.
 
-<a id="consumption-example"></a>
 ### Consumption example
 
 To illustrate the consumption mechanism, assume a deployed Nuclio function with minimum and maximum replicas configurations of`3`; the function is configured to read from a `/my-stream` stream with 12 shards using the consumer group `cg0`.
@@ -72,7 +69,6 @@ The following demonstrates the replica configurations for this example:
 ]
 ```
 
-<a id="example-function-redeployment"></a>
 #### Function redeployment
 
 At some point, the user decides to redeploy the function. Because by default, Nuclio uses the rolling-update deployment strategy, Kubernetes terminates the replicas one by one. The `replica1` pod stops, and a new `replica1` pod is brought up and follows the same startup procedure: it reads the state object's consumer-group attribute and looks for free shards to take over; initially, it won't find any, because the `last_heartbeat` field of `replica1` is still within the session timeout period and `replica2` and `replica3` keep updating their `last_heartbeat` field.
@@ -83,7 +79,6 @@ At this stage, `replica1` backs off and retries periodically until it eventually
 
 For shards 0-3, the new instance of `replica1` then reads the shard's offset attribute, which indicates the location in the shard at which the previous instance of `replica1` left off; seeks the read offset in the shard; and continues reading messages from this location. The same process is executed for `replica2` and `replica3`.
 
-<a id="explicit-offset-commits"></a>
 ### Explicit offset commits
 
 In some cases, the "auto-commit" feature can be problematic.
@@ -129,7 +124,6 @@ def handler(context, event):
 ```
 
 
-<a id="ui-config"></a>
 ## Dashboard configuration
 
 As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration parameters from the Nuclio dashboard:
@@ -147,7 +141,6 @@ As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration pa
 
 > **Note:** In future versions of Nuclio, it's planned that the dashboard will better reflect the role of the configuration parameters and add more parameters (such as session timeout and heartbeat interval, which are currently always set to the default values of 10s and 3s, respectively, unless you edit the function-configuration file).
 
-<a id="example"></a>
 ## Example
 
 The easiest way to set up a stream is with the [`v3ctl`](https://github.com/v3io/v3ctl) platform CLI.
@@ -226,4 +219,3 @@ To clean up, delete the function from the dashboard's **Projects | &lt;project&g
 ```sh
 ./v3ctl delete stream --container users test-stream-0
 ```
-

@@ -14,7 +14,7 @@ This value can be customized using the `spec.triggers.trigger-name.async.maxConn
 
 ## Architecture Considerations and Failure Recovery
 
-Architecture description can be found [here](../../concepts/architecture.md).
+Architecture description can be found [here](../concepts/architecture.md).
 
 Async mode is designed to complement, not replace, Nuclio synchronous processing. It should be used only when asynchronous handling aligns with the function’s behavior.
 If a blocking operation is executed within an async function, it can block the entire worker process, preventing other requests from being processed.

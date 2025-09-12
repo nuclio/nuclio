@@ -1,6 +1,6 @@
 # Setting up Nuclio with AKS, Application Insights, and Grafana
 
-#### In This Document
+## In This Document
 - [Application Insights overview](#application-insights-overview)
 - [Create a new Application Insights account and obtain the instrumentation key](#create-a-new-application-insights-account-and-obtain-the-instrumentation-key)
 - [Set up Nuclio on Microsoft's Azure Container Service (AKS)](#set-up-nuclio-on-microsofts-azure-container-service-aks)

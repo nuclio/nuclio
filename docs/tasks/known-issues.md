@@ -1,6 +1,6 @@
-## Known issues
+# Known issues
 
-### 503 Error Code While Scaling Down (Kubernetes Only)
+## 503 Error Code While Scaling Down (Kubernetes Only)
 
 This is a rare issue that primarily occurs in low-latency setups.
 When scaling down a Nuclio function pod, Kubernetes may return a 503 error due to the delay between sending a `SIGTERM` signal and stopping traffic to the pod.

@@ -4,7 +4,7 @@ This guide uses practical examples to guide you through the process of writing s
 
 > **NOTE:**  Shell runtime is in tech-preview.
 
-#### In this document
+## In This Document
 
 - [Overview](#overview)
 - [Handle events with a bash script](#handle-events-with-a-bash-script)

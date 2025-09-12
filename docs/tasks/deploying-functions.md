@@ -2,7 +2,7 @@
 
 This tutorial guides you through the process of deploying functions and specifying the function configuration.
 
-#### In this document
+## In This Document
 - [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
 - [Writing a simple function (nuctl)](#writing-a-simple-function)
 - [Deploying a simple function (nuctl)](#deploying-a-simple-function)

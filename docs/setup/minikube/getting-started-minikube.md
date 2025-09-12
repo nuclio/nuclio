@@ -2,7 +2,7 @@
 
 Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com/kubernetes/minikube/), which is a tool that lets you run Kubernetes locally.
 
-#### In this document
+## In This Document
 
 - [Prerequisites](#prerequisites)
 - [Prepare Minikube](#prepare-minikube)
@@ -91,7 +91,6 @@ helm --namespace nuclio install nuclio nuclio/nuclio
 Use the command `minikube kubectl -- get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
 
-<a id="deploy-a-function-with-the-nuclio-cli-nuctl"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
 
 Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](https://github.com/nuclio/nuclio/tree/development/hack/examples/golang/helloworld/helloworld.go) Go function.

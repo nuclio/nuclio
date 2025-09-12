@@ -2,7 +2,7 @@
 
 Follow this step-by-step guide to set up a Nuclio development environment that uses the [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/) and related [Google Cloud Platform (GCP)](https://cloud.google.com/) tools.
 
-#### In this document
+## In This Document
 
 - [Prerequisites](#prerequisites)
 - [Set up a Kubernetes cluster and a local environment](#set-up-a-kubernetes-cluster-and-a-local-environment)
@@ -27,7 +27,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 - The [Google Container Registry (GCR)](https://cloud.google.com/container-registry/) API is [enabled](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on your project.
 
-- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](../../reference/nuctl/cli/nuctl_deploy.md).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 ## Set up a Kubernetes cluster and a local environment

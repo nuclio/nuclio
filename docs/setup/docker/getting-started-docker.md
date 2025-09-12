@@ -2,7 +2,7 @@
 
 Follow this step-by-step guide to set up a Nuclio development environment that uses Docker.
 
-#### In this document
+## In This Document
 
 - [Prerequisites](#prerequisites)
 - [Run Nuclio](#run-nuclio)
@@ -18,7 +18,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
     docker version
     ```
 
-- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
+- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](../../reference/nuctl/cli/nuctl_deploy.md).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 <a id="run-nuclio"></a>
