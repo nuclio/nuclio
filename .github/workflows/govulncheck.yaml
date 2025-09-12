@@ -25,7 +25,7 @@ on:
     branches:
       - development
       - 'feature/*'
-      - "\d+.\d+.x"
+      - '*.*.x'
     paths:
       - '**/*.go'
       - 'go.mod'
