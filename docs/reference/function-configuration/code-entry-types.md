@@ -220,7 +220,7 @@ Set the [`spec.build.codeEntryType`](function-configuration-reference.md) functi
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository branch.
       The default work directory is the root directory of the GitHub repository (`"/"`).
 
-#### Example of Github code-entry type
+#### Example of GitHub code-entry type
 
 ```yaml
 spec:
