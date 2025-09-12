@@ -239,7 +239,7 @@ spec:
 
 ### Archive code-entry type
 
-Set the [`spec.build.codeEntryType`](function-configuration-reference.md function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-code-entry-type) of the function code from one of the following sources:
+Set the [`spec.build.codeEntryType`](function-configuration-reference.md) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-code-entry-type) of the function code from one of the following sources:
 
 - An [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container. Downloads from this source require user authentication.
 - Any URL that doesn't require user authentication to perform the download.

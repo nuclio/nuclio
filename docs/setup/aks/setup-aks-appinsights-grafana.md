@@ -189,7 +189,7 @@ Then run the following port-forward command to browse the web console:
 ```
 kubectl --namespace default port-forward <REPLACE-WITH-GRAFANA-POD-NAME> 3000
 ```
-Now, browse to http://127.0.0.1:3000/ and log in using the admin username and password you provided in the `values.yaml` file.
+Now, browse to `http://127.0.0.1:3000/` and log in using the admin username and password you provided in the `values.yaml` file.
 
 Verify that `Azure Monitor` exists in the plugins page.
 
