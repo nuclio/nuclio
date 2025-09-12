@@ -58,7 +58,10 @@ linkcheck_ignore = [
     r'^\./[^/]+\.html#.*$',
     r'^\.\./[^/]+\.html#.*$',
     # ignore links to kubernetes.io, since they often block the traffic
-    r"https://kubernetes.io/.*"
+    r"https://kubernetes.io/.*",
+
+    "https://github.com/grafana/azure-monitor-datasource/blob/master/README.md#configure-the-data-source",
+    "https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#additional-flags",
 
 ]
 linkcheck_anchors = True

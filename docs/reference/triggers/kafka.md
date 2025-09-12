@@ -173,11 +173,11 @@ To do that, follow the following steps:
 2. Mount the secret as a volume to the function (in `spec.Volumes`)
 3. Specify the path to the mounted values, either in the function's spec or in the function's annotations, with:
     1. Either specify the full path in the spec/annotation (e.g. `nuclio.io/kafka-access-key = /path/to/secret/access-key`)
-    2. Or, add the secret mount path to the secretPath filed (or the nuclio.io/kafka-secret-path annotation), and the sub paths to the other annotations. Nuclio will resolve the full paths according to the existing annotations.
+    2. Or, add the secret mount path to the secretPath filed (or the `nuclio.io/kafka-secret-path` annotation), and the sub paths to the other annotations. Nuclio will resolve the full paths according to the existing annotations.
 e.g:
-```
-nuclio.io/kafka-secret-path = /etc/nuclio/kafka-secret
-nuclio.io/kafka-access-key = accessKey
+```yaml
+nuclio.io/kafka-secret-path: /etc/nuclio/kafka-secret
+nuclio.io/kafka-access-key: accessKey
 ```
 
 The current configurations supported via secrets are: `accessKey`, `accessCertificate`, `caCert`, `SASL.OAuth.clientSecret`, `SASL.password`.
