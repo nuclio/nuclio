@@ -20,7 +20,6 @@ import (
 	"context"
 	"runtime/debug"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -101,7 +100,7 @@ type AbstractTrigger struct {
 	Trigger Trigger
 
 	// accessed atomically, keep as first field for alignment
-	Statistics Statistics
+	Statistics *Statistics
 
 	ID              string
 	Logger          logger.Logger
@@ -246,7 +245,7 @@ func (at *AbstractTrigger) GetStatistics() *Statistics {
 	// copy worker allocator statistics
 	at.Statistics.WorkerAllocatorStatistics = *at.WorkerAllocator.GetStatistics()
 
-	return &at.Statistics
+	return at.Statistics
 }
 
 // GetID returns user given ID for this trigger
@@ -315,11 +314,11 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 }
 
 // UpdateStatistics updates the trigger statistics
-func (at *AbstractTrigger) UpdateStatistics(success bool, times uint64) {
+func (at *AbstractTrigger) UpdateStatistics(success bool, times int64) {
 	if success {
-		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, times)
+		at.Statistics.EventsHandledSuccessTotal.Add(times)
 	} else {
-		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, times)
+		at.Statistics.EventsHandledFailureTotal.Add(times)
 	}
 }
 
@@ -477,7 +476,7 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 		// allocate a worker
 		workerInstance, err := at.WorkerAllocator.Allocate(workerAvailabilityTimeout)
 		if err != nil {
-			at.UpdateStatistics(false, uint64(len(batch)))
+			at.UpdateStatistics(false, int64(len(batch)))
 			workerError := errors.Wrap(err, "Failed to allocate worker")
 			for _, channel := range responseChans {
 				go channel.Write(at.Logger, &runtime.ResponseWithErrors{SubmitError: workerError})
@@ -531,7 +530,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		for _, channel := range responseChans {
 			go channel.Write(at.Logger, &runtime.ResponseWithErrors{ProcessError: err})
 		}
-		at.UpdateStatistics(false, uint64(len(responseChans)))
+		at.UpdateStatistics(false, int64(len(responseChans)))
 		return
 	} else {
 		for _, response := range responses.Results {

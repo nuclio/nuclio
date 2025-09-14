@@ -181,26 +181,30 @@ func (c *Configuration) ResolveWorkerAllocationMode(modeFromAttributes, modeFrom
 }
 
 type Statistics struct {
-	EventsHandledSuccessTotal uint64
-	EventsHandledFailureTotal uint64
+	EventsHandledSuccessTotal atomic.Uint64
+	EventsHandledFailureTotal atomic.Uint64
 	WorkerAllocatorStatistics statistics.AllocatorStatistics
 }
 
-func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
+func (s *Statistics) DiffFrom(prev *Statistics) *Statistics {
 	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
 
 	// atomically load the counters
-	currEventsHandledSuccessTotal := atomic.LoadUint64(&s.EventsHandledSuccessTotal)
-	currEventsHandledFailureTotal := atomic.LoadUint64(&s.EventsHandledFailureTotal)
+	currEventsHandledSuccessTotal := s.EventsHandledSuccessTotal.Load()
+	currEventsHandledFailureTotal := s.EventsHandledFailureTotal.Load()
 
-	prevEventsHandledSuccessTotal := atomic.LoadUint64(&prev.EventsHandledSuccessTotal)
-	prevEventsHandledFailureTotal := atomic.LoadUint64(&prev.EventsHandledFailureTotal)
+	prevEventsHandledSuccessTotal := prev.EventsHandledSuccessTotal.Load()
+	prevEventsHandledFailureTotal := prev.EventsHandledFailureTotal.Load()
 
-	return Statistics{
-		EventsHandledSuccessTotal: currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal,
-		EventsHandledFailureTotal: currEventsHandledFailureTotal - prevEventsHandledFailureTotal,
+	eventsHandledSuccessDiff := currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal
+	eventsHandledFailureDiff := currEventsHandledFailureTotal - prevEventsHandledFailureTotal
+
+	diffStatistics := &Statistics{
 		WorkerAllocatorStatistics: workerAllocatorStatisticsDiff,
 	}
+	diffStatistics.EventsHandledSuccessTotal.Store(eventsHandledSuccessDiff)
+	diffStatistics.EventsHandledFailureTotal.Store(eventsHandledFailureDiff)
+	return diffStatistics
 }
 
 type Secret struct {
