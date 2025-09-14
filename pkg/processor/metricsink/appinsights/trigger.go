@@ -31,8 +31,8 @@ type TriggerGatherer struct {
 func newTriggerGatherer(t trigger.Trigger, client appinsights.TelemetryClient) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
-		trigger: t,
-		client:  client,
+		trigger:        t,
+		client:         client,
 		prevStatistics: &trigger.Statistics{},
 	}
 
