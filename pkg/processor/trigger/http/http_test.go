@@ -51,7 +51,8 @@ func (suite *TestSuite) SetupSuite() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.trigger = http{
 		AbstractTrigger: trigger.AbstractTrigger{
-			Logger: suite.logger,
+			Logger:     suite.logger,
+			Statistics: &trigger.Statistics{},
 		},
 		configuration: &Configuration{},
 		status:        status.NewSafeStatus(status.Ready),
@@ -137,8 +138,8 @@ func (suite *TestSuite) TestCORS() {
 		suite.trigger.configuration.CORS = corsInstance
 
 		// reset statistics
-		suite.trigger.Statistics.EventsHandledSuccessTotal = 0
-		suite.trigger.Statistics.EventsHandledFailureTotal = 0
+		suite.trigger.Statistics.EventsHandledSuccessTotal.Store(0)
+		suite.trigger.Statistics.EventsHandledFailureTotal.Store(0)
 
 		// ensure trigger is ready
 		suite.trigger.status.SetStatus(status.Ready)
@@ -171,11 +172,11 @@ func (suite *TestSuite) TestCORS() {
 
 		// check statistic were update correspondingly
 		suite.Equal(testCase.ExpectedEventsHandledSuccessTotal,
-			suite.trigger.Statistics.EventsHandledSuccessTotal)
+			suite.trigger.Statistics.EventsHandledSuccessTotal.Load())
 
 		// check statistic were update correspondingly
 		suite.Equal(testCase.ExpectedEventsHandledFailureTotal,
-			suite.trigger.Statistics.EventsHandledFailureTotal)
+			suite.trigger.Statistics.EventsHandledFailureTotal.Load())
 
 	}
 }
