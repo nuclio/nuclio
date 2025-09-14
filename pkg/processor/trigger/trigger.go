@@ -144,6 +144,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		restartChan:     restartTriggerChan,
+		Statistics:      &Statistics{},
 	}
 	if functionconfig.BatchModeEnabled(configuration.Batch) {
 		trigger.Batcher = NewBatcher(logger, configuration.Batch.BatchSize)
@@ -241,7 +242,10 @@ func (at *AbstractTrigger) GetWorkers() []eventprocessor.EventProcessor {
 
 // GetStatistics returns trigger statistics
 func (at *AbstractTrigger) GetStatistics() *Statistics {
-
+	if at.Statistics == nil {
+		at.Statistics = &Statistics{}
+	}
+	
 	// copy worker allocator statistics
 	at.Statistics.WorkerAllocatorStatistics = *at.WorkerAllocator.GetStatistics()
 
@@ -314,7 +318,7 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 }
 
 // UpdateStatistics updates the trigger statistics
-func (at *AbstractTrigger) UpdateStatistics(success bool, times int64) {
+func (at *AbstractTrigger) UpdateStatistics(success bool, times uint64) {
 	if success {
 		at.Statistics.EventsHandledSuccessTotal.Add(times)
 	} else {
@@ -476,7 +480,7 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 		// allocate a worker
 		workerInstance, err := at.WorkerAllocator.Allocate(workerAvailabilityTimeout)
 		if err != nil {
-			at.UpdateStatistics(false, int64(len(batch)))
+			at.UpdateStatistics(false, uint64(len(batch)))
 			workerError := errors.Wrap(err, "Failed to allocate worker")
 			for _, channel := range responseChans {
 				go channel.Write(at.Logger, &runtime.ResponseWithErrors{SubmitError: workerError})
@@ -530,7 +534,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		for _, channel := range responseChans {
 			go channel.Write(at.Logger, &runtime.ResponseWithErrors{ProcessError: err})
 		}
-		at.UpdateStatistics(false, int64(len(responseChans)))
+		at.UpdateStatistics(false, uint64(len(responseChans)))
 		return
 	} else {
 		for _, response := range responses.Results {
