@@ -765,9 +765,6 @@ func NewConfig() *Config {
 		Meta: Meta{
 			Namespace: "default",
 		},
-		Spec: Spec{
-			LastRedeployTimestamp: strconv.Itoa(int(time.Now().UnixNano())),
-		},
 	}
 }
 
