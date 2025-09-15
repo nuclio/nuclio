@@ -1,5 +1,7 @@
 # Event batching
 
+>**⚠️ Warning:** Technical preview
+
 **_NOTE:_** Event batching is supported only for:
 * runtimes:
     * `python`

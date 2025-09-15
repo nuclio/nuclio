@@ -1,5 +1,7 @@
 # Streaming HTTP Responses
 
+>**⚠️ Warning:** Technical preview
+
 Nuclio supports streaming HTTP responses for functions written in **Go** and **Python** runtimes. This feature is available **only for HTTP triggers** and is not supported for other trigger types.
 
 Streaming allows a function to send data to the client in chunks as it becomes available, rather than waiting for the entire response to be ready.
