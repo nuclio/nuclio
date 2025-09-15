@@ -715,6 +715,25 @@ ensure-golangci-linter:
 			$(GOLANGCI_LINT_INSTALL_COMMAND); \
 		fi \
 	fi
+
+#
+# Security scanning (govulncheck)
+#
+
+GOVULNCHECK_VERSION := latest
+GOVULNCHECK_BIN := $(CURDIR)/.bin/govulncheck
+GOVULNCHECK_INSTALL_COMMAND := GOBIN=$(CURDIR)/.bin go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+
+.PHONY: ensure-govulncheck
+ensure-govulncheck:
+	@if ! command -v $(GOVULNCHECK_BIN) >/dev/null 2>&1; then \
+		echo "govulncheck not found. Installing..."; \
+		$(GOVULNCHECK_INSTALL_COMMAND); \
+	fi
+
+.PHONY: govulncheck
+govulncheck: modules ensure-govulncheck
+	$(GOVULNCHECK_BIN) cmd/... pkg/...
 #
 # Testing
 #
