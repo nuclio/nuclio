@@ -568,9 +568,9 @@ type Spec struct {
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
 
-	// ImageTimeStampHash refer to the dashboard update time.
+	// LastRedeployTimestamp refer to the dashboard update time.
 	// It is used to determine if the function image needs to be pulled
-	ImageTimeStampHash string `json:"imageTimeStampHash,omitempty"`
+	LastRedeployTimestamp string `json:"lastRedeployTimestamp,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
@@ -766,7 +766,7 @@ func NewConfig() *Config {
 			Namespace: "default",
 		},
 		Spec: Spec{
-			ImageTimeStampHash: strconv.Itoa(int(time.Now().UnixNano())),
+			LastRedeployTimestamp: strconv.Itoa(int(time.Now().UnixNano())),
 		},
 	}
 }
