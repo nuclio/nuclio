@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -303,6 +304,9 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	ap.enrichEnvVars(functionConfig)
 
 	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
+
+	// enrich timestamp hash to update the deployment
+	functionConfig.Spec.ImageTimeStampHash = strconv.Itoa(int(time.Now().UnixNano()))
 
 	return nil
 }
