@@ -26,7 +26,7 @@ def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
 The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.py`) and `<entrypoint>` is the function name. In the example above, the handler is `main:handler`, assuming the file is named `main.py`.
 
 For asynchronous support (e.g., `asyncio`), your function should be defined as `async def` and use `await` statements where appropriate. You must also specify this in the function configuration by `setting spec.triggers.<trigger-name>.mode` to `async`.
-Refer to the [async mode documentation](../../../tasks/async-mode.md)for more details.
+Refer to the [async mode documentation](../../function-configuration/async-mode.md)for more details.
 
 Async handler example:
 ```python
