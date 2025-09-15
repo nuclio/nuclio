@@ -28,6 +28,8 @@ The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` i
 For asynchronous support (e.g., `asyncio`), your function should be defined as `async def` and use `await` statements where appropriate. You must also specify this in the function configuration by `setting spec.triggers.<trigger-name>.mode` to `async`.
 Refer to the [async mode documentation](../../function-configuration/async-mode.md)for more details.
 
+>**⚠️ Warning:**  Async mode is in Technical preview
+
 Async handler example:
 ```python
 import asyncio

@@ -1,5 +1,7 @@
 # Asynchronous Mode Support in Nuclio
 
+>**⚠️ Warning:** Technical preview
+
 ## Overview
 
 Nuclio now supports asynchronous function invocation within a single worker process.
