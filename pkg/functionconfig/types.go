@@ -568,10 +568,10 @@ type Spec struct {
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
 
-	// LastRedeployTimestamp used by the controller to set the nuclio.io/last-redeploy-timestamp annotation.
+	// LastDeployTimestamp used by the controller to set the nuclio.io/last-deploy-timestamp annotation.
 	// Ensures that when an image is redeployed, the deployment/pod template is updated
 	// so the image is pulled again.
-	LastRedeployTimestamp string `json:"lastRedeployTimestamp,omitempty"`
+	LastDeployTimestamp string `json:"lastDeployTimestamp,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string

@@ -306,7 +306,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
 
 	// enrich timestamp hash to update the deployment
-	functionConfig.Spec.LastRedeployTimestamp = strconv.Itoa(int(time.Now().UnixNano()))
+	functionConfig.Spec.LastDeployTimestamp = strconv.Itoa(int(time.Now().UnixNano()))
 
 	return nil
 }
