@@ -2,12 +2,12 @@
 
 This document describes the specific Python build and deploy configurations.
 
-#### In this document
+## In This Document
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
 - [Supported versions](#supported-versions)
-- [Python versions EOL](#python-runtime-eol)
+- [Python versions EOL](#python-versions-eol)
 - [Function configuration](#function-configuration)
 - [Build and execution](#build-and-execution)
 - [Portable execution](#portable-execution)
@@ -123,7 +123,6 @@ The new snippet would be looking like this:
 > Note: To *disable* decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`.
 > Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
 
-<a id="python-versions-eol"></a>
 ## Python versions EOL
 The following Python versions are no longer supported in Nuclio, due to their End Of Life (EOL) status:
 - Python 2.7 (EOL since Jan 2020)

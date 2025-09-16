@@ -1,20 +1,18 @@
 # API Gateway with HTTP
 
-#### In This Section
+## In This Section
 
-- [No Authentication](#none-auth)
-    - [Create](#create-none)
-    - [Invoke](#invoke-none)
-- [Basic Authentication](#basic-auth)
-    - [Create](#create-basic)
-    - [Invoke](#invoke-basic)
-- [Delete an API Gateway](#delete)
+- [No Authentication](#no-authentication)
+    - [Create](#create-api-gateways)
+    - [Invoke](#invoke-api-gateways)
+- [Basic Authentication](#basic-authentication)
+    - [Create](#create-api-gateways-with-basic-authentication)
+    - [Invoke](#invoke-api-gateways-with-basic-authentication)
+- [Delete an API Gateway](#delete-api-gateway)
 - [Canary Function](#canary-function)
 
-<a id="none-auth"></a>
 ## No authentication
 
-<a id="create-none"></a>
 ### Create API gateways
 
 You can create an API gateway with basic authentication by sending a POST request to the following endpoint:
@@ -50,20 +48,17 @@ With the following request body:
 }
 ```
 
-<a id="invoke-none"></a>
 ### Invoke API gateways
 
 To invoke it, send a request to the created API Gateway ingress (e.g.: `<apigateway-name>-<project-name>.<nuclio-host-name>`,
 specified on the request body `spec.host` ).
 
-<a id="basic-auth"></a>
 ## Basic authentication
 
 You can protect your function by applying [basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) to the API gateway.
 With basic authentication the client needs to provide both a username and password to access a function.
 
-<a id="create-basic"></a>
-### Create API gateways
+### Create API gateways with Basic Authentication
 
 You can create an API gateway with basic authentication by sending a POST request to the following endpoint:
 
@@ -104,7 +99,6 @@ With the following request body:
 }
 ```
 
-<a id="invoke-basic"></a>
 ### Invoke API gateways with basic authentication
 
 To invoke it, simply send a request to the created API Gateway ingress (e.g.: `<apigateway-name>-<project-name>.<nuclio-host-name>`,
@@ -130,8 +124,7 @@ Authorization: Basic c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk
 
 Invoking the function without the above header results in `401 Authorization Required`
 
-<a id="delete"></a>
-## Delete an API Gateway
+## Delete API Gateway
 
 To delete an API gateway, send a DELETE request to the following endpoint:
 
@@ -148,7 +141,6 @@ With a request body specifying the name of the API gateway to delete:
 ```
 Response status code: 204 (No content).
 
-<a id="canary-function"></a>
 ## Canary function
 
 You can control the percentage of traffic that goes to a canary function by changing the percentage of the upstream.

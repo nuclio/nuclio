@@ -2,11 +2,11 @@
 
 Follow this step-by-step guide to set up a Nuclio development environment that uses a Kubernetes cluster.
 
-#### In this document
+## In This Document
 
 - [Prerequisites](#prerequisites)
 - [Install Nuclio](#install-nuclio)
-- [What's next](#what-s-next)
+- [What is next](#what-is-next)
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 - You have the credentials of a Docker registry, such as [Docker Hub](https://hub.docker.com/), [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/), or [Google Container Registry (GCR)](https://cloud.google.com/container-registry/).
 
-- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](../../reference/nuctl/cli/nuctl_deploy.md).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 ## Install Nuclio
@@ -28,7 +28,7 @@ Follow the instructions of [How to run nuclio in Production](running-in-producti
 
 Use the command `kubectl --namespace nuclio get pods` to verify both the controller and dashboard are running.
 
-## What's next?
+## What is next?
 
 See the following resources to make the best of your new Nuclio environment:
 

@@ -2,7 +2,7 @@
 
 This document describes specific Golang (Go) build and deploy configurations.
 
-#### In this document
+## In This Document
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)

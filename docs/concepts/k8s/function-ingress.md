@@ -1,6 +1,6 @@
 # Invoking Functions by Name with a Kubernetes Ingress
 
-#### In this document
+## In this document
 
 - [Overview](#overview)
 - [Setting up an ingress controller](#setting-up-an-ingress-controller)

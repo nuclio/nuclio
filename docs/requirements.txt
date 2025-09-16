@@ -1,6 +1,8 @@
 markdown
-recommonmark
+myst-parser
 python_docs_theme
 sphinx_book_theme
 sphinx-copybutton
 sphinx
+linkify
+myst-parser[linkify]

@@ -2,7 +2,7 @@
 
 This tutorial guides you through the process of deploying functions whose build process is solely defined in a user-supplied Dockerfile. The tutorial assumes that you followed the [source-based deployment tutorial](../tasks/deploying-functions.md), which provides an introduction to function signatures, configuration, and more.
 
-#### In this document
+## In This Document
 
 - [How is this different from source-based deploys?](#how-is-this-different-from-source-based-deploys)
 - [Building a function with Docker](#building-a-function-with-docker)

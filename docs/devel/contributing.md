@@ -2,14 +2,13 @@
 
 This guide will guide you through the process of setting up a development environment and contributing to Nuclio.
 
-#### In This Document
+## In This Document
 
 - [Prerequisites](#prerequisites)
-- [Getting the source code](#get-source)
-- [Setting up a GoLand project](#goland-setup)
+- [Getting the source code](#getting-the-source-code)
+- [Setting up a GoLand project](#setting-up-a-goland-project)
 - [Submitting a PR](#submitting-a-pr)
 
-<a id="prerequisites"></a>
 ## Prerequisites
 
 Ensure that your setup includes the following prerequisite components:
@@ -21,7 +20,6 @@ Ensure that your setup includes the following prerequisite components:
 - Kubernetes version 1.24+ (mostly for testing) - `minikube` recommended; (you can follow
   the [Minikube getting-started guide](../setup/minikube/getting-started-minikube.md))
 
-<a id="get-source"></a>
 ## Getting the source code
 
 Fork the Nuclio GitHub repository and clone it:
@@ -107,7 +105,6 @@ When you're done, create a feature branch from the `development` branch; (Nuclio
 git checkout -b my-feature
 ```
 
-<a id="goland-setup"></a>
 ## Setting up a GoLand project
 
 The Nuclio team is a fan of GoLand and uses it heavily for Go projects. It was decided not to include the **.idea**
@@ -185,10 +182,8 @@ the [Function-Configuration Reference](../reference/function-configuration/funct
 There's nothing special required to run `nuctl`, but you may want to pass `--platform local` in case you don't want to
 work with Kubernetes.
 
-<a id="submitting-a-pr"></a>
 ## Submitting a PR
 
 Your PRs will go through GitHub Action CI and code review. Make sure to follow
 the [coding conventions](../devel/coding-conventions.md) and run `make fmt lint` before submitting a PR, that would
 save you some time failing on CI linting and test validations
-
