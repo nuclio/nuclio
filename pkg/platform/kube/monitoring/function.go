@@ -227,8 +227,15 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 			"Failed to update function",
 			"functionName", function.Name,
 			"functionStatus", function.Status,
-			"functionNamespace", function.Namespace)
+			"functionNamespace", function.Namespace,
+			"err", err.Error())
 	}
+	fm.logger.DebugWithCtx(ctx,
+		"Successfully updated the function",
+		"functionName", function.Name,
+		"functionStatus", function.Status,
+		"functionNamespace", function.Namespace,
+	)
 	return nil
 }
 

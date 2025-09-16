@@ -1841,7 +1841,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
 	annotations := map[string]string{
-		"nuclio.io/image-hash": function.Spec.ImageHash,
+		"nuclio.io/last-deploy-timestamp": function.Spec.LastDeployTimestamp,
 	}
 
 	// add annotations for prometheus pull

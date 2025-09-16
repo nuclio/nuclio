@@ -480,7 +480,6 @@ type Spec struct {
 	EnvFrom                 []v1.EnvFromSource      `json:"envFrom,omitempty"`
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
-	ImageHash               string                  `json:"imageHash,omitempty"`
 	Replicas                *int                    `json:"replicas,omitempty"`
 	MinReplicas             *int                    `json:"minReplicas,omitempty"`
 	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`
@@ -568,6 +567,11 @@ type Spec struct {
 	// InitContainers are specialized containers that run before app containers in a Pod
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
+
+	// LastDeployTimestamp used by the controller to set the nuclio.io/last-deploy-timestamp annotation.
+	// Ensures that when an image is redeployed, the deployment/pod template is updated
+	// so the image is pulled again.
+	LastDeployTimestamp string `json:"lastDeployTimestamp,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
