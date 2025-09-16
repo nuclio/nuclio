@@ -188,22 +188,16 @@ type Statistics struct {
 
 func (s *Statistics) DiffFrom(prev *Statistics) *Statistics {
 	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
-
-	// atomically load the counters
 	currEventsHandledSuccessTotal := s.EventsHandledSuccessTotal.Load()
 	currEventsHandledFailureTotal := s.EventsHandledFailureTotal.Load()
-
 	prevEventsHandledSuccessTotal := prev.EventsHandledSuccessTotal.Load()
 	prevEventsHandledFailureTotal := prev.EventsHandledFailureTotal.Load()
-
-	eventsHandledSuccessDiff := currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal
-	eventsHandledFailureDiff := currEventsHandledFailureTotal - prevEventsHandledFailureTotal
 
 	diffStatistics := &Statistics{
 		WorkerAllocatorStatistics: workerAllocatorStatisticsDiff,
 	}
-	diffStatistics.EventsHandledSuccessTotal.Store(eventsHandledSuccessDiff)
-	diffStatistics.EventsHandledFailureTotal.Store(eventsHandledFailureDiff)
+	diffStatistics.EventsHandledSuccessTotal.Store(currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal)
+	diffStatistics.EventsHandledFailureTotal.Store(currEventsHandledFailureTotal - prevEventsHandledFailureTotal)
 	return diffStatistics
 }
 
