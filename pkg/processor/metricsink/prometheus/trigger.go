@@ -32,27 +32,28 @@ type TriggerGatherer struct {
 	workerAllocationTotal                       *prometheus.CounterVec
 	workerAllocationWaitDurationMilliSecondsSum prometheus.Counter
 	workerAllocationWorkersAvailablePercentage  prometheus.Counter
-	prevStatistics                              trigger.Statistics
+	prevStatistics                              *trigger.Statistics
 }
 
 func NewTriggerGatherer(instanceName string,
-	trigger trigger.Trigger,
+	t trigger.Trigger,
 	logger logger.Logger,
 	metricRegistry *prometheus.Registry) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
-		trigger: trigger,
-		logger:  logger.GetChild("gatherer"),
+		trigger:        t,
+		logger:         logger.GetChild("gatherer"),
+		prevStatistics: &trigger.Statistics{},
 	}
 
 	// base labels for handle events
 	labels := prometheus.Labels{
 		"instance":     instanceName,
-		"trigger_kind": trigger.GetKind(),
-		"trigger_id":   trigger.GetID(),
-		"namespace":    trigger.GetNamespace(),
-		"function":     trigger.GetFunctionName(),
-		"project":      trigger.GetProjectName(),
+		"trigger_kind": t.GetKind(),
+		"trigger_id":   t.GetID(),
+		"namespace":    t.GetNamespace(),
+		"function":     t.GetFunctionName(),
+		"project":      t.GetProjectName(),
 	}
 
 	newTriggerGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -98,8 +99,8 @@ func NewTriggerGatherer(instanceName string,
 	}
 
 	newTriggerGatherer.logger.DebugWith("Trigger gatherer created",
-		"triggerID", trigger.GetID(),
-		"triggerKind", trigger.GetKind())
+		"triggerID", t.GetID(),
+		"triggerKind", t.GetKind())
 
 	return newTriggerGatherer, nil
 }
@@ -107,19 +108,19 @@ func NewTriggerGatherer(instanceName string,
 func (tg *TriggerGatherer) Gather() error {
 
 	// read current stats
-	currentStatistics := *tg.trigger.GetStatistics()
+	currentStatistics := tg.trigger.GetStatistics()
 
 	// diff from previous to get this period, DiffFrom returns a full copy of statistics,
 	// which can be accessed without atomicity concerns
-	diffStatistics := currentStatistics.DiffFrom(&tg.prevStatistics)
+	diffStatistics := currentStatistics.DiffFrom(tg.prevStatistics)
 
 	tg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
-	}).Add(float64(diffStatistics.EventsHandledSuccessTotal))
+	}).Add(float64(diffStatistics.EventsHandledSuccessTotal.Load()))
 
 	tg.handledEventsTotal.With(prometheus.Labels{
 		"result": "failure",
-	}).Add(float64(diffStatistics.EventsHandledFailureTotal))
+	}).Add(float64(diffStatistics.EventsHandledFailureTotal.Load()))
 
 	tg.workerAllocationCount.Add(
 		float64(diffStatistics.WorkerAllocatorStatistics.AllocationCount))
