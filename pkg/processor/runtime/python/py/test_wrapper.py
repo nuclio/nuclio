@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import base64
 import functools
 import http.client
 import json
@@ -129,18 +130,21 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
-    async def test_sync_handler_that_returns_None(self):
+    def test_sync_handler_that_returns_None(self):
+        async def _test_sync_handler_that_returns_None_async():
+            def sync_handler(context, event):
+                async def async_work():
+                    # Simulate I/O or async computation
+                    await asyncio.sleep(0.01)
+                    return "result_from_async"
+                return async_work()  # returns coroutine
 
-        def sync_handler(context, event):
-            async def async_work():
-                # Simulate I/O or async computation
-                await asyncio.sleep(0.01)
-                return "result_from_async"
-            return async_work()  # returns coroutine
-
-        self._wrapper._entrypoint = sync_handler
-        output = await self._wrapper._call_entrypoint(event=nuclio_sdk.Event(_id=1))
-        assert output == 'result_from_asynzc'
+            self._wrapper._entrypoint = sync_handler
+            output = await self._wrapper._call_entrypoint(event=nuclio_sdk.Event(_id=1))
+            assert output == 'result_from_async'
+        
+        # Run the async test within the event loop
+        self._loop.run_until_complete(_test_sync_handler_that_returns_None_async())
 
     def test_non_utf8_headers(self):
         """
@@ -305,8 +309,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
-
-    async def test_encode_streaming_entrypoint_output(self):
+    def test_encode_streaming_entrypoint_output(self):
         # Simulated streaming output (e.g., async generator)
         async def streaming_handler_output():
             yield "chunk1"
@@ -316,10 +319,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         entrypoint_output = streaming_handler_output()
 
         # Collect packets from the async generator
-        packets = [
-            (prefix, payload)
-            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
-        ]
+        packets = asyncio.run(self._collect_packets_async(entrypoint_output))
 
         # Extract prefix sequence for ordering check
         prefixes = [prefix for prefix, _ in packets]
@@ -335,25 +335,20 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             prefix: payload for prefix, payload in packets
         }
 
-        self.assertEqual(payload_by_prefix[PacketType.STREAM_START], json.dumps("chunk1"))
-        self.assertEqual(payload_by_prefix[PacketType.BODY_CHUNK], json.dumps("chunk2"))
+        self.assertEqual(json.loads(payload_by_prefix[PacketType.STREAM_START])["body"], "chunk1")
+        self.assertEqual(payload_by_prefix[PacketType.BODY_CHUNK], base64.b64encode(b"chunk2").decode())
         self.assertIn(PacketType.END_OF_STREAM, prefixes)
         self.assertIn(PacketType.METRICS, prefixes)
         self.assertNotIn(PacketType.SINGLE_RESPONSE, prefixes)
 
-    async def test_encode_single_value_entrypoint_output(self):
+    def test_encode_single_value_entrypoint_output(self):
         # Simulate regular async function returning a single value
         async def single_value_handler_output():
             return "ok"
 
         # Call the function and await the result
-        entrypoint_output = await single_value_handler_output()
-
-        # Pass it into the packet generator
-        packets = [
-            (prefix, payload)
-            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
-        ]
+        entrypoint_output = asyncio.run(single_value_handler_output())
+        packets = asyncio.run(self._collect_packets_async(entrypoint_output))
         self.assertEqual(len(packets), 2)
 
         prefixes = [prefix for prefix, _ in packets]
@@ -371,10 +366,16 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         self.assertEqual(
             payload_by_prefix[PacketType.SINGLE_RESPONSE],
-            json.dumps({"body": "ok", "status_code": 200})
+            json.dumps({
+                "body": "ok",
+                "content_type": "text/plain",
+                "headers": {},
+                "status_code": 200,
+                "body_encoding": "text",
+            })
         )
 
-    async def test_encode_batched_entrypoint_output(self):
+    def test_encode_batched_entrypoint_output(self):
         single_response = nuclio_sdk.Response(
             body=str(123),
             headers={},
@@ -383,16 +384,10 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         )
 
         # Consume single response packets
-        single_packets = [
-            (prefix, payload) async for prefix, payload in
-            self._wrapper._generate_processor_packets(single_response, start_time=0)
-        ]
+        single_packets = asyncio.run(self._collect_packets_async(single_response))
 
         # Consume batch response packets
-        batch_packets = [
-            (prefix, payload) async for prefix, payload in
-            self._wrapper._generate_processor_packets([single_response, single_response], start_time=0)
-        ]
+        batch_packets = asyncio.run(self._collect_packets_async([single_response, single_response]))
 
         # Extract the actual payloads for comparison
         single_payload = next((payload for prefix, payload in single_packets if prefix == "r"), None)
@@ -437,6 +432,11 @@ class TestSubmitEvents(BaseTestSubmitEvents):
     #                                                                stream=f)
     #         profiled_serve_requests_func(num_requests=num_of_events)
     #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
+    async def _collect_packets_async(self, entrypoint_output):
+        return [
+            (prefix, payload)
+            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
+        ]
 
     def _send_events(self, events):
         self._wait_for_socket_creation()
