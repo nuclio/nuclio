@@ -129,6 +129,19 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
+    async def test_sync_handler_that_returns_None(self):
+
+        def sync_handler(context, event):
+            async def async_work():
+                # Simulate I/O or async computation
+                await asyncio.sleep(0.01)
+                return "result_from_async"
+            return async_work()  # returns coroutine
+
+        self._wrapper._entrypoint = sync_handler
+        output = await self._wrapper._call_entrypoint(event=nuclio_sdk.Event(_id=1))
+        assert output == 'result_from_asynzc'
+
     def test_non_utf8_headers(self):
         """
         This test validates the expected behavior for a non-utf8 event field contents
