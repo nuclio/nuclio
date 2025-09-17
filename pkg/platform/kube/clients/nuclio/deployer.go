@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -152,7 +152,8 @@ func (d *Deployer) Deploy(ctx context.Context,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(ctx, functionInstance.Namespace, functionInstance.Name)
+		defaultContainerName := utils.GetDefaultContainerName(functionInstance.Annotations)
+		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(ctx, functionInstance.Namespace, functionInstance.Name, defaultContainerName)
 		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
@@ -201,17 +202,13 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 		}
 	}
 
-	// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
-	// assuming the processor can reload configuration
-	functionConfig.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
-
 	// update status
 	functionInstance.Status = *functionStatus
 	return nil
 
 }
 
-func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace string, name string) (string, string) {
+func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace, name, containerName string) (string, string) {
 	var briefErrorsMessage string
 	podLogsMessage := "\nPod logs:\n"
 
@@ -241,11 +238,12 @@ func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace st
 	podLogsMessage += "\n* " + pod.Name + "\n"
 
 	maxLogLines := int64(MaxLogLines)
+	options := &v1.PodLogOptions{TailLines: &maxLogLines, Container: containerName}
 	if logsRequest, getLogsErr := d.consumer.KubeClientSet.StreamPodLogs(
 		ctx,
 		namespace,
 		pod.Name,
-		&v1.PodLogOptions{TailLines: &maxLogLines}); getLogsErr != nil {
+		options); getLogsErr != nil {
 		podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 	} else {
 		scanner := bufio.NewScanner(logsRequest)

@@ -94,6 +94,9 @@ func (ca *ConnectionAllocator) Stop() error {
 }
 
 func (ca *ConnectionAllocator) Allocate(duration time.Duration) (eventprocessor.EventProcessor, error) {
+	if duration == 0 {
+		duration = ca.ConnectionAvailabilityTimeoutDuration
+	}
 	return ca.allocator.Allocate(duration)
 }
 

@@ -55,6 +55,7 @@ type testSuite struct {
 	logger       logger.Logger
 	builder      *Builder
 	testID       string
+	projectName  string
 	mockS3Client *common.MockS3Client
 	mockPlatform *mockplatform.Platform
 	ctx          context.Context
@@ -66,6 +67,7 @@ func (suite *testSuite) SetupSuite() {
 
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
+	suite.projectName = "test-project-" + xid.New().String()
 
 	suite.mockS3Client = &common.MockS3Client{
 		FilePath: FunctionsArchiveFilePath,
@@ -86,7 +88,7 @@ func (suite *testSuite) SetupTest() {
 
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: suite.projectName,
 	}
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
@@ -115,10 +117,11 @@ func (suite *testSuite) TestGetRuntimeNameFromConfig() {
 }
 
 func (suite *testSuite) TestGetBuildFlags() {
-	suite.builder.options.FunctionConfig.Spec.Build.Flags = []string{"--insecure-pull", "-f && whoami &&", "--label key=value"}
+	projectFlag := fmt.Sprintf("--project-name %s", suite.projectName)
+	suite.builder.options.FunctionConfig.Spec.Build.Flags = []string{"--insecure-pull", "-f && whoami &&", "--label key=value", projectFlag}
 	flags := suite.builder.getBuildFlags()
 
-	suite.Require().Equal(map[string]bool{"'--label key=value'": true, "'-f && whoami &&'": true, "--insecure-pull": true}, flags)
+	suite.Require().Equal(map[string]bool{"'--label key=value'": true, "'-f && whoami &&'": true, "--insecure-pull": true, fmt.Sprintf("'%s'", projectFlag): true}, flags)
 }
 
 // Make sure that "Builder.getRuntimeName" properly reads the runtime name from the build path if not set by the user

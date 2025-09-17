@@ -150,7 +150,7 @@ function writeDuration(start, end) {
 async function handleEvent(handlerFunction, incomingEvent) {
     let response = {}
     try {
-        incomingEvent.body = new Buffer.from(incomingEvent['body'], 'base64')
+        incomingEvent.body = Buffer.from(incomingEvent['body'], 'base64')
         incomingEvent.timestamp = new Date(incomingEvent['timestamp'] * 1000)
 
         const start = new Date()
@@ -220,7 +220,9 @@ function connectSocket(socketPath, handlerFunction) {
         buffer = messages.pop()
 
         for (const message of messages) {
-            if (!message.trim()) continue
+            if (!message.trim()) {
+                continue
+            }
             try {
                 const event = JSON.parse(message)
                 await handleEvent(handlerFunction, event)

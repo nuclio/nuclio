@@ -242,8 +242,6 @@ type CreateFunctionInvocationResult struct {
 // Project
 //
 
-const DefaultProjectName string = "default"
-
 type ProjectMeta struct {
 	Name        string            `json:"name,omitempty"`
 	Namespace   string            `json:"namespace,omitempty"`

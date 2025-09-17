@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package iguazio
+package client
 
 import (
 	"context"
@@ -73,7 +73,6 @@ func (c *Synchronizer) Start() error {
 
 	// start synchronization loop in the background
 	go c.startSynchronizationLoop(ctx, synchronizationInterval, c.managedNamespaces)
-
 	return nil
 }
 
@@ -81,7 +80,7 @@ func (c *Synchronizer) startSynchronizationLoop(ctx context.Context,
 	interval time.Duration, namespaces []string) {
 	namespaceToMostRecentUpdatedProjectTimeMap := map[string]*time.Time{}
 
-	// fil it up with default
+	// fill it up with default
 	for _, namespace := range namespaces {
 		namespaceToMostRecentUpdatedProjectTimeMap[namespace] = nil
 	}
@@ -134,8 +133,7 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 
 		// skip projects that their status is not online
 		if leaderProjectConfig == nil ||
-			leaderProjectConfig.Status.OperationalStatus != "online" ||
-			leaderProjectConfig.Status.AdminStatus != "online" {
+			!leaderProject.IsProjectOnline() {
 			continue
 		}
 

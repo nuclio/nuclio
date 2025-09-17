@@ -2,7 +2,7 @@
 
 This guide walks through a few steps to benchmark Nuclio from scratch.
 
-#### In this document
+## In This Document
 - [Setting up a benchmark system](#setting-up-a-benchmark-system)
 - [Benchmark Golang (Go)](#benchmark-golang-go)
 - [Benchmark Python](#benchmark-python)

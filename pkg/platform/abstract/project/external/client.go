@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/client"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mlrun"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
@@ -34,7 +35,7 @@ import (
 
 type Client struct {
 	platformConfiguration *platformconfig.Config
-	synchronizer          *iguazio.Synchronizer
+	synchronizer          *client.Synchronizer
 	internalClient        project.Client
 	leaderClient          leader.Client
 }
@@ -50,7 +51,12 @@ func NewClient(parentLogger logger.Logger,
 	// use the internal client (for now), so projects will be modified both on leader's side and internally by nuclio
 	newClient.internalClient = internalClient
 
-	newClient.leaderClient, err = newLeaderClient(parentLogger, platformConfiguration)
+	namespaces := platformConfiguration.ManagedNamespaces
+	if len(namespaces) == 0 {
+		namespaces = append(namespaces, common.ResolveDefaultNamespace(common.NuclioSelfNamespace))
+	}
+
+	newClient.leaderClient, err = newLeaderClient(parentLogger, platformConfiguration, namespaces[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create leader client")
 	}
@@ -61,12 +67,7 @@ func NewClient(parentLogger logger.Logger,
 		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
 	}
 
-	namespaces := platformConfiguration.ManagedNamespaces
-	if len(namespaces) == 0 {
-		namespaces = append(namespaces, common.ResolveDefaultNamespace("@nuclio.selfNamespace"))
-	}
-
-	newClient.synchronizer, err = iguazio.NewSynchronizer(parentLogger,
+	newClient.synchronizer, err = client.NewSynchronizer(parentLogger,
 		synchronizationIntervalStr,
 		namespaces,
 		newClient.leaderClient,
@@ -138,20 +139,27 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	}
 }
 
-func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (leader.Client, error) {
+func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config, namespace string) (leader.Client, error) {
+	var skipTLSVerification bool
+	var leaderOps leader.LeaderOps
 	switch platformConfiguration.ProjectsLeader.Kind {
 
 	// mlrun projects leader
 	case platformconfig.ProjectsLeaderKindMlrun:
-		return mlrun.NewClient(parentLogger, platformConfiguration)
+		skipTLSVerification = true
+		leaderOps = mlrun.NewLeaderOps(parentLogger, namespace)
 
 	// iguazio projects leader
 	case platformconfig.ProjectsLeaderKindIguazio:
-		return iguazio.NewClient(parentLogger, platformConfiguration)
+		skipTLSVerification = true
+		leaderOps = iguazio.NewLeaderOps(parentLogger)
 
 	case platformconfig.ProjectsLeaderKindMock:
-		return mock.NewClient()
+		leaderOps = mock.NewLeaderOps()
+	default:
+		return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 	}
 
-	return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
+	leaderClient, err := client.NewClient(parentLogger, skipTLSVerification, platformConfiguration, leaderOps)
+	return leaderClient, err
 }

@@ -24,15 +24,16 @@ import (
 
 type TriggerGatherer struct {
 	trigger        trigger.Trigger
-	prevStatistics trigger.Statistics
+	prevStatistics *trigger.Statistics
 	client         appinsights.TelemetryClient
 }
 
-func newTriggerGatherer(trigger trigger.Trigger, client appinsights.TelemetryClient) (*TriggerGatherer, error) {
+func newTriggerGatherer(t trigger.Trigger, client appinsights.TelemetryClient) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
-		trigger: trigger,
-		client:  client,
+		trigger:        t,
+		client:         client,
+		prevStatistics: &trigger.Statistics{},
 	}
 
 	return newTriggerGatherer, nil
@@ -41,15 +42,15 @@ func newTriggerGatherer(trigger trigger.Trigger, client appinsights.TelemetryCli
 func (esg *TriggerGatherer) Gather() error {
 
 	// read current stats
-	currentStatistics := *esg.trigger.GetStatistics()
+	currentStatistics := esg.trigger.GetStatistics()
 
 	// diff from previous to get this period
-	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)
+	diffStatistics := currentStatistics.DiffFrom(esg.prevStatistics)
 
 	esg.prevStatistics = currentStatistics
 
-	esg.track("EventsHandledSuccessTotal", float64(diffStatistics.EventsHandledSuccessTotal))
-	esg.track("EventsHandledFailureTotal", float64(diffStatistics.EventsHandledFailureTotal))
+	esg.track("EventsHandledSuccessTotal", float64(diffStatistics.EventsHandledSuccessTotal.Load()))
+	esg.track("EventsHandledFailureTotal", float64(diffStatistics.EventsHandledFailureTotal.Load()))
 
 	return nil
 }

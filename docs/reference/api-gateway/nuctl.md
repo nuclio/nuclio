@@ -1,14 +1,13 @@
 # API Gateway with Nuctl
 
-#### In This Section
+## In This Section
 
-- [No Authentication](#none-auth)
-- [Basic Authentication](#basic-auth)
-- [Delete an API Gateway](#delete)
+- [No Authentication](#no-authentication)
+- [Basic Authentication](#basic-authentication)
+- [Delete API Gateway](#delete-api-gateway)
 
 You can create API Gateways using `nuctl` - the Nuclio CLI tool.
 
-<a id="none-auth"></a>
 ### No authentication
 ```
 $ nuctl create apigateway <api-gateway-name> \
@@ -20,9 +19,8 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-For invoking the function using the api gateway, see [invoking API Gateways](./http.md#invoke-api-gateways).
+For invoking the function using the api gateway, see [invoking API Gateways](http.md#invoke-api-gateways).
 
-<a id="basic-auth"></a>
 ## Basic authentication
 Basic authentication is a way to authenticate users by providing a username and password.
 
@@ -39,10 +37,9 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](./http.md#invoke-api-gateways-with-basic-authentication).
+To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](http.md#invoke-api-gateways-with-basic-authentication).
 
-<a id="delete"></a>
-## Delete an API Gateway
+## Delete API Gateway
 
 To delete an API Gateway with nuctl, run the following command:
 ```

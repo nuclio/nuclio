@@ -38,7 +38,7 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       - if : ${{ github.event.inputs.pr_number != '' }}
@@ -46,7 +46,7 @@ jobs:
         run: echo "PR number - ${{ github.event.inputs.pr_number }}"
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -55,7 +55,7 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod

@@ -1,0 +1,28 @@
+body {
+    --sd-color-card-background: #eff4f7;
+}
+
+div.navbar-brand-box {
+    padding-top: 1em !important;
+}
+
+.bd-search {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0rem !important;
+}
+
+@media (min-width: 1200px){
+    .bd-main .bd-content .bd-article-container {
+        max-width: 100em;
+        width: 90%;
+    }
+}
+@media(min-width: 1200px) {
+    .bd-page-width {
+        min-width: 75%;
+        max-width: 100%;
+    }
+    .bd-sidebar-primary {
+        flex-basis: 18%;
+    }
+}

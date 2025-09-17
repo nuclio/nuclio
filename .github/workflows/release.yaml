@@ -84,7 +84,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       helm_version: ${{ steps.resolve.outputs.helm_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.branch }}
           # Fetch all history for all tags and branches
@@ -92,7 +92,7 @@ jobs:
 
       - name: Set up Go
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
@@ -134,13 +134,13 @@ jobs:
     needs: [ prepare-inputs ]
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
       - name: Generate Changelog with git-cliff
-        uses: orhun/git-cliff-action@4a4a951bc43fafe41cd2348d181853f52356bee7 # 4.4.2
+        uses: orhun/git-cliff-action@98c93442bb05a455a77bee982867857ae748eeea # 4.5.1
         id: git-cliff
         with:
           config: cliff.toml
@@ -165,13 +165,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_bump_helm_charts != 'true'
     needs: [ prepare-inputs ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
@@ -206,7 +206,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
@@ -255,14 +255,14 @@ jobs:
       - name: Set NUCLIO_LABEL to release tag
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # checkout to the specified branch to be able to run workflow from development branch
           # and release from the specified branch
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
@@ -274,14 +274,14 @@ jobs:
           platforms: ${{ matrix.arch }}
 
       - name: Login to registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # 3.5.0
         with:
           registry: ${{ env.REPO }}
           username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
           password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
       - name: Login to cache registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # 3.5.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -339,14 +339,14 @@ jobs:
       - name: Set NUCLIO_LABEL to release tag
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # checkout to the specified branch to be able to run workflow from development branch
           # and release from the specified branch
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
@@ -383,18 +383,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
          ref: ${{ github.event.inputs.branch }}
 
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
           path: nuclio-helm
 
       - name: Set up Helm
-        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # 4.3.0
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # 4.3.1
 
       - name: Set up yq
         run: |

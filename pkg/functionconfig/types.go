@@ -116,10 +116,37 @@ type BatchConfiguration struct {
 	Timeout   string    `json:"timeout,omitempty"`
 }
 
+const DefaultConnectionAvailabilityTimeout = "10s"
+
 type AsyncConfig struct {
-	MinConnectionsNumber   int                    `json:"minConnectionsNumber,omitempty"`
-	MaxConnectionsNumber   int                    `json:"maxConnectionsNumber,omitempty"`
-	ConnectionCreationMode ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
+	MinConnectionsNumber          int                    `json:"minConnectionsNumber,omitempty"`
+	MaxConnectionsNumber          int                    `json:"maxConnectionsNumber,omitempty"`
+	ConnectionCreationMode        ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
+	ConnectionAvailabilityTimeout string                 `json:"connectionAvailabilityTimeout,omitempty"`
+
+	connectionAvailabilityTimeoutDuration time.Duration
+}
+
+func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration, error) {
+	if a.ConnectionAvailabilityTimeout == "" {
+		return 0, nil
+	}
+
+	if a.connectionAvailabilityTimeoutDuration != 0 {
+		return a.connectionAvailabilityTimeoutDuration, nil
+	}
+
+	timeout, err := time.ParseDuration(a.ConnectionAvailabilityTimeout)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse connection availability timeout %q", a.ConnectionAvailabilityTimeout)
+	}
+
+	if timeout <= 0 {
+		return 0, errors.New("connection availability timeout must be greater than zero")
+	}
+
+	a.connectionAvailabilityTimeoutDuration = timeout
+	return a.connectionAvailabilityTimeoutDuration, nil
 }
 
 type ConnectionCreationMode string
@@ -453,7 +480,6 @@ type Spec struct {
 	EnvFrom                 []v1.EnvFromSource      `json:"envFrom,omitempty"`
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
-	ImageHash               string                  `json:"imageHash,omitempty"`
 	Replicas                *int                    `json:"replicas,omitempty"`
 	MinReplicas             *int                    `json:"minReplicas,omitempty"`
 	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`
@@ -541,6 +567,11 @@ type Spec struct {
 	// InitContainers are specialized containers that run before app containers in a Pod
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
+
+	// LastDeployTimestamp used by the controller to set the nuclio.io/last-deploy-timestamp annotation.
+	// Ensures that when an image is redeployed, the deployment/pod template is updated
+	// so the image is pulled again.
+	LastDeployTimestamp string `json:"lastDeployTimestamp,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string

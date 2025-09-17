@@ -2,15 +2,14 @@
 
 This guide will guide you through the process of setting up Nuclio services (dashboard and controller) locally for testing your changes and provide faster development cycles.
 
-#### In This Document
+## In This Document
 
 - [Prerequisites](#prerequisites)
 
-- [Running Nuclio services](#running-nuclio)
+- [Run Nuclio services](#run-nuclio-services)
 
-- [Running a function locally](#running-function)
+- [Run function locally](#run-function-locally)
 
-<a id="prerequisites"></a>
 ## Prerequisites
 
 Ensure that your setup includes the following prerequisite components:
@@ -26,8 +25,7 @@ Ensure that your setup includes the following prerequisite components:
 
 The guide assumes you're running Nuclio in kubernetes. If you're running it as a docker container, you can skip some steps.
 
-<a id="running-nuclio"></a>
-## Running Nuclio services
+## Run Nuclio services
 
 1. (Kubernetes only) Install Nuclio CRDs. You can install them by running `test/k8s/ci_assets/install_nuclio_crds.sh`.
 
@@ -98,8 +96,7 @@ docker run --rm -d -p 5000:5000 registry:2
 
 You can now perform operations on the Nuclio UI and view the dashboard and controller logs live on Goland's run console.
 
-<a id="running-function"></a>
-## Running a function locally
+## Run function locally
 
 We can also run a function locally, and debug the processor code using Goland.
 

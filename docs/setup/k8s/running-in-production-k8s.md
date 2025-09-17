@@ -4,7 +4,7 @@ After familiarizing yourself with Nuclio and [deploying it over Kubernetes](../.
 Nuclio is integrated, for example, within the [Iguazio Data Science Platform](https://www.iguazio.com), which is used extensively in production, both by Iguazio and its customers, running various workloads.
 This document describes advanced configuration options and best-practice guidelines for using Nuclio in a production environment.
 
-#### In this document
+## In This Document
 
 - [The preferred deployment method](#the-preferred-deployment-method)
 - [Freezing a qualified version](#freezing-a-qualified-version)
@@ -70,7 +70,6 @@ Note:
   This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) configurations.
 - To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `registry.hub.docker.com` or `quay.io`).
 
-<a id="freezing-a-qualified-version"></a>
 ## Freezing a qualified version
 
 When working in production, you need reproducibility and consistency.
@@ -81,7 +80,6 @@ Because Nuclio adheres to backwards-compatibility standards between patch versio
 To use Helm to freeze a specific Nuclio version, set all of the `*.image.repository` and `*.image.tag` [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) to the names and tags that represent the images for your chosen version.
 Note the configured images must be accessible to your Kubernetes deployment (which is especially relevant for [air-gapped deployments](#air-gapped-deployment)).
 
-<a id="air-gapped-deployment"></a>
 ## Air-gapped deployment
 
 Nuclio is fully compatible with execution in air-gapped environments ("dark sites"), and supports the appropriate configuration to avoid any outside access.
@@ -89,12 +87,12 @@ The following guidelines refer to more advanced use cases and are based on the a
 Note that such implementations can get a bit tricky; to access a fully-managed, air-gap friendly, "batteries-included", Nuclio deployment, which also offers plenty of other tools and features, check out the enterprise-grade [Iguazio Data Science Platform](https://www.iguazio.com/platform/).
 If you select to handle the implementation yourself, follow these guidelines; the referenced configurations are all [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml):
 
-- Set `*.image.repository` and `*.image.tag` to [freeze a qualified version](#version-freezing), and ensure that the configured images are accessible to the Kubernetes deployment.
+- Set `*.image.repository` and `*.image.tag` to [freeze a qualified version](#freezing-a-qualified-version), and ensure that the configured images are accessible to the Kubernetes deployment.
 - Set `*.image.pullPolicy` to `Never` or to `IfNotPresent` to ensure that Kubernetes doesn't try to fetch the images from the web.
 - Set `offline` to `true` to put Nuclio in "offline" mode.
 - Set `dashboard.baseImagePullPolicy` to `Never`.
 - Set `registry.pushPullUrl` to a registry URL that's reachable from your system.
-- <a id="air-gapped-envir-base-n-onbuild-images"></a>Ensure that base, "onbuild", and processor images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
+- Ensure that base, "onbuild", and processor images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
   You can achieve this using either of the following methods:
 
   - Make the images available on the host Docker daemon (local cache).
@@ -132,7 +130,7 @@ This is rather straightforward; however, note the following:
 - When running in an [air-gapped environment](#air-gapped-deployment), Kaniko's executor image must also be available to your Kubernetes cluster.
 - Kaniko requires that you work with a registry to which push the resulting function images.
   It doesn't support accessing images on the host Docker daemon.
-  Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.defaultBaseRegistryURL` and `registry.defaultOnbuildRegistryURL` to the URL of an accessible local registry that contains the preloaded base, "onbuild", and processor images (see [Air-gapped deployment](#air-gapped-envir-base-n-onbuild-images)).
+  Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.defaultBaseRegistryURL` and `registry.defaultOnbuildRegistryURL` to the URL of an accessible local registry that contains the preloaded base, "onbuild", and processor images (see [Air-gapped deployment](#air-gapped-deployment)).
 - `quay.io` doesn't support nested repositories.
   If you're using Kaniko as a container builder and `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), add the following to your configuration to allow Kaniko caching to push successfully; (replace the `<repo name>` placeholder with the name of your repository):
     ```sh

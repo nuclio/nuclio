@@ -107,7 +107,7 @@ func addRedeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
 	cmd.Flags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
 	cmd.Flags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
-	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment, e.g 30s, 5m")
+	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment, e.g 30s, 5m. If redeploying multiple functions, timeout applies to each function individually.")
 	cmd.Flags().StringVar(&commandeer.desiredState, "desired-state", "ready", "Desired function state [\"ready\", \"scaledToZero\"]")
 }
 

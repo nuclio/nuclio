@@ -20,7 +20,6 @@ import (
 	"context"
 	"runtime/debug"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -101,7 +100,7 @@ type AbstractTrigger struct {
 	Trigger Trigger
 
 	// accessed atomically, keep as first field for alignment
-	Statistics Statistics
+	Statistics *Statistics
 
 	ID              string
 	Logger          logger.Logger
@@ -145,6 +144,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		restartChan:     restartTriggerChan,
+		Statistics:      &Statistics{},
 	}
 	if functionconfig.BatchModeEnabled(configuration.Batch) {
 		trigger.Batcher = NewBatcher(logger, configuration.Batch.BatchSize)
@@ -242,11 +242,14 @@ func (at *AbstractTrigger) GetWorkers() []eventprocessor.EventProcessor {
 
 // GetStatistics returns trigger statistics
 func (at *AbstractTrigger) GetStatistics() *Statistics {
+	if at.Statistics == nil {
+		at.Statistics = &Statistics{}
+	}
 
 	// copy worker allocator statistics
 	at.Statistics.WorkerAllocatorStatistics = *at.WorkerAllocator.GetStatistics()
 
-	return &at.Statistics
+	return at.Statistics
 }
 
 // GetID returns user given ID for this trigger
@@ -317,9 +320,9 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 // UpdateStatistics updates the trigger statistics
 func (at *AbstractTrigger) UpdateStatistics(success bool, times uint64) {
 	if success {
-		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, times)
+		at.Statistics.EventsHandledSuccessTotal.Add(times)
 	} else {
-		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, times)
+		at.Statistics.EventsHandledFailureTotal.Add(times)
 	}
 }
 

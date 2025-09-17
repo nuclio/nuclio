@@ -17,8 +17,6 @@ limitations under the License.
 package gatherer
 
 import (
-	"sync/atomic"
-
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/errors"
@@ -29,29 +27,30 @@ import (
 type triggerGatherer struct {
 	trigger            trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
-	prevStatistics     trigger.Statistics
+	prevStatistics     *trigger.Statistics
 	logger             logger.Logger
 }
 
 func newTriggerGatherer(instanceName string,
 	logger logger.Logger,
-	trigger trigger.Trigger,
+	t trigger.Trigger,
 	metricRegistry *prometheus.Registry) (*triggerGatherer, error) {
 
 	newTriggerGatherer := &triggerGatherer{
-		trigger: trigger,
-		logger:  logger.GetChild("gatherer"),
+		trigger:        t,
+		logger:         logger.GetChild("gatherer"),
+		prevStatistics: &trigger.Statistics{},
 	}
 
 	// base labels for handle events
 	labels := prometheus.Labels{
 		"instance":      instanceName,
-		"trigger_class": trigger.GetClass(),
-		"trigger_kind":  trigger.GetKind(),
-		"trigger_id":    trigger.GetID(),
-		"function":      trigger.GetFunctionName(),
-		"project":       trigger.GetProjectName(),
-		"namespace":     trigger.GetNamespace(),
+		"trigger_class": t.GetClass(),
+		"trigger_kind":  t.GetKind(),
+		"trigger_id":    t.GetID(),
+		"function":      t.GetFunctionName(),
+		"project":       t.GetProjectName(),
+		"namespace":     t.GetNamespace(),
 	}
 
 	newTriggerGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -70,13 +69,13 @@ func newTriggerGatherer(instanceName string,
 func (esg *triggerGatherer) Gather() error {
 
 	// read current stats
-	currentStatistics := *esg.trigger.GetStatistics()
+	currentStatistics := esg.trigger.GetStatistics()
 
 	// diff from previous to get this period
-	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)
+	diffStatistics := currentStatistics.DiffFrom(esg.prevStatistics)
 
-	eventsHandledSuccessTotal := atomic.LoadUint64(&diffStatistics.EventsHandledSuccessTotal)
-	eventsHandledFailureTotal := atomic.LoadUint64(&diffStatistics.EventsHandledFailureTotal)
+	eventsHandledSuccessTotal := diffStatistics.EventsHandledSuccessTotal.Load()
+	eventsHandledFailureTotal := diffStatistics.EventsHandledFailureTotal.Load()
 
 	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",

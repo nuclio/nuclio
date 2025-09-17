@@ -1,6 +1,6 @@
 # Setting up Nuclio with AKS, Application Insights, and Grafana
 
-#### In This Document
+## In This Document
 - [Application Insights overview](#application-insights-overview)
 - [Create a new Application Insights account and obtain the instrumentation key](#create-a-new-application-insights-account-and-obtain-the-instrumentation-key)
 - [Set up Nuclio on Microsoft's Azure Container Service (AKS)](#set-up-nuclio-on-microsofts-azure-container-service-aks)
@@ -189,11 +189,11 @@ Then run the following port-forward command to browse the web console:
 ```
 kubectl --namespace default port-forward <REPLACE-WITH-GRAFANA-POD-NAME> 3000
 ```
-Now, browse to http://127.0.0.1:3000/ and log in using the admin username and password you provided in the `values.yaml` file.
+Now, browse to `http://127.0.0.1:3000/` and log in using the admin username and password you provided in the `values.yaml` file.
 
 Verify that `Azure Monitor` exists in the plugins page.
 
-Configure a data source using the [plugin support page](https://github.com/grafana/azure-monitor-datasource?tab=readme-ov-file#configure-the-data-source.
+Configure a data source using the [plugin support page](https://github.com/grafana/azure-monitor-datasource/blob/master/README.md#configure-the-data-source).
 
 You can import a [sample Grafana JSON file](https://raw.githubusercontent.com/nuclio/nuclio/development/docs/assets/grafana-sample-dashboard.json) from the Grafana dashboard: from the menu (plus icon - `+`) select **Create > Import** and upload the sample JSON file.
 

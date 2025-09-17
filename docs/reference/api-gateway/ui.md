@@ -2,8 +2,8 @@
 
 ## In This Section
 
-- [No Authentication](#none-auth)
-- [Basic Authentication](#basic-auth)
+- [No Authentication](#no-authentication)
+- [Basic Authentication](#with-basic-authentication)
 
 Creating API Gateways from the UI is really simple.
 Inside your project page, go to the **API Gateways** tab, and click **NEW API Gateway**.
@@ -19,14 +19,12 @@ There, you can create an API Gateway with the following parameters:
                   You can also add a canary function and determine the percentage 
                   of traffic that will be sent to the canary function.
 
-<a id="none-auth"></a>
 ### No Authentication
 
 ![api-gateway](../../../docs/assets/images/api-gateway-ui-none.png)
 
 To invoke the function using the api gateway, see [invoking API Gateways](./http.md#invoke-api-gateways).
 
-<a id="basic-auth"></a>
 ### With Basic Authentication
 
 ![api-gateway-basic-auth](../../../docs/assets/images/api-gateway-ui-basic-auth.png)

@@ -1,4 +1,4 @@
-## Quick-start
+# Quick-start
 
 The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio dashboard. All you need to run the dashboard is Docker:
 

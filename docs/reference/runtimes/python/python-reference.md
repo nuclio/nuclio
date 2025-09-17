@@ -2,12 +2,12 @@
 
 This document describes the specific Python build and deploy configurations.
 
-#### In this document
+## In This Document
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
 - [Supported versions](#supported-versions)
-- [Python versions EOL](#python-runtime-eol)
+- [Python versions EOL](#python-versions-eol)
 - [Function configuration](#function-configuration)
 - [Build and execution](#build-and-execution)
 - [Portable execution](#portable-execution)
@@ -25,23 +25,20 @@ def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
 
 The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.py`) and `<entrypoint>` is the function name. In the example above, the handler is `main:handler`, assuming the file is named `main.py`.
 
-For asynchronous support (e.g.: `asyncio`), you may want to decorate your function handle with `async`
+For asynchronous support (e.g., `asyncio`), your function should be defined as `async def` and use `await` statements where appropriate. You must also specify this in the function configuration by `setting spec.triggers.<trigger-name>.mode` to `async`.
+Refer to the [async mode documentation](../../../tasks/async-mode.md) for more details.
 
-Important to note:
-  - Nuclio, at the moment, does not support concurrent requests handling for a single working. Each working may handle
-    one request at a time, for more information see [here](../../../concepts/architecture.md#runtime-engine).
-  - However, using an async handler can still be beneficial in some scenarios; Since the event loop would keep running while listening on more incoming requests, it allows functions to asynchronously perform
-    I/O bound background tasks.
+>**⚠️ Warning:**  Async mode is in Technical preview
 
+Async handler example:
 ```python
 import asyncio
 
 import nuclio_sdk
 
 async def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
-    context.logger.info_with('Updating db in background', event_body=event.body.decode())
-    asyncio.create_task(update_db(context, event))    
-    return "Hello, from Nuclio :]"
+    await update_db(context, event)
+    return 'ok'
 
 async def update_db(context, event):
     context.db.update_record(event.body)
@@ -126,7 +123,6 @@ The new snippet would be looking like this:
 > Note: To *disable* decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`.
 > Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
 
-<a id="python-versions-eol"></a>
 ## Python versions EOL
 The following Python versions are no longer supported in Nuclio, due to their End Of Life (EOL) status:
 - Python 2.7 (EOL since Jan 2020)
@@ -137,7 +133,7 @@ The following Python versions are no longer supported in Nuclio, due to their En
 For more information, see the [Python version status](https://devguide.python.org/versions/) page.
 
 To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your
-code to Python 3.11 or higher.
+code to Python 3.12 or higher.
 
 <a id="function-configuration"></a>
 ## Function configuration

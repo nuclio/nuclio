@@ -32,7 +32,7 @@ jobs:
     name: Review docs with Vale
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: errata-ai/vale-action@d89dee975228ae261d22c15adcd03578634d429c # 2.1.1
         with:
           reporter: github-pr-check
@@ -41,9 +41,9 @@ jobs:
     name: Check for broken links
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
       - name: Install dependencies
         run: |
           pip install -r docs/requirements.txt

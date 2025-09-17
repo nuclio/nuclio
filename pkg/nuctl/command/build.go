@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -39,6 +40,7 @@ type buildCommandeer struct {
 	encodedRuntimeAttributes   string
 	encodedCodeEntryAttributes string
 	outputImageFile            string
+	projectName                string
 }
 
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
@@ -68,6 +70,8 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 			commandeer.functionConfig.Spec.Build.FunctionConfigPath = commandeer.functionConfigPath
 			commandeer.functionConfig.Spec.Runtime = commandeer.runtime
 			commandeer.functionConfig.Spec.Handler = commandeer.handler
+
+			commandeer.enrichLabels()
 
 			// decode the JSON build runtime attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
@@ -100,6 +104,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 	addBuildFlags(cmd, &commandeer.functionConfig.Spec.Build, &commandeer.functionConfigPath, &commandeer.runtime, &commandeer.handler, &commandeer.commands, &commandeer.encodedRuntimeAttributes, &commandeer.encodedCodeEntryAttributes)
 	cmd.Flags().StringVarP(&commandeer.outputImageFile, "output-image-file", "", "", "Path to output container image of the build")
+	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "The name of the function's parent project")
 
 	commandeer.cmd = cmd
 
@@ -112,7 +117,7 @@ func addBuildFlags(cmd *cobra.Command, functionBuild *functionconfig.Build, func
 	cmd.Flags().StringVarP(functionConfigPath, "file", "f", "", "Path to a function-configuration file")
 	cmd.Flags().StringVarP(&functionBuild.Image, "image", "i", "", "Name of a container image (default - the function name)")
 	cmd.Flags().StringVarP(&functionBuild.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of a container registry (env: NUCTL_REGISTRY)")
-	cmd.Flags().StringVarP(runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"python:3.11\")")
+	cmd.Flags().StringVarP(runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"python:3.12\")")
 	cmd.Flags().StringVarP(handler, "handler", "", "", "Name of a function handler")
 	cmd.Flags().BoolVarP(&functionBuild.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
 	cmd.Flags().BoolVarP(&functionBuild.NoCleanup, "no-cleanup", "", false, "Don't clean up temporary directories")
@@ -123,4 +128,15 @@ func addBuildFlags(cmd *cobra.Command, functionBuild *functionconfig.Build, func
 	cmd.Flags().StringVar(encodedRuntimeAttributes, "build-runtime-attrs", "{}", "JSON-encoded build runtime attributes for the function")
 	cmd.Flags().StringVar(encodedCodeEntryAttributes, "build-code-entry-attrs", "{}", "JSON-encoded build code entry attributes for the function")
 	cmd.Flags().StringVar(&functionBuild.CodeEntryType, "code-entry-type", "", "Type of code entry (for example, \"url\", \"github\", \"image\")")
+}
+
+func (b *buildCommandeer) enrichLabels() {
+	if b.functionConfig.Meta.Labels == nil {
+		b.functionConfig.Meta.Labels = map[string]string{}
+	}
+
+	// if the project name was set, add it as a label (not in string enrichment, because it's part of the labels)
+	if b.projectName != "" {
+		b.functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = b.projectName
+	}
 }

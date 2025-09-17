@@ -2,19 +2,18 @@
 
 This tutorial guides you through the process of using the Nuclio CLI (`nuctl`) to export and import Nuclio functions and projects.
 
-### In this document
+## In this document
 
-- [Exporting deployed functions](#functions-export)
-- [Importing functions](#functions-import)
-- [Exporting projects](#projects-export)
-- [Importing projects](#projects-import)
-- [Deploying imported functions](#imported-functions-deploy)
+- [Exporting deployed functions](#export-deployed-functions)
+- [Importing functions](#import-functions)
+- [Exporting projects](#export-projects)
+- [Importing projects](#import-projects)
+- [Deploying imported functions](#deploy-imported-functions)
 
-<a id="functions-export"></a>
-## Exporting deployed functions
+## Export deployed functions
 
 You can  use the Nuclio CLI's `export functions` command (or the `export function` alias) to export the configurations of [deployed Nuclio functions](deploying-functions.md) in your environment ("export functions").
-You can save the exported configurations, for example, to a file, and [import](#functions-import) them later on any environment that is running Nuclio.
+You can save the exported configurations, for example, to a file, and [import](#import-functions) them later on any environment that is running Nuclio.
 
 To export a specific function, set the optional `<function>` argument to the name of the function to export:
 ```sh
@@ -45,12 +44,11 @@ nuctl export functions --namespace nuclio myfunction > myfunction.yaml
 
 > **Tip:** Run `nuctl help export functions` for full usage instructions. 
 
-<a id="functions-import"></a>
-## Importing functions
+## Import functions
 
 You can use the Nuclio CLI's `import functions` command (or the `import function` alias) to import function configurations ("import functions"), typically from previously exported function configurations.
 > **Note:** The `import functions` command doesn't deploy the imported functions.
-> See [Deploying imported functions](#imported-functions-deploy), which also outlines the option of using the `deploy` command to both import and deploy a function in a single command.
+> See [Deploying imported functions](#deploy-imported-functions), which also outlines the option of using the `deploy` command to both import and deploy a function in a single command.
 
 Use either of the following alternatives methods to pass the function configurations to the import command:
 
@@ -76,11 +74,10 @@ cat <function-configurations file> | http post 'http://<Nuclio dashboard URL>/ap
 
 > **Tip:** Run `nuctl help import functions` for full usage instructions. 
 
-<a id="projects-export"></a>
-## Exporting projects
+## Export projects
 
 You can use the Nuclio CLI's `export projects` command (or the `export project` alias) to export and save the configurations of Nuclio projects in your environment ("export projects") &mdash; including the configuration of all of the projects' functions, function events, and API gateways.
-You can save the exported configurations, for example, to a file, and [import](#projects-import) them later on any environment that is running Nuclio.
+You can save the exported configurations, for example, to a file, and [import](#import-projects) them later on any environment that is running Nuclio.
 
 To export a specific project, set the optional `<project>` argument to the name of the project to export:
 ```sh
@@ -111,12 +108,11 @@ nuctl export projects --namespace nuclio myproject > myproject.yaml
 
 > **Tip:** Run `nuctl help export projects` for full usage instructions. 
 
-<a id="projects-import"></a>
-## Importing projects
+## Import projects
 
 You can use the Nuclio CLI's `import projects` command (or the `import project` alias) to import project configurations ("import projects") &mdash; including the configurations of all of the projects' functions, function events, and API gateways &mdash; typically from previously exported project configurations.
 > **Note:** The `import projects` command doesn't deploy the functions in the imported projects.
-> See [Deploying imported functions](#imported-functions-deploy).
+> See [Deploying imported functions](#deploy-imported-functions).
 
 Use either of the following alternatives methods to pass the project configurations to the import command:
 
@@ -158,8 +154,7 @@ cat <project-configurations file> | http post 'http://<Nuclio dashboard URL>/api
 
 > **Tip:** Run `nuctl help import projects` for full usage instructions. 
 
-<a id="imported-functions-deploy"></a>
-## Deploying imported functions
+## Deploy imported functions
 
 The `import functions` and `import projects` commands change the status of the imported functions to the `imported` state, but they don't automatically deploy these functions.
 To build and deploy an imported function, you need to use the `deploy` command; replace `<imported function name>` with the name of the imported function to deploy:

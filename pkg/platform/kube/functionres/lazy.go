@@ -1205,7 +1205,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 	createDeployment := func() (interface{}, error) {
 		method := createDeploymentResourceMethod
-		container := v1.Container{Name: nuclio.FunctionContainerName}
+		container := v1.Container{Name: common.FunctionContainerName}
 		lc.populateDeploymentContainer(ctx, functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
@@ -1841,7 +1841,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
 	annotations := map[string]string{
-		"nuclio.io/image-hash": function.Spec.ImageHash,
+		"nuclio.io/last-deploy-timestamp": function.Spec.LastDeployTimestamp,
 	}
 
 	// add annotations for prometheus pull
@@ -1856,9 +1856,9 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 	}
 
 	// set default container annotation if not exists, for logging purposes
-	defaultContainerAnnotation := "kubectl.kubernetes.io/default-container"
+	defaultContainerAnnotation := common.AnnotationKubectlDefaultContainer
 	if _, ok := annotations[defaultContainerAnnotation]; !ok {
-		annotations[defaultContainerAnnotation] = nuclio.FunctionContainerName
+		annotations[defaultContainerAnnotation] = common.FunctionContainerName
 	}
 
 	return annotations, nil
@@ -1995,7 +1995,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		for _, sidecar := range function.Spec.Sidecars {
 			for _, port := range sidecar.Ports {
 				spec.Ports = lc.addOrUpdatePort(spec.Ports, v1.ServicePort{
-					Name:       sidecar.Name,
+					Name:       port.Name,
 					Port:       port.ContainerPort,
 					TargetPort: intstr.FromInt32(port.ContainerPort),
 				})

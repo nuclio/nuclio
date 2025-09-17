@@ -2,7 +2,7 @@
 
 This tutorial guides you through the process of deploying functions and specifying the function configuration.
 
-#### In this document
+## In This Document
 - [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
 - [Writing a simple function (nuctl)](#writing-a-simple-function)
 - [Deploying a simple function (nuctl)](#deploying-a-simple-function)
@@ -22,7 +22,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
-Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).  
+Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (`http://localhost:8070/projects/default/create-function`).
 Choose one of the predefined template functions, and select **Deploy**.  
 The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.  
 When the function deployment completes, you can select **Test** to invoke the function with a body.

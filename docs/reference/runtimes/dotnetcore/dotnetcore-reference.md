@@ -4,7 +4,7 @@ This document describes the specific .NET Core build and deploy configurations.
 
 > **NOTE:**  .Net Core runtime is in tech-preview.
 
-#### In this document
+## In This Document
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
@@ -97,7 +97,7 @@ CMD [ "processor" ]
 
 This guide uses practical examples to guide you through the process of writing serverless .NET Core functions.
 
-#### In this document
+## In This Document
 
 - [Overview](#overview)
 - [Deploy a .NET Core function](#deploy-a-net-core-function)

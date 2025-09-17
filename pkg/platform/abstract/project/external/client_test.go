@@ -57,7 +57,7 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 	suite.mockInternalProjectsClient = &internalmock.Client{}
 
 	//mock leader client
-	suite.mockLeaderProjectsClient = &leadermock.Client{}
+	suite.mockLeaderProjectsClient = leadermock.NewClient()
 
 	// create platform configuration
 	platformConfiguration := platformconfig.Config{

@@ -13,7 +13,7 @@ Follow this step-by-step guide to set up a Nuclio development environment that u
 - [Create a container registry using the Azure CLI](#create-a-container-registry-using-the-azure-cli)
 - [Grant Kubernetes and Nuclio access to the ACR](#grant-kubernetes-and-nuclio-access-to-the-acr)
 - [Install Nuclio](#install-nuclio)
-- [What's next](#what-s-next)
+- [What is next](#what-is-next)
 
 ## Prerequisites
 
@@ -50,7 +50,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
     After several minutes, the deployment completes and returns information about the AKS deployment, in JSON format.
 
 3.  <a id="install-kubectl-cli"></a>**Install the kubectl CLI**.
-    If the CLI is already installed, you can skip to the [next step](#connect-aks-cluster-to-kubectl).
+    If the CLI is already installed, you can skip to the next step.
     The [`kubectl`](https://kubernetes.io/docs/reference/kubectl/) Kubernetes command-line application enables you to connect to the Kubernetes cluster from your client computer.
     To install `kubectl` locally, run the following `az` command (see the [Azure CLI documentation](https://learn.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az-aks-install-cli)):
 
@@ -149,7 +149,7 @@ Use the command `kubectl --namespace nuclio get pods` to verify both the control
 kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
-## What's next?
+## What is next?
 
 See the following resources to make the best of your new Nuclio environment:
 

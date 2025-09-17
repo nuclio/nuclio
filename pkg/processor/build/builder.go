@@ -511,12 +511,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 
 	// python is just a reference
 	if b.options.FunctionConfig.Spec.Runtime == "python" {
-		b.options.FunctionConfig.Spec.Runtime = "python:3.11"
+		b.options.FunctionConfig.Spec.Runtime = "python:3.12"
 	}
 
-	// enrich project name
 	if _, err := b.options.FunctionConfig.GetProjectName(); err != nil {
-		b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
+		return errors.Wrap(err, "Failed to get project name")
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -1903,6 +1902,12 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 // resolveNodeSelector resolves builder NodeSelector from function, project and platform NodeSelectors,
 // where function values take precedence over project values, and project values take precedence over platform values
 func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, error) {
+	// if the platform is not Kube, nodeSelector should not be resolved
+	if b.platform.GetConfig().Kind != common.KubePlatformName {
+		b.logger.Debug("NodeSelector resolution is only applicable for Kube platform, skipping")
+		return nil, nil
+	}
+
 	var builderNodeSelector map[string]string
 	project, err := b.platform.GetFunctionProject(ctx, &b.options.FunctionConfig)
 	if err != nil {

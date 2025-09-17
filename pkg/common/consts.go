@@ -64,3 +64,7 @@ const FunctionConfigFileName = "function.yaml"
 const DefaultIngressHostTemplate = "@nuclio.fromDefault"
 
 const FunctionTagLatest = "latest"
+
+const FunctionContainerName = "nuclio"
+
+const AnnotationKubectlDefaultContainer = "kubectl.kubernetes.io/default-container"

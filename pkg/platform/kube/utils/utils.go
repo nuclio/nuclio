@@ -204,6 +204,15 @@ func GetProjectSecret(ctx context.Context, kubeClient kube.Client, projectSecret
 	return projectSecret, nil
 }
 
+func GetDefaultContainerName(annotations map[string]string) string {
+	defaultContainerAnnotation := common.AnnotationKubectlDefaultContainer
+	containerName, ok := annotations[defaultContainerAnnotation]
+	if ok {
+		return containerName
+	}
+	return common.FunctionContainerName
+}
+
 func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey string, serviceAccount string) error {
 	if serviceAccount == "" {
 		return nil

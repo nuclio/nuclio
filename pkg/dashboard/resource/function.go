@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
-	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -454,7 +453,7 @@ func (fr *functionResource) validateLogStreamOptions(ctx context.Context,
 	}
 
 	// ensure container name is valid for the replica (if provided)
-	if getFunctionReplicaLogsStreamOptions.ContainerName != nuclioclient.FunctionContainerName {
+	if getFunctionReplicaLogsStreamOptions.ContainerName != common.FunctionContainerName {
 		// get the replica's containers
 		replicaContainers, err := fr.getPlatform().GetFunctionReplicaContainers(ctx, function.GetConfig(), getFunctionReplicaLogsStreamOptions.Name)
 		if err != nil {
@@ -811,7 +810,7 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 		Name:          replicaName,
 		Namespace:     namespace,
 		Follow:        fr.GetURLParamBoolOrDefault(request, "follow", true),
-		ContainerName: fr.GetURLParamStringOrDefault(request, "containerName", nuclioclient.FunctionContainerName),
+		ContainerName: fr.GetURLParamStringOrDefault(request, "containerName", common.FunctionContainerName),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request.Context())),
 			RaiseForbidden:      true,

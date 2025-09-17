@@ -31,6 +31,11 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+const (
+	// NuclioSelfNamespace is used to get the namespace in which Nuclio is running
+	NuclioSelfNamespace = "@nuclio.selfNamespace"
+)
+
 func IsInKubernetesCluster() bool {
 	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
 }
@@ -73,7 +78,7 @@ func ResolveNamespace(namespaceArgument string, defaultEnvVarKey string) string 
 	}
 
 	// if the namespace exists in env, use that, else, assume "this" namespace
-	return ResolveDefaultNamespace(GetEnvOrDefaultString(defaultEnvVarKey, "@nuclio.selfNamespace"))
+	return ResolveDefaultNamespace(GetEnvOrDefaultString(defaultEnvVarKey, NuclioSelfNamespace))
 }
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
@@ -81,7 +86,7 @@ func ResolveDefaultNamespace(namespace string) string {
 
 	defaultNamespace := "default"
 	switch namespace {
-	case "@nuclio.selfNamespace":
+	case NuclioSelfNamespace:
 
 		// for k8s
 		if IsInKubernetesCluster() {

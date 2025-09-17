@@ -26,7 +26,7 @@ on:
         default: ''
         required: false
       runtimes:
-        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.11, default: all)'
+        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.12, default: all)'
         default: 'all'
         required: true
 
@@ -42,11 +42,11 @@ jobs:
     steps:
 
       # checkout from development
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -80,11 +80,11 @@ jobs:
           INPUT_RUNTIMES: ${{ github.event.inputs.runtimes }}
 
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.9'
+          python-version: '3.12'
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
@@ -124,7 +124,7 @@ jobs:
 
       - name: Set labels
         if: always() && github.event.inputs.pr_number != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:

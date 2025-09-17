@@ -1,11 +1,11 @@
 # Configuring a Platform
 
-#### In This Document
+## In This Document
 - [Overview](#overview)
-- [Creating a platform configuration in Kubernetes](#k8s-platform-config-create)
+- [Creating a platform configuration in Kubernetes](#creating-a-platform-configuration-in-kubernetes)
 - [Configuration elements](#configuration-elements)
 
-## Overview
+### Overview
 
 Function configuration carries information about the specific function (how it's triggered, the runtime type, etc.) whereas a platform configuration carries information about the platform on which functions are run. For example, where should the function log to? What sort of metric mechanism is in place? Which port should the function listen on for health checks? 
 
@@ -13,8 +13,7 @@ While this could theoretically be passed in the function configuration, it would
 
 > **Note:** A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, you have a namespace per tenant, you configure logging, metrics, etc. differently for each tenant
 
-<a id="k8s-platform-config-create"></a>
-## Creating a platform configuration in Kubernetes
+### Creating a platform configuration in Kubernetes
 
 In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the "nuclio" namespace from a local file called `platform.yaml`, run the following from a command line:
 ```sh

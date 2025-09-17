@@ -1141,7 +1141,6 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
         "current": "<current-sequence-number>",
         "lag": "<shard-lag>"
       },
-      ...
       "shard-id-N": {
         "committed": "<committed-sequences-number>",
         "current": "<current-sequence-number>",

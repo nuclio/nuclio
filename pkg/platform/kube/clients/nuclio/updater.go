@@ -74,10 +74,6 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	// update it with spec if passed
 	if updateFunctionOptions.FunctionSpec != nil {
 		function.Spec = *updateFunctionOptions.FunctionSpec
-
-		// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
-		// assuming the processor can reload configuration
-		function.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
 	}
 
 	// update it with status if passed

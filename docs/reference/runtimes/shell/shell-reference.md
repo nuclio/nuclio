@@ -4,7 +4,7 @@ This guide uses practical examples to guide you through the process of writing s
 
 > **NOTE:**  Shell runtime is in tech-preview.
 
-#### In this document
+## In This Document
 
 - [Overview](#overview)
 - [Handle events with a bash script](#handle-events-with-a-bash-script)
@@ -40,7 +40,7 @@ rev /dev/stdin
 The function configuration needs to include the following:
 
 1. `runtime` - set to `shell`.
-2. `handler` - set to the name of the executable file. In this example, the file is **reverser.sh**.
+2. `handler` - set to the name of the executable file. In this example, the file is **`reverser.sh`**.
 
 Run the following command to deploy the function with the Nuclio CLI (`nuctl`):
 > **Note:** if you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.

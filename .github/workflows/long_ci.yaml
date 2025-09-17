@@ -43,10 +43,10 @@ jobs:
     if: github.event.inputs.pr_number != ''  && github.repository == 'nuclio/nuclio'
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set 'long-ci-started' Label
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:
@@ -67,7 +67,7 @@ jobs:
         command: [ nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests ]
     steps:
       # checkout from development
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       - if : ${{ github.event.inputs.pr_number != '' }}
@@ -75,7 +75,7 @@ jobs:
         run: echo "PR number - ${{ github.event.inputs.pr_number }}"
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -84,7 +84,7 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
@@ -126,11 +126,11 @@ jobs:
           fi
 
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set labels
         if: github.event.inputs.pr_number != ''  && github.repository == 'nuclio/nuclio'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:

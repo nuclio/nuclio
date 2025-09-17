@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.24.0
+go 1.25.0
 
 require (
 	cloud.google.com/go/pubsub v1.50.0
@@ -56,7 +56,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tsenart/vegeta/v12 v12.12.0
 	github.com/v3io/scaler v0.10.0
-	github.com/v3io/v3io-go v0.3.12
+	github.com/v3io/v3io-go v0.3.13
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.64.0
@@ -166,7 +166,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nats-io/nkeys v0.4.11 // indirect
+	github.com/nats-io/nkeys v0.4.10 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nwaples/rardecode/v2 v2.1.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -186,7 +186,7 @@ require (
 	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
-	github.com/ulikunitz/xz v0.5.12 // indirect
+	github.com/ulikunitz/xz v0.5.14 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
