@@ -428,6 +428,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
     #                                                                stream=f)
     #         profiled_serve_requests_func(num_requests=num_of_events)
     #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
+
     async def _collect_packets_async(self, entrypoint_output):
         return [
             (prefix, payload)
