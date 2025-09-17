@@ -131,20 +131,16 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
     def test_sync_handler_that_returns_None(self):
-        async def _test_sync_handler_that_returns_None_async():
-            def sync_handler(context, event):
-                async def async_work():
-                    # Simulate I/O or async computation
-                    await asyncio.sleep(0.01)
-                    return "result_from_async"
-                return async_work()  # returns coroutine
+        def sync_handler(context, event):
+            async def async_work():
+                # Simulate I/O or async computation
+                await asyncio.sleep(0.01)
+                return "result_from_async"
+            return async_work()  # returns coroutine
 
-            self._wrapper._entrypoint = sync_handler
-            output = await self._wrapper._call_entrypoint(event=nuclio_sdk.Event(_id=1))
-            assert output == 'result_from_async'
-        
-        # Run the async test within the event loop
-        self._loop.run_until_complete(_test_sync_handler_that_returns_None_async())
+        self._wrapper._entrypoint = sync_handler
+        output = asyncio.run(self._wrapper._call_entrypoint(event=nuclio_sdk.Event(_id=1)))
+        assert output == 'result_from_async'
 
     def test_non_utf8_headers(self):
         """
