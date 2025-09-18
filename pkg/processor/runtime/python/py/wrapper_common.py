@@ -217,13 +217,17 @@ class AbstractWrapper(object):
     async def _handle_event(self, event, sock):
         # take call time
         start_time = time.time()
+        entrypoint_output = await self._call_entrypoint(event)
+        await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
 
+    async def _call_entrypoint(self, event):
         if self._should_await_entrypoint:
             entrypoint_output = await self._entrypoint(self._context, event)
         else:
             entrypoint_output = self._entrypoint(self._context, event)
-
-        await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
+            if asyncio.iscoroutine(entrypoint_output):
+                entrypoint_output = await entrypoint_output
+        return entrypoint_output
 
     async def _handle_entrypoint_output(self, entrypoint_output, start_time, sock):
         async for prefix, payload in self._generate_processor_packets(entrypoint_output, start_time):
