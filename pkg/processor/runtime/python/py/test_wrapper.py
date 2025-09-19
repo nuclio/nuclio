@@ -129,6 +129,22 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
+    def test_sync_handler_that_returns_None(self):
+        async def _test_sync_handler_that_returns_None_async():
+            def sync_handler(context, event):
+                async def async_work():
+                    # Simulate I/O or async computation
+                    await asyncio.sleep(0.01)
+                    return "result_from_async"
+                return async_work()  # returns coroutine
+
+            self._wrapper._entrypoint = sync_handler
+            output = await self._wrapper._call_entrypoint(event=nuclio_sdk.Event(_id=1))
+            assert output == 'result_from_async'
+        
+        # Run the async test within the event loop
+        self._loop.run_until_complete(_test_sync_handler_that_returns_None_async())
+
     def test_non_utf8_headers(self):
         """
         This test validates the expected behavior for a non-utf8 event field contents
@@ -293,103 +309,119 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
 
-    async def test_encode_streaming_entrypoint_output(self):
-        # Simulated streaming output (e.g., async generator)
-        async def streaming_handler_output():
-            yield "chunk1"
-            yield "chunk2"
+    def test_encode_streaming_entrypoint_output(self):
+        async def _test_encode_streaming_entrypoint_output_async():
+            # Simulated streaming output (e.g., async generator)
+            async def streaming_handler_output():
+                yield "chunk1"
+                yield "chunk2"
 
-        # Entrypoint output is an async generator
-        entrypoint_output = streaming_handler_output()
+            # Entrypoint output is an async generator
+            entrypoint_output = streaming_handler_output()
 
-        # Collect packets from the async generator
-        packets = [
-            (prefix, payload)
-            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
-        ]
+            # Collect packets from the async generator
+            packets = [
+                (prefix, payload)
+                async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
+            ]
 
-        # Extract prefix sequence for ordering check
-        prefixes = [prefix for prefix, _ in packets]
+            # Extract prefix sequence for ordering check
+            prefixes = [prefix for prefix, _ in packets]
 
-        # Ensure 'c' exists and comes before any 'b'
-        assert prefixes.index(PacketType.STREAM_START) < prefixes.index(PacketType.BODY_CHUNK)
-        # Ensure 'b' exists and comes before any 'e'
-        assert prefixes.index(PacketType.BODY_CHUNK) < prefixes.index(PacketType.END_OF_STREAM)
-        # Ensure 'e' exists and comes before any 'm'
-        assert prefixes.index(PacketType.END_OF_STREAM) < prefixes.index(PacketType.METRICS)
+            # Ensure 'c' exists and comes before any 'b'
+            assert prefixes.index(PacketType.STREAM_START) < prefixes.index(PacketType.BODY_CHUNK)
+            # Ensure 'b' exists and comes before any 'e'
+            assert prefixes.index(PacketType.BODY_CHUNK) < prefixes.index(PacketType.END_OF_STREAM)
+            # Ensure 'e' exists and comes before any 'm'
+            assert prefixes.index(PacketType.END_OF_STREAM) < prefixes.index(PacketType.METRICS)
 
-        payload_by_prefix = {
-            prefix: payload for prefix, payload in packets
-        }
+            payload_by_prefix = {
+                prefix: payload for prefix, payload in packets
+            }
 
-        self.assertEqual(payload_by_prefix[PacketType.STREAM_START], json.dumps("chunk1"))
-        self.assertEqual(payload_by_prefix[PacketType.BODY_CHUNK], json.dumps("chunk2"))
-        self.assertIn(PacketType.END_OF_STREAM, prefixes)
-        self.assertIn(PacketType.METRICS, prefixes)
-        self.assertNotIn(PacketType.SINGLE_RESPONSE, prefixes)
+            # The payload should be Response objects, not simple JSON strings
+            # Parse the JSON to get the actual response data
+            stream_start_payload = json.loads(payload_by_prefix[PacketType.STREAM_START])
+            body_chunk_payload = json.loads(payload_by_prefix[PacketType.BODY_CHUNK])
+            
+            self.assertEqual(stream_start_payload["body"], "chunk1")
+            self.assertEqual(body_chunk_payload["body"], "chunk2")
+            self.assertIn(PacketType.END_OF_STREAM, prefixes)
+            self.assertIn(PacketType.METRICS, prefixes)
+            self.assertNotIn(PacketType.SINGLE_RESPONSE, prefixes)
+        
+        # Run the async test within the event loop
+        self._loop.run_until_complete(_test_encode_streaming_entrypoint_output_async())
 
-    async def test_encode_single_value_entrypoint_output(self):
-        # Simulate regular async function returning a single value
-        async def single_value_handler_output():
-            return "ok"
+    def test_encode_single_value_entrypoint_output(self):
+        async def _test_encode_single_value_entrypoint_output_async():
+            # Simulate regular async function returning a single value
+            async def single_value_handler_output():
+                return "ok"
 
-        # Call the function and await the result
-        entrypoint_output = await single_value_handler_output()
+            # Call the function and await the result
+            entrypoint_output = await single_value_handler_output()
 
-        # Pass it into the packet generator
-        packets = [
-            (prefix, payload)
-            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
-        ]
-        self.assertEqual(len(packets), 2)
+            # Pass it into the packet generator
+            packets = [
+                (prefix, payload)
+                async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
+            ]
+            self.assertEqual(len(packets), 2)
 
-        prefixes = [prefix for prefix, _ in packets]
+            prefixes = [prefix for prefix, _ in packets]
 
-        self.assertIn(PacketType.SINGLE_RESPONSE, prefixes)
-        self.assertIn(PacketType.METRICS, prefixes)
-        self.assertNotIn(PacketType.STREAM_START, prefixes)
-        self.assertNotIn(PacketType.BODY_CHUNK, prefixes)
-        self.assertNotIn(PacketType.END_OF_STREAM, prefixes)
+            self.assertIn(PacketType.SINGLE_RESPONSE, prefixes)
+            self.assertIn(PacketType.METRICS, prefixes)
+            self.assertNotIn(PacketType.STREAM_START, prefixes)
+            self.assertNotIn(PacketType.BODY_CHUNK, prefixes)
+            self.assertNotIn(PacketType.END_OF_STREAM, prefixes)
 
+            payload_by_prefix = {
+                prefix: payload for prefix, payload in packets
+            }
 
-        payload_by_prefix = {
-            prefix: payload for prefix, payload in packets
-        }
+            self.assertEqual(
+                payload_by_prefix[PacketType.SINGLE_RESPONSE],
+                json.dumps({"body": "ok", "status_code": 200})
+            )
+        
+        # Run the async test within the event loop
+        self._loop.run_until_complete(_test_encode_single_value_entrypoint_output_async())
 
-        self.assertEqual(
-            payload_by_prefix[PacketType.SINGLE_RESPONSE],
-            json.dumps({"body": "ok", "status_code": 200})
-        )
+    def test_encode_batched_entrypoint_output(self):
+        async def _test_encode_batched_entrypoint_output_async():
+            single_response = nuclio_sdk.Response(
+                body=str(123),
+                headers={},
+                content_type=123,
+                status_code=200,
+            )
 
-    async def test_encode_batched_entrypoint_output(self):
-        single_response = nuclio_sdk.Response(
-            body=str(123),
-            headers={},
-            content_type=123,
-            status_code=200,
-        )
+            # Consume single response packets
+            single_packets = [
+                (prefix, payload) async for prefix, payload in
+                self._wrapper._generate_processor_packets(single_response, start_time=0)
+            ]
 
-        # Consume single response packets
-        single_packets = [
-            (prefix, payload) async for prefix, payload in
-            self._wrapper._generate_processor_packets(single_response, start_time=0)
-        ]
+            # Consume batch response packets
+            batch_packets = [
+                (prefix, payload) async for prefix, payload in
+                self._wrapper._generate_processor_packets([single_response, single_response], start_time=0)
+            ]
 
-        # Consume batch response packets
-        batch_packets = [
-            (prefix, payload) async for prefix, payload in
-            self._wrapper._generate_processor_packets([single_response, single_response], start_time=0)
-        ]
+            # Extract the actual payloads for comparison
+            single_payload = next((payload for prefix, payload in single_packets if prefix == "r"), None)
+            batch_payload = next((payload for prefix, payload in batch_packets if prefix == "r"), None)
 
-        # Extract the actual payloads for comparison
-        single_payload = next((payload for prefix, payload in single_packets if prefix == "r"), None)
-        batch_payload = next((payload for prefix, payload in batch_packets if prefix == "r"), None)
+            decoded_single = json.loads(single_payload)
+            decoded_batch = json.loads(batch_payload)
 
-        decoded_single = json.loads(single_payload)
-        decoded_batch = json.loads(batch_payload)
-
-        assert decoded_batch[0] == decoded_single
-        assert decoded_batch[1] == decoded_single
+            assert decoded_batch[0] == decoded_single
+            assert decoded_batch[1] == decoded_single
+        
+        # Run the async test within the event loop
+        self._loop.run_until_complete(_test_encode_batched_entrypoint_output_async())
 
     # to run memory profiling test, uncomment the tests below
     # and from terminal run with

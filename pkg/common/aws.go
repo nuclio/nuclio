@@ -17,15 +17,16 @@ limitations under the License.
 package common
 
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/mock"
 )
@@ -47,34 +48,37 @@ func (asc *AbstractS3Client) Download(file *os.File,
 	secretAccessKey string,
 	sessionToken string) error {
 	bucketAndPath, item := asc.resolveBucketPathAndItem(bucket, itemKey)
-	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"), // default region (some valid region must be mentioned)
-		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, sessionToken),
-	})
+
+	// Create AWS config with credentials
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("us-east-1"), // default region (some valid region must be mentioned)
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, sessionToken)),
+	)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create AWS session")
+		return errors.Wrap(err, "Failed to create AWS config")
 	}
 
 	// get the bucket's region in case it wasn't given
 	if region == "" {
-		region, err = s3manager.GetBucketRegion(aws.BackgroundContext(), sess, bucketAndPath, "")
+		region, err = asc.getBucketRegion(context.TODO(), cfg, bucketAndPath)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get bucket region")
 		}
 	}
-	sess.Config.Region = aws.String(region)
+	cfg.Region = region
 
-	return asc.download(file, sess, bucketAndPath, item)
+	return asc.download(file, cfg, bucketAndPath, item)
 }
 
 func (asc *AbstractS3Client) DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error {
 	bucketAndPath, item := asc.resolveBucketPathAndItem(bucket, itemKey)
-	sess, err := session.NewSession()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create session")
-	}
-	return asc.download(file, sess, bucketAndPath, item)
 
+	// Load default config (will use EC2 instance credentials)
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return errors.Wrap(err, "Failed to create AWS config")
+	}
+	return asc.download(file, cfg, bucketAndPath, item)
 }
 
 func (asc *AbstractS3Client) resolveBucketPathAndItem(bucket, itemKey string) (string, string) {
@@ -83,13 +87,31 @@ func (asc *AbstractS3Client) resolveBucketPathAndItem(bucket, itemKey string) (s
 	return bucketAndPath, item
 }
 
-func (asc *AbstractS3Client) download(file *os.File, sess *session.Session, bucketAndPath, item string) error {
-	downloader := s3manager.NewDownloader(sess)
-	if _, err := downloader.Download(file,
-		&s3.GetObjectInput{
-			Bucket: aws.String(bucketAndPath),
-			Key:    aws.String(item),
-		}); err != nil {
+func (asc *AbstractS3Client) getBucketRegion(ctx context.Context, cfg aws.Config, bucket string) (string, error) {
+	s3Client := s3.NewFromConfig(cfg)
+	result, err := s3Client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// If location is empty, it means us-east-1
+	if result.LocationConstraint == "" {
+		return "us-east-1", nil
+	}
+	return string(result.LocationConstraint), nil
+}
+
+func (asc *AbstractS3Client) download(file *os.File, cfg aws.Config, bucketAndPath, item string) error {
+	s3Client := s3.NewFromConfig(cfg)
+	downloader := manager.NewDownloader(s3Client)
+
+	_, err := downloader.Download(context.TODO(), file, &s3.GetObjectInput{
+		Bucket: aws.String(bucketAndPath),
+		Key:    aws.String(item),
+	})
+	if err != nil {
 		return errors.Wrap(err, "Failed to download file from s3")
 	}
 	return nil

@@ -29,7 +29,9 @@ import (
 	pubsubtrigger "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -42,7 +44,7 @@ type testSuite struct {
 
 	// messaging
 	client      *pubsub.Client
-	topic       *pubsub.Topic
+	topic       *pubsubpb.Topic
 	projectID   string
 	numMessages int
 
@@ -85,7 +87,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// create topic
-	suite.topic, err = suite.client.CreateTopic(ctx, "nuclio-test-topic")
+	suite.topic, err = suite.client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: "nuclio-test-topic"})
 	suite.Require().NoError(err, "Failed to create topic")
 
 	suite.Logger.InfoWith("Created topic",
@@ -117,7 +119,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			Attributes: map[string]interface{}{
 				"subscriptions": []pubsubtrigger.Subscription{
 					{
-						Topic: suite.topic.ID(),
+						Topic: suite.topic.String(),
 					},
 				},
 				"projectID":     suite.projectID,
@@ -130,7 +132,7 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.BrokerHost,
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{
-			suite.topic.ID(): {
+			suite.topic.String(): {
 				NumMessages: suite.numMessages,
 			},
 		},
@@ -155,9 +157,12 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	suite.Logger.DebugWith("Publishing message to topic", "topic", topic, "body", body)
-	suite.topic.Publish(context.TODO(), &pubsub.Message{
+	publisher := suite.client.Publisher(topic)
+	result := publisher.Publish(context.TODO(), &pubsub.Message{
 		Data: []byte(body),
 	})
+	_, err := result.Get(context.Background())
+	suite.Require().NoError(err, "Failed to publish message")
 	suite.Logger.Debug("Successfully published a message")
 	return nil
 }
