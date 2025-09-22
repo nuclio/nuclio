@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 
-	"github.com/containerd/containerd/v2/pkg/reference"
+	"github.com/distribution/reference"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/util/json"
