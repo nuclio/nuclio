@@ -31,7 +31,6 @@ import (
 
 	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
-
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
