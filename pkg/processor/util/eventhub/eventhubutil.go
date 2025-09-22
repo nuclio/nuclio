@@ -17,24 +17,27 @@ limitations under the License.
 package eventhubutil
 
 import (
+	"context"
 	"fmt"
 
 	eventhubclient "github.com/Azure/go-amqp"
 	"github.com/nuclio/errors"
 )
 
-func CreateSession(namespace string,
+func CreateSession(
+	ctx context.Context,
+	namespace string,
 	sharedAccessKeyName string,
 	sharedAccessKeyValue string) (*eventhubclient.Session, error) {
 
 	// get eventhub URL
 	eventhubURL := fmt.Sprintf("amqps://%s.servicebus.windows.net", namespace)
-	auth := eventhubclient.ConnSASLPlain(sharedAccessKeyName, sharedAccessKeyValue)
+	auth := eventhubclient.SASLTypePlain(sharedAccessKeyName, sharedAccessKeyValue)
 
-	eventhubClient, err := eventhubclient.Dial(eventhubURL, auth)
+	eventhubClient, err := eventhubclient.Dial(ctx, eventhubURL, &eventhubclient.ConnOptions{SASLType: auth})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to connect to eventhub @ %s", eventhubURL)
 	}
 
-	return eventhubClient.NewSession()
+	return eventhubClient.NewSession(ctx, &eventhubclient.SessionOptions{})
 }

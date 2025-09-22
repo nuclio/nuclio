@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	cloud.google.com/go/pubsub/v2 v2.0.0
 	dario.cat/mergo v1.0.2
-	github.com/Azure/go-amqp v0.17.0
+	github.com/Azure/go-amqp v1.5.0
 	github.com/IBM/sarama v1.45.2
 	github.com/aws/aws-sdk-go-v2 v1.39.0
 	github.com/aws/aws-sdk-go-v2/config v1.31.8
@@ -43,7 +43,7 @@ require (
 	github.com/nuclio/opa-client v0.0.1
 	github.com/nuclio/zap v0.3.1
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
-	github.com/prometheus/client_golang v1.23.0
+	github.com/prometheus/client_golang v1.23.2
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/robfig/cron/v3 v3.0.1
@@ -51,7 +51,7 @@ require (
 	github.com/samber/lo v1.51.0
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tsenart/vegeta/v12 v12.12.0
 	github.com/v3io/scaler v0.10.1
 	github.com/v3io/v3io-go v0.3.13
@@ -171,7 +171,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.65.0 // indirect
+	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/dnscache v0.0.0-20230804202142-fc85eb664529 // indirect
@@ -210,7 +210,7 @@ require (
 	google.golang.org/genproto v0.0.0-20250804133106-a7a43d27e69b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250804133106-a7a43d27e69b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
-	google.golang.org/protobuf v1.36.7 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

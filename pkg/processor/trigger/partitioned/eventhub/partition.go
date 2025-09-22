@@ -65,8 +65,9 @@ func (p *partition) Read() error {
 		p.partitionID)
 
 	receiver, err := p.eventhubTrigger.eventhubSession.NewReceiver(
-		amqp.LinkSourceAddress(address),
-		amqp.LinkCredit(10),
+		ctx,
+		address,
+		&amqp.ReceiverOptions{Credit: 10},
 	)
 
 	if err != nil {
@@ -79,7 +80,7 @@ func (p *partition) Read() error {
 	for {
 
 		// Receive next message
-		msg, err := receiver.Receive(ctx)
+		msg, err := receiver.Receive(ctx, &amqp.ReceiveOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Error Reading message from AMQP")
 		}

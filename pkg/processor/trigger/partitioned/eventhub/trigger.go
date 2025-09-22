@@ -17,6 +17,8 @@ limitations under the License.
 package eventhub
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
@@ -53,8 +55,10 @@ func newTrigger(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract stream")
 	}
-
-	newTrigger.eventhubSession, err = eventhubutil.CreateSession(configuration.Namespace,
+	ctx := context.Background()
+	newTrigger.eventhubSession, err = eventhubutil.CreateSession(
+		ctx,
+		configuration.Namespace,
 		configuration.SharedAccessKeyName,
 		configuration.SharedAccessKeyValue)
 
