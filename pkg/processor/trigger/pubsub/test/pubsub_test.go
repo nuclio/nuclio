@@ -45,6 +45,7 @@ type testSuite struct {
 	client      *pubsub.Client
 	topic       *pubsubpb.Topic
 	projectID   string
+	topicName   string
 	numMessages int
 
 	// pubsub broker
@@ -57,6 +58,7 @@ func (suite *testSuite) SetupSuite() {
 	var err error
 
 	suite.projectID = "nuclio-test"
+	suite.topicName = "nuclio-test-topic"
 
 	// pubsub cluster
 	suite.brokerPort = 9200
@@ -86,7 +88,9 @@ func (suite *testSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// create topic
-	suite.topic, err = suite.client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: "nuclio-test-topic"})
+	suite.topic, err = suite.client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{
+		Name: fmt.Sprintf("projects/%s/topics/%s", suite.projectID, suite.topicName),
+	})
 	suite.Require().NoError(err, "Failed to create topic")
 
 	suite.Logger.InfoWith("Created topic",
@@ -118,7 +122,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			Attributes: map[string]interface{}{
 				"subscriptions": []pubsubtrigger.Subscription{
 					{
-						Topic: suite.topic.String(),
+						Topic: suite.topicName,
 					},
 				},
 				"projectID":     suite.projectID,
@@ -131,7 +135,7 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.BrokerHost,
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{
-			suite.topic.String(): {
+			suite.topicName: {
 				NumMessages: suite.numMessages,
 			},
 		},
