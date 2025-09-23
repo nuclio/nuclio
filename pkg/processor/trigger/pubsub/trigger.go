@@ -92,7 +92,7 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 
 		go func() {
 			if err := p.receiveFromSubscription(&subscription); err != nil {
-				p.Logger.WarnWith("Failed to create subscription",
+				p.Logger.WarnWith("Failed to receive from subscription",
 					"err", errors.GetErrorStackString(err, 10),
 					"subscription", subscription)
 			}
@@ -250,7 +250,8 @@ func (p *pubsub) createOrUseSubscription(ctx context.Context,
 			"ackDeadline", ackDeadline,
 			"topic", subscriptionConfig.Topic)
 		_, err := p.client.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
-			Topic:              subscriptionConfig.Topic,
+			Name:               p.getFullSubscriptionName(p.configuration.ProjectID, subscriptionID),
+			Topic:              p.getFullTopicName(p.configuration.ProjectID, subscriptionConfig.Topic),
 			AckDeadlineSeconds: int32(ackDeadline.Seconds()),
 		})
 		if err != nil && !subscriptionConfig.Shared {
@@ -274,5 +275,16 @@ func (p *pubsub) createOrUseSubscription(ctx context.Context,
 		"err", err)
 
 	return subscriber, nil
+}
 
+// getFullTopicName returns the full topic name in the format projects/{project_id}/topics/{topic_name}
+// as required by the pubsub API
+func (p *pubsub) getFullTopicName(projectId, topicName string) string {
+	return fmt.Sprintf("projects/%s/topics/%s", projectId, topicName)
+}
+
+// getFullSubscriptionName returns the full subscription name in the format projects/{project_id}/subscriptions/{subscription_name}
+// as required by the pubsub API
+func (p *pubsub) getFullSubscriptionName(projectId, subscriptionId string) string {
+	return fmt.Sprintf("projects/%s/subscriptions/%s", projectId, subscriptionId)
 }
