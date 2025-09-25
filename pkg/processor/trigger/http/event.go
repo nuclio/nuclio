@@ -54,7 +54,6 @@ func (e *Event) GetHeader(key string) interface{} {
 // GetHeaders loads all headers into a map of string / interface{}
 func (e *Event) GetHeaders() map[string]interface{} {
 	headers := make(map[string]interface{})
-	e.ctx.Request.Header.All()
 	for key, value := range e.ctx.Request.Header.All() {
 		headers[string(key)] = string(value)
 	}
