@@ -31,6 +31,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+const DefaultRegion = "us-east-1"
+
 type S3Client interface {
 	Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error
 	DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error
@@ -51,7 +53,7 @@ func (asc *AbstractS3Client) Download(file *os.File,
 
 	// Create AWS config with credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion("us-east-1"), // default region (some valid region must be mentioned)
+		config.WithRegion(DefaultRegion), // default region (some valid region must be mentioned)
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, sessionToken)),
 	)
 	if err != nil {
@@ -98,7 +100,7 @@ func (asc *AbstractS3Client) getBucketRegion(ctx context.Context, cfg aws.Config
 
 	// If location is empty, it means us-east-1
 	if result.LocationConstraint == "" {
-		return "us-east-1", nil
+		return DefaultRegion, nil
 	}
 	return string(result.LocationConstraint), nil
 }
