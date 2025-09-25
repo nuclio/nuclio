@@ -17,7 +17,7 @@ limitations under the License.
 package pubsub
 
 import (
-	pubsubClient "cloud.google.com/go/pubsub"
+	pubsubClient "cloud.google.com/go/pubsub/v2"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 

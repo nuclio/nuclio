@@ -38,6 +38,7 @@ type testSuite struct {
 	sharedAccessKeyName  string
 	sharedAccessKeyValue string
 	eventhubName         string
+	ctx                  context.Context
 }
 
 func newTestSuite() *testSuite {
@@ -55,13 +56,13 @@ func newTestSuite() *testSuite {
 
 func (suite *testSuite) SetupSuite() {
 	suite.AbstractBrokerSuite.SetupSuite()
+	suite.ctx = context.Background()
 
-	session, err := eventhubutil.CreateSession(suite.namespace, suite.sharedAccessKeyName, suite.sharedAccessKeyValue)
+	session, err := eventhubutil.CreateSession(
+		suite.ctx, suite.namespace, suite.sharedAccessKeyName, suite.sharedAccessKeyValue)
 	suite.Require().NoError(err)
 
-	// Create a sender
-	address := amqp.LinkTargetAddress(suite.eventhubName)
-	suite.eventhubSender, err = session.NewSender(address)
+	suite.eventhubSender, err = session.NewSender(suite.ctx, suite.eventhubName, &amqp.SenderOptions{})
 	suite.Require().NoError(err)
 }
 
@@ -93,7 +94,7 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 		Data: [][]byte{[]byte(body)},
 	}
 
-	return suite.eventhubSender.Send(context.Background(), &message)
+	return suite.eventhubSender.Send(suite.ctx, &message, &amqp.SendOptions{})
 }
 
 func TestIntegrationSuite(t *testing.T) {

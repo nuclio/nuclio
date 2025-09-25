@@ -54,10 +54,10 @@ func (e *Event) GetHeader(key string) interface{} {
 // GetHeaders loads all headers into a map of string / interface{}
 func (e *Event) GetHeaders() map[string]interface{} {
 	headers := make(map[string]interface{})
-	e.ctx.Request.Header.VisitAll(func(key, value []byte) {
+	e.ctx.Request.Header.All()
+	for key, value := range e.ctx.Request.Header.All() {
 		headers[string(key)] = string(value)
-	})
-
+	}
 	return headers
 }
 
@@ -94,9 +94,9 @@ func (e *Event) GetFieldInt(key string) (int, error) {
 // GetFields loads all fields into a map of string / interface{}
 func (e *Event) GetFields() map[string]interface{} {
 	fields := make(map[string]interface{})
-	e.ctx.QueryArgs().VisitAll(func(key, value []byte) {
+	for key, value := range e.ctx.QueryArgs().All() {
 		fields[string(key)] = string(value)
-	})
+	}
 
 	return fields
 }

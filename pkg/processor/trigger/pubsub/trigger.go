@@ -27,7 +27,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
-	pubsubClient "cloud.google.com/go/pubsub"
+	pubsubClient "cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/rs/xid"
@@ -91,7 +92,7 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 
 		go func() {
 			if err := p.receiveFromSubscription(&subscription); err != nil {
-				p.Logger.WarnWith("Failed to create subscription",
+				p.Logger.WarnWith("Failed to receive from subscription",
 					"err", errors.GetErrorStackString(err, 10),
 					"subscription", subscription)
 			}
@@ -127,7 +128,7 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 		return errors.Wrap(err, "Failed to parse ack deadline")
 	}
 
-	subscription, err := p.createOrUseSubscription(ctx, subscriptionID, ackDeadline, subscriptionConfig)
+	subscriber, err := p.createOrUseSubscription(ctx, subscriptionID, ackDeadline, subscriptionConfig)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create or use subscription %s", subscriptionID)
 	}
@@ -141,10 +142,10 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 	}
 
 	p.Logger.DebugWith("Reading from subscription",
-		"subscription.ReceiveSettings.NumGoroutines", subscription.ReceiveSettings.NumGoroutines)
+		"subscription.ReceiveSettings.NumGoroutines", subscriber.ReceiveSettings.NumGoroutines)
 
 	// listen to subscribed topic messages
-	err = subscription.Receive(ctx, func(ctx context.Context, message *pubsubClient.Message) {
+	err = subscriber.Receive(ctx, func(ctx context.Context, message *pubsubClient.Message) {
 
 		// get an event
 		event := <-eventsChan
@@ -238,19 +239,20 @@ func (p *pubsub) setAndValidateGoogleApplicationCredentials() error {
 func (p *pubsub) createOrUseSubscription(ctx context.Context,
 	subscriptionID string,
 	ackDeadline time.Duration,
-	subscriptionConfig *Subscription) (*pubsubClient.Subscription, error) {
+	subscriptionConfig *Subscription) (*pubsubClient.Subscriber, error) {
 	var err error
 	var created bool
-	var subscription *pubsubClient.Subscription
+	var subscriber *pubsubClient.Subscriber
 
 	if !subscriptionConfig.SkipCreate {
 		p.Logger.DebugWith("Creating subscription",
 			"sid", subscriptionID,
 			"ackDeadline", ackDeadline,
 			"topic", subscriptionConfig.Topic)
-		subscription, err = p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
-			Topic:       p.client.Topic(subscriptionConfig.Topic),
-			AckDeadline: ackDeadline,
+		_, err := p.client.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
+			Name:               p.getFullSubscriptionName(p.configuration.ProjectID, subscriptionID),
+			Topic:              p.getFullTopicName(p.configuration.ProjectID, subscriptionConfig.Topic),
+			AckDeadlineSeconds: int32(ackDeadline.Seconds()),
 		})
 		if err != nil && !subscriptionConfig.Shared {
 			return nil, errors.Wrap(err, "Failed to create subscription")
@@ -258,15 +260,12 @@ func (p *pubsub) createOrUseSubscription(ctx context.Context,
 		created = true
 	}
 
-	// use
-	if subscription == nil {
-		subscription = p.client.Subscription(subscriptionID)
-	}
+	// define subscriber
+	subscriber = p.client.Subscriber(subscriptionID)
 
 	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
 	// TODO: load all ReceiveSettings from subscriptionConfig
-	subscription.ReceiveSettings.NumGoroutines = subscriptionConfig.MaxNumWorkers
-	subscription.ReceiveSettings.Synchronous = subscriptionConfig.Synchronous
+	subscriber.ReceiveSettings.NumGoroutines = subscriptionConfig.MaxNumWorkers
 
 	p.Logger.DebugWith("Resolved subscription",
 		"sid", subscriptionID,
@@ -275,6 +274,17 @@ func (p *pubsub) createOrUseSubscription(ctx context.Context,
 		"ackDeadline", ackDeadline,
 		"err", err)
 
-	return subscription, nil
+	return subscriber, nil
+}
 
+// getFullTopicName returns the full topic name in the format projects/{project_id}/topics/{topic_name}
+// as required by the pubsub API
+func (p *pubsub) getFullTopicName(projectId, topicName string) string {
+	return fmt.Sprintf("projects/%s/topics/%s", projectId, topicName)
+}
+
+// getFullSubscriptionName returns the full subscription name in the format projects/{project_id}/subscriptions/{subscription_name}
+// as required by the pubsub API
+func (p *pubsub) getFullSubscriptionName(projectId, subscriptionId string) string {
+	return fmt.Sprintf("projects/%s/subscriptions/%s", projectId, subscriptionId)
 }

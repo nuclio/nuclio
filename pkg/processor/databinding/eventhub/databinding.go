@@ -17,6 +17,8 @@ limitations under the License.
 package eventhub
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 
@@ -45,7 +47,11 @@ func newDataBinding(parentLogger logger.Logger, configuration *Configuration) (d
 }
 
 func (eh *eventhub) Start() error {
-	session, err := eventhubutil.CreateSession(eh.configuration.Namespace,
+
+	ctx := context.Background()
+	session, err := eventhubutil.CreateSession(
+		ctx,
+		eh.configuration.Namespace,
 		eh.configuration.SharedAccessKeyName,
 		eh.configuration.SharedAccessKeyValue)
 
@@ -54,7 +60,11 @@ func (eh *eventhub) Start() error {
 	}
 
 	// Create a sender
-	eh.eventhubSender, err = session.NewSender(amqp.LinkTargetAddress(eh.configuration.EventHubName))
+	eh.eventhubSender, err = session.NewSender(
+		ctx,
+		eh.configuration.EventHubName,
+		&amqp.SenderOptions{},
+	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create sender")
 	}

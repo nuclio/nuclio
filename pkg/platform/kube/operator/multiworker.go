@@ -33,7 +33,7 @@ import (
 
 type MultiWorker struct {
 	logger               logger.Logger
-	queue                workqueue.RateLimitingInterface
+	queue                workqueue.TypedRateLimitingInterface[string]
 	informer             cache.SharedIndexInformer
 	numWorkers           int
 	maxProcessingRetries int
@@ -63,7 +63,7 @@ func NewMultiWorker(ctx context.Context,
 		"objectKind", fmt.Sprintf("%T", object))
 
 	// create rate limited queue
-	newMultiWorker.queue = workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	newMultiWorker.queue = workqueue.NewTypedRateLimitingQueue[string](workqueue.DefaultTypedControllerRateLimiter[string]())
 
 	// set default resync
 	if resyncInterval == nil {
@@ -175,45 +175,36 @@ func (mw *MultiWorker) processItems(ctx context.Context) {
 				break
 			}
 
-			// get the key from the item
-			itemKey, keyIsString := item.(string)
-			if !keyIsString {
-				mw.logger.WarnWithCtx(ctx,
-					"Got item which is not a string, ignoring",
-					"itemKey", itemKey,
-					"workerID", workerID)
-			}
-
 			// try to process the item
-			if err := mw.processItem(ctx, itemKey); err != nil {
+			if err := mw.processItem(ctx, item); err != nil {
 				mw.logger.WarnWithCtx(ctx,
 					"Failed to process item",
 					"workerID", workerID,
-					"itemKey", itemKey,
+					"itemKey", item,
 					"err", errors.Cause(err).Error())
 
 				// do we have any more retries?
-				if mw.queue.NumRequeues(itemKey) < mw.maxProcessingRetries {
+				if mw.queue.NumRequeues(item) < mw.maxProcessingRetries {
 					mw.logger.DebugWithCtx(ctx,
 						"Requeueing",
-						"itemKey", itemKey,
+						"itemKey", item,
 						"workerID", workerID)
 
 					// add it back, rate limited
-					mw.queue.AddRateLimited(itemKey)
+					mw.queue.AddRateLimited(item)
 				} else {
 					mw.logger.WarnWithCtx(ctx,
 						"No retries, left. Giving up",
 						"workerID", workerID,
-						"itemKey", itemKey)
+						"itemKey", item)
 
-					mw.queue.Forget(itemKey)
+					mw.queue.Forget(item)
 				}
 
 			} else {
 
 				// we're done with this key
-				mw.queue.Forget(itemKey)
+				mw.queue.Forget(item)
 			}
 
 			// indicate that we're done with the item

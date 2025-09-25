@@ -36,7 +36,11 @@ type Subscription struct {
 
 	// https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
 	MaxNumWorkers int
-	Synchronous   bool
+
+	// Deprecated: since pubsub v2
+	// Kept for backward compatibility
+	// TODO: remove in future
+	Synchronous bool
 }
 
 type Configuration struct {

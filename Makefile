@@ -112,8 +112,8 @@ endif
 
 NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.23
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23-alpine
+NUCLIO_BASE_IMAGE_TAG ?= 1.25
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.25-alpine
 DEFAULT_NUCTL_DOCUMENTATION_PATH := docs/reference/nuctl/cli
 NUCTL_DOCUMENTATION_PATH := $(if $(NUCTL_DOCUMENTATION_PATH),$(NUCTL_DOCUMENTATION_PATH),$(DEFAULT_NUCTL_DOCUMENTATION_PATH))
 
@@ -699,7 +699,7 @@ ensure-test-files-annotated:
 	@echo "All go test files have //go:build test_X annotation"
 	@exit $(.SHELLSTATUS)
 
-GOLANGCI_LINT_VERSION := 2.2.1
+GOLANGCI_LINT_VERSION := 2.5.0
 GOLANGCI_LINT_BIN := $(CURDIR)/.bin/golangci-lint
 GOLANGCI_LINT_INSTALL_COMMAND := GOBIN=$(CURDIR)/.bin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
 
