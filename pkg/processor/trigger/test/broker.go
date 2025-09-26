@@ -77,6 +77,12 @@ func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 		"python",
 		"event_recorder.py")
 
+	newAbstractBrokerSuite.FunctionPaths["python-streaming-features"] = path.Join(newAbstractBrokerSuite.GetTestFunctionsDir(),
+		"common",
+		"event-recorder",
+		"python",
+		"event_recorder_with_rebalance_explicit_ack.py")
+
 	newAbstractBrokerSuite.FunctionPaths["golang"] = path.Join(newAbstractBrokerSuite.GetTestFunctionsDir(),
 		"common",
 		"event-recorder",

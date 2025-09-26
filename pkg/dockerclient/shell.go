@@ -475,7 +475,12 @@ func (c *ShellClient) StopContainer(containerID string) error {
 		return errors.New("Invalid container ID to stop")
 	}
 
-	_, err := c.runCommand(nil, "docker stop %s", containerID)
+	// stop the container gracefully
+	// use -t 30 to give the container a chance to cleanup (same as the default kubernetes timeout)
+	// If the container does not exit after the timeout elapses, it's forcibly killed with a SIGKILL signal
+	// https://docs.docker.com/reference/cli/docker/container/stop/
+	_, err := c.runCommand(nil, "docker stop -t 30 %s", containerID)
+
 	return err
 }
 

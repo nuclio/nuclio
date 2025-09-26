@@ -714,6 +714,10 @@ func (be *AbstractEventConnection) waitForResponseWithOptionalTimeout(
 }
 
 func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults result.Result, isClientDisconnected bool) (result.Result, error) {
+
+	if processingResults == nil {
+		return nil, errors.New("Received nil processing results")
+	}
 	// We don't use defer to reset be.functionLogger since it decreases performance
 	if !processingResults.IsStream() || isClientDisconnected {
 		// Instead, we reset it immediately after execution **only if**:

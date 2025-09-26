@@ -301,7 +301,7 @@ func NewResultFromData(data []byte) Result {
 		}
 		return newStreamStartFromSingleResult(singleResult)
 	default:
-		return nil
+		return NewSingleResultsWithError(errors.Errorf("unknown packet type: %c", data[0]))
 	}
 }
 

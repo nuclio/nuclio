@@ -1053,7 +1053,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
 		p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
-		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+		if err := p.dockerClient.StopContainer(containerInfo.ID); err != nil {
 			return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
 		}
 	}
