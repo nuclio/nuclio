@@ -67,6 +67,7 @@ type Platform struct {
 
 const Mib = 1048576
 const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
+const DefaultStopContainerTimeoutSeconds = 30
 
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
@@ -1053,8 +1054,35 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
 		p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
-		if err := p.dockerClient.StopContainer(containerInfo.ID); err != nil {
+		if err := p.dockerClient.StopContainer(containerInfo.ID, DefaultStopContainerTimeoutSeconds); err != nil {
 			return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
+		}
+	}
+
+	// wait until all containers are deleted
+	err = common.RetryUntilSuccessful(DefaultStopContainerTimeoutSeconds*time.Second, 3*time.Second, func() bool {
+		containers, err := p.dockerClient.GetContainers(getContainerOptions)
+		if err != nil {
+			return false
+		}
+		if len(containers) == 0 {
+			return true
+		}
+		return false
+	})
+
+	if err != nil {
+		p.Logger.WarnWith("Failed to wait until all function containers are deleted, removing containers with SIGKILL")
+		containersInfo, err = p.dockerClient.GetContainers(getContainerOptions)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get containers")
+		}
+		// there are a few instances of this function in the namespace
+		for _, containerInfo := range containersInfo {
+			p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
+			if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+				return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
+			}
 		}
 	}
 
@@ -1220,7 +1248,7 @@ func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platfor
 			createFunctionOptions.Logger.DebugWith("Stop function container",
 				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
 				"containerID", container.ID)
-			if err := p.dockerClient.StopContainer(container.ID); err != nil {
+			if err := p.dockerClient.StopContainer(container.ID, 10); err != nil {
 				return 0, errors.Wrap(err, "Failed to stop a container")
 			}
 		}

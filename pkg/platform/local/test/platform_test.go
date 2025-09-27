@@ -129,7 +129,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			}, functionconfig.FunctionStateReady, time.Second)
 
 			// Stop the container
-			err := suite.DockerClient.StopContainer(deployResult.ContainerID)
+			err := suite.DockerClient.StopContainer(deployResult.ContainerID, 30)
 			suite.Require().NoError(err, "Could not stop container")
 
 			// Trigger function containers healthiness validation
