@@ -54,7 +54,7 @@ type Client interface {
 	RemoveContainer(containerID string) error
 
 	// StopContainer removes a container given a container ID
-	StopContainer(containerID string) error
+	StopContainer(containerID string, timeoutSeconds int) error
 
 	// StartContainer starts a container given a container ID
 	StartContainer(containerID string) error

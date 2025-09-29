@@ -192,7 +192,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 	functionName := "some-function-name"
-	apiGatewayName := "api-gateway-1"
+	apiGatewayName := "api-gateway-with-specific-port"
 	sidecarPort := 8050
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{

@@ -467,15 +467,27 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 }
 
 // StopContainer stops a container given a container ID
-func (c *ShellClient) StopContainer(containerID string) error {
+func (c *ShellClient) StopContainer(containerID string, timeoutSeconds int) error {
 	c.logger.DebugWith("Stopping container", "containerID", containerID)
 
 	// containerID is ID or name
 	if !containerIDRegex.MatchString(containerID) && !restrictedNameRegex.MatchString(containerID) {
 		return errors.New("Invalid container ID to stop")
 	}
+	var err error
 
-	_, err := c.runCommand(nil, "docker stop %s", containerID)
+	// stop the container gracefully
+	// use -t <seconds> to give the container a chance to cleanup (same as the default kubernetes timeout)
+	// If the container does not exit after the timeout elapses, it's forcibly killed with a SIGKILL signal
+	// if no timeout is given, docker waits indefinitely
+	// https://docs.docker.com/reference/cli/docker/container/stop/
+	// this command doesn't wait for the container to be actually stopped, it just sends the signal
+	if timeoutSeconds == 0 {
+		_, err = c.runCommand(nil, "docker stop %s", containerID)
+	} else {
+		_, err = c.runCommand(nil, "docker stop -t %d %s", timeoutSeconds, containerID)
+	}
+
 	return err
 }
 
