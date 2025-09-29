@@ -291,6 +291,9 @@ jobs:
 
           # write function host to /etc/hosts
           echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
+          # hardcode host1.com and host2.com
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host1.com" | sudo tee -a /etc/hosts
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host2.com" | sudo tee -a /etc/hosts
 
           # run test
           make test-k8s-nuctl
