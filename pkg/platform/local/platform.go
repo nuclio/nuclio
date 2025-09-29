@@ -67,7 +67,6 @@ type Platform struct {
 
 const Mib = 1048576
 const FunctionProcessorContainerDirPath = "/etc/nuclio/config/processor"
-const DefaultStopContainerTimeoutSeconds = 30
 
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
@@ -1054,13 +1053,13 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
 		p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
-		if err := p.dockerClient.StopContainer(containerInfo.ID, DefaultStopContainerTimeoutSeconds); err != nil {
+		if err := p.dockerClient.StopContainer(containerInfo.ID, int(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout.Seconds())); err != nil {
 			return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
 		}
 	}
 
 	// wait until all containers are deleted
-	err = common.RetryUntilSuccessful(DefaultStopContainerTimeoutSeconds*time.Second, 3*time.Second, func() bool {
+	err = common.RetryUntilSuccessful(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout+1*time.Second, 3*time.Second, func() bool {
 		containers, err := p.dockerClient.GetContainers(getContainerOptions)
 		if err != nil {
 			return false
