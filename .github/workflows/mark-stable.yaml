@@ -26,39 +26,44 @@ env:
   REPO: quay.io
   REPO_NAME: nuclio
   DOCKER_BUILDKIT: 1
+  GITHUB_ACTIONS_BOT_NAME: github-actions[bot]
+  GITHUB_ACTIONS_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
 
 jobs:
-  mark-stable:
-    name: Mark Version as Stable
+  image_matrix_prep:
+    name: Prepare image list
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Prepare environment
-        run: |
-          echo "NUCLIO_DOCKER_REPO=${{ env.REPO }}/${{ env.REPO_NAME }}" >> $GITHUB_ENV
-          echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
-
-      - name: Login to registry
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v5
         with:
-          registry: ${{ env.REPO }}
-          username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
-          password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
 
-      - name: Fetch Docker image rules
-        id: fetch-rules
-        run: |
-          docker_image_rules_json=$(make print-docker-image-rules-json)
-          echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
-
-      - name: Set up matrix
+      - name: Define targets
         id: set-matrix
-        run: echo "matrix=${{ steps.fetch-rules.outputs.matrix }}" >> $GITHUB_OUTPUT
+        run: |
+          # If custom image is given, use it
+          if [[ -n "${{ github.event.inputs.docker_image_rule }}" ]]; then
+            export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}"
+          fi
+
+          docker_image_rules_json=$(make print-docker-image-rules-json)
+
+          # If "handler-builder-golang-onbuild" is in the matrix,
+          # then ensure "handler-builder-golang-onbuild-alpine" is there too.
+          docker_image_rules_json=$(echo $docker_image_rules_json | \
+            jq -c 'if any(.[]; .image_rule == "handler-builder-golang-onbuild") 
+                   then . + [{"image_rule":"handler-builder-golang-onbuild-alpine"}] 
+                   else . end')
+
+          echo $docker_image_rules_json
+          echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
 
   tag-and-push-images:
     name: Tag and Push Stable Images
-    needs: mark-stable
+    needs: image_matrix_prep
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -66,12 +71,13 @@ jobs:
         arch:
           - arm64
           - amd64
-        docker_image_rule: ${{ fromJson(needs.mark-stable.outputs.matrix) }}
+        docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
     steps:
       - name: Prepare environment
         run: |
           echo "NUCLIO_DOCKER_REPO=${{ env.REPO }}/${{ env.REPO_NAME }}" >> $GITHUB_ENV
           echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+          echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
 
       - name: Login to registry
         uses: docker/login-action@v2
@@ -85,3 +91,29 @@ jobs:
           docker pull "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH"
           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
+
+  update-stable-tag:
+    name: Update GitHub Stable Tag
+    needs: tag-and-push-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # fetch all tags for retagging
+
+      - name: Configure git
+        run: |
+          git config --global user.name "${{ env.GITHUB_ACTIONS_BOT_NAME }}"
+          git config --global user.email "${{ env.GITHUB_ACTIONS_BOT_EMAIL }}"
+
+      - name: Update stable tag
+        run: |
+          git fetch --tags origin
+          if git rev-parse "v${{ github.event.inputs.version }}" >/dev/null 2>&1; then
+            git tag -f stable "v${{ github.event.inputs.version }}"
+            git push origin stable --force
+            echo "✅ Updated 'stable' tag to v${{ github.event.inputs.version }}"
+          else
+            echo "::error::Version tag v${{ github.event.inputs.version }} does not exist in the repository."
+            exit 1
+          fi
