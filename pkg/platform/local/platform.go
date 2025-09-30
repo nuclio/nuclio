@@ -29,6 +29,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -1073,50 +1075,41 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 
 	p.Logger.DebugWithCtx(ctx, "Got function containers", "containersInfoLength", len(containersInfo))
 
+	var wg sync.WaitGroup
+	var errDuringStop atomic.Pointer[error]
+
 	// iterate over contains and delete them. It's possible that under some weird circumstances
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
-		p.Logger.DebugWithCtx(ctx, "Stopping function container", "containerName", containerInfo.Name)
-
-		// no need to fail the entire operation if stopping failed
-		// we will retry to stop with SIGKILL below
-		if err = p.dockerClient.StopContainer(containerInfo.ID, int(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout.Seconds())); err != nil {
-			p.Logger.WarnWith("Failed to stop container, will retry with SIGKILL", "containerId", containerInfo.ID)
-		}
-	}
-
-	// wait until all containers are deleted
-	err = common.RetryUntilSuccessful(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout+1*time.Second, 3*time.Second, func() bool {
-		containers, err := p.dockerClient.GetContainers(getContainerOptions)
-		if err != nil {
-			return false
-		}
-		if len(containers) == 0 {
-			return true
-		}
-		return false
-	})
-	var errDuringForceStop error
-	if err != nil {
-		p.Logger.WarnWith("Failed to wait until all function containers are deleted, removing containers with SIGKILL")
-		containersInfo, err = p.dockerClient.GetContainers(getContainerOptions)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get containers")
-		}
-		for _, containerInfo := range containersInfo {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			p.Logger.DebugWithCtx(ctx, "Stopping function container", "containerName", containerInfo.Name)
-
-			// no need to fail the entire operation if remove failed, just keep the error and continue
+			// no need to fail the entire operation if stopping failed
+			// we will retry to stop with SIGKILL below
 			if err = p.dockerClient.StopContainer(containerInfo.ID, int(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout.Seconds())); err != nil {
+				errDuringStop.CompareAndSwap(nil, &err)
+				p.Logger.WarnWith("Failed to stop container, will retry with SIGKILL", "containerId", containerInfo.ID)
+			}
+
+			// now remove the container
+			// to ensure that it doesn't use any ports/volumes and etc
+			if err = p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+				// no need to fail the entire operation if remove failed, just keep the error and continue
 				p.Logger.WarnWith("Failed to stop container, will retry with SIGKILL",
 					"containerId", containerInfo.ID,
 					"error", err.Error())
-
-				errDuringForceStop = err
 			}
-		}
+		}()
+
 	}
-	return errDuringForceStop
+	wg.Wait()
+
+	// load possible error
+	if errPtr := errDuringStop.Load(); errPtr != nil {
+		return *errPtr
+	}
+	return nil
 }
 
 func (p *Platform) resolveAndCreateFunctionMounts(

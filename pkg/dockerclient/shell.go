@@ -481,7 +481,7 @@ func (c *ShellClient) StopContainer(containerID string, timeoutSeconds int) erro
 	// If the container does not exit after the timeout elapses, it's forcibly killed with a SIGKILL signal
 	// if no timeout is given, docker waits indefinitely
 	// https://docs.docker.com/reference/cli/docker/container/stop/
-	// this command doesn't wait for the container to be actually stopped, it just sends the signal
+	// this command waits for the container to be actually stopped
 	if timeoutSeconds == 0 {
 		_, err = c.runCommand(nil, "docker stop %s", containerID)
 	} else {
