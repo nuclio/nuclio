@@ -1,0 +1,73 @@
+name: Mark Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to mark as stable (e.g., 1.2.3).'
+        required: true
+        type: string
+
+env:
+  REPO: quay.io
+  REPO_NAME: nuclio
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  mark-stable:
+    name: Mark Version as Stable
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Prepare environment
+        run: |
+          echo "NUCLIO_DOCKER_REPO=${{ env.REPO }}/${{ env.REPO_NAME }}" >> $GITHUB_ENV
+          echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+
+      - name: Login to registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REPO }}
+          username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
+          password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
+
+      - name: Fetch Docker image rules
+        id: fetch-rules
+        run: |
+          docker_image_rules_json=$(make print-docker-image-rules-json)
+          echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
+
+      - name: Set up matrix
+        id: set-matrix
+        run: echo "matrix=${{ steps.fetch-rules.outputs.matrix }}" >> $GITHUB_OUTPUT
+
+  tag-and-push-images:
+    name: Tag and Push Stable Images
+    needs: mark-stable
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm64
+          - amd64
+        docker_image_rule: ${{ fromJson(needs.mark-stable.outputs.matrix) }}
+    steps:
+      - name: Prepare environment
+        run: |
+          echo "NUCLIO_DOCKER_REPO=${{ env.REPO }}/${{ env.REPO_NAME }}" >> $GITHUB_ENV
+          echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+
+      - name: Login to registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REPO }}
+          username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
+          password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
+
+      - name: Tag and push stable images
+        run: |
+          docker pull "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH"
+          docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
+          docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"

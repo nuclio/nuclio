@@ -312,11 +312,11 @@ jobs:
           DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
           SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
 
-      - name: Tag and push stable images
-        if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(matrix.docker_image_rule, 'dashboard')
+      - name: Tag and push latest images
+        if: env.NUCLIO_LABEL != 'unstable' && github.event_name == 'workflow_dispatch'
         run: |
-          docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
-          docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
+          docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:latest-$NUCLIO_ARCH"
+          docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:latest-$NUCLIO_ARCH"
         env:
           DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
