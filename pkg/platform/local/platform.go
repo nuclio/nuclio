@@ -1082,7 +1082,6 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
 		wg.Go(func() {
-			defer wg.Done()
 			p.Logger.DebugWithCtx(ctx, "Stopping function container", "containerName", containerInfo.Name)
 			// no need to fail the entire operation if stopping failed
 			// we will retry to stop with SIGKILL below
