@@ -1035,8 +1035,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 
 	if err := p.deleteFunctionContainers(ctx,
 		deleteFunctionOptions.FunctionConfig.Meta.Name,
-		deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-		true); err != nil {
+		deleteFunctionOptions.FunctionConfig.Meta.Namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function containers")
 	}
 
@@ -1052,7 +1051,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	return nil
 }
 
-func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, namespace string, waitForDeletion bool) error {
+func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, namespace string) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Stopped: true,
 		Labels: map[string]string{
@@ -1074,7 +1073,6 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 
 	p.Logger.DebugWithCtx(ctx, "Got function containers", "containersInfoLength", len(containersInfo))
 
-	var errorDuringFunctionStopping error
 	// iterate over contains and delete them. It's possible that under some weird circumstances
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
@@ -1084,18 +1082,7 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 		// we will retry to stop with SIGKILL below
 		if err = p.dockerClient.StopContainer(containerInfo.ID, int(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout.Seconds())); err != nil {
 			p.Logger.WarnWith("Failed to stop container, will retry with SIGKILL", "containerId", containerInfo.ID)
-
-			// if not wait for deletion, then try to remove the container right away
-			// otherwise will be retried below after waiting for a timeout
-			if !waitForDeletion {
-				err = p.dockerClient.RemoveContainer(containerInfo.ID)
-			}
-			errorDuringFunctionStopping = err
 		}
-	}
-
-	if !waitForDeletion {
-		return errorDuringFunctionStopping
 	}
 
 	// wait until all containers are deleted
@@ -1279,7 +1266,7 @@ func (p *Platform) deleteOrStopFunctionContainers(ctx context.Context, createFun
 
 		return 0, p.deleteFunctionContainers(ctx,
 			createFunctionOptions.FunctionConfig.Meta.Name,
-			createFunctionOptions.FunctionConfig.Meta.Namespace, true)
+			createFunctionOptions.FunctionConfig.Meta.Namespace)
 	}
 
 	// if the function exists, delete it
@@ -1301,9 +1288,7 @@ func (p *Platform) deleteOrStopFunctionContainers(ctx context.Context, createFun
 
 	return previousHTTPPort, p.deleteFunctionContainers(ctx,
 		createFunctionOptions.FunctionConfig.Meta.Name,
-		createFunctionOptions.FunctionConfig.Meta.Namespace,
-		// do not wait for deletion in case of redeploying the function
-		false)
+		createFunctionOptions.FunctionConfig.Meta.Namespace)
 
 }
 
