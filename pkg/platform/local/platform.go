@@ -1081,8 +1081,7 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 	// iterate over contains and delete them. It's possible that under some weird circumstances
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			defer wg.Done()
 			p.Logger.DebugWithCtx(ctx, "Stopping function container", "containerName", containerInfo.Name)
 			// no need to fail the entire operation if stopping failed
@@ -1100,8 +1099,7 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 					"containerId", containerInfo.ID,
 					"error", err.Error())
 			}
-		}()
-
+		})
 	}
 	wg.Wait()
 
