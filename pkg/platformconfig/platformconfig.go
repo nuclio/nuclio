@@ -465,6 +465,10 @@ func (c *Config) enrichLocalPlatform() {
 	if c.Local.FunctionContainersHealthinessTimeout == 0 {
 		c.Local.FunctionContainersHealthinessTimeout = time.Second * 5
 	}
+
+	if c.Local.FunctionContainersGracefulTerminationTimeout == 0 {
+		c.Local.FunctionContainersGracefulTerminationTimeout = time.Second * 10
+	}
 }
 
 func (c *Config) enrichOpaConfig() {

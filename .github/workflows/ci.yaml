@@ -291,6 +291,10 @@ jobs:
 
           # write function host to /etc/hosts
           echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
+          # hardcode nuclio-host1.com and nuclio-host2.com
+          # we use them to invoke api gateways in tests
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host1.com" | sudo tee -a /etc/hosts
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host2.com" | sudo tee -a /etc/hosts
 
           # run test
           make test-k8s-nuctl
@@ -408,6 +412,9 @@ jobs:
       - name: Write ingress host to /etc/hosts
         run: |
           echo "${NUCLIO_EXTERNAL_IP_ADDRESS} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
+          # we use them to invoke api gateways in tests
+          echo "${NUCLIO_EXTERNAL_IP_ADDRESS} nuclio-host1.com" | sudo tee -a /etc/hosts
+          echo "${NUCLIO_EXTERNAL_IP_ADDRESS} nuclio-host2.com" | sudo tee -a /etc/hosts
 
       - name: Run k8s tests
         run: NUCLIO_K8S_TEST_MAKE_TARGET=${{ matrix.test-target }} make test-k8s

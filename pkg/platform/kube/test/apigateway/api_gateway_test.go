@@ -88,13 +88,13 @@ func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
 		// create first api gateway on top of given function
 		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
-		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "nuclio-host1.com"
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
 			// create second api gateway on top of the same function
 			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
 			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
-			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "host2.com"
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "nuclio-host2.com"
 
 			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
 				// check that both gateways are invokable
@@ -192,7 +192,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 	functionName := "some-function-name"
-	apiGatewayName := "api-gateway-1"
+	apiGatewayName := "api-gateway-with-specific-port"
 	sidecarPort := 8050
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
@@ -213,7 +213,7 @@ func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 		// create an api gateway on top of the function with a specific port to the sidecar
 		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
-		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "nuclio-host1.com"
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.Upstreams[0].Port = sidecarPort
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
