@@ -408,7 +408,7 @@ func (suite *TestSuite) WithFunctionContainerRestart(deployResult *platform.Crea
 	handler func()) {
 
 	// stop container
-	err := suite.DockerClient.StopContainer(deployResult.ContainerID, 30)
+	err := suite.DockerClient.StopContainer(deployResult.ContainerID, 10)
 	suite.Require().NoError(err)
 
 	handler()
