@@ -29,6 +29,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -301,7 +303,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var functionStatus functionconfig.Status
 
 		// delete existing function containers
-		previousHTTPPort, err := p.deleteOrStopFunctionContainers(createFunctionOptions)
+		previousHTTPPort, err := p.deleteOrStopFunctionContainers(ctx, createFunctionOptions)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to delete previous containers")
 		}
@@ -426,7 +428,7 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 		"functionName", redeployFunctionOptions.FunctionMeta.Name)
 
 	// delete existing function containers
-	previousHTTPPort, err := p.deleteOrStopFunctionContainers(&platform.CreateFunctionOptions{
+	previousHTTPPort, err := p.deleteOrStopFunctionContainers(ctx, &platform.CreateFunctionOptions{
 		Logger: p.Logger,
 		FunctionConfig: functionconfig.Config{
 			Meta: *redeployFunctionOptions.FunctionMeta,
@@ -1033,29 +1035,10 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 		p.Logger.WarnWithCtx(ctx, "Failed to delete a function from the local store", "err", err.Error())
 	}
 
-	getContainerOptions := &dockerclient.GetContainerOptions{
-		Stopped: true,
-		Labels: map[string]string{
-			"nuclio.io/platform":                      common.LocalPlatformName,
-			"nuclio.io/namespace":                     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-			common.NuclioResourceLabelKeyFunctionName: deleteFunctionOptions.FunctionConfig.Meta.Name,
-		},
-	}
-
-	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get containers")
-	}
-
-	p.Logger.DebugWithCtx(ctx, "Got function containers", "containersInfoLength", len(containersInfo))
-
-	// iterate over contains and delete them. It's possible that under some weird circumstances
-	// there are a few instances of this function in the namespace
-	for _, containerInfo := range containersInfo {
-		p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
-		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
-			return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
-		}
+	if err := p.deleteFunctionContainers(ctx,
+		deleteFunctionOptions.FunctionConfig.Meta.Name,
+		deleteFunctionOptions.FunctionConfig.Meta.Namespace); err != nil {
+		return errors.Wrap(err, "Failed to delete function containers")
 	}
 
 	// delete function volume mount after containers are deleted
@@ -1067,6 +1050,66 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 
 	p.Logger.InfoWithCtx(ctx, "Successfully deleted function",
 		"name", deleteFunctionOptions.FunctionConfig.Meta.Name)
+	return nil
+}
+
+func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, namespace string) error {
+	getContainerOptions := &dockerclient.GetContainerOptions{
+		Stopped: true,
+		Labels: map[string]string{
+			"nuclio.io/platform":                      common.LocalPlatformName,
+			"nuclio.io/namespace":                     namespace,
+			common.NuclioResourceLabelKeyFunctionName: functionName,
+		},
+	}
+
+	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get containers")
+	}
+
+	if len(containersInfo) == 0 {
+		p.Logger.DebugWithCtx(ctx, "No function containers were found", "functionName", functionName, "namespace", namespace)
+		return nil
+	}
+
+	p.Logger.DebugWithCtx(ctx, "Got function containers", "containersInfoLength", len(containersInfo))
+
+	var wg sync.WaitGroup
+	var errDuringStop atomic.Pointer[error]
+
+	// iterate over contains and delete them. It's possible that under some weird circumstances
+	// there are a few instances of this function in the namespace
+	for _, containerInfo := range containersInfo {
+		wg.Go(func() {
+			p.Logger.DebugWithCtx(ctx, "Stopping function container", "containerName", containerInfo.Name)
+			// no need to fail the entire operation if stopping failed
+			// we will retry to stop with SIGKILL below
+			if err = p.dockerClient.StopContainer(containerInfo.ID, int(p.GetConfig().Local.FunctionContainersGracefulTerminationTimeout.Seconds())); err != nil {
+				errDuringStop.CompareAndSwap(nil, &err)
+				p.Logger.WarnWith("Failed to stop container, will retry with SIGKILL", "containerId", containerInfo.ID)
+			}
+
+			// now remove the container
+			// to ensure that it doesn't use any ports/volumes and etc
+			if err = p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+				// no need to fail the entire operation if remove failed, just keep the error and continue
+				p.Logger.WarnWith("Failed to stop container, will retry with SIGKILL",
+					"containerId", containerInfo.ID,
+					"error", err.Error())
+			}
+		})
+	}
+	wg.Wait()
+
+	// load possible error
+	if errPtr := errDuringStop.Load(); errPtr != nil {
+		return *errPtr
+	}
+	p.Logger.DebugWithCtx(ctx, "Successfully deleted function",
+		"name", functionName,
+		"namespace", namespace)
+
 	return nil
 }
 
@@ -1196,7 +1239,7 @@ func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
 	return marshalledAnnotations
 }
 
-func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
+func (p *Platform) deleteOrStopFunctionContainers(ctx context.Context, createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 	var previousHTTPPort int
 
 	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment",
@@ -1215,16 +1258,9 @@ func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platfor
 		createFunctionOptions.Logger.InfoWith("Disabling function",
 			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
 
-		// if function is disabled, stop all containers
-		for _, container := range containers {
-			createFunctionOptions.Logger.DebugWith("Stop function container",
-				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
-				"containerID", container.ID)
-			if err := p.dockerClient.StopContainer(container.ID); err != nil {
-				return 0, errors.Wrap(err, "Failed to stop a container")
-			}
-		}
-		return 0, nil
+		return 0, p.deleteFunctionContainers(ctx,
+			createFunctionOptions.FunctionConfig.Meta.Name,
+			createFunctionOptions.FunctionConfig.Meta.Namespace)
 	}
 
 	// if the function exists, delete it
@@ -1242,13 +1278,12 @@ func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platfor
 		if err != nil {
 			return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
 		}
-
-		if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
-			return 0, errors.Wrap(err, "Failed to delete a function container")
-		}
 	}
 
-	return previousHTTPPort, nil
+	return previousHTTPPort, p.deleteFunctionContainers(ctx,
+		createFunctionOptions.FunctionConfig.Meta.Name,
+		createFunctionOptions.FunctionConfig.Meta.Namespace)
+
 }
 
 func (p *Platform) checkAndSetFunctionUnhealthy(containerID string, function platform.Function) error {

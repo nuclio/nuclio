@@ -84,7 +84,7 @@ func (mdc *MockDockerClient) RemoveContainer(containerID string) error {
 }
 
 // StopContainer stops a container given a container ID
-func (mdc *MockDockerClient) StopContainer(containerID string) error {
+func (mdc *MockDockerClient) StopContainer(containerID string, timeoutSeconds int) error {
 	return nil
 }
 
