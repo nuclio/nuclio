@@ -1106,6 +1106,10 @@ func (p *Platform) deleteFunctionContainers(ctx context.Context, functionName, n
 	if errPtr := errDuringStop.Load(); errPtr != nil {
 		return *errPtr
 	}
+	p.Logger.DebugWithCtx(ctx, "Successfully deleted function",
+		"name", functionName,
+		"namespace", namespace)
+
 	return nil
 }
 
