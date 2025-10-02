@@ -44,11 +44,6 @@ jobs:
       - name: Define targets
         id: set-matrix
         run: |
-          # If custom image is given, use it
-          if [[ -n "${{ github.event.inputs.docker_image_rule }}" ]]; then
-            export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}"
-          fi
-
           docker_image_rules_json=$(make print-docker-image-rules-json)
 
           # If "handler-builder-golang-onbuild" is in the matrix,
@@ -94,7 +89,7 @@ jobs:
 
   update-stable-tag:
     name: Update GitHub Stable Tag
-    needs: tag-and-push-images
+    needs: image_matrix_prep
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
