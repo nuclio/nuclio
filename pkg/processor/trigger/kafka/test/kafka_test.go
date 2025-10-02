@@ -491,6 +491,11 @@ func (suite *testSuite) TestDrainHook() {
 	}
 }
 
+// TestFeatureCombinations tests different combinations of the following features:
+// * ExplicitAck
+// * WorkerAllocationMode
+// * Draining callback
+// * Terminatio callback
 func (suite *testSuite) TestFeatureCombinations() {
 	for _, testCase := range []struct {
 		name                 string
@@ -543,7 +548,7 @@ func (suite *testSuite) TestFeatureCombinations() {
 			suite.Require().NoError(err, "Failed to close shared file")
 
 			// remove the file at the end of the test
-			// since the fine can be quite big, do not rely on autodelete of temp dir
+			// since the file can be quite big, do not rely on auto-deletion of temp dir
 			defer os.Remove(sharedFilePath)
 
 			// create topic with many partitions to amplify rebalancing behaviour
@@ -598,23 +603,26 @@ func (suite *testSuite) TestFeatureCombinations() {
 			cycles := testCase.cycles
 			messagesPerPartitionPerCycle := testCase.messagesPerCycle
 
-			suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-				suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
-
-				// wait a bit for the function to start
-				time.Sleep(5 * time.Second)
-
-				// produce messages on all partitions
-				// cycles * numPartitions is the total number of messages
+			produceMessages := func(cycle, round int) {
 				for partitionIdx := 0; partitionIdx < testCase.partitionNum; partitionIdx++ {
 					for i := 0; i < messagesPerPartitionPerCycle; i++ {
-						body := fmt.Sprintf("cycle-%d-msg-%d-part-%d", 0, i, partitionIdx)
+						body := fmt.Sprintf("cycle-%d-msg-%d-part-%d-round-%d", cycle, i, partitionIdx, round)
 						err := suite.publishMessageToTopicOnSpecificShard(topic, body, int32(partitionIdx))
 						messageHistory = append(messageHistory, body)
 						suite.Require().NoError(err, "Failed to publish message")
 					}
 				}
+			}
 
+			suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+				// wait a bit for the function to start
+				// sometimes it takes time for kafka to sync a new consumer group/topic
+				// especially with many partitions and when running locally with arm64 simulating amd64
+				time.Sleep(5 * time.Second)
+
+				produceMessages(0, 0)
 				// ensure they are all read
 				err := common.RetryUntilSuccessful(60*time.Second,
 					2*time.Second,
@@ -628,16 +636,7 @@ func (suite *testSuite) TestFeatureCombinations() {
 				// cycles * messagesPerPartitionPerCycle * numPartitions * 2 is the total number of messages
 				for cycle := 1; cycle <= cycles; cycle++ {
 					suite.Logger.InfoWith("Starting cycle", "cycle", cycle)
-
-					// produce messages on all partitions
-					for partitionIdx := 0; partitionIdx < testCase.partitionNum; partitionIdx++ {
-						for i := 0; i < messagesPerPartitionPerCycle; i++ {
-							body := fmt.Sprintf("cycle-%d-msg-%d-part-%d", cycle, i, partitionIdx)
-							err := suite.publishMessageToTopicOnSpecificShard(topic, body, int32(partitionIdx))
-							messageHistory = append(messageHistory, body)
-							suite.Require().NoError(err, "Failed to publish message")
-						}
-					}
+					produceMessages(cycle, 1)
 
 					// trigger a rebalance by adding another consumer in the same group
 					// use a unique name each time to avoid clashes and ensure new container
@@ -652,14 +651,7 @@ func (suite *testSuite) TestFeatureCombinations() {
 						// produce again messages on all partitions, to ensure there is enough work to do after the rebalance
 						// this also increases the likelihood that the rebalance completes while there is still work to do
 						// for the original function
-						for partitionIdx := 0; partitionIdx < testCase.partitionNum; partitionIdx++ {
-							for i := 0; i < messagesPerPartitionPerCycle; i++ {
-								body := fmt.Sprintf("cycle-%d-msg-%d-part-%d-round-2", cycle, i, partitionIdx)
-								err := suite.publishMessageToTopicOnSpecificShard(topic, body, int32(partitionIdx))
-								messageHistory = append(messageHistory, body)
-								suite.Require().NoError(err, "Failed to publish message")
-							}
-						}
+						produceMessages(cycle, 2)
 
 						err := common.RetryUntilSuccessful(30*time.Second,
 							2*time.Second,
@@ -668,7 +660,7 @@ func (suite *testSuite) TestFeatureCombinations() {
 								// wait until we see at least one new message in the original function
 								return len(receivedBodies) > 0
 							})
-						suite.Require().NoError(err, "Failed to get initial events")
+						suite.Require().NoError(err, fmt.Sprintf("Failed to get initial events for cycle %d", cycle))
 
 						return true
 					})

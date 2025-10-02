@@ -41,7 +41,8 @@ def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
             events_log_file.write(serialized_record + ', ')
 
         # mark offset
-        context.last_processed_offsets.set_last_processed_offset(topic=event.topic, partition= event.shard_id, offset=event.offset)
+        context.last_processed_offsets.set_last_processed_offset(topic=event.topic, partition=event.shard_id,
+                                                                 offset=event.offset)
 
     elif _ensure_str(event.trigger.kind) == 'http':
 
@@ -63,13 +64,13 @@ def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
 
 
 def _ensure_str(s, encoding='utf-8', errors='strict'):
-
     # Optimization: Fast return for the common case.
     if type(s) is str:
         return s
     if isinstance(s, bytes):
         return s.decode(encoding, errors)
     raise TypeError(f"not expecting type '{type(s)}'")
+
 
 def init_context(context):
     context.logger.info_with('Initializing', worker_id=context.worker_id)
@@ -78,11 +79,6 @@ def init_context(context):
     context.platform.set_drain_callback(context.last_processed_offsets.drain)
     context.platform.set_termination_callback(context.last_processed_offsets.drain)
 
-def drain_callback():
-    print('Drain callback called!')
-    sleep_interval = os.getenv("DRAIN_SLEEP_INTERVAL", "1")
-    time.sleep(float(sleep_interval))
-    print('Slept for {0} seconds'.format(sleep_interval))
 
 class LastProcessedOffsets:
     def __init__(self, context: nuclio_sdk.Context):
@@ -92,7 +88,6 @@ class LastProcessedOffsets:
     def set_last_processed_offset(self, topic, partition, offset):
         self.last_processed_offset_of_topic[(topic, partition)] = offset
 
-
     def drain(self):
         return self._drain()
 
@@ -100,7 +95,5 @@ class LastProcessedOffsets:
         self.context.logger.info("Draining - committing offsets")
         for (topic, partition), offset in self.last_processed_offset_of_topic.items():
             self.context.logger.info(f'Topic: {topic}, Partition: {partition}, Offset: {offset}')
-            await self.context.platform.explicit_ack(nuclio_sdk.QualifiedOffset(topic=topic, partition=partition, offset=offset))
-
-
-
+            await self.context.platform.explicit_ack(
+                nuclio_sdk.QualifiedOffset(topic=topic, partition=partition, offset=offset))

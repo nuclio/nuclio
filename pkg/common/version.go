@@ -17,8 +17,6 @@ limitations under the License.
 package common
 
 import (
-	"runtime"
-
 	"github.com/v3io/version-go"
 )
 
@@ -28,7 +26,7 @@ func SetVersionFromEnv() {
 		Label:     GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
 		GitCommit: "c",
 		OS:        GetEnvOrDefaultString("NUCLIO_OS", "linux"),
-		Arch:      GetEnvOrDefaultString("NUCLIO_ARCH", runtime.GOARCH),
+		Arch:      GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
 		GoVersion: version.Get().GoVersion,
 	})
 }
