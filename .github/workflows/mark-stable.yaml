@@ -14,6 +14,9 @@
 
 name: Mark Stable
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -87,28 +90,45 @@ jobs:
           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
 
-  update-stable-tag:
-    name: Update GitHub Stable Tag
+  update-stable-branch:
+    name: Update GitHub Stable Branch
     needs: image_matrix_prep
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to push branches with GITHUB_TOKEN
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # fetch all tags for retagging
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure git
         run: |
           git config --global user.name "${{ env.GITHUB_ACTIONS_BOT_NAME }}"
           git config --global user.email "${{ env.GITHUB_ACTIONS_BOT_EMAIL }}"
 
-      - name: Update stable tag
+      - name: Update stable via PR
         run: |
-          git fetch --tags origin
-          if git rev-parse "v${{ github.event.inputs.version }}" >/dev/null 2>&1; then
-            git tag -f stable "v${{ github.event.inputs.version }}"
-            git push origin stable --force
-            echo "✅ Updated 'stable' tag to v${{ github.event.inputs.version }}"
+          VERSION="${{ github.event.inputs.version }}"
+          PR_BRANCH="stable-update-$VERSION"
+  
+          # Check if the version tag exists
+          if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
+            # Create a branch from the version commit
+            git checkout -b "$PR_BRANCH" "$VERSION"
+  
+            # Push the branch to origin
+            git push origin "$PR_BRANCH" --force
+  
+            # Create a PR into stable using GitHub CLI
+            gh pr create \
+              --title "Update stable to $VERSION" \
+              --body "Automated update of stable branch to $VERSION" \
+              --base stable \
+              --head "$PR_BRANCH"
+  
+            echo "✅ Created PR from $PR_BRANCH to stable"
           else
-            echo "::error::Version tag v${{ github.event.inputs.version }} does not exist in the repository."
+            echo "::error::Version tag $VERSION does not exist in the repository."
             exit 1
           fi
