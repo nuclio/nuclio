@@ -966,6 +966,10 @@ python-tests:
 
 .PHONY: python-runtime-tests
 python-runtime-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/runtime/python/test"
+
+.PHONY: kafka-tests
+python-runtime-tests:
 	@make list-all-dirs-with-tests | grep "pkg/processor/trigger/kafka/test"
 
 #

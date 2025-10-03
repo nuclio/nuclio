@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        command: [ nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests ]
+        command: [ nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests, kafka-tests ]
     steps:
       # checkout from development
       - uses: actions/checkout@v5
