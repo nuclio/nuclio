@@ -43,6 +43,10 @@ def handler(context: nuclio_sdk.Context, event: nuclio_sdk.Event):
         # mark offset
         context.last_processed_offsets.set_last_processed_offset(topic=event.topic, partition=event.shard_id,
                                                                  offset=event.offset)
+        response = nuclio_sdk.Response()
+        response.status_code = 200
+        response.ensure_no_ack()
+
 
     elif _ensure_str(event.trigger.kind) == 'http':
 

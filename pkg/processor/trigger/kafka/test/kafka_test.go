@@ -537,6 +537,14 @@ func (suite *testSuite) TestFeatureCombinations() {
 			cycles:               2,
 			messagesPerCycle:     1,
 		},
+		{
+			name:                 "ExplicitAckEnable-16",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			partitionNum:         16,
+			cycles:               5,
+			messagesPerCycle:     5,
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			// create shared temp file for all functions
