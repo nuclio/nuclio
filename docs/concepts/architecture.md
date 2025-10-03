@@ -64,7 +64,7 @@ In this case, we use a singleton non-blocking allocator, which allows multiple e
 However, as the event moves further through the processing flow, we still need to allocate an event processor at the runtime level.
 While an event is being processed, we must ensure that no other events are processed through the same event processor to maintain correct behaviour.
 
-### Blocking vs. Blocking Allocator
+### Blocking vs. Non-blocking Allocator
 In our system, an event processor allocator is responsible for assigning event processors to handle incoming events.
 The way this allocation happens depends on whether the processing mode is synchronous or asynchronous.
 
@@ -73,7 +73,7 @@ Ensures that each worker processes events one at a time, in a sequential (FIFO) 
 When an event processor is allocated to an event, it remains blocked until the event is fully processed.
 Once the processing is completed, the event processor is released back for new events.
 
-🔹 Blocking Allocator
+🔹 Non-blocking Allocator
 Allows a single worker to process multiple events concurrently without waiting for previous ones to finish.
 When an event processor is allocated, it does not block itself from handling other events at the same time.
 
