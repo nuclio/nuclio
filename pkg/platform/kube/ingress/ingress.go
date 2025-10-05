@@ -323,7 +323,7 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 			ingressAnnotations[annotation] = annotationValue
 		}
 
-		ingressAnnotations["nginx.ingress.kubernetes.io/proxy-body-size"] = "0"
+		ingressAnnotations[common.AnnotationNginxProxyBodySize] = "0"
 
 		// redirect to SSL if spec specifically required it, otherwise default to platformConfig's default value
 		enableSSLRedirect := m.platformConfiguration.IngressConfig.EnableSSLRedirect
@@ -332,11 +332,10 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 		}
 
 		// if SSL redirect is enabled, set the annotation to true, otherwise set it to false unless it's already set
-		SSLRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
 		if enableSSLRedirect {
-			ingressAnnotations[SSLRedirectAnnotation] = "true"
-		} else if _, ok := ingressAnnotations[SSLRedirectAnnotation]; !ok {
-			ingressAnnotations[SSLRedirectAnnotation] = "false"
+			ingressAnnotations[common.AnnotationNginxSSLRedirect] = "true"
+		} else if _, ok := ingressAnnotations[common.AnnotationNginxSSLRedirect]; !ok {
+			ingressAnnotations[common.AnnotationNginxSSLRedirect] = "false"
 		}
 	}
 
@@ -405,8 +404,8 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 	authURL := fmt.Sprintf("%s/oauth2/auth", oauth2ProxyURL)
 
 	annotations := map[string]string{
-		"nginx.ingress.kubernetes.io/auth-response-headers": "Authorization",
-		"nginx.ingress.kubernetes.io/auth-url":              authURL,
+		common.AnnotationNginxAuthResponseHeaders: "Authorization",
+		common.AnnotationNginxAuthURL:             authURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": `auth_request_set $name_upstream_1 $upstream_cookie__oauth2_proxy_1;
 access_by_lua_block {
   if ngx.var.name_upstream_1 ~= "" then
@@ -417,7 +416,7 @@ access_by_lua_block {
 
 	if addSignInAnnotation {
 		signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
-		annotations["nginx.ingress.kubernetes.io/auth-signin"] = signinURL
+		annotations[common.AnnotationNginxAuthSignIn] = signinURL
 	}
 
 	return annotations, nil
@@ -434,8 +433,8 @@ func (m *Manager) compileIguazioSessionVerificationAnnotations() (map[string]str
 
 	return map[string]string{
 		"nginx.ingress.kubernetes.io/auth-method":           "POST",
-		"nginx.ingress.kubernetes.io/auth-response-headers": "X-Remote-User,X-V3io-Session-Key",
-		"nginx.ingress.kubernetes.io/auth-url":              m.platformConfiguration.IngressConfig.IguazioAuthURL,
+		common.AnnotationNginxAuthResponseHeaders:           "X-Remote-User,X-V3io-Session-Key",
+		common.AnnotationNginxAuthURL:                       m.platformConfiguration.IngressConfig.IguazioAuthURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }

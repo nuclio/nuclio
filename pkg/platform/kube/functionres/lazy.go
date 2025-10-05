@@ -2291,9 +2291,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
-	if _, exists := meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"]; !exists &&
+	if _, exists := meta.Annotations[common.AnnotationNginxSSLRedirect]; !exists &&
 		platformConfig.IngressConfig.EnableSSLRedirect {
-		meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
+		meta.Annotations[common.AnnotationNginxSSLRedirect] = "true"
 	}
 
 	// clear out existing so that we don't keep adding rules

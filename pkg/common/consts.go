@@ -68,3 +68,14 @@ const FunctionTagLatest = "latest"
 const FunctionContainerName = "nuclio"
 
 const AnnotationKubectlDefaultContainer = "kubectl.kubernetes.io/default-container"
+
+// nginx annotations
+const (
+	AnnotationNginxAuthResponseHeaders = "nginx.ingress.kubernetes.io/auth-response-headers"
+	AnnotationNginxAuthSignIn          = "nginx.ingress.kubernetes.io/auth-signin"
+	AnnotationNginxAuthURL             = "nginx.ingress.kubernetes.io/auth-url"
+	AnnotationNginxProxyBodySize       = "nginx.ingress.kubernetes.io/proxy-body-size"
+	AnnotationNginxProxyBufferSize     = "nginx.ingress.kubernetes.io/proxy-buffer-size"
+	AnnotationNginxServiceUpstream     = "nginx.ingress.kubernetes.io/service-upstream"
+	AnnotationNginxSSLRedirect         = "nginx.ingress.kubernetes.io/ssl-redirect"
+)

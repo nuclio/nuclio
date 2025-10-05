@@ -52,8 +52,8 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Require().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+			suite.Require().NotContains(ingress.Annotations, common.AnnotationNginxAuthSignIn)
+			suite.Require().Contains(ingress.Annotations[common.AnnotationNginxAuthURL], configOauth2ProxyURL)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyFunctionName], functionName)
 		})
 		suite.Require().NoError(err)
@@ -68,9 +68,9 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			},
 		}
 		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations, common.AnnotationNginxAuthSignIn)
+			suite.Assert().Contains(ingress.Annotations[common.AnnotationNginxAuthSignIn], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations[common.AnnotationNginxAuthURL], overrideOauth2ProxyURL)
 		})
 		suite.Require().NoError(err)
 
