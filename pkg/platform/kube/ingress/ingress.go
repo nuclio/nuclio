@@ -381,6 +381,11 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
 		}
+	case AuthenticationModeSSO:
+		authIngressAnnotations, err = m.compileSSOAuthAnnotations()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to get SSO auth annotations")
+		}
 	default:
 		return nil, nil, errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
 	}
@@ -485,6 +490,26 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 	m.enrichLabels(spec, secret.Labels)
 
 	return ingressAnnotations, secret, nil
+}
+
+func (m *Manager) compileSSOAuthAnnotations() (map[string]string, error) {
+	if m.platformConfiguration.IngressConfig.IguazioAuthURL == "" {
+		return nil, errors.New("No SSO auth URL configured")
+	}
+
+	if m.platformConfiguration.IngressConfig.IguazioSignInURL == "" {
+		return nil, errors.New("No SSO login URL configured")
+	}
+
+	return map[string]string{
+		common.AnnotationNginxAuthResponseHeaders: "Authorization",
+		common.AnnotationNginxAuthSignIn:          m.platformConfiguration.IngressConfig.IguazioSignInURL,
+		common.AnnotationNginxAuthURL:             m.platformConfiguration.IngressConfig.IguazioAuthURL,
+		common.AnnotationNginxProxyBodySize:       "0",
+		common.AnnotationNginxProxyBufferSize:     "16k",
+		common.AnnotationNginxServiceUpstream:     "true",
+		common.AnnotationNginxSSLRedirect:         "true",
+	}, nil
 }
 
 func (m *Manager) enrichLabels(spec Spec, labels map[string]string) {
