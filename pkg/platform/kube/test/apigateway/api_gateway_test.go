@@ -78,6 +78,35 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	})
 }
 
+func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
+	functionName := "sso-function-name"
+	apiGatewayName := "sso-api-gateway-name"
+	testAuthUrl := "test-auth-url"
+	testSignInUrl := "test-sign-in-url"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
+		IguazioAuthURL:   testAuthUrl,
+		IguazioSignInURL: testSignInUrl,
+	}
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeSSO
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
+			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
+			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyApiGatewayName], apiGatewayName)
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthResponseHeaders], "Authorization")
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthSignIn], testSignInUrl)
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthURL], testAuthUrl)
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxProxyBodySize], "0")
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxProxyBufferSize], "16k")
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxServiceUpstream], "true")
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxSSLRedirect], "true")
+		})
+		suite.Require().NoError(err)
+		return true
+	})
+}
+
 func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
 	functionName := "some-function-name"
 	apiGatewayName1 := "api-gateway-1"
