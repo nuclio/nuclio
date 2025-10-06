@@ -127,6 +127,8 @@ type createAPIGatewayCommandeer struct {
 	encodedAttributes        string
 	encodedExtraLables       string
 	encodedCanaryExtraLables string
+	loginURL                 string
+	authURL                  string
 }
 
 func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *createCommandeer) *createAPIGatewayCommandeer {
@@ -178,7 +180,8 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 			}
 
 			// enrich basic-auth spec if it was specified
-			if commandeer.apiGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth {
+			switch commandeer.apiGatewayConfig.Spec.AuthenticationMode {
+			case ingress.AuthenticationModeBasicAuth:
 				if commandeer.basicAuthUsername == "" || commandeer.basicAuthPassword == "" {
 					return errors.New("Basic auth username and password must be specified")
 				}
@@ -189,6 +192,22 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 						Password: commandeer.basicAuthPassword,
 					},
 				}
+			case ingress.AuthenticationModeSSO:
+				// Validate that both SSO auth URLs are provided together, or neither is provided
+				if (commandeer.loginURL == "") != (commandeer.authURL == "") {
+					return errors.New("both SSO auth login and auth URLs must be specified together, or neither should be specified")
+				}
+
+				// If both URLs are provided, set up the SSO authentication configuration
+				if commandeer.loginURL != "" && commandeer.authURL != "" {
+					commandeer.apiGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
+						SSOAuth: &ingress.SSOAuth{
+							AuthURL:  commandeer.authURL,
+							LoginURL: commandeer.loginURL,
+						},
+					}
+				}
+			default:
 			}
 
 			// validate a primary function was specified
@@ -271,6 +290,8 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 	cmd.Flags().StringVar(&commandeer.encodedAttributes, "attrs", "{}", "JSON-encoded attributes for the api gateway (overrides all the rest)")
 	cmd.Flags().StringVar(&commandeer.encodedExtraLables, "labels", "{}", "JSON-encoded custom labels for the api gateway")
 	cmd.Flags().StringVar(&commandeer.encodedExtraLables, "canary-labels", "{}", "JSON-encoded custom labels for canary upstream of the api gateway")
+	cmd.Flags().StringVar(&commandeer.loginURL, "login-url", "", "Login URL for SSO authentication mode")
+	cmd.Flags().StringVar(&commandeer.authURL, "auth-url", "", "Auth URL for SSO authentication mode")
 
 	commandeer.cmd = cmd
 

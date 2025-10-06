@@ -382,7 +382,7 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
 		}
 	case AuthenticationModeSSO:
-		authIngressAnnotations, err = m.compileSSOAuthAnnotations()
+		authIngressAnnotations, err = m.compileSSOAuthAnnotations(spec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get SSO auth annotations")
 		}
@@ -492,7 +492,7 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 	return ingressAnnotations, secret, nil
 }
 
-func (m *Manager) compileSSOAuthAnnotations() (map[string]string, error) {
+func (m *Manager) compileSSOAuthAnnotations(spec Spec) (map[string]string, error) {
 	if m.platformConfiguration.IngressConfig.IguazioAuthURL == "" {
 		return nil, errors.New("No SSO auth URL configured")
 	}
@@ -501,10 +501,23 @@ func (m *Manager) compileSSOAuthAnnotations() (map[string]string, error) {
 		return nil, errors.New("No SSO login URL configured")
 	}
 
+	signinURL := m.platformConfiguration.IngressConfig.IguazioSignInURL
+	authURL := m.platformConfiguration.IngressConfig.IguazioAuthURL
+
+	if spec.Authentication != nil && spec.Authentication.SSOAuth != nil {
+		if spec.Authentication.SSOAuth.AuthURL != "" {
+			authURL = spec.Authentication.SSOAuth.AuthURL
+		}
+
+		if spec.Authentication.SSOAuth.LoginURL != "" {
+			signinURL = spec.Authentication.SSOAuth.LoginURL
+		}
+	}
+
 	return map[string]string{
 		common.AnnotationNginxAuthResponseHeaders: "Authorization",
-		common.AnnotationNginxAuthSignIn:          m.platformConfiguration.IngressConfig.IguazioSignInURL,
-		common.AnnotationNginxAuthURL:             m.platformConfiguration.IngressConfig.IguazioAuthURL,
+		common.AnnotationNginxAuthSignIn:          signinURL,
+		common.AnnotationNginxAuthURL:             authURL,
 		common.AnnotationNginxProxyBodySize:       "0",
 		common.AnnotationNginxProxyBufferSize:     "16k",
 		common.AnnotationNginxServiceUpstream:     "true",
