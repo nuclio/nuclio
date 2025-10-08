@@ -493,25 +493,31 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 }
 
 func (m *Manager) compileSSOAuthAnnotations(spec Spec) (map[string]string, error) {
-	if m.platformConfiguration.IngressConfig.IguazioAuthURL == "" {
-		return nil, errors.New("No SSO auth URL configured")
-	}
-
-	if m.platformConfiguration.IngressConfig.IguazioSignInURL == "" {
-		return nil, errors.New("No SSO login URL configured")
-	}
-
-	signinURL := m.platformConfiguration.IngressConfig.IguazioSignInURL
-	authURL := m.platformConfiguration.IngressConfig.IguazioAuthURL
-
+	var signinURL, authURL string
+	// Use auth and signin URLs from the spec if provided; otherwise, fallback to platform configurations
 	if spec.Authentication != nil && spec.Authentication.SSOAuth != nil {
 		if spec.Authentication.SSOAuth.AuthURL != "" {
 			authURL = spec.Authentication.SSOAuth.AuthURL
+		} else {
+			authURL = m.platformConfiguration.IngressConfig.IguazioAuthURL
 		}
 
 		if spec.Authentication.SSOAuth.LoginURL != "" {
 			signinURL = spec.Authentication.SSOAuth.LoginURL
+		} else {
+			signinURL = m.platformConfiguration.IngressConfig.IguazioSignInURL
 		}
+	} else {
+		authURL = m.platformConfiguration.IngressConfig.IguazioAuthURL
+		signinURL = m.platformConfiguration.IngressConfig.IguazioSignInURL
+	}
+
+	if authURL == "" {
+		return nil, errors.New("No SSO auth URL configured")
+	}
+
+	if signinURL == "" {
+		return nil, errors.New("No SSO login URL configured")
 	}
 
 	return map[string]string{
