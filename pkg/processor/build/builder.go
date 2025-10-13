@@ -1425,8 +1425,14 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 			return runtimeDefaultBaseImage
 		}
 
+		// if user configured an explicit registry URL use it
+		if common.IsExplicitRegistryURL(baseImageRegistry) {
+			return baseImageRegistry
+		}
+
 		// get only image name and concatenate it with registry
 		imageName := path.Base(runtimeDefaultBaseImage)
+		baseImageRegistry = strings.TrimSuffix(baseImageRegistry, "/")
 		return strings.Join([]string{baseImageRegistry, imageName}, "/")
 
 	// if user specified something - use that, as is
