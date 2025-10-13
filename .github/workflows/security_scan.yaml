@@ -155,7 +155,7 @@ jobs:
       - name: Upload scan results
         # by default we don't upload results to github
         if: github.event.inputs.publish_results != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
           category: ${{ matrix.image_rule }}
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload scan results
         if: github.event.inputs.publish_results != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
           category: filesystem
