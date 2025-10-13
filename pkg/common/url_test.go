@@ -105,6 +105,35 @@ func (ts *IsURLTestSuite) TestValidatePath() {
 	}
 }
 
+func (ts *IsURLTestSuite) TestIsExplicitRegistryURL() {
+	testCases := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		// Should return true
+		{"explicit registry", "gcr.io/iguazio/alpine:3.20", true},
+		{"path end with version", "my-registry:80/path/to/bin/python/3.20", true},
+		{"path without explicit version in the end", "registry.example.com/myrepo:latest", true},
+		{"java default", "registry.example.com/path/to/openjdk:11-jre-slim", true},
+		{"port, path and version", "localhost:5000/myrepo:v1.0", true},
+
+		// Should return false
+		{"test current values for backward compatibility", "example.com:80", false},
+		{"default docker", "docker.io", false},
+		{"URL without port", "registry.example.com", false},
+		{"localhost without path", "localhost:5000", false},
+		{"empty URL", "", false},
+	}
+
+	for _, testCase := range testCases {
+		ts.Run(testCase.name, func() {
+			result := IsExplicitRegistryURL(testCase.input)
+			ts.Require().Equal(testCase.expected, result)
+		})
+	}
+}
+
 func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	content := "content"
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {

@@ -360,7 +360,8 @@ func (mp *Platform) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 }
 
 func (mp *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
-	return "quay.io", nil
+	args := mp.Called()
+	return args.Get(0).(string), args.Error(1)
 }
 
 func (mp *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {

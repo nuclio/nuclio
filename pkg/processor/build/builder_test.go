@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/nuclio/errors"
@@ -496,6 +497,59 @@ func (suite *testSuite) TestRenderDependantImageURL() {
 		suite.Require().NoError(err)
 		suite.Require().Equal(testCase.expectedImageURL, renderedImageURL)
 	}
+}
+
+func (suite *testSuite) TestGetRuntimeProcessorDockerfileInfo() {
+	for _, testCase := range []struct {
+		name                  string
+		baseImageRegistry     string
+		expectedBaseImage     string
+		functionSpecBaseImage string
+		onbuildImageRegistry  string
+		expectedOnbuildImage  string
+	}{
+		{
+			name:              "Use baseImage override",
+			baseImageRegistry: "function.registry:1234/python:3.12",
+			expectedBaseImage: "function.registry:1234/python:3.12",
+		},
+		{
+			name:              "Use the default without overrides",
+			baseImageRegistry: "",
+			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+		}, {
+			name:              "Enrich the base image because it's not explicit",
+			baseImageRegistry: "function.registry:1234",
+			expectedBaseImage: "function.registry:1234/python:3.12",
+		}, {
+			name:              "Enrich the base image because path not fully explicit",
+			baseImageRegistry: "function.registry:1234/",
+			expectedBaseImage: "function.registry:1234/python:3.12",
+		},
+		{
+			name:                  "If base image exists in function spec use it",
+			baseImageRegistry:     "function.registry:1234/",
+			expectedBaseImage:     "gcr.io/iguazio/python:3.12",
+			functionSpecBaseImage: "gcr.io/iguazio/python:3.12",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var err error
+			testConfig := &platformconfig.Config{}
+			suite.mockPlatform.On("GetConfig").Return(testConfig).Once()
+			suite.mockPlatform.On("GetContainerBuilderKind").Return("").Once()
+			suite.mockPlatform.On("GetHealthCheckMode", mock.Anything).Return(platform.HealthCheckModeInternalClient).Twice()
+			suite.mockPlatform.On("GetRuntimeBuildArgs", mock.Anything).Return(map[string]string{}).Once()
+			suite.builder.options.FunctionConfig.Spec.Runtime = "python:3.12"
+			suite.builder.options.FunctionConfig.Spec.Build.BaseImage = testCase.functionSpecBaseImage
+			suite.builder.runtime, err = suite.builder.createRuntime()
+			suite.Require().NoError(err)
+			result, err := suite.builder.getRuntimeProcessorDockerfileInfo(testCase.baseImageRegistry, testCase.onbuildImageRegistry)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedBaseImage, result.BaseImage)
+		})
+	}
+
 }
 
 func (suite *testSuite) TestValidateAndParseS3Attributes() {
