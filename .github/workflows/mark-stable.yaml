@@ -90,45 +90,41 @@ jobs:
           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
 
-  update-stable-branch:
-    name: Update GitHub Stable Branch
-    needs: image_matrix_prep
+  update-badge:
+    name: Create PR to update stable badge
     runs-on: ubuntu-latest
-    permissions:
-      contents: write   # needed to push branches with GITHUB_TOKEN
+
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure git
+      - name: Set up git
         run: |
           git config --global user.name "${{ env.GITHUB_ACTIONS_BOT_NAME }}"
           git config --global user.email "${{ env.GITHUB_ACTIONS_BOT_EMAIL }}"
 
-      - name: Update stable via PR
+      - name: Run Make target to update badge
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: make update-stable-badge VERSION=${VERSION}
+
+      - name: Create branch for badge update
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          PR_BRANCH="stable-update-$VERSION"
-  
-          # Check if the version tag exists
-          if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
-            # Create a branch from the version commit
-            git checkout -b "$PR_BRANCH" "$VERSION"
-  
-            # Push the branch to origin
-            git push origin "$PR_BRANCH" --force
-  
-            # Create a PR into stable using GitHub CLI
-            gh pr create \
-              --title "Update stable to $VERSION" \
-              --body "Automated update of stable branch to $VERSION" \
-              --base stable \
-              --head "$PR_BRANCH"
-  
-            echo "✅ Created PR from $PR_BRANCH to stable"
-          else
-            echo "::error::Version tag $VERSION does not exist in the repository."
-            exit 1
-          fi
+          BRANCH_NAME="update-stable-badge-v${{ github.event.inputs.version }}"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "[Readme] Update stable badge to ${{ github.event.inputs.version }}"
+          branch: ${{ env.BRANCH_NAME }}
+          title: "Update stable badge to v${{ github.event.inputs.version }}"
+          body: |
+            This PR updates the stable badge in `README.md` to version **v${{ github.event.inputs.version }}**.
+
+            ⚠️ **Reminder:**  
+            Please make sure to **manually retag stable** tag **before merging** this PR.

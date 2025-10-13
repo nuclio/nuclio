@@ -1031,3 +1031,7 @@ check-dependencies:
 bump-dependencies:
 	@python3 hack/scripts/dependency-checker/check-versions.py --makefile-path Makefile --bump-to-the-latest
 
+.PHONY: update-stable-badge
+update-stable-badge:
+	@echo "Updating stable badge to version $(VERSION)"
+	@perl -0777 -i -pe 's|(<!-- STABLE_BADGE_START -->).*?(<!-- STABLE_BADGE_END -->)|$$1\n![Stable Version](https://img.shields.io/badge/stable-v$(VERSION)-green)\n$$2|s' README.md
