@@ -15,7 +15,8 @@
 name: Mark Stable
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
