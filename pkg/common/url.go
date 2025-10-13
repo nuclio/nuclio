@@ -32,13 +32,29 @@ import (
 )
 
 const (
-	HTTPPrefix      = "http://"
-	HTTPSPrefix     = "https://"
-	LocalFilePrefix = "file://"
-	urlPathRegex    = `^([\/]?([a-zA-Z0-9\-_]+[\/]?)*|)$`
+	HTTPPrefix               = "http://"
+	HTTPSPrefix              = "https://"
+	LocalFilePrefix          = "file://"
+	urlPathRegex             = `^([\/]?([a-zA-Z0-9\-_]+[\/]?)*|)$`
+	explicitRegistryURLRegex = `^[a-zA-Z0-9\.-]+(?::[0-9]+)?/.+:[a-zA-Z0-9\._-]+$`
 )
 
 var URLPathRegexpCompiled = regexp.MustCompile(urlPathRegex)
+
+// ExplicitlyRegistryURLCompiled validates container image references with explicit tags.
+// Pattern format: registry[:port]/path/to/image:tag
+//
+// Components (all are required except port):
+//   - Registry domain: alphanumeric with dots/hyphens (e.g., docker.io, gcr.io, myregistry.com)
+//   - Port: optional numeric value (e.g., :5000, :1234, :443)
+//   - Image path: one or more path segments separated by slashes (e.g., python, library/ubuntu, org/team/app)
+//   - Tag: required alphanumeric identifier with dots, underscores, or hyphens (e.g., latest, 3.12, v1.0.0-alpine)
+//
+// Valid examples:
+//   - function.registry:1234/python:3.12
+//   - docker.io/library/ubuntu:22.04
+//   - gcr.io/my-project/some/path/app:latest
+var ExplicitlyRegistryURLCompiled = regexp.MustCompile(explicitRegistryURLRegex)
 
 func DownloadFile(url string, out *os.File, headers http.Header) error {
 	client := http.Client{}
@@ -226,4 +242,14 @@ func CookiesToHeaderValue(cookies []*http.Cookie) string {
 		cookieStrings = append(cookieStrings, fmt.Sprintf("%s=%s", cookie.Name, cookie.Value))
 	}
 	return strings.Join(cookieStrings, "; ")
+}
+
+// IsExplicitRegistryURL checks if the registry string is an explicit registry URL
+// that includes a path component after the host[:port].
+func IsExplicitRegistryURL(registry string) bool {
+	if registry == "" {
+		return false
+	}
+
+	return ExplicitlyRegistryURLCompiled.MatchString(registry)
 }
