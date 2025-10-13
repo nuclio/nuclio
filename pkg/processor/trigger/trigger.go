@@ -246,8 +246,13 @@ func (at *AbstractTrigger) GetStatistics() *Statistics {
 		at.Statistics = &Statistics{}
 	}
 
+	statistics := at.WorkerAllocator.GetStatistics()
+	if statistics == nil {
+		return &Statistics{}
+	}
+
 	// copy worker allocator statistics
-	at.Statistics.WorkerAllocatorStatistics = *at.WorkerAllocator.GetStatistics()
+	at.Statistics.WorkerAllocatorStatistics = *statistics
 
 	return at.Statistics
 }
