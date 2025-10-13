@@ -19,6 +19,7 @@ package nodejs
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
@@ -47,11 +48,8 @@ func (n *nodejs) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Name: "nodejs-onbuild",
-		Image: fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
-			onbuildImageRegistry,
-			n.VersionInfo.Label,
-			n.VersionInfo.Arch),
+		Name:  "nodejs-onbuild",
+		Image: n.getOnbuildImageRegistry(onbuildImageRegistry),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",
@@ -66,4 +64,15 @@ func (n *nodejs) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	}
 
 	return &processorDockerfileInfo, nil
+}
+
+func (n *nodejs) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	return fmt.Sprintf("%s/nuclio/handler-builder-nodejs-onbuild:%s-%s",
+		onbuildImageRegistry,
+		n.VersionInfo.Label,
+		n.VersionInfo.Arch)
 }

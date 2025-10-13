@@ -112,10 +112,7 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 		OnbuildArtifacts: []runtime.Artifact{
 			{
 				Name: "python-onbuild",
-				Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
-					onbuildImageRegistry,
-					p.VersionInfo.Label,
-					p.VersionInfo.Arch),
+				Image: p.getOnbuildImageRegistry(onbuildImageRegistry),
 				Paths: map[string]string{
 					"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 					"/home/nuclio/bin/py":        "/opt/nuclio/",
@@ -180,4 +177,15 @@ func (p *python) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, s
 		}
 	}
 	return p.AbstractRuntime.OnAfterStagingDirCreated(runtimeConfig, stagingDir)
+}
+
+func (p *python) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	return fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
+		onbuildImageRegistry,
+		p.VersionInfo.Label,
+		p.VersionInfo.Arch)
 }

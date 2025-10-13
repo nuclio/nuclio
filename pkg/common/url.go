@@ -32,11 +32,12 @@ import (
 )
 
 const (
-	HTTPPrefix               = "http://"
-	HTTPSPrefix              = "https://"
-	LocalFilePrefix          = "file://"
-	urlPathRegex             = `^([\/]?([a-zA-Z0-9\-_]+[\/]?)*|)$`
-	explicitRegistryURLRegex = `^[a-zA-Z0-9\.-]+(?::[0-9]+)?/.+:[a-zA-Z0-9\._-]+$`
+	HTTPPrefix                      = "http://"
+	HTTPSPrefix                     = "https://"
+	LocalFilePrefix                 = "file://"
+	urlPathRegex                    = `^([\/]?([a-zA-Z0-9\-_]+[\/]?)*|)$`
+	explicitRegistryURLRegex        = `^[a-zA-Z0-9\.-]+(?::[0-9]+)?/.+:[a-zA-Z0-9\._-]+$`
+	explicitOnbuildRegistryURLRegex = `^[a-zA-Z0-9\.\-:/]+/.+:[a-zA-Z0-9\._-]+-[a-zA-Z0-9\._-]+$`
 )
 
 var URLPathRegexpCompiled = regexp.MustCompile(urlPathRegex)
@@ -55,6 +56,22 @@ var URLPathRegexpCompiled = regexp.MustCompile(urlPathRegex)
 //   - docker.io/library/ubuntu:22.04
 //   - gcr.io/my-project/some/path/app:latest
 var ExplicitlyRegistryURLCompiled = regexp.MustCompile(explicitRegistryURLRegex)
+
+// ExplicitlyOnbuildRegistryURLCompiled validates onbuild handler builder images.
+// Pattern format: registry[:port]/path/to/image:tag-arch
+//
+// Components:
+//   - Registry: domain with optional port (e.g., quay.io, some.registry.com)
+//   - Port: optional numeric value (e.g., :5000, :1234, :443)
+//   - Image path: any valid path (e.g., nuclio/handler-builder-python, custom/path/to/builder)
+//   - Tag:  any non-empty alphanumeric tag with dots, underscores, or hyphens (e.g., 3.12, v2.0, stable)
+//   - Arch: any non-empty alphanumeric tag with dots, underscores, or hyphens (e.g., amd64, alpine)
+//
+// Valid examples:
+//   - quay.io/nuclio/handler-builder-python-onbuild:1.13.0-amd64
+//   - quay.io/nuclio/handler-builder-python-onbuild:latest-arm64
+//   - registry.com:5000/custom/path/builder-onbuild:v2.0-alpine
+var ExplicitlyOnbuildRegistryURLCompiled = regexp.MustCompile(explicitOnbuildRegistryURLRegex)
 
 func DownloadFile(url string, out *os.File, headers http.Header) error {
 	client := http.Client{}
@@ -252,4 +269,14 @@ func IsExplicitRegistryURL(registry string) bool {
 	}
 
 	return ExplicitlyRegistryURLCompiled.MatchString(registry)
+}
+
+
+// IsExplicitOnbuildRegistryURL checks if the onbuild registry string is an explicit registry URL
+func IsExplicitOnbuildRegistryURL(registry string) bool {
+	if registry == "" {
+		return false
+	}
+
+	return ExplicitlyOnbuildRegistryURLCompiled.MatchString(registry)
 }

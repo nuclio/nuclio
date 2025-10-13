@@ -19,6 +19,7 @@ package shell
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
@@ -43,10 +44,7 @@ func (s *shell) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
 		Name: "nuclio-processor",
-		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
-			onbuildImageRegistry,
-			s.VersionInfo.Label,
-			s.VersionInfo.Arch),
+		Image: s.getOnbuildImageRegistry(onbuildImageRegistry),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 		},
@@ -68,4 +66,15 @@ func (s *shell) GetHandlerDirObjectPaths() []string {
 	}
 
 	return []string{}
+}
+
+func (s *shell) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	return fmt.Sprintf("%s/nuclio/processor:%s-%s",
+		onbuildImageRegistry,
+		s.VersionInfo.Label,
+		s.VersionInfo.Arch)
 }

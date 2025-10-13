@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
@@ -66,22 +67,9 @@ func (g *golang) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 		BaseImage: "gcr.io/iguazio/alpine:3.20",
 	}
 
-	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
-	var onbuildImage string
-	if g.FunctionConfig.Spec.Build.BaseImage != "" &&
-		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
-
-		// use non-alpine based image
-		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s"
-	} else {
-
-		// use alpine based image
-		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
-	}
-
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf(onbuildImage, onbuildImageRegistry, g.VersionInfo.Label, g.VersionInfo.Arch),
+		Image: g.getOnbuildImageRegistry(onbuildImageRegistry),
 		Name:  "golang-onbuild",
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
@@ -91,4 +79,22 @@ func (g *golang) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
+}
+
+func (g *golang) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
+	var onbuildImage string
+	if g.FunctionConfig.Spec.Build.BaseImage != "" &&
+		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
+		// use non-alpine based image
+		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s"
+	} else {
+		// use alpine based image
+		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
+	}
+	return fmt.Sprintf(onbuildImage, onbuildImageRegistry, g.VersionInfo.Label, g.VersionInfo.Arch)
 }

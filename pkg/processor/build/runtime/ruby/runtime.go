@@ -19,6 +19,7 @@ package ruby
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
@@ -46,10 +47,7 @@ func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
 		Name: "ruby-onbuild",
-		Image: fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
-			onbuildImageRegistry,
-			r.VersionInfo.Label,
-			r.VersionInfo.Arch),
+		Image: r.getOnbuildImageRegistry(onbuildImageRegistry),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper.rb": "/opt/nuclio/wrapper.rb",
@@ -58,4 +56,15 @@ func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
+}
+
+func (r *ruby) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	return fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
+		onbuildImageRegistry,
+		r.VersionInfo.Label,
+		r.VersionInfo.Arch)
 }

@@ -19,6 +19,7 @@ package dotnetcore
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
@@ -33,17 +34,13 @@ func (d *dotnetcore) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (d *dotnetcore) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
-
+func (d *dotnetcore) GetProcessorDockerfileInfo(_ *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
 		Name: "dotnetcore-onbuild",
-		Image: fmt.Sprintf("%s/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
-			onbuildImageRegistry,
-			d.VersionInfo.Label,
-			d.VersionInfo.Arch),
+		Image: d.getOnbuildImageRegistry(onbuildImageRegistry),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",
@@ -56,4 +53,15 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Con
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/dotnet/runtime:9.0"
 	return &processorDockerfileInfo, nil
+}
+
+func (d *dotnetcore) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	return fmt.Sprintf("%s/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
+		onbuildImageRegistry,
+		d.VersionInfo.Label,
+		d.VersionInfo.Arch)
 }

@@ -56,10 +56,7 @@ func (j *java) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
 		Name: "java-onbuild",
-		Image: fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
-			onbuildImageRegistry,
-			j.VersionInfo.Label,
-			j.VersionInfo.Arch),
+		Image: j.getOnbuildImageRegistry(onbuildImageRegistry),
 		Paths: map[string]string{
 			"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
 			"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
@@ -174,4 +171,15 @@ func (j *java) parseDependencies(rawDependencies []string) ([]dependency, error)
 	}
 
 	return dependencies, nil
+}
+
+func (j *java) getOnbuildImageRegistry(onbuildImageRegistry string) string {
+	if common.IsExplicitOnbuildRegistryURL(onbuildImageRegistry) {
+		return onbuildImageRegistry
+	}
+
+	return fmt.Sprintf("%s/nuclio/handler-builder-java-onbuild:%s-%s",
+		onbuildImageRegistry,
+		j.VersionInfo.Label,
+		j.VersionInfo.Arch)
 }
