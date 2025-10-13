@@ -122,6 +122,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[Readme] Update stable badge to ${{ github.event.inputs.version }}"
+          base: development
           branch: ${{ env.BRANCH_NAME }}
           title: "Update stable badge to v${{ github.event.inputs.version }}"
           body: |
