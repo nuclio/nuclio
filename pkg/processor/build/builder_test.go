@@ -509,28 +509,50 @@ func (suite *testSuite) TestGetRuntimeProcessorDockerfileInfo() {
 		expectedOnbuildImage  string
 	}{
 		{
-			name:              "Use baseImage override",
-			baseImageRegistry: "function.registry:1234/python:3.12",
-			expectedBaseImage: "function.registry:1234/python:3.12",
+			name:                 "Use baseImage override",
+			baseImageRegistry:    "function.registry:1234/python:3.12",
+			expectedBaseImage:    "function.registry:1234/python:3.12",
+			onbuildImageRegistry: "test.registry.com:1234",
+			expectedOnbuildImage: "test.registry.com:1234/nuclio/handler-builder-python-onbuild:latest-arm64",
 		},
 		{
-			name:              "Use the default without overrides",
-			baseImageRegistry: "",
-			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+			name:                 "Use the default without overrides",
+			baseImageRegistry:    "",
+			expectedBaseImage:    "gcr.io/iguazio/python:3.12",
+			onbuildImageRegistry: "test.registry.com:1234",
+			expectedOnbuildImage: "test.registry.com:1234/nuclio/handler-builder-python-onbuild:latest-arm64",
 		}, {
-			name:              "Enrich the base image because it's not explicit",
-			baseImageRegistry: "function.registry:1234",
-			expectedBaseImage: "function.registry:1234/python:3.12",
+			name:                 "Enrich the base image because it's not explicit",
+			baseImageRegistry:    "function.registry:1234",
+			expectedBaseImage:    "function.registry:1234/python:3.12",
+			onbuildImageRegistry: "test.registry.com:1234",
+			expectedOnbuildImage: "test.registry.com:1234/nuclio/handler-builder-python-onbuild:latest-arm64",
 		}, {
-			name:              "Enrich the base image because path not fully explicit",
-			baseImageRegistry: "function.registry:1234/",
-			expectedBaseImage: "function.registry:1234/python:3.12",
+			name:                 "Enrich the base image because path not fully explicit",
+			baseImageRegistry:    "function.registry:1234/",
+			expectedBaseImage:    "function.registry:1234/python:3.12",
+			onbuildImageRegistry: "test.registry.com:1234",
+			expectedOnbuildImage: "test.registry.com:1234/nuclio/handler-builder-python-onbuild:latest-arm64",
 		},
 		{
 			name:                  "If base image exists in function spec use it",
 			baseImageRegistry:     "function.registry:1234/",
 			expectedBaseImage:     "gcr.io/iguazio/python:3.12",
 			functionSpecBaseImage: "gcr.io/iguazio/python:3.12",
+			onbuildImageRegistry:  "test.registry.com:1234",
+			expectedOnbuildImage:  "test.registry.com:1234/nuclio/handler-builder-python-onbuild:latest-arm64",
+		},
+		{
+			name:                 "Onbuild image is explicit",
+			expectedBaseImage:    "gcr.io/iguazio/python:3.12",
+			onbuildImageRegistry: "gcr.io/iguazio/python:3.12-amd64",
+			expectedOnbuildImage: "gcr.io/iguazio/python:3.12-amd64",
+		}, {
+			name:                 "Onbuild image is should be override",
+			expectedBaseImage:    "gcr.io/iguazio/python:3.12",
+			onbuildImageRegistry: "test.registry.com:1234",
+			// TODO - need to extract the arch and version from runtime so it will be consistent
+			expectedOnbuildImage: "test.registry.com:1234/nuclio/handler-builder-python-onbuild:latest-arm64",
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -547,6 +569,8 @@ func (suite *testSuite) TestGetRuntimeProcessorDockerfileInfo() {
 			result, err := suite.builder.getRuntimeProcessorDockerfileInfo(testCase.baseImageRegistry, testCase.onbuildImageRegistry)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedBaseImage, result.BaseImage)
+			suite.Require().NotEmpty(result.OnbuildArtifacts[0])
+			suite.Require().Equal(testCase.expectedOnbuildImage, result.OnbuildArtifacts[0].Image)
 		})
 	}
 

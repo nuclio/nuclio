@@ -134,6 +134,35 @@ func (ts *IsURLTestSuite) TestIsExplicitRegistryURL() {
 	}
 }
 
+func (ts *IsURLTestSuite) TestIsExplicitOnbuildRegistryURL() {
+	testCases := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		// Should return true
+		{"explicit registry", "gcr.io/iguazio/python:3.20-alpine", true},
+		{"with port", "my-registry:80/path/to/bin/python:3.20-amd64", true},
+		{"dotnet onbuild registry", "nuclio/handler-builder-dotnetcore-onbuild:9.0-linux", true},
+		{"port, path and version", "localhost:5000/myrepo:v1.0-latest", true},
+
+		// Should return false
+		{"test current values for backward compatibility", "example.com:80", false},
+		{"default docker", "docker.io", false},
+		{"URL without port", "registry.example.com", false},
+		{"localhost without path", "localhost:5000", false},
+		{"empty URL", "", false},
+		{"missing arch", "localhost:5000/path/python:3.12", false},
+	}
+
+	for _, testCase := range testCases {
+		ts.Run(testCase.name, func() {
+			result := IsExplicitOnbuildRegistryURL(testCase.input)
+			ts.Require().Equal(testCase.expected, result)
+		})
+	}
+}
+
 func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	content := "content"
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {
