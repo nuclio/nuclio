@@ -30,8 +30,6 @@ env:
   REPO: quay.io
   REPO_NAME: nuclio
   DOCKER_BUILDKIT: 1
-  GITHUB_ACTIONS_BOT_NAME: github-actions[bot]
-  GITHUB_ACTIONS_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
 
 jobs:
   image_matrix_prep:
@@ -100,10 +98,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up git
+      - name: Set up Git
         run: |
-          git config --global user.name "${{ env.GITHUB_ACTIONS_BOT_NAME }}"
-          git config --global user.email "${{ env.GITHUB_ACTIONS_BOT_EMAIL }}"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
 
       - name: Run Make target to update badge
         env:
@@ -118,7 +116,7 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[Readme] Update stable badge to ${{ github.event.inputs.version }}"
@@ -130,3 +128,4 @@ jobs:
 
             ⚠️ **Reminder:**  
             Please make sure to **manually retag stable** tag **before merging** this PR.
+          delete-branch: true
