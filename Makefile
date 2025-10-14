@@ -1034,4 +1034,4 @@ bump-dependencies:
 .PHONY: update-stable-badge
 update-stable-badge:
 	@echo "Updating stable badge to version $(VERSION)"
-	@perl -0777 -i -pe 's|(<!-- STABLE_BADGE_START -->).*?(<!-- STABLE_BADGE_END -->)|$$1\n![Stable Version](https://img.shields.io/badge/stable-v$(VERSION)-green)$$2|s' README.md
+	@perl -0777 -i -pe 's|(<!-- STABLE_BADGE_START -->).*?(<!-- STABLE_BADGE_END -->)|$$1\n![Stable Version](https://img.shields.io/badge/stable-$(VERSION)-green)$$2|s' README.md
