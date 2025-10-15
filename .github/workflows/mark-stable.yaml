@@ -110,22 +110,24 @@ jobs:
 
       - name: Create branch for badge update
         run: |
-          BRANCH_NAME="update-stable-badge-v${{ github.event.inputs.version }}"
+          VERSION="${{ github.event.inputs.version }}"
+          BRANCH_NAME="update-stable-badge-v${VERSION}"
           git checkout -b "$BRANCH_NAME"
           git push origin "$BRANCH_NAME"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "[Readme] Update stable badge to ${{ github.event.inputs.version }}"
+          commit-message: "[Readme] Update stable badge to v${{ env.VERSION }}"
           base: development
           branch: ${{ env.BRANCH_NAME }}
-          title: "Update stable badge to v${{ github.event.inputs.version }}"
+          title: "Update stable badge to v${{ env.VERSION }}"
           body: |
-            This PR updates the stable badge in `README.md` to version **v${{ github.event.inputs.version }}**.
-
+            This PR updates the stable badge in `README.md` to version **v${{ env.VERSION }}**.
+            
             ⚠️ **Reminder:**  
             Please make sure to **manually retag stable** tag **before merging** this PR.
           delete-branch: true

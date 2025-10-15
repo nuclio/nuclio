@@ -74,6 +74,12 @@ on:
         required: false
         default: 'development'
         type: string
+      mark_as_latest:
+        description: 'Also mark this release as latest (push latest tags, etc.)'
+        required: false
+        default: 'true'
+        type: choice
+        options: [ 'true', 'false' ]
 
 jobs:
   prepare-inputs:
@@ -313,7 +319,7 @@ jobs:
           SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
 
       - name: Tag and push latest images
-        if: env.NUCLIO_LABEL != 'unstable' && github.event_name == 'workflow_dispatch'
+        if: env.NUCLIO_LABEL != 'unstable' && github.event_name == 'workflow_dispatch' && github.event.inputs.mark_as_latest == 'true'
         run: |
           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:latest-$NUCLIO_ARCH"
           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:latest-$NUCLIO_ARCH"
