@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -1831,10 +1832,48 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 		if err := ap.enrichProcessingMode(ctx, triggerName, &triggerInstance, functionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich processing mode")
 		}
+		if triggerInstance.Kind == "rabbit-mq" {
+			if err := ap.enrichRabbitMQTrigger(ctx, triggerName, &triggerInstance); err != nil {
+				return errors.Wrap(err, "Failed to enrich RabbitMQ trigger")
+			}
+		}
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 
+	return nil
+}
+
+func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger) error {
+	// Parse the broker URL
+	parsedURL, err := url.Parse(triggerInstance.URL)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse RabbitMQ URL")
+	}
+
+	// Extract credentials if present
+	if parsedURL.User != nil {
+		if user := parsedURL.User.Username(); user != "" {
+			triggerInstance.Username = user
+		}
+
+		if pass, found := parsedURL.User.Password(); found {
+			triggerInstance.Password = pass
+		}
+
+		// Remove credentials from URL for security reasons
+		parsedURL.User = nil
+
+		triggerInstance.URL = parsedURL.String()
+
+		ap.Logger.DebugWithCtx(ctx,
+			"Extracted RabbitMQ credentials from URL",
+			"trigger", triggerName,
+			"brokerUrl", triggerInstance.URL,
+			"isUsernameSet", triggerInstance.Username != "",
+			"passwordSet", triggerInstance.Password != "",
+		)
+	}
 	return nil
 }
 
