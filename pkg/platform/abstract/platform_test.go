@@ -384,6 +384,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichRabbitMQTrigger() {
 		ExpectedURL      string
 		ExpectedUsername string
 		ExpectedPassword string
+		ExpectError      bool
 	}{
 		{
 			Name:             "URL overrides explicit credentials",
@@ -421,6 +422,16 @@ func (suite *AbstractPlatformTestSuite) TestEnrichRabbitMQTrigger() {
 			ExpectedUsername: "explicitUser",
 			ExpectedPassword: "explicitPass",
 		},
+		{
+			Name:             "Malformed URL returns error and keeps original values",
+			URL:              "://bad_url",
+			InitialUsername:  "explicitUser",
+			InitialPassword:  "explicitPass",
+			ExpectedURL:      "://bad_url",
+			ExpectedUsername: "explicitUser",
+			ExpectedPassword: "explicitPass",
+			ExpectError:      true,
+		},
 	} {
 		suite.Run(testCase.Name, func() {
 			trigger := &functionconfig.Trigger{
@@ -429,11 +440,17 @@ func (suite *AbstractPlatformTestSuite) TestEnrichRabbitMQTrigger() {
 				Password: testCase.InitialPassword,
 			}
 
-			suite.Platform.enrichRabbitMQTrigger(context.Background(), testCase.Name, trigger)
+			err := suite.Platform.enrichRabbitMQTrigger(context.Background(), testCase.Name, trigger)
+
+			if testCase.ExpectError {
+				suite.Require().Error(err, "Expected error but got none")
+			} else {
+				suite.Require().NoError(err, "Unexpected error while enriching trigger")
+			}
 
 			suite.Require().Equal(testCase.ExpectedURL, trigger.URL, "Unexpected URL after enrichment")
-			suite.Require().Equal(testCase.ExpectedUsername, trigger.Username, "Unexpected username")
-			suite.Require().Equal(testCase.ExpectedPassword, trigger.Password, "Unexpected password")
+			suite.Require().Equal(testCase.ExpectedUsername, trigger.Username, "Unexpected username after enrichment")
+			suite.Require().Equal(testCase.ExpectedPassword, trigger.Password, "Unexpected password after enrichment")
 		})
 	}
 }
