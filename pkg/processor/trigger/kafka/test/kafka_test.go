@@ -495,7 +495,7 @@ func (suite *testSuite) TestDrainHook() {
 // * ExplicitAck
 // * WorkerAllocationMode
 // * Draining callback
-// * Terminatio callback
+// * Termination callback
 func (suite *testSuite) TestFeatureCombinations() {
 	for _, testCase := range []struct {
 		name                 string
