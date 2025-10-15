@@ -25,10 +25,13 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -64,6 +67,21 @@ type testSuite struct {
 
 	// for cleanup
 	zooKeeperContainerID string
+}
+
+type kafkaDeployOptionsConfig struct {
+	topic         string
+	consumerGroup string
+
+	functionName string
+	functionPath string
+	runtime      string
+
+	explicitAck          functionconfig.ExplicitAckMode
+	workerAllocationMode partitionworker.AllocationMode
+
+	numWorkers               int
+	workerTerminationTimeout string
 }
 
 func (suite *testSuite) SetupSuite() {
@@ -372,32 +390,17 @@ func (suite *testSuite) TestDrainHook() {
 		"topic", topic,
 		"createTopicResponse", createTopicsResponse)
 
-	// create a function
-	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
-
-	platformSpec := functionconfig.Platform{
-		Attributes: map[string]interface{}{
-			"network": suite.BrokerContainerNetworkName,
-		},
+	createFunctionWithKafkaConfig := &kafkaDeployOptionsConfig{
+		functionName:             functionName,
+		functionPath:             functionPath,
+		runtime:                  "python",
+		topic:                    topic,
+		consumerGroup:            suite.consumerGroup,
+		workerAllocationMode:     partitionworker.AllocationModeStatic,
+		numWorkers:               4,
+		workerTerminationTimeout: "40s",
 	}
-	createFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
-
-	// configure kafka trigger
-	triggerSpec := map[string]functionconfig.Trigger{
-		"my-kafka": {
-			Kind: "kafka-cluster",
-			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-			Attributes: map[string]interface{}{
-				"topics":               []string{topic},
-				"consumerGroup":        suite.consumerGroup,
-				"initialOffset":        suite.initialOffset,
-				"workerAllocationMode": string(partitionworker.AllocationModeStatic),
-			},
-			WorkerTerminationTimeout: "40s",
-			NumWorkers:               4,
-		},
-	}
-	createFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
+	createFunctionOptions := suite.getDeployOptionsWithKafka(createFunctionWithKafkaConfig)
 
 	// create a temp dir, delete it after the test
 	tempDir, err := os.MkdirTemp("", "drain-hook")
@@ -443,9 +446,8 @@ func (suite *testSuite) TestDrainHook() {
 		}
 
 		// create another function that consumes from the same topic and consumer group, to trigger rebalance
-		newCreateFunctionOptions := suite.GetDeployOptions("drain-hook-new", functionPath)
-		newCreateFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
-		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
+		createFunctionWithKafkaConfig.functionName = "drain-hook-new"
+		newCreateFunctionOptions := suite.getDeployOptionsWithKafka(createFunctionWithKafkaConfig)
 
 		suite.Logger.Debug("Creating second function, to trigger rebalance")
 
@@ -489,178 +491,285 @@ func (suite *testSuite) TestDrainHook() {
 	}
 }
 
-//func (suite *testSuite) TestEventRecorderRebalance() {
-//
-//	topic := "someTopic"
-//
-//	// create topic
-//	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
-//		TopicDetails: map[string]*sarama.TopicDetail{
-//			topic: {
-//				NumPartitions:     suite.NumPartitions,
-//				ReplicationFactor: 1,
-//			},
-//		},
-//	})
-//	suite.Require().NoError(err, "Failed to create topic")
-//	suite.Logger.InfoWith("Created topic",
-//		"topic", suite.topic,
-//		"createTopicResponse", createTopicsResponse)
-//
-//	createFunctionOptions := suite.GetDeployOptions("event_recorder-1", suite.FunctionPaths["python"])
-//	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-//		Attributes: map[string]interface{}{
-//			"network": suite.BrokerContainerNetworkName,
-//		},
-//	}
-//
-//	initialOffset := "latest"
-//
-//	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-//		"my-kafka": {
-//			Kind: "kafka-cluster",
-//			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-//			Attributes: map[string]interface{}{
-//				"topics":        []string{topic},
-//				"consumerGroup": suite.consumerGroup,
-//				"initialOffset": initialOffset,
-//			},
-//		},
-//	}
-//
-//	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-//
-//		var sentBodies []string
-//
-//		suite.Logger.DebugWith("Created first function, producing messages to topic",
-//			"topic", topic)
-//
-//		// write messages on 4 shards
-//		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
-//			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
-//
-//			// send the message
-//			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
-//			suite.Require().NoError(err, "Failed to publish message")
-//
-//			// add body to bodies we expect to see in response
-//			sentBodies = append(sentBodies, messageBody)
-//		}
-//
-//		// make sure they are all read
-//		var receivedBodies []string
-//		err := common.RetryUntilSuccessful(15*time.Second,
-//			2*time.Second,
-//			func() bool {
-//				receivedBodies = suite.resolveReceivedEventBodies(deployResult)
-//				return len(receivedBodies) >= int(suite.NumPartitions)
-//			})
-//		if err != nil {
-//
-//			// get container logs
-//			dockerLogs, getLogsErr := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
-//			suite.Require().NoError(getLogsErr, "Failed to get container logs")
-//			suite.Logger.ErrorWith("At least one message was not received properly by the function",
-//				"containerID", deployResult.ContainerID, "logs", dockerLogs)
-//		}
-//		suite.Require().NoError(err, "Failed to get events")
-//		suite.Logger.DebugWith("Done producing")
-//
-//		suite.Logger.DebugWith("Received events from functions",
-//			"event-recorder-1-events", receivedBodies)
-//
-//		sort.Strings(sentBodies)
-//		sort.Strings(receivedBodies)
-//
-//		// compare bodies
-//		suite.Require().Equal(sentBodies, receivedBodies)
-//
-//		// create another function that consumes from the same topic and consumer group
-//		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
-//		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-//			Attributes: map[string]interface{}{
-//				"network": suite.BrokerContainerNetworkName,
-//			},
-//		}
-//
-//		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-//			"my-kafka": {
-//				Kind: "kafka-cluster",
-//				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-//				Attributes: map[string]interface{}{
-//					"topics":        []string{topic},
-//					"consumerGroup": suite.consumerGroup,
-//					"initialOffset": initialOffset,
-//				},
-//			},
-//		}
-//
-//		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
-//
-//			suite.Logger.DebugWith("Created second function, producing messages to topic",
-//				"topic", topic)
-//
-//			// write messages to all 4 shards
-//			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
-//				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
-//
-//				// send the message
-//				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
-//				suite.Require().NoError(err, "Failed to publish message")
-//
-//				// add body to bodies we expect to see in response
-//				sentBodies = append(sentBodies, messageBody)
-//			}
-//
-//			// make sure they are all read
-//			var receivedBodies1, receivedBodies2 []string
-//			err := common.RetryUntilSuccessful(15*time.Second,
-//				2*time.Second,
-//				func() bool {
-//					receivedBodies1 = suite.resolveReceivedEventBodies(deployResult)
-//					receivedBodies2 = suite.resolveReceivedEventBodies(newDeployResult)
-//
-//					// make sure that new events were received in both functions
-//					return len(receivedBodies1) > len(receivedBodies) && len(receivedBodies2) >= int(suite.NumPartitions)/2
-//
-//				})
-//			if err != nil {
-//
-//				// get container logs
-//				dockerLogs1, getLogsErr := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
-//				suite.Require().NoError(getLogsErr, "Failed to get container logs")
-//
-//				dockerLogs2, getLogsErr := suite.DockerClient.GetContainerLogs(newDeployResult.ContainerID)
-//				suite.Require().NoError(getLogsErr, "Failed to get container logs")
-//
-//				suite.Logger.ErrorWith("At least one message was not received properly by the functions",
-//					"containerID1", deployResult.ContainerID,
-//					"function1DockerLogs", dockerLogs1,
-//					"containerID2", newDeployResult.ContainerID,
-//					"function2DockerLogs", dockerLogs2)
-//			}
-//			suite.Require().NoError(err, "Failed to get events")
-//			suite.Logger.DebugWith("Done producing")
-//
-//			// validate functions read form different shards - a rebalance occurred!
-//			suite.Logger.DebugWith("Received events from functions",
-//				"event-recorder-1-events", receivedBodies1,
-//				"event-recorder-2-events", receivedBodies2)
-//
-//			for _, body := range receivedBodies1 {
-//				suite.Require().False(common.StringInSlice(body, receivedBodies2))
-//			}
-//
-//			for _, body := range receivedBodies2 {
-//				suite.Require().False(common.StringInSlice(body, receivedBodies1))
-//			}
-//
-//			return true
-//		})
-//
-//		return true
-//	})
-//}
+// TestFeatureCombinations tests different combinations of the following features:
+// * ExplicitAck
+// * WorkerAllocationMode
+// * Draining callback
+// * Termination callback
+func (suite *testSuite) TestFeatureCombinations() {
+	for _, testCase := range []struct {
+		name                 string
+		explicitAckMode      functionconfig.ExplicitAckMode
+		workerAllocationMode partitionworker.AllocationMode
+		partitionNum         int
+		cycles               int
+		messagesPerCycle     int
+	}{
+		{
+			name:                 "noExplicitAck-16-pool",
+			explicitAckMode:      functionconfig.ExplicitAckModeDisable,
+			workerAllocationMode: partitionworker.AllocationModePool,
+			partitionNum:         16,
+			cycles:               5,
+			messagesPerCycle:     5,
+		},
+		{
+			name:                 "noExplicitAck-16-static",
+			explicitAckMode:      functionconfig.ExplicitAckModeDisable,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			partitionNum:         16,
+			cycles:               5,
+			messagesPerCycle:     5,
+		},
+		{
+			name:                 "ExplicitOnly-16",
+			explicitAckMode:      functionconfig.ExplicitAckModeExplicitOnly,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			partitionNum:         16,
+			cycles:               5,
+			messagesPerCycle:     5,
+		},
+		{
+			name:                 "ExplicitOnly-64",
+			explicitAckMode:      functionconfig.ExplicitAckModeExplicitOnly,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			partitionNum:         64,
+			cycles:               2,
+			messagesPerCycle:     1,
+		},
+		{
+			name:                 "ExplicitAckEnable-16",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			partitionNum:         16,
+			cycles:               5,
+			messagesPerCycle:     5,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			// create shared temp file for all functions
+			tmpDir := suite.T().TempDir()
+			sharedFilePath := filepath.Join(tmpDir, "shared.log")
+			f, err := os.Create(sharedFilePath)
+			suite.Require().NoError(err, "Failed to create shared log file")
+			err = f.Close()
+			suite.Require().NoError(err, "Failed to close shared file")
+
+			// remove the file at the end of the test
+			// since the file can be quite big, do not rely on auto-deletion of temp dir
+			defer os.Remove(sharedFilePath)
+
+			// create topic with many partitions to amplify rebalancing behaviour
+			topic := "rebalance-many" + testCase.name
+			consumerGroup := "rebalance-many-group"
+
+			// create topic
+			createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+				TopicDetails: map[string]*sarama.TopicDetail{
+					topic: {
+						NumPartitions:     int32(testCase.partitionNum),
+						ReplicationFactor: 1,
+					},
+				},
+			})
+			suite.Require().NoError(err, "Failed to create topic")
+			suite.Logger.InfoWith("Created topic",
+				"topic", topic,
+				"createTopicResponse", createTopicsResponse)
+
+			// shared hostPath volume spec
+			sharedVolume := functionconfig.Volume{
+				Volume: v1.Volume{
+					Name: "shared-log",
+					VolumeSource: v1.VolumeSource{
+						HostPath: &v1.HostPathVolumeSource{
+							Path: sharedFilePath,
+							Type: common.Pointer(v1.HostPathFileOrCreate),
+						},
+					},
+				},
+				VolumeMount: v1.VolumeMount{
+					Name:      "shared-log",
+					MountPath: "/tmp/events.json",
+				},
+			}
+			deployFunctionWithKafkaConfig := &kafkaDeployOptionsConfig{
+				functionName:         "rebalance-many-1",
+				functionPath:         suite.FunctionPaths["python-streaming-features"],
+				runtime:              "python",
+				topic:                topic,
+				consumerGroup:        consumerGroup,
+				explicitAck:          testCase.explicitAckMode,
+				workerAllocationMode: testCase.workerAllocationMode,
+			}
+
+			createFunctionOptions := suite.getDeployOptionsWithKafka(deployFunctionWithKafkaConfig)
+			createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{sharedVolume}
+
+			messageHistory := make([]string, 0)
+			// parameters to exercise many rebalances
+			cycles := testCase.cycles
+			messagesPerPartitionPerCycle := testCase.messagesPerCycle
+
+			produceMessages := func(cycle, round int) {
+				for partitionIdx := 0; partitionIdx < testCase.partitionNum; partitionIdx++ {
+					for i := 0; i < messagesPerPartitionPerCycle; i++ {
+						body := fmt.Sprintf("cycle-%d-msg-%d-part-%d-round-%d", cycle, i, partitionIdx, round)
+						err := suite.publishMessageToTopicOnSpecificShard(topic, body, int32(partitionIdx))
+						messageHistory = append(messageHistory, body)
+						suite.Require().NoError(err, "Failed to publish message")
+					}
+				}
+			}
+
+			suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+				// wait a bit for the function to start
+				// sometimes it takes time for kafka to sync a new consumer group/topic
+				// especially with many partitions and when running locally with arm64 simulating amd64
+				time.Sleep(5 * time.Second)
+
+				produceMessages(0, 0)
+				// ensure they are all read
+				err := common.RetryUntilSuccessful(60*time.Second,
+					2*time.Second,
+					func() bool {
+						receivedBodies := suite.resolveReceivedEventBodies(deployResult)
+						return len(receivedBodies) == messagesPerPartitionPerCycle*testCase.partitionNum
+					})
+				suite.Require().NoError(err, "Failed to get initial events")
+
+				// run cycles; each cycle send messages to all partitions and trigger a rebalance by adding a new consumer
+				// cycles * messagesPerPartitionPerCycle * numPartitions * 2 is the total number of messages
+				for cycle := 1; cycle <= cycles; cycle++ {
+					suite.Logger.InfoWith("Starting cycle", "cycle", cycle)
+					produceMessages(cycle, 1)
+
+					// trigger a rebalance by adding another consumer in the same group
+					// use a unique name each time to avoid clashes and ensure new container
+					newFnName := fmt.Sprintf("rebalance-many-extra-%d", cycle)
+					deployFunctionWithKafkaConfig.functionName = newFnName
+					newCreateFunctionOptions := suite.getDeployOptionsWithKafka(deployFunctionWithKafkaConfig)
+					newCreateFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{sharedVolume}
+
+					suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+						suite.Require().NotNil(newDeployResult, "Unexpected empty second deploy results")
+
+						// produce again messages on all partitions, to ensure there is enough work to do after the rebalance
+						// this also increases the likelihood that the rebalance completes while there is still work to do
+						// for the original function
+						produceMessages(cycle, 2)
+
+						err := common.RetryUntilSuccessful(30*time.Second,
+							2*time.Second,
+							func() bool {
+								receivedBodies := suite.resolveReceivedEventBodies(deployResult)
+								// wait until we see at least one new message in the original function
+								return len(receivedBodies) > 0
+							})
+						suite.Require().NoError(err, fmt.Sprintf("Failed to get initial events for cycle %d", cycle))
+
+						return true
+					})
+				}
+
+				// make sure all messages are received by checking the file content
+				offsetTarget := len(messageHistory)
+				err = common.RetryUntilSuccessful(120*time.Second,
+					10*time.Second,
+					func() bool {
+						numMessages := suite.getLenRecodedEventsAndEnsureNoDuplicates(sharedFilePath)
+						return numMessages == offsetTarget
+					})
+				suite.Require().NoError(err, "Timed out waiting for committed offsets")
+				return true
+			})
+
+			// validate that all messages were ACKed
+			offsetTarget := len(messageHistory)
+			err = common.RetryUntilSuccessful(30*time.Second,
+				2*time.Second,
+				func() bool {
+					return suite.validateNumberOfCommittedOffsets(consumerGroup, topic, testCase.partitionNum, offsetTarget)
+				})
+			suite.Require().NoError(err, "Timed out waiting for committed offsets")
+
+			suite.getLenRecodedEventsAndEnsureNoDuplicates(sharedFilePath)
+		})
+	}
+}
+
+func (suite *testSuite) getDeployOptionsWithKafka(config *kafkaDeployOptionsConfig) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions(config.functionName, config.functionPath)
+	createFunctionOptions.FunctionConfig.Spec.Runtime = config.runtime
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{"nuclio.io/kafka-log-level": "10"}
+	createFunctionOptions.FunctionConfig.Spec.Platform = suite.getBasePlatformSpec()
+	createFunctionOptions.FunctionConfig.Spec.Triggers = suite.getKafkaTriggerSpec(config)
+	return createFunctionOptions
+}
+
+func (suite *testSuite) getBasePlatformSpec() functionconfig.Platform {
+	return functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+}
+
+func (suite *testSuite) getKafkaTriggerSpec(config *kafkaDeployOptionsConfig) map[string]functionconfig.Trigger {
+	kafkaTrigger := functionconfig.Trigger{
+		Kind: "kafka-cluster",
+		URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+		Attributes: map[string]interface{}{
+			"topics":        []string{config.topic},
+			"consumerGroup": config.consumerGroup,
+			"initialOffset": "latest",
+		},
+	}
+
+	if config.explicitAck != "" {
+		kafkaTrigger.ExplicitAckMode = config.explicitAck
+	}
+	if config.workerAllocationMode != "" {
+		kafkaTrigger.Attributes["workerAllocationMode"] = string(config.workerAllocationMode)
+	}
+	if config.numWorkers != 0 {
+		kafkaTrigger.NumWorkers = config.numWorkers
+	}
+	if config.workerTerminationTimeout != "" {
+		kafkaTrigger.WorkerTerminationTimeout = config.workerTerminationTimeout
+	}
+	return map[string]functionconfig.Trigger{
+		"my-kafka": kafkaTrigger,
+	}
+}
+
+func (suite *testSuite) getLenRecodedEventsAndEnsureNoDuplicates(filePath string) int {
+	content, err := os.ReadFile(filePath)
+	suite.Require().NoError(err, "Failed to read file")
+
+	// Regex to capture body values: "body": "<value>"
+	re := regexp.MustCompile(`"body"\s*:\s*"([^"]+)"`)
+
+	matches := re.FindAllStringSubmatch(string(content), -1)
+	suite.Require().NotNil(matches, "No body values found")
+
+	seen := make(map[string]bool)
+	duplicates := make([]string, 0)
+
+	for _, m := range matches {
+		body := m[1]
+		if seen[body] {
+			duplicates = append(duplicates, body)
+		} else {
+			seen[body] = true
+		}
+	}
+
+	suite.Require().Len(duplicates, 0, fmt.Sprintf("Found duplicate messages: %v", duplicates))
+	return len(matches)
+}
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
@@ -740,11 +849,20 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 	return receivedBodies
 }
 
-func (suite *testSuite) validateNumberOfCommittedOffsets(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool {
+func (suite *testSuite) validateNumberOfCommittedOffsets(consumerGroup string, topic string, numPartitions int, expectedNumberOfCommittedOffsets int) bool {
 	if topic == "" {
 		topic = suite.topic
 	}
-	numberOfCommittedOffsets, err := suite.getNumberOfCommittedOffsetsFromBroker(consumerGroup, topic, int(suite.NumPartitions))
+	if numPartitions == 0 {
+		numPartitions = int(suite.NumPartitions)
+	}
+	numberOfCommittedOffsets, err := suite.getNumberOfCommittedOffsetsFromBroker(consumerGroup, topic, numPartitions)
+	suite.Logger.DebugWith("Number of committed offsets",
+		"topic", topic,
+		"consumerGroup", consumerGroup,
+		"numberOfCommittedOffsets", numberOfCommittedOffsets,
+		"expectedNumberOfCommittedOffsets", expectedNumberOfCommittedOffsets)
+
 	if err != nil {
 		return false
 	}
@@ -755,7 +873,7 @@ func (suite *testSuite) getNumberOfCommittedOffsetsFromBroker(consumerGroup, top
 	// Create an OffsetFetchRequest
 	request := &sarama.OffsetFetchRequest{
 		ConsumerGroup: consumerGroup,
-		Version:       1,
+		Version:       3,
 	}
 
 	for partition := 0; partition < partitions; partition++ {

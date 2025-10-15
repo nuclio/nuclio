@@ -46,7 +46,7 @@ type TopicMessages struct {
 }
 
 type PostPublishChecks struct {
-	ValidateAckFunction              func(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool
+	ValidateAckFunction              func(consumerGroup string, topic string, partitionsNum int, expectedNumberOfCommittedOffsets int) bool
 	ExpectedNumberOfCommittedOffsets int
 	ConsumerGroup                    string
 }
@@ -134,7 +134,7 @@ func InvokeEventRecorder(
 				60*time.Second,
 				2*time.Second,
 				func() bool {
-					return postPublishChecks.ValidateAckFunction(postPublishChecks.ConsumerGroup, "", postPublishChecks.ExpectedNumberOfCommittedOffsets)
+					return postPublishChecks.ValidateAckFunction(postPublishChecks.ConsumerGroup, "", 0, postPublishChecks.ExpectedNumberOfCommittedOffsets)
 				},
 			)
 			suite.Require().NoError(err)

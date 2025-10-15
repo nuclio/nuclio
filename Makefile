@@ -929,7 +929,8 @@ TEST_LIST_RUN_EACH_IN_PARALLEL = pkg/nuctl/test \
 								 pkg/processor/build/runtime/golang/test  \
 								 pkg/processor/build/runtime/java/test  \
 								 pkg/processor/build/runtime/python/test  \
-								 pkg/processor/runtime/python/test
+								 pkg/processor/runtime/python/test \
+								 pkg/processor/trigger/kafka/test
 
 .PHONY: list-all-dirs-with-tests
 list-all-dirs-with-tests:
@@ -966,6 +967,10 @@ python-tests:
 .PHONY: python-runtime-tests
 python-runtime-tests:
 	@make list-all-dirs-with-tests | grep "pkg/processor/runtime/python/test"
+
+.PHONY: kafka-tests
+kafka-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/trigger/kafka/test"
 
 #
 # Go env
