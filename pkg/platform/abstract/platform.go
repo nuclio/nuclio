@@ -1843,6 +1843,7 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 
 	return nil
 }
+
 func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger) error {
 	// Parse the broker URL
 	parsedURL, err := url.Parse(triggerInstance.URL)
