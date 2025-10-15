@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	commonHeaders "github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
@@ -169,7 +170,7 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 }
 
 func (suite *IngressTestSuite) enrichExpectedAnnotations(annotations map[string]string) {
-	annotations[common.AnnotationNginxAuthResponseHeaders] = "Authorization"
+	annotations[common.AnnotationNginxAuthResponseHeaders] = commonHeaders.AuthorizationHeader
 	annotations[common.AnnotationNginxProxyBodySize] = common.NginxDefaultProxyBodySize
 	annotations[common.AnnotationNginxProxyBufferSize] = common.NginxDefaultProxyBufferSize
 	annotations[common.AnnotationNginxServiceUpstream] = common.NginxDefaultServiceUpstream

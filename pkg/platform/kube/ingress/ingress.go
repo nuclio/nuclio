@@ -494,7 +494,7 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 }
 
 func (m *Manager) compileSSOAuthAnnotations(spec Spec) (map[string]string, error) {
-    authURL := m.platformConfiguration.IngressConfig.IguazioAuthURL
+	authURL := m.platformConfiguration.IngressConfig.IguazioAuthURL
 	signinURL := m.platformConfiguration.IngressConfig.IguazioSignInURL
 
 	if spec.Authentication != nil && spec.Authentication.SSOAuth != nil {
