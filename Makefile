@@ -1036,3 +1036,39 @@ check-dependencies:
 bump-dependencies:
 	@python3 hack/scripts/dependency-checker/check-versions.py --makefile-path Makefile --bump-to-the-latest
 
+.PHONY: cherry-pick-pr
+# Usage:
+# make cherry-pick-pr PR=<number> BASE_BRANCH=<branch> [UPSTREAM_REMOTE=<remote>]
+cherry-pick-pr:
+	@if [ -n "$$(git diff --name-only)" ]; then \
+    		echo "❌ You have uncommitted changes in tracked files. Please commit or stash them before running this target."; \
+    		exit 1; \
+      fi
+	@if [ -z "$(PR)" ]; then \
+		echo "❌ Error: PR number not specified. Usage: make cherry-pick-pr PR=<number> BASE_BRANCH=<branch> [UPSTREAM_REMOTE=<remote>]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(BASE_BRANCH)" ]; then \
+		echo "❌ Error: Base branch not specified. Usage: make cherry-pick-pr PR=<number> BASE_BRANCH=<branch> [UPSTREAM_REMOTE=<remote>]"; \
+		exit 1; \
+	fi
+	@UPSTREAM=$${UPSTREAM_REMOTE:-origin}; \
+	echo "📡 Using remote '$$UPSTREAM' for upstream operations."; \
+	echo "🚀 Fetching all branches and PR refs from $$UPSTREAM..."; \
+	git fetch $$UPSTREAM '+refs/heads/*:refs/remotes/'$$UPSTREAM'/*' '+refs/pull/*/head:refs/remotes/'$$UPSTREAM'/pr/*'; \
+	echo "🔍 Searching for commit related to PR #$(PR) in '$$UPSTREAM/development'..."; \
+	COMMIT_HASH=$$(git log $$UPSTREAM/development --grep="pull request #$(PR)" --grep="(#$(PR))" --format="%H" -n 1); \
+	if [ -z "$$COMMIT_HASH" ]; then \
+		echo "❌ Could not find commit for PR #$(PR) in '$$UPSTREAM/development'."; \
+		exit 1; \
+	fi; \
+	echo "✅ Found commit $$COMMIT_HASH for PR #$(PR)."; \
+	BRANCH_NAME=cherry-pick-pr-$(PR)-to-$(BASE_BRANCH); \
+	echo "🌿 Creating new branch $$BRANCH_NAME from $$UPSTREAM/$(BASE_BRANCH)..."; \
+	git checkout -B $$BRANCH_NAME $$UPSTREAM/$(BASE_BRANCH); \
+	echo "🍒 Cherry-picking commit $$COMMIT_HASH..."; \
+	git cherry-pick $$COMMIT_HASH || { echo "❌ Cherry-pick failed. Please resolve conflicts manually."; exit 1; }; \
+	echo "⬆️ Pushing $$BRANCH_NAME to your fork (origin)..."; \
+	git push origin $$BRANCH_NAME; \
+	echo "✨ Done! Branch '$$BRANCH_NAME' pushed to origin."
+
