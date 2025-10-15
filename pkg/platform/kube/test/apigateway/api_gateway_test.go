@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	commonHeaders "github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
@@ -82,7 +83,7 @@ func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
 	functionName := "sso-function-name"
 	apiGatewayName := "sso-api-gateway-name"
 	testAuthUrl := "test-auth-url"
-	testSignInUrl := "test-sign-in-url"
+	testSignInUrl := "test-sign-in-url.com"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
 		IguazioAuthURL:   testAuthUrl,
@@ -91,16 +92,35 @@ func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeSSO
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = "nuclio-host1.com"
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyApiGatewayName], apiGatewayName)
-			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthResponseHeaders], "Authorization")
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthResponseHeaders], commonHeaders.AuthorizationHeader)
 			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthSignIn], testSignInUrl)
 			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxAuthURL], testAuthUrl)
-			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxProxyBodySize], "0")
-			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxProxyBufferSize], "16k")
-			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxServiceUpstream], "true")
-			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxSSLRedirect], "true")
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxProxyBodySize], common.NginxDefaultProxyBodySize)
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxProxyBufferSize], common.NginxDefaultProxyBufferSize)
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxServiceUpstream], common.NginxDefaultServiceUpstream)
+			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxSSLRedirect], common.NginxDefaultSSLRedirect)
+
+			// Test invocation to verify redirect behavior
+			apiGatewayInvokeURL := fmt.Sprintf("http://%s", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
+			suite.Logger.InfoWith("Invoking API Gateway URL", "url", apiGatewayInvokeURL)
+
+			// When not authenticated, should redirect to sign-in URL
+			httpClient := &http.Client{
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse // Don't follow redirects
+				},
+			}
+
+			response, err := httpClient.Get(apiGatewayInvokeURL)
+			suite.Require().NoError(err)
+			suite.Require().Equal(http.StatusFound, response.StatusCode, "Should redirect unauthenticated requests")
+
+			redirectLocation := response.Header.Get("Location")
+			suite.Require().Contains(redirectLocation, testSignInUrl, "Should redirect to configured sign-in URL")
 		})
 		suite.Require().NoError(err)
 		return true

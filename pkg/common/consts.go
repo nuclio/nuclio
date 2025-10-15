@@ -78,4 +78,8 @@ const (
 	AnnotationNginxProxyBufferSize     = "nginx.ingress.kubernetes.io/proxy-buffer-size"
 	AnnotationNginxServiceUpstream     = "nginx.ingress.kubernetes.io/service-upstream"
 	AnnotationNginxSSLRedirect         = "nginx.ingress.kubernetes.io/ssl-redirect"
+	NginxDefaultProxyBodySize          = "0"
+	NginxDefaultProxyBufferSize        = "16k"
+	NginxDefaultServiceUpstream        = "true"
+	NginxDefaultSSLRedirect            = "true"
 )

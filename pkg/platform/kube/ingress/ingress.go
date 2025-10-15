@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	commonHeaders "github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -493,41 +494,33 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 }
 
 func (m *Manager) compileSSOAuthAnnotations(spec Spec) (map[string]string, error) {
-	var signinURL, authURL string
-	// Use auth and signin URLs from the spec if provided; otherwise, fallback to platform configurations
+    authURL := m.platformConfiguration.IngressConfig.IguazioAuthURL
+	signinURL := m.platformConfiguration.IngressConfig.IguazioSignInURL
+
 	if spec.Authentication != nil && spec.Authentication.SSOAuth != nil {
 		if spec.Authentication.SSOAuth.AuthURL != "" {
 			authURL = spec.Authentication.SSOAuth.AuthURL
-		} else {
-			authURL = m.platformConfiguration.IngressConfig.IguazioAuthURL
 		}
-
 		if spec.Authentication.SSOAuth.LoginURL != "" {
 			signinURL = spec.Authentication.SSOAuth.LoginURL
-		} else {
-			signinURL = m.platformConfiguration.IngressConfig.IguazioSignInURL
 		}
-	} else {
-		authURL = m.platformConfiguration.IngressConfig.IguazioAuthURL
-		signinURL = m.platformConfiguration.IngressConfig.IguazioSignInURL
 	}
 
 	if authURL == "" {
 		return nil, errors.New("No SSO auth URL configured")
 	}
-
 	if signinURL == "" {
 		return nil, errors.New("No SSO login URL configured")
 	}
 
 	return map[string]string{
-		common.AnnotationNginxAuthResponseHeaders: "Authorization",
+		common.AnnotationNginxAuthResponseHeaders: commonHeaders.AuthorizationHeader,
 		common.AnnotationNginxAuthSignIn:          signinURL,
 		common.AnnotationNginxAuthURL:             authURL,
-		common.AnnotationNginxProxyBodySize:       "0",
-		common.AnnotationNginxProxyBufferSize:     "16k",
-		common.AnnotationNginxServiceUpstream:     "true",
-		common.AnnotationNginxSSLRedirect:         "true",
+		common.AnnotationNginxProxyBodySize:       common.NginxDefaultProxyBodySize,
+		common.AnnotationNginxProxyBufferSize:     common.NginxDefaultProxyBufferSize,
+		common.AnnotationNginxServiceUpstream:     common.NginxDefaultServiceUpstream,
+		common.AnnotationNginxSSLRedirect:         common.NginxDefaultSSLRedirect,
 	}, nil
 }
 

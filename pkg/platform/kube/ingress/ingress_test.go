@@ -170,10 +170,10 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 
 func (suite *IngressTestSuite) enrichExpectedAnnotations(annotations map[string]string) {
 	annotations[common.AnnotationNginxAuthResponseHeaders] = "Authorization"
-	annotations[common.AnnotationNginxProxyBodySize] = "0"
-	annotations[common.AnnotationNginxProxyBufferSize] = "16k"
-	annotations[common.AnnotationNginxServiceUpstream] = "true"
-	annotations[common.AnnotationNginxSSLRedirect] = "true"
+	annotations[common.AnnotationNginxProxyBodySize] = common.NginxDefaultProxyBodySize
+	annotations[common.AnnotationNginxProxyBufferSize] = common.NginxDefaultProxyBufferSize
+	annotations[common.AnnotationNginxServiceUpstream] = common.NginxDefaultServiceUpstream
+	annotations[common.AnnotationNginxSSLRedirect] = common.NginxDefaultSSLRedirect
 }
 
 func (suite *IngressTestSuite) validateAnnotations(result map[string]string, expected map[string]string) {
