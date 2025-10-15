@@ -1833,7 +1833,9 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 			return errors.Wrap(err, "Failed to enrich processing mode")
 		}
 		if triggerInstance.Kind == "rabbit-mq" {
-			ap.enrichRabbitMQTrigger(ctx, triggerName, &triggerInstance)
+			if err := ap.enrichRabbitMQTrigger(ctx, triggerName, &triggerInstance); err != nil {
+				return errors.Wrap(err, "Failed to enrich RabbitMQ trigger")
+			}
 		}
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
@@ -1841,12 +1843,11 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 
 	return nil
 }
-func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger) {
+func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger) error {
 	// Parse the broker URL
 	parsedURL, err := url.Parse(triggerInstance.URL)
 	if err != nil {
-		ap.Logger.WarnWith("Failed to parse RabbitMQ URL", "url", triggerInstance.URL, "error", err.Error())
-		return
+		return errors.Wrap(err, "Failed to parse RabbitMQ URL")
 	}
 
 	// Extract credentials if present
@@ -1872,6 +1873,7 @@ func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName strin
 			"passwordSet", triggerInstance.Password != "",
 		)
 	}
+	return nil
 }
 
 func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
