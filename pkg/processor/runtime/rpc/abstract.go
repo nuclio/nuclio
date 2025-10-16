@@ -268,7 +268,12 @@ func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, e
 		return nil, errors.Errorf("Runtime is not ready. Status: %s", currentStatus.String())
 	}
 
-	return r.connectionManager.Allocate(0)
+	connectionInstance, err := r.connectionManager.Allocate(0)
+	if err != nil {
+		r.Logger.WarnWith("Failed to allocate connection", "error", err.Error(), "errorStack", errors.GetErrorStack(err, 10))
+		return nil, errors.Wrap(err, "Failed to allocate connection")
+	}
+	return connectionInstance, nil
 }
 
 func (r *AbstractRuntime) startWrapper() error {

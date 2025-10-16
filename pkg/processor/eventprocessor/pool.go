@@ -84,6 +84,8 @@ func (a *blockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor,
 			return workerInstance, nil
 		case <-time.After(timeout):
 			a.statistics.AllocationTimeoutTotal.Add(1)
+			a.logger.DebugWith("Timed out waiting for objects to be available",
+				"timeout", timeout)
 			return nil, ErrNoAvailableObjects
 		}
 	}
