@@ -24,3 +24,11 @@ If a blocking operation is executed within an async function, it can block the e
 When `spec.eventTimeout` is configured, any connection that exceeds the timeout is marked for restart. The connection is then closed, and the Nuclio processor attempts to re-establish it.
 If the connection cannot be re-established due to a blocking operation or any other problem, the processor retries up to 3 times, with a 30-second timeout for each attempt.
 If all retries fail, the worker process is restarted to ensure proper recovery.
+
+### Concurrency and Connection Management
+
+The total number of events that can be processed concurrently is determined by the product of `numWorkers` and `maxConnectionsNumber`.
+This represents the maximum number of events that can be processed concurrently by one pod.
+
+If all connections are occupied and a new event arrives, the event will wait for a connection to become available for up to `spec.triggers.trigger-name.async.connectionAvailabilityTimeout`.
+By default, this timeout is set to 10 seconds, but it can be customized to any desired value.
