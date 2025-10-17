@@ -51,7 +51,7 @@ async def handler(context, event):
 def init_context(context):
     context.logger.info('Initializing context')
     context.already_nacked = set()
-    # create file - first line is queue size, second line is last commit offset
+    # create file
     if not os.path.exists(events_file_path):
         with open(events_file_path, 'w'):
             pass
