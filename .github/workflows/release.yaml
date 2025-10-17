@@ -75,7 +75,7 @@ on:
         default: 'development'
         type: string
       mark_as_latest:
-        description: 'Also mark this release as latest (push latest tags, etc.)'
+        description: 'Mark this release as latest (push latest tags, etc.)'
         required: false
         default: 'true'
         type: choice

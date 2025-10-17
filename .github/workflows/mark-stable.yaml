@@ -129,5 +129,6 @@ jobs:
             This PR updates the stable badge in `README.md` to version **v${{ env.VERSION }}**.
             
             ⚠️ **Reminder:**  
-            Please make sure to **manually retag stable** tag **before merging** this PR.
+            Please make sure to **manually retag stable** tag **before merging** this PR. Example:
+            `UPSTREAM=nuclio TAG=1.14.14 && git fetch $UPSTREAM tag $TAG && git tag -f stable $TAG && git push $UPSTREAM stable --force`
           delete-branch: true
