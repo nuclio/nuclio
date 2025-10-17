@@ -27,6 +27,13 @@ import (
 	"github.com/nuclio/errors"
 )
 
+type OnProcessError string
+
+const (
+	OnProcessErrorAck  OnProcessError = "ack"
+	OnProcessErrorNack OnProcessError = "nack"
+)
+
 type Configuration struct {
 	trigger.Configuration
 	ExchangeName      string
@@ -37,7 +44,8 @@ type Configuration struct {
 	PrefetchCount     int
 	DurableExchange   bool
 	DurableQueue      bool
-
+	OnError           OnProcessError
+	RequeueOnError    bool
 	reconnectDuration time.Duration
 	reconnectInterval time.Duration
 }
