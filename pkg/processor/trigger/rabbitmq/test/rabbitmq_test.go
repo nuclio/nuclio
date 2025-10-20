@@ -53,9 +53,9 @@ type testSuite struct {
 	containerizedBrokerURL string
 }
 
-// Event represents the structure of each event returned by your Nuclio function.
+// TestEvent represents the structure of each event returned by your Nuclio function.
 // Adjust the fields according to your actual event structure.
-type Event struct {
+type TestEvent struct {
 	ID      string                 `json:"id"`
 	Body    string                 `json:"body"`
 	Headers map[string]interface{} `json:"headers"`
@@ -303,7 +303,7 @@ func (suite *testSuite) TestNackAndRequeue() {
 					suite.Require().NoError(err, "Failed to publish message to topic")
 				}
 
-				var events []Event
+				var events []TestEvent
 				err := common.RetryUntilSuccessful(30*time.Second, 3*time.Second, func() bool {
 					url := fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
 					resp, err := http.Get(url)

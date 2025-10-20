@@ -359,8 +359,7 @@ func (rmq *rabbitMq) processMessage(message *amqp.Delivery) {
 		rmq.Logger.DebugWith("Failed to submit event, message will be nacked and requeued",
 			"err", submitError.Error())
 
-		err := message.Nack(false, true)
-		if err != nil {
+		if err := message.Nack(false, true); err != nil {
 			rmq.Logger.WarnWith("Failed to nack message",
 				"error", err.Error())
 		}
