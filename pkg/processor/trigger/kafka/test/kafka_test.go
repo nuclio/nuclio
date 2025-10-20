@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -157,6 +158,33 @@ func (suite *testSuite) TearDownSuite() {
 	}
 
 	suite.AbstractBrokerSuite.TearDownSuite()
+}
+
+func (suite *testSuite) WaitForBroker() error {
+	expectedLogSubstring := "started (kafka.server.KafkaServer)"
+	var containerLogs string
+	var containerLogsErr error
+
+	err := common.RetryUntilSuccessful(30*time.Second, 3*time.Second, func() bool {
+		// fetch Kafka container logs
+		containerLogs, containerLogsErr = suite.DockerClient.GetContainerLogs(suite.brokerContainerName)
+		if containerLogsErr != nil {
+			suite.Logger.WarnWith("Failed to get Kafka container logs", "err", containerLogsErr)
+			return false
+		}
+
+		// check for broker startup confirmation line
+		if strings.Contains(containerLogs, expectedLogSubstring) {
+			suite.Logger.DebugWith("Kafka broker started successfully", "logsSnippet", expectedLogSubstring)
+			return true
+		}
+
+		return false
+	})
+
+	suite.Require().NoError(err, "Kafka broker did not start within the given timeframe")
+
+	return nil
 }
 
 func (suite *testSuite) TestReceiveRecords() {
