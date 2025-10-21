@@ -41,6 +41,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/docker/distribution/reference"
@@ -1891,6 +1892,21 @@ func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName strin
 			"passwordSet", triggerInstance.Password != "",
 		)
 	}
+
+	return ap.enrichRabbitMQAckConfig(triggerInstance)
+}
+
+func (ap *Platform) enrichRabbitMQAckConfig(triggerInstance *functionconfig.Trigger) error {
+	if triggerInstance.Attributes == nil {
+		triggerInstance.Attributes = make(map[string]interface{})
+	}
+	if _, ok := triggerInstance.Attributes["onError"]; !ok {
+		triggerInstance.Attributes["onError"] = rabbitmq.OnProcessErrorNack
+	}
+	if _, ok := triggerInstance.Attributes["requeueOnError"]; !ok {
+		triggerInstance.Attributes["requeueOnError"] = false
+	}
+
 	return nil
 }
 

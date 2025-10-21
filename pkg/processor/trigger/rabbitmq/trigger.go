@@ -35,7 +35,6 @@ import (
 
 type rabbitMq struct {
 	trigger.AbstractTrigger
-	event                      Event
 	configuration              *Configuration
 	consumerName               string
 	brokerConn                 *amqp.Connection
@@ -55,20 +54,20 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
-		"rabbitMq",
+		"rabbit-mq",
 		configuration.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
 
-	newTrigger := rabbitMq{
+	triggerInstance := rabbitMq{
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
-	newTrigger.AbstractTrigger.Trigger = &newTrigger
+	triggerInstance.Trigger = &triggerInstance
 
-	return &newTrigger, nil
+	return &triggerInstance, nil
 }
 
 func (rmq *rabbitMq) Initialize() error {
@@ -349,20 +348,63 @@ func (rmq *rabbitMq) handleConnectionError(handleErr *amqp.Error) error {
 
 func (rmq *rabbitMq) processMessage(message *amqp.Delivery) {
 
-	// bind to delivery
-
-	// TODO: when moving to multiworkers - need to create event per message
-	rmq.event.message = message
-	rmq.event.SetID(nuclio.ID(message.MessageId))
+	event := rmq.createEventFromMessage(message)
 
 	// submit to worker
-	_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
+	response, submitError, processError := rmq.AllocateWorkerAndSubmitEvent(event,
+		nil, time.Duration(*rmq.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
 
-	// ack the message if we didn't fail to submit
-	if submitError == nil {
-		message.Ack(false) // nolint: errcheck
-	} else {
-		rmq.Logger.WarnWith("Failed to submit to worker", "err", submitError)
+	// if submission failed, nack the message so it can be redelivered
+	if submitError != nil {
+		rmq.Logger.DebugWith("Failed to submit event, message will be nacked and requeued",
+			"err", submitError.Error())
+
+		if err := message.Nack(false, true); err != nil {
+			rmq.Logger.WarnWith("Failed to nack message",
+				"error", err.Error())
+		}
+		return
+	}
+
+	if processError == nil && response.GetStatusCode() >= 400 {
+		processError = errors.New(fmt.Sprintf("Function returned error status code: %d", response.GetStatusCode()))
+	}
+
+	// if processing failed, we can choose to nack or ack based on the configuration
+	if processError != nil {
+		rmq.Logger.DebugWith("Event processing failed, handling according to ACK configuration",
+			"err", processError.Error())
+		rmq.ackOnProcessError(message)
+		return
+	}
+
+	// ack the message if processing succeeded
+	if err := message.Ack(false); err != nil {
+		rmq.Logger.WarnWith("Failed to ack message",
+			"error", err.Error())
+	}
+}
+
+func (rmq *rabbitMq) createEventFromMessage(message *amqp.Delivery) *Event {
+	event := &Event{
+		message: message,
+	}
+	event.SetID(nuclio.ID(message.MessageId))
+	return event
+}
+
+func (rmq *rabbitMq) ackOnProcessError(message *amqp.Delivery) {
+	switch rmq.configuration.OnError {
+	case OnProcessErrorAck:
+		if err := message.Ack(rmq.configuration.RequeueOnError); err != nil {
+			rmq.Logger.WarnWith("Failed to ack message",
+				"error", err.Error())
+		}
+	default:
+		if err := message.Nack(false, rmq.configuration.RequeueOnError); err != nil {
+			rmq.Logger.WarnWith("Failed to nack message",
+				"error", err.Error())
+		}
 	}
 }
 
