@@ -22,6 +22,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -48,6 +53,14 @@ type testSuite struct {
 	containerizedBrokerURL string
 }
 
+// TestEvent represents the structure of each event returned by your Nuclio function.
+// Adjust the fields according to your actual event structure.
+type TestEvent struct {
+	ID      string                 `json:"id"`
+	Body    string                 `json:"body"`
+	Headers map[string]interface{} `json:"headers"`
+}
+
 func (suite *testSuite) SetupSuite() {
 	suite.brokerURL = fmt.Sprintf("amqp://%s:%d", suite.GetTestHost(), suite.brokerPort)
 	suite.containerizedBrokerURL = fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort)
@@ -63,7 +76,7 @@ func (suite *testSuite) TearDownTest() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "rabbitmq:3-management", &dockerclient.RunOptions{
+	return "rabbitmq:4-management", &dockerclient.RunOptions{
 		Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
 	}
 }
@@ -195,6 +208,133 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 		},
 		suite.publishMessageToTopic,
 		nil)
+}
+
+func (suite *testSuite) TestNackAndRequeue() {
+	expectedRequeued := []string{
+		"success-5",
+		"success-6",
+		"success-7",
+		"success-8",
+		"success-9",
+		"nack-once-0",
+		"nack-once-1",
+		"nack-once-2",
+		"nack-once-3",
+		"nack-once-4",
+	}
+
+	expectedNotRequeued := []string{
+		"success-5",
+		"success-6",
+		"success-7",
+		"success-8",
+		"success-9",
+	}
+
+	testCases := []struct {
+		name           string
+		onError        string
+		requeueOnError bool
+		expectedEvents []string
+	}{
+		{
+			name:           "NackWithRequeueOnError",
+			onError:        string(rabbitmq.OnProcessErrorNack),
+			requeueOnError: true,
+			expectedEvents: expectedRequeued,
+		},
+		{
+			name:           "NackWithoutRequeueOnError",
+			onError:        string(rabbitmq.OnProcessErrorNack),
+			requeueOnError: false,
+			expectedEvents: expectedNotRequeued,
+		},
+		{
+			name:           "AckOnError",
+			onError:        string(rabbitmq.OnProcessErrorAck),
+			expectedEvents: expectedNotRequeued,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			functionName := fmt.Sprintf("nack-requeue-%s", strings.ToLower(tc.name))
+			functionPath := path.Join(
+				suite.GetTestFunctionsDir(),
+				"python",
+				"rabbitmq",
+				"ack-test.py",
+			)
+			topicName := "t1"
+			suite.createBrokerResources([]string{topicName})
+
+			triggerConfig := functionconfig.Trigger{
+				Kind: "rabbit-mq",
+				URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
+				Attributes: map[string]interface{}{
+					"exchangeName":   suite.brokerExchangeName,
+					"queueName":      suite.brokerQueueName,
+					"topics":         []string{"t1"},
+					"onError":        tc.onError,
+					"requeueOnError": tc.requeueOnError,
+				},
+			}
+
+			createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
+			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"my-rabbit-mq": triggerConfig,
+				"my-http": {
+					Kind:       "http",
+					Attributes: map[string]interface{}{},
+				},
+			}
+
+			suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+				for index := 0; index < 10; index++ {
+					message := fmt.Sprintf("success-%d", index)
+					if index < 5 {
+						message = fmt.Sprintf("nack-once-%d", index)
+					}
+					err := suite.publishMessageToTopic(topicName, message)
+					suite.Require().NoError(err, "Failed to publish message to topic")
+				}
+
+				var events []TestEvent
+				err := common.RetryUntilSuccessful(30*time.Second, 3*time.Second, func() bool {
+					url := fmt.Sprintf("http://%s:%d", suite.GetTestHost(), deployResult.Port)
+					resp, err := http.Get(url)
+					if err != nil {
+						return false
+					}
+					defer resp.Body.Close()
+					bodyBytes, err := io.ReadAll(resp.Body)
+					if err != nil {
+						return false
+					}
+					if err := json.Unmarshal(bodyBytes, &events); err != nil {
+						return false
+					}
+					return len(events) >= len(tc.expectedEvents)
+				})
+				suite.Require().NoError(err, "Failed to wait for all events to arrive")
+
+				// Validate order and count
+				suite.Require().Equal(len(tc.expectedEvents), len(events),
+					"Unexpected number of events for %s", tc.name)
+
+				for i, expected := range tc.expectedEvents {
+					suite.Require().Equal(expected, events[i].Body,
+						"Unexpected message order at index %d: expected %s, got %s", i, expected, events[i].Body)
+				}
+
+				return true
+			})
+		})
+	}
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
