@@ -153,6 +153,15 @@ func (rmq *rabbitMq) createBrokerResources() error {
 func (rmq *rabbitMq) getConnectionConfig() *amqp.Config {
 	config := amqp.Config{Properties: amqp.NewConnectionProperties()}
 
+	if rmq.configuration.Username != "" && rmq.configuration.Password != "" {
+		config.SASL = []amqp.Authentication{
+			&amqp.PlainAuth{
+				Username: rmq.configuration.Username,
+				Password: rmq.configuration.Password,
+			},
+		}
+	}
+
 	connectionName := rmq.FunctionName + "-" + rmq.ID
 
 	// when running processor locally, there might be no function name.
