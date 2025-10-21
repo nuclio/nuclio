@@ -40,3 +40,27 @@ triggers:
       durableExchange: true
       durableQueue: true
 ```
+OR
+
+```yaml
+triggers:
+myRabbit:
+kind: "rabbit-mq"
+url: "amqp://10.0.0.1:5672"
+username: "user"
+password: "pass"
+attributes:
+exchangeName: "myExchangeName"
+queueName: "myQueueName"
+reconnectDuration: "10m"
+reconnectInterval: "60s"
+prefetchCount: 1
+durableExchange: true
+durableQueue: true
+```
+
+Both configurations are supported.
+During the enrichment stage, if credentials are provided within the URL, they are automatically extracted and assigned to `username` and `password` fields in the trigger configuration.
+The URL is then sanitized (i.e., credentials are removed) to prevent sensitive data from being exposed in logs or configurations.
+
+> Note: If both the URL and the trigger configuration specify credentials, the credentials from the URL take precedence and will override any existing username or password values in the trigger specification.

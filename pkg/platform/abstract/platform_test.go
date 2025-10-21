@@ -375,6 +375,86 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestEnrichRabbitMQTrigger() {
+	for _, testCase := range []struct {
+		Name             string
+		URL              string
+		InitialUsername  string
+		InitialPassword  string
+		ExpectedURL      string
+		ExpectedUsername string
+		ExpectedPassword string
+		ExpectError      bool
+	}{
+		{
+			Name:             "URL overrides explicit credentials",
+			URL:              "amqp://userFromURL:passFromURL@localhost:5672/",
+			InitialUsername:  "explicitUser",
+			InitialPassword:  "explicitPass",
+			ExpectedURL:      "amqp://localhost:5672/",
+			ExpectedUsername: "userFromURL",
+			ExpectedPassword: "passFromURL",
+		},
+		{
+			Name:             "URL without credentials keeps explicit credentials",
+			URL:              "amqp://localhost:5672/",
+			InitialUsername:  "explicitUser",
+			InitialPassword:  "explicitPass",
+			ExpectedURL:      "amqp://localhost:5672/",
+			ExpectedUsername: "explicitUser",
+			ExpectedPassword: "explicitPass",
+		},
+		{
+			Name:             "URL with only username overrides explicit username",
+			URL:              "amqp://userOnly@localhost:5672/",
+			InitialUsername:  "explicitUser",
+			InitialPassword:  "explicitPass",
+			ExpectedURL:      "amqp://localhost:5672/",
+			ExpectedUsername: "userOnly",
+			ExpectedPassword: "explicitPass",
+		},
+		{
+			Name:             "Empty URL keeps explicit credentials",
+			URL:              "",
+			InitialUsername:  "explicitUser",
+			InitialPassword:  "explicitPass",
+			ExpectedURL:      "",
+			ExpectedUsername: "explicitUser",
+			ExpectedPassword: "explicitPass",
+		},
+		{
+			Name:             "Malformed URL returns error and keeps original values",
+			URL:              "://bad_url",
+			InitialUsername:  "explicitUser",
+			InitialPassword:  "explicitPass",
+			ExpectedURL:      "://bad_url",
+			ExpectedUsername: "explicitUser",
+			ExpectedPassword: "explicitPass",
+			ExpectError:      true,
+		},
+	} {
+		suite.Run(testCase.Name, func() {
+			trigger := &functionconfig.Trigger{
+				URL:      testCase.URL,
+				Username: testCase.InitialUsername,
+				Password: testCase.InitialPassword,
+			}
+
+			err := suite.Platform.enrichRabbitMQTrigger(context.Background(), testCase.Name, trigger)
+
+			if testCase.ExpectError {
+				suite.Require().Error(err, "Expected error but got none")
+			} else {
+				suite.Require().NoError(err, "Unexpected error while enriching trigger")
+			}
+
+			suite.Require().Equal(testCase.ExpectedURL, trigger.URL, "Unexpected URL after enrichment")
+			suite.Require().Equal(testCase.ExpectedUsername, trigger.Username, "Unexpected username after enrichment")
+			suite.Require().Equal(testCase.ExpectedPassword, trigger.Password, "Unexpected password after enrichment")
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestEnrichBatchConfiguration() {
 	for _, testCase := range []struct {
 		name                       string
