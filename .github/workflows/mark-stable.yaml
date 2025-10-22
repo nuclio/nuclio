@@ -47,14 +47,6 @@ jobs:
         id: set-matrix
         run: |
           docker_image_rules_json=$(make print-docker-image-rules-json)
-
-          # If "handler-builder-golang-onbuild" is in the matrix,
-          # then ensure "handler-builder-golang-onbuild-alpine" is there too.
-          docker_image_rules_json=$(echo $docker_image_rules_json | \
-            jq -c 'if any(.[]; .image_rule == "handler-builder-golang-onbuild") 
-                   then . + [{"image_rule":"handler-builder-golang-onbuild-alpine"}] 
-                   else . end')
-
           echo $docker_image_rules_json
           echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
 
