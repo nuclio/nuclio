@@ -14,6 +14,7 @@
 import signal
 import re
 import socket
+import types
 import time
 import msgpack
 import inspect
@@ -225,7 +226,11 @@ class AbstractWrapper(object):
             entrypoint_output = await self._entrypoint(self._context, event)
         else:
             entrypoint_output = self._entrypoint(self._context, event)
-            if asyncio.iscoroutine(entrypoint_output):
+            # for most of the use cases the entrypoint output is not a coroutine if the function is sync
+            # however, there is such use case in MLRun serving graph
+            # however, we need to make sure that the entrypoint output is not a generator to be able to process
+            # streaming flow as expected
+            if asyncio.iscoroutine(entrypoint_output) and not isinstance(entrypoint_output,  types.GeneratorType):
                 entrypoint_output = await entrypoint_output
         return entrypoint_output
 

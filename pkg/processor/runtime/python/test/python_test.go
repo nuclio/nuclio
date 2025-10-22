@@ -141,7 +141,7 @@ func (suite *TestSuite) TestStreamingHandler() {
 			handler: "stream_outputter:stream_file_lines_as_response_sync",
 		},
 		{
-			name:    "sync_handler_as_response_with_sync_gen",
+			name:    "sync_handler_as_response_with_sync_gen_as_async",
 			mode:    functionconfig.SyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_as_response_sync_as_async",
 		},
@@ -156,7 +156,7 @@ func (suite *TestSuite) TestStreamingHandler() {
 			handler: "stream_outputter:stream_file_lines_as_response_async",
 		},
 		{
-			name:    "async_handler_as_response_with_sync_gen",
+			name:    "async_handler_as_response_with_sync_gen_as_async",
 			mode:    functionconfig.AsyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_as_response_sync_as_async",
 		},
@@ -176,12 +176,12 @@ func (suite *TestSuite) TestStreamingHandler() {
 			handler: "stream_outputter:stream_file_lines_async",
 		},
 		{
-			name:    "async_handler_as_sync_gen",
+			name:    "async_handler_as_sync_gen_as_async",
 			mode:    functionconfig.AsyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_sync_as_async",
 		},
 		{
-			name:    "async_handler_as_sync_gen",
+			name:    "sync_handler_as_sync_gen_as_async_sync_mode",
 			mode:    functionconfig.SyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_sync_as_async",
 		},
