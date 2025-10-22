@@ -88,6 +88,14 @@ jobs:
           docker pull "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH"
           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
+          
+           # If it's handler-builder-golang-onbuild, also handle alpine variant
+          if [ "${{ matrix.docker_image_rule }}" = "handler-builder-golang-onbuild" ]; then
+            docker pull "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH-alpine"
+            docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH-alpine" \
+                       "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH-alpine"
+            docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH-alpine"
+          fi
 
   update-badge:
     name: Create PR to update stable badge
