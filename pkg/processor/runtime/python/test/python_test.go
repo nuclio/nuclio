@@ -135,13 +135,24 @@ func (suite *TestSuite) TestStreamingHandler() {
 		mode    functionconfig.TriggerWorkMode
 		handler string
 	}{
+		// namings of these tests might be a bit confusing, but here is how they are structured:
+		// * <trigger_mode>_handler_as_<handler_type>[_as_<optional_python_handler_type>]
+		// * <trigger_mode> - sync / async trigger mode, same as testcase.mode
+		// <handler_type>
+		// * response_with_sync_gen - handler returns a response object whose body is a sync generator
+		// * response_with_async_gen - handler returns a response object whose body is an async generator
+		// * sync_gen - handler yields synchronously
+		// * async_gen - handler yields asynchronously
+		// <optional_python_handler_type>: - only set for those where we test both types of function definitions in python (async def / def)
+		// async_def - the python handler is defined as async def, even though it yields synchronously
+		// sync_def - the python handler is defined as def
 		{
 			name:    "sync_handler_as_response_with_sync_gen",
 			mode:    functionconfig.SyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_as_response_sync",
 		},
 		{
-			name:    "sync_handler_as_response_with_sync_gen_as_async",
+			name:    "sync_handler_as_response_with_sync_gen_as_async_def",
 			mode:    functionconfig.SyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_as_response_sync_as_async",
 		},
@@ -156,7 +167,7 @@ func (suite *TestSuite) TestStreamingHandler() {
 			handler: "stream_outputter:stream_file_lines_as_response_async",
 		},
 		{
-			name:    "async_handler_as_response_with_sync_gen_as_async",
+			name:    "async_handler_as_response_with_sync_gen_as_async_def",
 			mode:    functionconfig.AsyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_as_response_sync_as_async",
 		},
@@ -176,12 +187,12 @@ func (suite *TestSuite) TestStreamingHandler() {
 			handler: "stream_outputter:stream_file_lines_async",
 		},
 		{
-			name:    "async_handler_as_sync_gen_as_async",
+			name:    "async_handler_as_sync_gen_as_async_def",
 			mode:    functionconfig.AsyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_sync_as_async",
 		},
 		{
-			name:    "sync_handler_as_sync_gen_as_async_sync_mode",
+			name:    "sync_handler_as_sync_gen_as_async_as_sync_def",
 			mode:    functionconfig.SyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_sync_as_async",
 		},
