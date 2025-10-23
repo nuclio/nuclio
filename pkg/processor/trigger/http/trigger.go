@@ -601,12 +601,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		case []byte:
 			ctx.Response.SetBodyRaw(response.GetBody().([]byte))
 		case io.ReadCloser:
-			if _, err := io.Copy(ctx.Response.BodyWriter(), typedResponse); err != nil {
-				h.Logger.ErrorWith("Failed to copy response body",
-					"error", err)
-				ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
-				return
-			}
+			ctx.Response.SetBodyStream(typedResponse, -1)
 		}
 	}
 

@@ -47,14 +47,6 @@ jobs:
         id: set-matrix
         run: |
           docker_image_rules_json=$(make print-docker-image-rules-json)
-
-          # If "handler-builder-golang-onbuild" is in the matrix,
-          # then ensure "handler-builder-golang-onbuild-alpine" is there too.
-          docker_image_rules_json=$(echo $docker_image_rules_json | \
-            jq -c 'if any(.[]; .image_rule == "handler-builder-golang-onbuild") 
-                   then . + [{"image_rule":"handler-builder-golang-onbuild-alpine"}] 
-                   else . end')
-
           echo $docker_image_rules_json
           echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
 
@@ -69,6 +61,10 @@ jobs:
           - arm64
           - amd64
         docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
+        # issues with building on qemu
+        exclude:
+          - arch: arm64
+            docker_image_rule: handler-builder-dotnetcore-onbuild
     steps:
       - name: Prepare environment
         run: |
@@ -88,6 +84,14 @@ jobs:
           docker pull "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH"
           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH"
+          
+           # If it's handler-builder-golang-onbuild, also handle alpine variant
+          if [ "${{ matrix.docker_image_rule }}" = "handler-builder-golang-onbuild" ]; then
+            docker pull "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH-alpine"
+            docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:${{ env.VERSION }}-$NUCLIO_ARCH-alpine" \
+                       "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH-alpine"
+            docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:stable-$NUCLIO_ARCH-alpine"
+          fi
 
   update-badge:
     name: Create PR to update stable badge
