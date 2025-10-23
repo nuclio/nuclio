@@ -582,6 +582,17 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	// should be set before body is set
+	// set content type if set
+	if response.GetContentType() != "" {
+		ctx.SetContentType(response.GetContentType())
+	}
+
+	// set status code if set
+	if response.GetStatusCode() != 0 {
+		ctx.Response.SetStatusCode(response.GetStatusCode())
+	}
+
 	if fileStreamPath != "" {
 		fileResponse, err := newFileResponse(h.Logger, fileStreamPath, fileStreamDeleteAfterSend)
 		if err != nil {
@@ -601,6 +612,10 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		case []byte:
 			ctx.Response.SetBodyRaw(response.GetBody().([]byte))
 		case io.ReadCloser:
+			// set status code if set
+			if response.GetStatusCode() != 0 {
+				ctx.Response.SetStatusCode(response.GetStatusCode())
+			}
 			ctx.Response.SetBodyStream(typedResponse, -1)
 		}
 	}
@@ -616,16 +631,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		// if code won't get here (because of the error, then the defer will take care of it)
 		h.WorkerAllocator.Release(workerInstance)
 		workerReleased = true
-	}
-
-	// set content type if set
-	if response.GetContentType() != "" {
-		ctx.SetContentType(response.GetContentType())
-	}
-
-	// set status code if set
-	if response.GetStatusCode() != 0 {
-		ctx.Response.SetStatusCode(response.GetStatusCode())
 	}
 }
 

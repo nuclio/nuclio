@@ -75,6 +75,7 @@ type Request struct {
 	ExpectedResponseHeaders       map[string]string
 	ExpectedResponseHeadersValues map[string][]string
 	ExpectedResponseStatusCode    *int
+	ExpectStreamingTimeout        bool
 
 	RetryUntilSuccessfulStatusCode *int
 	RetryUntilSuccessfulDuration   time.Duration
