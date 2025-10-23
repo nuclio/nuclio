@@ -336,7 +336,6 @@ The `projectSecretTemplate` is rendered using the following context:
 ```go
 templateData := map[string]interface{}{
     "ProjectName": projectName,
-    "Namespace":   namespace,
 }
 ```
 This allows to dynamically construct the secret name based on the project and namespace.
