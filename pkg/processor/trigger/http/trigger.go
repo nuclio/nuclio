@@ -612,10 +612,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		case []byte:
 			ctx.Response.SetBodyRaw(response.GetBody().([]byte))
 		case io.ReadCloser:
-			// set status code if set
-			if response.GetStatusCode() != 0 {
-				ctx.Response.SetStatusCode(response.GetStatusCode())
-			}
 			ctx.Response.SetBodyStream(typedResponse, -1)
 		}
 	}
