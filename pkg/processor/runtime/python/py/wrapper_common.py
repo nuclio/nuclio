@@ -227,9 +227,8 @@ class AbstractWrapper(object):
         else:
             entrypoint_output = self._entrypoint(self._context, event)
             # for most of the use cases the entrypoint output is not a coroutine if the function is sync
-            # however, there is such use case in MLRun serving graph
-            # however, we need to make sure that the entrypoint output is not a generator to be able to process
-            # streaming flow as expected
+            # in mlrun serving graphs, this scenario may occur
+            # ensure the entrypoint output is not a generator to allow proper handling of streaming flows
             if asyncio.iscoroutine(entrypoint_output) and not isinstance(entrypoint_output,  types.GeneratorType):
                 entrypoint_output = await entrypoint_output
         return entrypoint_output
