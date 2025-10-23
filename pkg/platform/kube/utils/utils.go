@@ -185,7 +185,6 @@ func GetProjectSecret(ctx context.Context, kubeClient kube.Client, projectSecret
 	// render the project secret name using the template
 	templateData := map[string]interface{}{
 		"ProjectName": projectName,
-		"Namespace":   namespace,
 	}
 	secretName, err := renderProjectSecretName(projectSecretTemplate, templateData)
 	if err != nil {
