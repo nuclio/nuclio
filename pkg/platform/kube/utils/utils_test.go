@@ -163,18 +163,12 @@ func (suite *utilsTestSuite) newTestProbe(value int32) *v1.Probe {
 func (suite *utilsTestSuite) TestRenderProjectSecretName() {
 	templateData := map[string]interface{}{
 		"ProjectName": "myproj",
-		"Namespace":   "ns1",
 	}
 	testCases := []struct {
 		name               string
 		template           string
 		expectedSecretName string
 	}{
-		{
-			name:               "WithProjectAndNamespace",
-			template:           "nuclio-project-secrets-{{ .ProjectName }}-{{ .Namespace }}",
-			expectedSecretName: "nuclio-project-secrets-myproj-ns1",
-		},
 		{
 			name:               "WithProjectOnly",
 			template:           "nuclio-project-secrets-{{ .ProjectName }}",
@@ -200,10 +194,9 @@ func (suite *utilsTestSuite) TestGetProjectSecret() {
 	kubeClient := fake.NewSimpleClientset()
 	namespace := "ns1"
 	projectName := "myproj"
-	template := "nuclio-project-secrets-{{ .ProjectName }}-{{ .Namespace }}"
+	template := "nuclio-project-secrets-{{ .ProjectName }}"
 	secretName, _ := renderProjectSecretName(template, map[string]interface{}{
 		"ProjectName": projectName,
-		"Namespace":   namespace,
 	})
 
 	secret := &v1.Secret{
@@ -456,14 +449,13 @@ func (suite *utilsTestSuite) TestGetAllowedServiceAccountsFromSecret() {
 func (suite *utilsTestSuite) TestEnrichAndValidateServiceAccount() {
 	namespace := "ns1"
 	projectName := "myproj"
-	template := "nuclio-project-secrets-{{ .ProjectName }}-{{ .Namespace }}"
+	template := "nuclio-project-secrets-{{ .ProjectName }}"
 	defaultKey := "default"
 	allowedKey := "allowed"
 	defaultPlatformServiceAccount := "sa-platform-default"
 
 	secretName, _ := renderProjectSecretName(template, map[string]interface{}{
 		"ProjectName": projectName,
-		"Namespace":   namespace,
 	})
 
 	secret := &v1.Secret{
