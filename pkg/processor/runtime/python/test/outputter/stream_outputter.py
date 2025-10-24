@@ -31,10 +31,18 @@ async def stream_file_lines_async(context, event):
 async def stream_file_lines_as_response_async(context, event):
     return context.Response(body=stream_file_lines_async(context, event))
 
-async def stream_file_lines_sync(context, event):
+async def stream_file_lines_sync_as_async(context, event):
     with open(file_path, "r") as f:
         for line in f:
             yield line
 
-async def stream_file_lines_as_response_sync(context, event):
+async def stream_file_lines_as_response_sync_as_async(context, event):
+    return context.Response(body=stream_file_lines_sync(context, event))
+
+def stream_file_lines_sync(context, event):
+    with open(file_path, "r") as f:
+        for line in f:
+            yield line
+
+def stream_file_lines_as_response_sync(context, event):
     return context.Response(body=stream_file_lines_sync(context, event))
