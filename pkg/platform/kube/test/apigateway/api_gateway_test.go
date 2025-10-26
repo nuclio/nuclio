@@ -19,6 +19,7 @@ limitations under the License.
 package apigateway
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"testing"
@@ -80,19 +81,36 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
-	functionName := "sso-function-name"
+	functionName := "sso-auth-function-name"
 	apiGatewayName := "sso-api-gateway-name"
-	testAuthUrl := "test-auth-url"
+	apiGatewayHost := "nuclio-host1.com"
+	testAuthUrl := fmt.Sprintf("http://nuclio-%s.default.svc.cluster.local:8080", functionName)
 	testSignInUrl := "test-sign-in-url.com"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  # Not authenticated - return 401 to trigger redirect
+  return context.Response(
+      body='Unauthorized',
+      headers={},
+      content_type='text/plain',
+      status_code=401
+      )
+`))
+	oldIngressConfig := suite.PlatformConfiguration.IngressConfig
+	defer func() {
+		suite.PlatformConfiguration.IngressConfig = oldIngressConfig
+	}()
 	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
 		IguazioAuthURL:   testAuthUrl,
 		IguazioSignInURL: testSignInUrl,
 	}
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeSSO
-		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = "nuclio-host1.com"
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = apiGatewayHost
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyApiGatewayName], apiGatewayName)
@@ -105,7 +123,7 @@ func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
 			suite.Require().Equal(ingress.Annotations[common.AnnotationNginxSSLRedirect], common.NginxDefaultSSLRedirect)
 
 			// Test invocation to verify redirect behavior
-			apiGatewayInvokeURL := fmt.Sprintf("http://%s", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
+			apiGatewayInvokeURL := fmt.Sprintf("http://%s/", apiGatewayHost)
 			suite.Logger.InfoWith("Invoking API Gateway URL", "url", apiGatewayInvokeURL)
 
 			// When not authenticated, should redirect to sign-in URL
@@ -114,6 +132,11 @@ func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
 					return http.ErrUseLastResponse // Don't follow redirects
 				},
 			}
+
+			suite.WaitForAPIGatewayState(&platform.GetAPIGatewaysOptions{
+				Name:      apiGatewayName,
+				Namespace: suite.Namespace,
+			}, platform.APIGatewayStateReady, 10*time.Second)
 
 			response, err := httpClient.Get(apiGatewayInvokeURL)
 			suite.Require().NoError(err)
