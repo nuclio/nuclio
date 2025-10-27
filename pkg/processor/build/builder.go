@@ -1056,6 +1056,10 @@ func (b *Builder) cleanupTempDir() error {
 }
 
 func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
+	projectName, err := b.options.FunctionConfig.GetProjectName()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get project name for the function")
+	}
 	buildArgs := b.getBuildArgs()
 	buildFlags := b.getBuildFlags()
 
@@ -1066,7 +1070,6 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	// to its fully qualified image name (different for each runtime)
 	// - An empty onbuildImageRegistry will result in onbuild images looked for in quay.io
 	baseImageRegistry := b.options.FunctionConfig.Spec.Build.BaseImageRegistry
-	var err error
 
 	if baseImageRegistry == "" {
 		baseImageRegistry, err = b.platform.GetBaseImageRegistry(b.options.FunctionConfig.Spec.Build.Registry,
@@ -1133,9 +1136,14 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuilderServiceAccount:  b.options.FunctionConfig.Spec.Build.BuilderServiceAccount,
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
-			SecurityContext: b.options.FunctionConfig.Spec.SecurityContext,
-			BuildLogger:     b.logger,
-			Resources:       b.resolveResources(),
+			SecurityContext:                        b.options.FunctionConfig.Spec.SecurityContext,
+			BuildLogger:                            b.logger,
+			Resources:                              b.resolveResources(),
+			ProjectName:                            projectName,
+			ProjectSecretTemplate:                  b.platform.GetConfig().Kube.ProjectSecretTemplate,
+			ProjectSecretAllowedServiceAccountsKey: b.platform.GetConfig().Kube.ProjectSecretAllowedServiceAccountsKey,
+			ProjectSecretDefaultServiceAccountKey:  b.platform.GetConfig().Kube.ProjectSecretDefaultServiceAccountKey,
+			DefaultPlatformServiceAccount:          b.platform.GetConfig().Kube.DefaultFunctionServiceAccount,
 		})
 
 	return taggedImageName, err
