@@ -1969,6 +1969,9 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 	return nil
 }
 
+// validateSecretsAllowed ensures that the function does not reference any project secrets
+// that belong to a different project. It checks all secret references defined in EnvFrom,
+// Env, and Volumes
 func (p *Platform) validateSecretsAllowed(ctx context.Context, functionConfig *functionconfig.Config) error {
 	if p.GetConfig().Kube.ProjectSecretTemplate == "" {
 		return nil
