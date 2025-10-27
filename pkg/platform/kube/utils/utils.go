@@ -183,10 +183,7 @@ func GetProjectSecret(ctx context.Context, kubeClient kube.Client, projectSecret
 	}
 
 	// render the project secret name using the template
-	templateData := map[string]interface{}{
-		"ProjectName": projectName,
-	}
-	secretName, err := renderProjectSecretName(projectSecretTemplate, templateData)
+	secretName, err := RenderProjectSecretName(projectSecretTemplate, projectName)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to render project secret name")
 	}
@@ -263,7 +260,10 @@ func getAllowedServiceAccountsFromSecret(secret *v1.Secret, secretAllowedService
 	return
 }
 
-func renderProjectSecretName(projectSecretTemplate string, templateData map[string]interface{}) (string, error) {
+func RenderProjectSecretName(projectSecretTemplate string, projectName string) (string, error) {
+	templateData := map[string]interface{}{
+		"ProjectName": projectName,
+	}
 	renderedIngressHost, err := common.RenderTemplate(projectSecretTemplate, templateData)
 	if err != nil {
 		return "", err
