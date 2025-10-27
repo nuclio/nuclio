@@ -183,9 +183,10 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 func (suite *timeoutSuite) TestStreamChunkTimeout() {
 	chunkTimeout := 500 * time.Millisecond
 	okStatusCode := http.StatusOK
-	timeoutStatusCode := http.StatusRequestTimeout
 	sleepChunkShort := 10 * time.Millisecond
 	sleepChunkLong := 2 * time.Second
+
+	expectedFullBody := "chunk-0chunk-1chunk-2"
 
 	for _, testCase := range []struct {
 		name            string
@@ -222,14 +223,21 @@ func (suite *timeoutSuite) TestStreamChunkTimeout() {
 						err := json.Unmarshal(body, response)
 						suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
 						oldPID = response.PID
-						suite.Require().Equal("chunk-0chunk-1chunk-2", response.Data)
+						suite.Require().Equal(expectedFullBody, response.Data)
 					},
 				},
 				// sending request long timeout expected
+				// it will still be successful status code
+				// but we should expect getting only partial data
 				{
-					RequestBody:                suite.genTimeoutRequest(sleepChunkLong, false),
-					RequestHeaders:             requestHeaders,
-					ExpectedResponseStatusCode: &timeoutStatusCode,
+					RequestBody:    suite.genTimeoutRequest(sleepChunkLong, false),
+					RequestHeaders: requestHeaders,
+					ExpectedResponseBody: func(body []byte) {
+						response := &timeoutResponse{}
+						err := json.Unmarshal(body, response)
+						suite.Require().Error(err, "unexpected end of JSON input")
+						suite.Require().NotEqual(len("chunk-0chunk-1chunk-2"), len(body))
+					},
 				},
 				// retry until runtime is back
 				{
