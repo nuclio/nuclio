@@ -37,21 +37,20 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-## SSO authentication
-SSO authentication is a way to authenticate users by providing a authentication URL and login URL.
-AuthURL and loginURL must be provided as a pair; if omitted, platform defaults apply.
+## Iguazio authentication
+Iguazio authentication is a way to authenticate users by the predefined platform-level authentication URL and login URL.
+These URLs are configured at the platform config and remain identical across all API gateways - they cannot be customized or overridden per instance.
+Both AuthURL and loginURL must be configured.
 
-You can create an api gateway with SSO authentication by running the following command:
+You can create an api gateway with Iguazio authentication by running the following command:
 ```
 $ nuctl create apigateway <api-gateway-name> \
 			--host <api-gateway-name>-<project-name>.<nuclio-host-name> \
 			--path "/some/path" \
 			--description "some-description" \
 			--function some-function-name \
-			--authentication-mode "sso" \
+			--authentication-mode "iguazio" \
 			--namespace <namespace> \
-			--login-url "login-url" \
-			--auth-url "auth-url" \
 ```
 
 To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](http.md#invoke-api-gateways-with-basic-authentication).

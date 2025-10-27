@@ -10,8 +10,7 @@ nuctl create apigateway name [flags]
 
 ```
       --attrs string                 JSON-encoded attributes for the api gateway (overrides all the rest) (default "{}")
-      --auth-url string              Auth URL for SSO authentication mode
-      --authentication-mode string   Api gateway authentication mode. ['none', 'basicAuth', 'accessKey', 'sso']
+      --authentication-mode string   Api gateway authentication mode. ['none', 'basicAuth', 'accessKey', 'iguazio']
       --basic-auth-password string   The basic-auth password
       --basic-auth-username string   The basic-auth username
       --canary-function string       The api gateway canary function
@@ -22,7 +21,6 @@ nuctl create apigateway name [flags]
   -h, --help                         help for apigateway
       --host string                  Api gateway host address
       --labels string                JSON-encoded custom labels for the api gateway (default "{}")
-      --login-url string             Login URL for SSO authentication mode
       --path string                  Api gateway path (the URI that'll be concatenated to the host as an endpoint)
       --project string               The project the api gateway should be created in (default "project")
 ```

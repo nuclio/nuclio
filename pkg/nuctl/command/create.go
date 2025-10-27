@@ -127,8 +127,6 @@ type createAPIGatewayCommandeer struct {
 	encodedAttributes        string
 	encodedExtraLables       string
 	encodedCanaryExtraLables string
-	loginURL                 string
-	authURL                  string
 }
 
 func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *createCommandeer) *createAPIGatewayCommandeer {
@@ -180,8 +178,7 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 			}
 
 			// enrich basic-auth spec if it was specified
-			switch commandeer.apiGatewayConfig.Spec.AuthenticationMode {
-			case ingress.AuthenticationModeBasicAuth:
+			if commandeer.apiGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth {
 				if commandeer.basicAuthUsername == "" || commandeer.basicAuthPassword == "" {
 					return errors.New("Basic auth username and password must be specified")
 				}
@@ -192,22 +189,6 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 						Password: commandeer.basicAuthPassword,
 					},
 				}
-			case ingress.AuthenticationModeSSO:
-				// Validate that both SSO auth URLs are provided together, or neither is provided
-				if (commandeer.loginURL == "") != (commandeer.authURL == "") {
-					return errors.New("both SSO auth login and auth URLs must be specified together, or neither should be specified")
-				}
-
-				// If both URLs are provided, set up the SSO authentication configuration
-				if commandeer.loginURL != "" && commandeer.authURL != "" {
-					commandeer.apiGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
-						SSOAuth: &ingress.SSOAuth{
-							AuthURL:  commandeer.authURL,
-							LoginURL: commandeer.loginURL,
-						},
-					}
-				}
-			default:
 			}
 
 			// validate a primary function was specified
@@ -281,7 +262,7 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 	cmd.Flags().StringVar(&commandeer.host, "host", "", "Api gateway host address")
 	cmd.Flags().StringVar(&commandeer.description, "description", "", "Api gateway description")
 	cmd.Flags().StringVar(&commandeer.path, "path", "", "Api gateway path (the URI that'll be concatenated to the host as an endpoint)")
-	cmd.Flags().StringVar(&commandeer.authenticationMode, "authentication-mode", "", "Api gateway authentication mode. ['none', 'basicAuth', 'accessKey', 'sso']")
+	cmd.Flags().StringVar(&commandeer.authenticationMode, "authentication-mode", "", "Api gateway authentication mode. ['none', 'basicAuth', 'accessKey', 'iguazio']")
 	cmd.Flags().StringVar(&commandeer.basicAuthUsername, "basic-auth-username", "", "The basic-auth username")
 	cmd.Flags().StringVar(&commandeer.basicAuthPassword, "basic-auth-password", "", "The basic-auth password")
 	cmd.Flags().StringVar(&commandeer.function, "function", "", "The api gateway primary function")
@@ -290,8 +271,6 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 	cmd.Flags().StringVar(&commandeer.encodedAttributes, "attrs", "{}", "JSON-encoded attributes for the api gateway (overrides all the rest)")
 	cmd.Flags().StringVar(&commandeer.encodedExtraLables, "labels", "{}", "JSON-encoded custom labels for the api gateway")
 	cmd.Flags().StringVar(&commandeer.encodedExtraLables, "canary-labels", "{}", "JSON-encoded custom labels for canary upstream of the api gateway")
-	cmd.Flags().StringVar(&commandeer.loginURL, "login-url", "", "Login URL for SSO authentication mode")
-	cmd.Flags().StringVar(&commandeer.authURL, "auth-url", "", "Auth URL for SSO authentication mode")
 
 	commandeer.cmd = cmd
 

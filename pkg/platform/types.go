@@ -482,7 +482,6 @@ func (agc *APIGatewayConfig) scrubAPIGatewayData() {
 type APIGatewayAuthenticationSpec struct {
 	BasicAuth *BasicAuth       `json:"basicAuth,omitempty"`
 	DexAuth   *ingress.DexAuth `json:"dexAuth,omitempty"`
-	SSOAuth   *ingress.SSOAuth `json:"ssoAuth,omitempty"`
 }
 
 type BasicAuth struct {

@@ -44,7 +44,6 @@ func (suite *IngressTestSuite) SetupSuite() {
 func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 	tests := []struct {
 		name                  string
-		spec                  Spec
 		platformConfiguration *platformconfig.Config
 		expectedAnnotations   map[string]string
 		expectedErr           string
@@ -63,28 +62,7 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 			},
 		},
 		{
-			name: "Take URLs from spec",
-			spec: Spec{
-				Authentication: &Authentication{
-					SSOAuth: &SSOAuth{
-						AuthURL:  "spec-auth-url",
-						LoginURL: "spec-login-url",
-					},
-				},
-			},
-			platformConfiguration: &platformconfig.Config{
-				IngressConfig: platformconfig.IngressConfig{
-					IguazioAuthURL:   "conf-auth-url",
-					IguazioSignInURL: "conf-sign-in-url",
-				},
-			},
-			expectedAnnotations: map[string]string{
-				common.AnnotationNginxAuthURL:    "spec-auth-url",
-				common.AnnotationNginxAuthSignIn: "spec-login-url",
-			},
-		},
-		{
-			name: "missing AuthURL in conf and spec",
+			name: "missing AuthURL in conf",
 			platformConfiguration: &platformconfig.Config{
 				IngressConfig: platformconfig.IngressConfig{
 					IguazioSignInURL: "conf-sign-in-url",
@@ -94,14 +72,7 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 			expectedErr:         "No SSO auth URL configured",
 		},
 		{
-			name: "missing LoginURL in conf and spec",
-			spec: Spec{
-				Authentication: &Authentication{
-					SSOAuth: &SSOAuth{
-						AuthURL: "spec-auth-url",
-					},
-				},
-			},
+			name: "missing LoginURL in conf",
 			platformConfiguration: &platformconfig.Config{
 				IngressConfig: platformconfig.IngressConfig{
 					IguazioAuthURL: "conf-auth-url",
@@ -110,44 +81,6 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 			expectedAnnotations: map[string]string{},
 			expectedErr:         "No SSO login URL configured",
 		},
-		{
-			name: "missing LoginURL and autURL in conf and exist in spec",
-			spec: Spec{
-				Authentication: &Authentication{
-					SSOAuth: &SSOAuth{
-						AuthURL:  "spec-auth-url",
-						LoginURL: "spec-login-url",
-					},
-				},
-			},
-			platformConfiguration: &platformconfig.Config{
-				IngressConfig: platformconfig.IngressConfig{},
-			},
-			expectedAnnotations: map[string]string{
-				common.AnnotationNginxAuthURL:    "spec-auth-url",
-				common.AnnotationNginxAuthSignIn: "spec-login-url",
-			},
-		},
-		{
-			name: "mixed- take LoginURL from spec and autURL from conf",
-			spec: Spec{
-				Authentication: &Authentication{
-					SSOAuth: &SSOAuth{
-						LoginURL: "spec-login-url",
-					},
-				},
-			},
-			platformConfiguration: &platformconfig.Config{
-				IngressConfig: platformconfig.IngressConfig{
-					IguazioAuthURL:   "conf-auth-url",
-					IguazioSignInURL: "conf-sign-in-url",
-				},
-			},
-			expectedAnnotations: map[string]string{
-				common.AnnotationNginxAuthURL:    "conf-auth-url",
-				common.AnnotationNginxAuthSignIn: "spec-login-url",
-			},
-		},
 	}
 
 	for _, testCase := range tests {
@@ -155,7 +88,7 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 			testManager, err := NewManager(suite.logger, nil, nil, testCase.platformConfiguration)
 			suite.Require().NoError(err)
 			suite.enrichExpectedAnnotations(testCase.expectedAnnotations)
-			result, err := testManager.compileSSOAuthAnnotations(testCase.spec)
+			result, err := testManager.compileIguazioAuthAnnotations()
 			if testCase.expectedErr != "" {
 				suite.Require().Error(err)
 				suite.Require().Contains(err.Error(), testCase.expectedErr)

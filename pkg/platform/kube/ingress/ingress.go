@@ -382,8 +382,8 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
 		}
-	case AuthenticationModeSSO:
-		authIngressAnnotations, err = m.compileSSOAuthAnnotations(spec)
+	case AuthenticationModeIguazio:
+		authIngressAnnotations, err = m.compileIguazioAuthAnnotations()
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get SSO auth annotations")
 		}
@@ -493,18 +493,9 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 	return ingressAnnotations, secret, nil
 }
 
-func (m *Manager) compileSSOAuthAnnotations(spec Spec) (map[string]string, error) {
+func (m *Manager) compileIguazioAuthAnnotations() (map[string]string, error) {
 	authURL := m.platformConfiguration.IngressConfig.IguazioAuthURL
 	signinURL := m.platformConfiguration.IngressConfig.IguazioSignInURL
-
-	if spec.Authentication != nil && spec.Authentication.SSOAuth != nil {
-		if spec.Authentication.SSOAuth.AuthURL != "" {
-			authURL = spec.Authentication.SSOAuth.AuthURL
-		}
-		if spec.Authentication.SSOAuth.LoginURL != "" {
-			signinURL = spec.Authentication.SSOAuth.LoginURL
-		}
-	}
 
 	if authURL == "" {
 		return nil, errors.New("No SSO auth URL configured")

@@ -48,7 +48,6 @@ type SpecRole string
 type Authentication struct {
 	BasicAuth *BasicAuth `json:"basicAuth,omitempty"`
 	DexAuth   *DexAuth   `json:"dexAuth,omitempty"`
-	SSOAuth   *SSOAuth   `json:"ssoAuth,omitempty"`
 }
 
 type BasicAuth struct {
@@ -62,11 +61,6 @@ type DexAuth struct {
 	RedirectUnauthorizedToSignIn bool   `json:"redirectUnauthorizedToSignIn,omitempty"`
 }
 
-type SSOAuth struct {
-	AuthURL  string `json:"authURL,omitempty"`
-	LoginURL string `json:"loginURL,omitempty"`
-}
-
 type AuthenticationMode string
 
 const (
@@ -74,5 +68,5 @@ const (
 	AuthenticationModeBasicAuth AuthenticationMode = "basicAuth"
 	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
 	AuthenticationModeOauth2    AuthenticationMode = "oauth2"
-	AuthenticationModeSSO       AuthenticationMode = "sso"
+	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
 )

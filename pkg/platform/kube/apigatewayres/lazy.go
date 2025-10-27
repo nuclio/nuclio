@@ -262,13 +262,8 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		}
 	case ingress.AuthenticationModeAccessKey:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
-	case ingress.AuthenticationModeSSO:
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeSSO
-		if apiGateway.Spec.Authentication != nil && apiGateway.Spec.Authentication.SSOAuth != nil {
-			commonIngressSpec.Authentication = &ingress.Authentication{
-				SSOAuth: apiGateway.Spec.Authentication.SSOAuth,
-			}
-		}
+	case ingress.AuthenticationModeIguazio:
+		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeIguazio
 	default:
 		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
 	}

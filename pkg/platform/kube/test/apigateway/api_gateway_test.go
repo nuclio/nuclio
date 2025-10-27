@@ -109,7 +109,7 @@ def handler(context, event):
 		suite.Require().NotNil(deployResult)
 
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeSSO
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeIguazio
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = apiGatewayHost
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
