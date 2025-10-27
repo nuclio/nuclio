@@ -2016,7 +2016,7 @@ func (p *Platform) getProjectSecret(ctx context.Context, projectName, namespace 
 	}
 
 	// fetch the secret from Kubernetes
-	projectSecret, err := p.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	projectSecret, err := p.consumer.KubeClientSet.GetSecret(ctx, namespace, secretName)
 	if err != nil {
 		// if not found, skip validation
 		if apierrors.IsNotFound(err) {
