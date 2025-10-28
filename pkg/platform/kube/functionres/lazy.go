@@ -30,6 +30,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -2291,9 +2292,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
-	if _, exists := meta.Annotations[common.AnnotationNginxSSLRedirect]; !exists &&
+	if _, exists := meta.Annotations[annotations.AnnotationNginxSSLRedirect]; !exists &&
 		platformConfig.IngressConfig.EnableSSLRedirect {
-		meta.Annotations[common.AnnotationNginxSSLRedirect] = "true"
+		meta.Annotations[annotations.AnnotationNginxSSLRedirect] = "true"
 	}
 
 	// clear out existing so that we don't keep adding rules

@@ -21,8 +21,7 @@ package ingress
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/common"
-	commonHeaders "github.com/nuclio/nuclio/pkg/common/headers"
+	commonAnnotations "github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
@@ -57,8 +56,8 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 				},
 			},
 			expectedAnnotations: map[string]string{
-				common.AnnotationNginxAuthURL:    "test-auth-url",
-				common.AnnotationNginxAuthSignIn: "test-sign-in-url",
+				commonAnnotations.AnnotationNginxAuthURL:    "test-auth-url",
+				commonAnnotations.AnnotationNginxAuthSignIn: "test-sign-in-url",
 			},
 		},
 		{
@@ -87,7 +86,6 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 		suite.Run(testCase.name, func() {
 			testManager, err := NewManager(suite.logger, nil, nil, testCase.platformConfiguration)
 			suite.Require().NoError(err)
-			suite.enrichExpectedAnnotations(testCase.expectedAnnotations)
 			result, err := testManager.compileIguazioAuthAnnotations()
 			if testCase.expectedErr != "" {
 				suite.Require().Error(err)
@@ -96,18 +94,18 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(result)
-				suite.validateAnnotations(result, testCase.expectedAnnotations)
+				suite.validateAnnotations(result, suite.getExpectedAnnotations(testCase.expectedAnnotations))
 			}
 		})
 	}
 }
 
-func (suite *IngressTestSuite) enrichExpectedAnnotations(annotations map[string]string) {
-	annotations[common.AnnotationNginxAuthResponseHeaders] = commonHeaders.AuthorizationHeader
-	annotations[common.AnnotationNginxProxyBodySize] = common.NginxDefaultProxyBodySize
-	annotations[common.AnnotationNginxProxyBufferSize] = common.NginxDefaultProxyBufferSize
-	annotations[common.AnnotationNginxServiceUpstream] = common.NginxDefaultServiceUpstream
-	annotations[common.AnnotationNginxSSLRedirect] = common.NginxDefaultSSLRedirect
+func (suite *IngressTestSuite) getExpectedAnnotations(annotations map[string]string) map[string]string {
+	iguazioAnnotations := commonAnnotations.GetIguazioAuthenticationModeAnnotations()
+	iguazioAnnotations[commonAnnotations.AnnotationNginxAuthURL] = annotations[commonAnnotations.AnnotationNginxAuthURL]
+	iguazioAnnotations[commonAnnotations.AnnotationNginxAuthSignIn] = annotations[commonAnnotations.AnnotationNginxAuthSignIn]
+
+	return iguazioAnnotations
 }
 
 func (suite *IngressTestSuite) validateAnnotations(result map[string]string, expected map[string]string) {
