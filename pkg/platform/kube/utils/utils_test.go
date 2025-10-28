@@ -161,9 +161,7 @@ func (suite *utilsTestSuite) newTestProbe(value int32) *v1.Probe {
 }
 
 func (suite *utilsTestSuite) TestRenderProjectSecretName() {
-	templateData := map[string]interface{}{
-		"ProjectName": "myproj",
-	}
+	projectName := "myproj"
 	testCases := []struct {
 		name               string
 		template           string
@@ -183,7 +181,7 @@ func (suite *utilsTestSuite) TestRenderProjectSecretName() {
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
 
-			secretName, err := renderProjectSecretName(testCase.template, templateData)
+			secretName, err := RenderProjectSecretName(testCase.template, projectName)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedSecretName, secretName)
 		})
@@ -195,9 +193,7 @@ func (suite *utilsTestSuite) TestGetProjectSecret() {
 	namespace := "ns1"
 	projectName := "myproj"
 	template := "nuclio-project-secrets-{{ .ProjectName }}"
-	secretName, _ := renderProjectSecretName(template, map[string]interface{}{
-		"ProjectName": projectName,
-	})
+	secretName, _ := RenderProjectSecretName(template, projectName)
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -454,9 +450,7 @@ func (suite *utilsTestSuite) TestEnrichAndValidateServiceAccount() {
 	allowedKey := "allowed"
 	defaultPlatformServiceAccount := "sa-platform-default"
 
-	secretName, _ := renderProjectSecretName(template, map[string]interface{}{
-		"ProjectName": projectName,
-	})
+	secretName, _ := RenderProjectSecretName(template, projectName)
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

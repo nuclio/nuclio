@@ -1399,6 +1399,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service account validation failed")
 	}
 
+	if err := p.validateSecretsAllowed(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Secrets validation failed")
+	}
+
 	if err := p.validateInitContainersSpec(functionConfig); err != nil {
 		return errors.Wrap(err, "Init containers validation failed")
 	}
@@ -1959,6 +1963,65 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		functionConfig.Meta.Namespace,
 		false); err != nil {
 		return errors.Wrap(err, "Failed to validate service account")
+	}
+	return nil
+}
+
+// validateSecretsAllowed ensures that the function does not reference any project secrets
+// that belong to a different project. It checks all secret references defined in EnvFrom,
+// Env, and Volumes
+func (p *Platform) validateSecretsAllowed(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if p.GetConfig().Kube.ProjectSecretTemplate == "" {
+		return nil
+	}
+
+	projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !ok {
+		return errors.New("Function does not have a project label, cannot validate secrets")
+	}
+
+	projectSecretName, err := utils.RenderProjectSecretName(p.GetConfig().Kube.ProjectSecretTemplate, projectName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to render project secret name")
+	}
+
+	projectSecretPrefix, err := utils.RenderProjectSecretName(p.GetConfig().Kube.ProjectSecretTemplate, "")
+	if err != nil {
+		return errors.Wrap(err, "Failed to render project secret prefix")
+	}
+
+	for _, secret := range functionConfig.Spec.EnvFrom {
+		if secret.SecretRef != nil {
+			secretName := secret.SecretRef.Name
+			if err = p.validateSecretIsAllowed(secretName, projectSecretPrefix, projectSecretName); err != nil {
+				return errors.Wrap(err, "Failed to validate Spec.EnvFrom")
+			}
+		}
+	}
+
+	for _, secret := range functionConfig.Spec.Env {
+		if secret.ValueFrom != nil && secret.ValueFrom.SecretKeyRef != nil {
+			secretName := secret.ValueFrom.SecretKeyRef.Name
+			if err = p.validateSecretIsAllowed(secretName, projectSecretPrefix, projectSecretName); err != nil {
+				return errors.Wrap(err, "Failed to validate spec.Env")
+			}
+		}
+	}
+
+	for _, volume := range functionConfig.Spec.Volumes {
+		if volume.Volume.Secret != nil {
+			secretName := volume.Volume.Secret.SecretName
+			if err = p.validateSecretIsAllowed(secretName, projectSecretPrefix, projectSecretName); err != nil {
+				return errors.Wrap(err, "Failed to validate spec.Volumes")
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Platform) validateSecretIsAllowed(secretName, projectSecretPrefix, projectSecretName string) error {
+	if strings.HasPrefix(secretName, projectSecretPrefix) && secretName != projectSecretName {
+		return errors.New(fmt.Sprintf("Secret %s is not allowed. It belongs to a different project", secretName))
 	}
 	return nil
 }

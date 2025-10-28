@@ -46,6 +46,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
@@ -1205,6 +1206,200 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccount() {
 			err := suite.platform.validateServiceAccount(suite.ctx, functionConfig)
 			if testcase.expectedError != "" {
 				suite.Require().Error(err, testcase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateSecretsAllowed_EnvFrom() {
+	projectName := "test-project-name"
+
+	for _, testCase := range []struct {
+		name          string
+		template      string
+		envFrom       []string
+		expectedError string
+	}{
+		{
+			template: "nuclio-project-secrets-{{ .ProjectName }}",
+			name:     "with-project-secret",
+			envFrom:  []string{"nuclio-project-secrets-test-project-name"},
+		},
+		{
+			template:      "nuclio-project-secrets-{{ .ProjectName }}",
+			name:          "with-another-project-secret",
+			envFrom:       []string{"nuclio-project-secrets-test1"},
+			expectedError: "Failed to validate Spec.EnvFrom",
+		},
+		{
+			name:    "with-another-project-secret",
+			envFrom: []string{"nuclio-project-secrets-test1"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
+			defer func() {
+				suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
+			}()
+			suite.platform.Config.Kube.ProjectSecretTemplate = testCase.template
+
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      "test-func",
+					Namespace: suite.Namespace,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: projectName,
+					},
+				},
+				Spec: functionconfig.Spec{
+					EnvFrom: lo.Map(testCase.envFrom, func(secret string, _ int) v1.EnvFromSource {
+						return v1.EnvFromSource{
+							SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: secret}},
+						}
+					}),
+				},
+			}
+
+			err := suite.platform.validateSecretsAllowed(suite.ctx, functionConfig)
+			if testCase.expectedError != "" {
+				suite.Require().ErrorContains(err, testCase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateSecretsAllowed_Env() {
+	projectName := "test-project-name"
+
+	for _, testCase := range []struct {
+		name          string
+		template      string
+		envSecrets    []string
+		expectedError string
+	}{
+		{
+			template:   "nuclio-project-secrets-{{ .ProjectName }}",
+			name:       "with-project-secret",
+			envSecrets: []string{"nuclio-project-secrets-test-project-name"},
+		},
+		{
+			template:      "nuclio-project-secrets-{{ .ProjectName }}",
+			name:          "with-another-project-secret",
+			envSecrets:    []string{"nuclio-project-secrets-test1"},
+			expectedError: "Failed to validate spec.Env",
+		},
+		{
+			name:       "with-another-project-secret-no-template",
+			envSecrets: []string{"nuclio-project-secrets-test1"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
+			defer func() {
+				suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
+			}()
+			suite.platform.Config.Kube.ProjectSecretTemplate = testCase.template
+
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      "test-func",
+					Namespace: suite.Namespace,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: projectName,
+					},
+				},
+				Spec: functionconfig.Spec{
+					Env: lo.Map(testCase.envSecrets, func(secret string, _ int) v1.EnvVar {
+						return v1.EnvVar{
+							Name: "MY_SECRET",
+							ValueFrom: &v1.EnvVarSource{
+								SecretKeyRef: &v1.SecretKeySelector{
+									LocalObjectReference: v1.LocalObjectReference{Name: secret},
+									Key:                  "key",
+								},
+							},
+						}
+					}),
+				},
+			}
+
+			err := suite.platform.validateSecretsAllowed(suite.ctx, functionConfig)
+			if testCase.expectedError != "" {
+				suite.Require().ErrorContains(err, testCase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateSecretsAllowed_Volumes() {
+	projectName := "test-project-name"
+
+	for _, testCase := range []struct {
+		name          string
+		template      string
+		volumeSecrets []string
+		expectedError string
+	}{
+		{
+			template:      "nuclio-project-secrets-{{ .ProjectName }}",
+			name:          "with-project-secret",
+			volumeSecrets: []string{"nuclio-project-secrets-test-project-name"},
+		},
+		{
+			template:      "nuclio-project-secrets-{{ .ProjectName }}",
+			name:          "with-another-project-secret",
+			volumeSecrets: []string{"nuclio-project-secrets-test1"},
+			expectedError: "Failed to validate spec.Volumes",
+		},
+		{
+			name:          "with-another-project-secret-no-template",
+			volumeSecrets: []string{"nuclio-project-secrets-test1"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
+			defer func() {
+				suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
+			}()
+			suite.platform.Config.Kube.ProjectSecretTemplate = testCase.template
+
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      "test-func",
+					Namespace: suite.Namespace,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: projectName,
+					},
+				},
+				Spec: functionconfig.Spec{
+					Volumes: lo.Map(testCase.volumeSecrets, func(secret string, _ int) functionconfig.Volume {
+						return functionconfig.Volume{
+							Volume: v1.Volume{
+								Name: secret,
+								VolumeSource: v1.VolumeSource{
+									Secret: &v1.SecretVolumeSource{
+										SecretName: secret,
+									},
+								},
+							},
+							VolumeMount: v1.VolumeMount{
+								Name:      secret,
+								MountPath: fmt.Sprintf("/etc/secrets/%s", secret),
+							},
+						}
+					}),
+				},
+			}
+
+			err := suite.platform.validateSecretsAllowed(suite.ctx, functionConfig)
+			if testCase.expectedError != "" {
+				suite.Require().ErrorContains(err, testCase.expectedError)
 			} else {
 				suite.Require().NoError(err)
 			}
