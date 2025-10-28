@@ -31,6 +31,7 @@ import (
 	authIgzV4 "github.com/nuclio/nuclio/pkg/auth/iguazio/v4"
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -2169,6 +2170,64 @@ func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
 
 			domainLabel := labels[iguazio.IguazioDomainLabel]
 			suite.Require().Equal(testCase.expectedDomainLabel, domainLabel)
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication() {
+	for _, testCase := range []struct {
+		name               string
+		authenticationMode ingress.AuthenticationMode
+		annotations        map[string]string
+		expectError        bool
+	}{
+		{
+			name:               "Valid iguazio authentication with empty annotations",
+			authenticationMode: ingress.AuthenticationModeIguazio,
+			annotations:        map[string]string{},
+			expectError:        false,
+		},
+		{
+			name:               "Valid not iguazio authentication mode with overrides",
+			authenticationMode: ingress.AuthenticationModeNone,
+			annotations: map[string]string{
+				annotations.AnnotationNginxProxyBodySize: "100",
+			},
+			expectError: false,
+		},
+		{
+			name:               "Iguazio authentication with overrides",
+			authenticationMode: ingress.AuthenticationModeIguazio,
+			annotations: map[string]string{
+				annotations.AnnotationNginxProxyBodySize: "100",
+			},
+			expectError: true,
+		},
+		{
+			name:               "Iguazio authentication with a different annotation",
+			authenticationMode: ingress.AuthenticationModeIguazio,
+			annotations: map[string]string{
+				"test-annotation": "test-value",
+			},
+			expectError: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			testApiGatewayConfig := &platform.APIGatewayConfig{
+				Meta: platform.APIGatewayMeta{
+					Annotations: testCase.annotations,
+				},
+				Spec: platform.APIGatewaySpec{
+					AuthenticationMode: testCase.authenticationMode,
+				},
+			}
+
+			err := suite.platform.validateAPIGatewayAuthentication(testApiGatewayConfig)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().Nil(err)
+			}
 		})
 	}
 }

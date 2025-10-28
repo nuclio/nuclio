@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
+	commonAnnotations "github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -1915,6 +1916,11 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 		return errors.Wrap(err, "Failed to validate ingresses")
 	}
 
+	// authentication
+	if err := p.validateAPIGatewayAuthentication(apiGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate authentication")
+	}
+
 	return nil
 }
 
@@ -2452,5 +2458,20 @@ func (p *Platform) validateProbeSpec(probe *v1.Probe) error {
 		return nuclio.NewErrBadRequest(formatProbesErr("FailureThreshold"))
 	}
 
+	return nil
+}
+
+func (p *Platform) validateAPIGatewayAuthentication(apiGatewayConfig *platform.APIGatewayConfig) error {
+	switch apiGatewayConfig.Spec.AuthenticationMode {
+	case ingress.AuthenticationModeIguazio:
+		// In iguazio authentication mode, overriding the authentication's annotations is restricted by design
+		districtAnnotations := commonAnnotations.GetIguazioAuthenticationModeAnnotations()
+		for annotationKey := range apiGatewayConfig.Meta.Annotations {
+			if _, isDistrictAnnotation := districtAnnotations[annotationKey]; isDistrictAnnotation {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Annotation %s cannot be overridden in iguazio authentication mode", annotationKey))
+			}
+		}
+	default:
+	}
 	return nil
 }
