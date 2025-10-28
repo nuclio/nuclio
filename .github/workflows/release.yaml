@@ -321,14 +321,14 @@ jobs:
       - name: Tag and push latest images
         if: env.NUCLIO_LABEL != 'unstable' && github.event_name == 'workflow_dispatch' && github.event.inputs.mark_as_latest == 'true'
         run: |
-          if [ "${{ matrix.docker_image_rule }}" = "handler-builder-golang-onbuild-alpine" ]; then
-           docker tag "$NUCLIO_DOCKER_REPO/handler-builder-golang-onbuild:$NUCLIO_LABEL-$NUCLIO_ARCH-alpine" \
-                       "$NUCLIO_DOCKER_REPO/handler-builder-golang-onbuild:latest-$NUCLIO_ARCH-alpine"
-           docker push "$NUCLIO_DOCKER_REPO/handler-builder-golang-onbuild:latest-$NUCLIO_ARCH-alpine"
-          else
-           docker tag "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:latest-$NUCLIO_ARCH"
-           docker push "$NUCLIO_DOCKER_REPO/${{ matrix.docker_image_rule }}:latest-$NUCLIO_ARCH"
+          tag_suffix=""
+          docker_image_rule="${{ matrix.docker_image_rule }}"
+          if [ "${docker_image_rule}" = "handler-builder-golang-onbuild-alpine" ]; then
+            tag_suffix="-alpine"
+            docker_image_rule="handler-builder-golang-onbuild"
           fi
+          docker tag "$NUCLIO_DOCKER_REPO/${docker_image_rule}:$NUCLIO_LABEL-$NUCLIO_ARCH${tag_suffix}" "$NUCLIO_DOCKER_REPO/${docker_image_rule}:latest-$NUCLIO_ARCH${tag_suffix}"
+          docker push "$NUCLIO_DOCKER_REPO/${docker_image_rule}:latest-$NUCLIO_ARCH${tag_suffix}"
         env:
           DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
