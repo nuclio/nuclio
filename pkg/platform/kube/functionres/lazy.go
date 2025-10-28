@@ -29,8 +29,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
