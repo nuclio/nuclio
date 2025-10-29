@@ -16,7 +16,7 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 | prefetchCount     | int                | The prefetch count of the broker channel. Default is 0.                                                                                                         |
 | durableExchange   | bool               | Define if the exchange is durable. Default is false.                                                                                                            |
 | durableQueue      | bool               | Define if the queue is durable. Default is false.                                                                                                               |
-| onError           | string (enum)      | Determines the behaviour when a message processing error occurs. Possible values: `"ack"` (acknowledge and remove) or `"nack"` (reject and optionally requeue). |
+| onError           | string             | Determines the behaviour when a message processing error occurs. Possible values: `"ack"` (acknowledge and remove) or `"nack"` (reject and optionally requeue). |
 | requeueOnError    | bool               | If `true`, messages that fail processing are requeued when `onError` is set to `"nack"`. Default is false.                                                      |
 
 > **Note:** `topics` and `queueName` are mutually exclusive.
