@@ -80,7 +80,13 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	})
 }
 
-func (suite *DeployAPIGatewayTestSuite) TestSSOAuthMode() {
+func (suite *DeployAPIGatewayTestSuite) TestIguazioAuthMode() {
+	// Test description:
+	// 1. Deploy a function that always returns 401 Unauthorized
+	// 2. Deploy an API Gateway in Iguazio auth mode on top of that function
+	// 3. Verify that the created Ingress has the correct Iguazio auth annotations
+	// 4. Invoke the API Gateway URL and verify that it redirects to the Iguazio sign-in URL
+
 	functionName := "sso-auth-function-name"
 	apiGatewayName := "sso-api-gateway-name"
 	apiGatewayHost := "nuclio-host1.com"

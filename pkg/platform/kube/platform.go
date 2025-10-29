@@ -1916,7 +1916,6 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 		return errors.Wrap(err, "Failed to validate ingresses")
 	}
 
-	// authentication
 	if err := p.validateAPIGatewayAuthentication(apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate authentication")
 	}
