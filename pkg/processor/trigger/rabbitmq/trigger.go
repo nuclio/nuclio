@@ -396,7 +396,7 @@ func (rmq *rabbitMq) createEventFromMessage(message *amqp.Delivery) *Event {
 func (rmq *rabbitMq) ackOnProcessError(message *amqp.Delivery) {
 	switch rmq.configuration.OnError {
 	case OnProcessErrorAck:
-		if err := message.Ack(rmq.configuration.RequeueOnError); err != nil {
+		if err := message.Ack(false); err != nil {
 			rmq.Logger.WarnWith("Failed to ack message",
 				"error", err.Error())
 		}
