@@ -75,3 +75,6 @@ ACL
 substring
 kafka
 Kafka
+configs
+requeue
+requeued
