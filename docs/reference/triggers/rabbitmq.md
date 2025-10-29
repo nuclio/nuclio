@@ -6,16 +6,18 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 
 ## Attributes
 
-| **Path**          | **Type**           | **Description**                                                                                |
-|:------------------|:-------------------|:-----------------------------------------------------------------------------------------------|
-| exchangeName      | string             | The exchange that contains the queue                                                           |
-| queueName         | string             | If specified, the trigger reads messages from this queue                                       |
-| topics            | list of strings    | If specified, the trigger creates a queue with a unique name and subscribes it to these topics |
-| reconnectDuration | string of duration | The timeout when trying to reconnect to RabbitMQ. Default is 5 minutes.                        |
-| reconnectInterval | string of duration | The interval to wait before reconnecting to RabbitMQ. Default is 15 seconds.                   |
-| prefetchCount     | int                | The prefetch count of the broker channel. Default is 0.                                        |
-| durableExchange   | bool               | Define if the exchange is durable. Default is false.                                           |
-| durableQueue      | bool               | Define if the queue is durable. Default is false.                                              |
+| **Path**          | **Type**           | **Description**                                                                                                                                                 |
+|:------------------|:-------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| exchangeName      | string             | The exchange that contains the queue                                                                                                                            |
+| queueName         | string             | If specified, the trigger reads messages from this queue                                                                                                        |
+| topics            | list of strings    | If specified, the trigger creates a queue with a unique name and subscribes it to these topics                                                                  |
+| reconnectDuration | string of duration | The timeout when trying to reconnect to RabbitMQ. Default is 5 minutes.                                                                                         |
+| reconnectInterval | string of duration | The interval to wait before reconnecting to RabbitMQ. Default is 15 seconds.                                                                                    |
+| prefetchCount     | int                | The prefetch count of the broker channel. Default is 0.                                                                                                         |
+| durableExchange   | bool               | Define if the exchange is durable. Default is false.                                                                                                            |
+| durableQueue      | bool               | Define if the queue is durable. Default is false.                                                                                                               |
+| onError           | string (enum)      | Determines the behaviour when a message processing error occurs. Possible values: `"ack"` (acknowledge and remove) or `"nack"` (reject and optionally requeue). |
+| requeueOnError    | bool               | If `true`, messages that fail processing are requeued when `onError` is set to `"nack"`. Default is false.                                                      |
 
 > **Note:** `topics` and `queueName` are mutually exclusive.
 > The trigger can either create to an existing queue specified by `queueName` or create its own queue, subscribing it to `topics` 
@@ -39,6 +41,8 @@ triggers:
       prefetchCount: 1
       durableExchange: true
       durableQueue: true
+      onError: "nack"
+      requeueOnError: true
 ```
 OR
 
@@ -57,6 +61,8 @@ reconnectInterval: "60s"
 prefetchCount: 1
 durableExchange: true
 durableQueue: true
+onError: "nack"
+requeueOnError: true
 ```
 
 Both configurations are supported.
