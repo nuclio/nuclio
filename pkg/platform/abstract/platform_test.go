@@ -36,6 +36,7 @@ import (
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
@@ -446,6 +447,58 @@ func (suite *AbstractPlatformTestSuite) TestEnrichRabbitMQTrigger() {
 			suite.Require().Equal(testCase.ExpectedURL, trigger.URL, "Unexpected URL after enrichment")
 			suite.Require().Equal(testCase.ExpectedUsername, trigger.Username, "Unexpected username after enrichment")
 			suite.Require().Equal(testCase.ExpectedPassword, trigger.Password, "Unexpected password after enrichment")
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichRabbitMQAckConfig() {
+	for _, testCase := range []struct {
+		Name               string
+		InitialAttributes  map[string]interface{}
+		ExpectedAttributes map[string]interface{}
+	}{
+		{
+			Name:              "Nil Attributes is filled with defaults",
+			InitialAttributes: nil,
+			ExpectedAttributes: map[string]interface{}{
+				"onError":        rabbitmq.OnProcessErrorNack,
+				"requeueOnError": false,
+			},
+		},
+		{
+			Name:              "Partial Attributes fills missing fields",
+			InitialAttributes: map[string]interface{}{"onError": rabbitmq.OnProcessErrorNack},
+			ExpectedAttributes: map[string]interface{}{
+				"onError":        rabbitmq.OnProcessErrorNack,
+				"requeueOnError": false,
+			},
+		},
+		{
+			Name: "Full Attributes remains unchanged",
+			InitialAttributes: map[string]interface{}{
+				"onError":        rabbitmq.OnProcessErrorNack,
+				"requeueOnError": true,
+			},
+			ExpectedAttributes: map[string]interface{}{
+				"onError":        rabbitmq.OnProcessErrorNack,
+				"requeueOnError": true,
+			},
+		},
+	} {
+		suite.Run(testCase.Name, func() {
+			trigger := &functionconfig.Trigger{
+				Attributes: make(map[string]interface{}),
+			}
+
+			if testCase.InitialAttributes != nil {
+				for k, v := range testCase.InitialAttributes {
+					trigger.Attributes[k] = v
+				}
+			}
+
+			err := suite.Platform.enrichRabbitMQAckConfig(trigger)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.ExpectedAttributes, trigger.Attributes)
 		})
 	}
 }

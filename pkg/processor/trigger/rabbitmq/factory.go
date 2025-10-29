@@ -50,7 +50,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (eventprocessor.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateNonBlockingWorkerAllocator(triggerLogger, configuration.NumWorkers,
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger, configuration.NumWorkers,
 				runtimeConfiguration)
 		})
 
@@ -77,5 +77,4 @@ func (f *factory) Create(parentLogger logger.Logger,
 // register factory
 func init() {
 	trigger.RegistrySingleton.Register("rabbit-mq", &factory{})
-	trigger.RegistrySingleton.Register("rabbitMq", &factory{})
 }
