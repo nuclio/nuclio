@@ -38,8 +38,8 @@ $ nuctl create apigateway <api-gateway-name> \
 ```
 
 ## Iguazio authentication
-Iguazio authentication is a way to authenticate users by the predefined platform-level authentication URL and login URL.
-These URLs are configured at the platform config and remain identical across all API gateways - they cannot be customized or overridden per instance.
+Iguazio authentication allows authenticating users via the Iguazio Platform, when Nuclio is running as part of Iguazio.
+The authentication and login URLs are configured at the platform config and remain identical across all API gateways - they cannot be customized or overridden per instance.
 Both AuthURL and loginURL must be configured.
 
 You can create an api gateway with Iguazio authentication by running the following command:

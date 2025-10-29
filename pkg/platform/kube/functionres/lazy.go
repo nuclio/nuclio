@@ -2292,9 +2292,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
-	if _, exists := meta.Annotations[annotations.AnnotationNginxSSLRedirect]; !exists &&
+	if _, exists := meta.Annotations[annotations.NginxSSLRedirect]; !exists &&
 		platformConfig.IngressConfig.EnableSSLRedirect {
-		meta.Annotations[annotations.AnnotationNginxSSLRedirect] = "true"
+		meta.Annotations[annotations.NginxSSLRedirect] = "true"
 	}
 
 	// clear out existing so that we don't keep adding rules

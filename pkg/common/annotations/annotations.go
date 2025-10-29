@@ -17,33 +17,33 @@ limitations under the License.
 package annotations
 
 import (
-	commonHeaders "github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 )
 
 // nginx annotations
 const (
-	AnnotationNginxAuthResponseHeaders = "nginx.ingress.kubernetes.io/auth-response-headers"
-	AnnotationNginxAuthSignIn          = "nginx.ingress.kubernetes.io/auth-signin"
-	AnnotationNginxAuthURL             = "nginx.ingress.kubernetes.io/auth-url"
-	AnnotationNginxProxyBodySize       = "nginx.ingress.kubernetes.io/proxy-body-size"
-	AnnotationNginxProxyBufferSize     = "nginx.ingress.kubernetes.io/proxy-buffer-size"
-	AnnotationNginxServiceUpstream     = "nginx.ingress.kubernetes.io/service-upstream"
-	AnnotationNginxSSLRedirect         = "nginx.ingress.kubernetes.io/ssl-redirect"
-	NginxDefaultProxyBodySize          = "0"
-	NginxDefaultProxyBufferSize        = "16k"
-	NginxDefaultServiceUpstream        = "true"
-	NginxDefaultSSLRedirect            = "true"
+	NginxAuthResponseHeaders    = "nginx.ingress.kubernetes.io/auth-response-headers"
+	NginxAuthSignIn             = "nginx.ingress.kubernetes.io/auth-signin"
+	NginxAuthURL                = "nginx.ingress.kubernetes.io/auth-url"
+	NginxProxyBodySize          = "nginx.ingress.kubernetes.io/proxy-body-size"
+	NginxProxyBufferSize        = "nginx.ingress.kubernetes.io/proxy-buffer-size"
+	NginxServiceUpstream        = "nginx.ingress.kubernetes.io/service-upstream"
+	NginxSSLRedirect            = "nginx.ingress.kubernetes.io/ssl-redirect"
+	NginxDefaultProxyBodySize   = "0"
+	NginxDefaultProxyBufferSize = "16k"
+	NginxDefaultServiceUpstream = "true"
+	NginxDefaultSSLRedirect     = "true"
 )
 
 // GetIguazioAuthenticationModeAnnotations returns a map of nginx ingress annotations for iguazio authentication mode
 func GetIguazioAuthenticationModeAnnotations() map[string]string {
 	return map[string]string{
-		AnnotationNginxAuthResponseHeaders: commonHeaders.AuthorizationHeader,
-		AnnotationNginxProxyBodySize:       NginxDefaultProxyBodySize,
-		AnnotationNginxProxyBufferSize:     NginxDefaultProxyBufferSize,
-		AnnotationNginxServiceUpstream:     NginxDefaultServiceUpstream,
-		AnnotationNginxSSLRedirect:         NginxDefaultSSLRedirect,
-		AnnotationNginxAuthURL:             "", // should be set during runtime
-		AnnotationNginxAuthSignIn:          "", // should be set during runtime
+		NginxAuthResponseHeaders: headers.AuthorizationHeader,
+		NginxProxyBodySize:       NginxDefaultProxyBodySize,
+		NginxProxyBufferSize:     NginxDefaultProxyBufferSize,
+		NginxServiceUpstream:     NginxDefaultServiceUpstream,
+		NginxSSLRedirect:         NginxDefaultSSLRedirect,
+		NginxAuthURL:             "", // should be set during runtime
+		NginxAuthSignIn:          "", // should be set during runtime
 	}
 }

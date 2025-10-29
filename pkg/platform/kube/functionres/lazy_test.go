@@ -218,7 +218,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultIngressClassName() {
 }
 
 func (suite *lazyTestSuite) TestEnrichIngressTLS() {
-	sslRedirectAnnotation := annotations.AnnotationNginxSSLRedirect
+	sslRedirectAnnotation := annotations.NginxSSLRedirect
 
 	for _, testCase := range []struct {
 		name              string
@@ -310,7 +310,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
 	suite.Require().NotNil(ingressInstance)
 
 	// make sure default TLS secret exists
-	sslRedirectAnnotation := annotations.AnnotationNginxSSLRedirect
+	sslRedirectAnnotation := annotations.NginxSSLRedirect
 	suite.Require().Equal(ingressInstance.Spec.TLS[0].SecretName, tlsSecretName)
 	suite.Require().Contains(ingressInstance.Annotations, sslRedirectAnnotation)
 	suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])

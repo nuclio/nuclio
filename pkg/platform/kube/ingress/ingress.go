@@ -23,7 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	commonAnnotations "github.com/nuclio/nuclio/pkg/common/annotations"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -324,7 +324,7 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 			ingressAnnotations[annotation] = annotationValue
 		}
 
-		ingressAnnotations[commonAnnotations.AnnotationNginxProxyBodySize] = "0"
+		ingressAnnotations[annotations.NginxProxyBodySize] = "0"
 
 		// redirect to SSL if spec specifically required it, otherwise default to platformConfig's default value
 		enableSSLRedirect := m.platformConfiguration.IngressConfig.EnableSSLRedirect
@@ -334,9 +334,9 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 
 		// if SSL redirect is enabled, set the annotation to true, otherwise set it to false unless it's already set
 		if enableSSLRedirect {
-			ingressAnnotations[commonAnnotations.AnnotationNginxSSLRedirect] = "true"
-		} else if _, ok := ingressAnnotations[commonAnnotations.AnnotationNginxSSLRedirect]; !ok {
-			ingressAnnotations[commonAnnotations.AnnotationNginxSSLRedirect] = "false"
+			ingressAnnotations[annotations.NginxSSLRedirect] = "true"
+		} else if _, ok := ingressAnnotations[annotations.NginxSSLRedirect]; !ok {
+			ingressAnnotations[annotations.NginxSSLRedirect] = "false"
 		}
 	}
 
@@ -409,9 +409,9 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 
 	authURL := fmt.Sprintf("%s/oauth2/auth", oauth2ProxyURL)
 
-	annotations := map[string]string{
-		commonAnnotations.AnnotationNginxAuthResponseHeaders: "Authorization",
-		commonAnnotations.AnnotationNginxAuthURL:             authURL,
+	dexAnnotations := map[string]string{
+		annotations.NginxAuthResponseHeaders: "Authorization",
+		annotations.NginxAuthURL:             authURL,
 		"nginx.ingress.kubernetes.io/configuration-snippet": `auth_request_set $name_upstream_1 $upstream_cookie__oauth2_proxy_1;
 access_by_lua_block {
   if ngx.var.name_upstream_1 ~= "" then
@@ -422,10 +422,10 @@ access_by_lua_block {
 
 	if addSignInAnnotation {
 		signinURL := fmt.Sprintf("%s/oauth2/start?rd=https://$host$escaped_request_uri", oauth2ProxyURL)
-		annotations[commonAnnotations.AnnotationNginxAuthSignIn] = signinURL
+		dexAnnotations[annotations.NginxAuthSignIn] = signinURL
 	}
 
-	return annotations, nil
+	return dexAnnotations, nil
 }
 
 func (m *Manager) compileIguazioSessionVerificationAnnotations() (map[string]string, error) {
@@ -438,10 +438,10 @@ func (m *Manager) compileIguazioSessionVerificationAnnotations() (map[string]str
 	}
 
 	return map[string]string{
-		"nginx.ingress.kubernetes.io/auth-method":            "POST",
-		commonAnnotations.AnnotationNginxAuthResponseHeaders: "X-Remote-User,X-V3io-Session-Key",
-		commonAnnotations.AnnotationNginxAuthURL:             m.platformConfiguration.IngressConfig.IguazioAuthURL,
-		"nginx.ingress.kubernetes.io/configuration-snippet":  "proxy_set_header authorization \"\";",
+		"nginx.ingress.kubernetes.io/auth-method":           "POST",
+		annotations.NginxAuthResponseHeaders:                "X-Remote-User,X-V3io-Session-Key",
+		annotations.NginxAuthURL:                            m.platformConfiguration.IngressConfig.IguazioAuthURL,
+		"nginx.ingress.kubernetes.io/configuration-snippet": "proxy_set_header authorization \"\";",
 	}, nil
 }
 
@@ -498,15 +498,15 @@ func (m *Manager) compileIguazioAuthAnnotations() (map[string]string, error) {
 	signinURL := m.platformConfiguration.IngressConfig.IguazioSignInURL
 
 	if authURL == "" {
-		return nil, errors.New("No SSO auth URL configured")
+		return nil, errors.New("Iguazio auth URL is not configured")
 	}
 	if signinURL == "" {
-		return nil, errors.New("No SSO login URL configured")
+		return nil, errors.New("Iguazio login URL is not configured")
 	}
 
-	iguazioAnnotations := commonAnnotations.GetIguazioAuthenticationModeAnnotations()
-	iguazioAnnotations[commonAnnotations.AnnotationNginxAuthSignIn] = signinURL
-	iguazioAnnotations[commonAnnotations.AnnotationNginxAuthURL] = authURL
+	iguazioAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
+	iguazioAnnotations[annotations.NginxAuthSignIn] = signinURL
+	iguazioAnnotations[annotations.NginxAuthURL] = authURL
 	return iguazioAnnotations, nil
 }
 

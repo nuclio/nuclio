@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	commonAnnotations "github.com/nuclio/nuclio/pkg/common/annotations"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
@@ -54,8 +54,8 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Require().NotContains(ingress.Annotations, commonAnnotations.AnnotationNginxAuthSignIn)
-			suite.Require().Contains(ingress.Annotations[commonAnnotations.AnnotationNginxAuthURL], configOauth2ProxyURL)
+			suite.Require().NotContains(ingress.Annotations, annotations.NginxAuthSignIn)
+			suite.Require().Contains(ingress.Annotations[annotations.NginxAuthURL], configOauth2ProxyURL)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyFunctionName], functionName)
 		})
 		suite.Require().NoError(err)
@@ -70,9 +70,9 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			},
 		}
 		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Assert().Contains(ingress.Annotations, commonAnnotations.AnnotationNginxAuthSignIn)
-			suite.Assert().Contains(ingress.Annotations[commonAnnotations.AnnotationNginxAuthSignIn], overrideOauth2ProxyURL)
-			suite.Assert().Contains(ingress.Annotations[commonAnnotations.AnnotationNginxAuthURL], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations, annotations.NginxAuthSignIn)
+			suite.Assert().Contains(ingress.Annotations[annotations.NginxAuthSignIn], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations[annotations.NginxAuthURL], overrideOauth2ProxyURL)
 		})
 		suite.Require().NoError(err)
 
@@ -120,14 +120,14 @@ def handler(context, event):
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyApiGatewayName], apiGatewayName)
-			iguazioAuthAnnotations := commonAnnotations.GetIguazioAuthenticationModeAnnotations()
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxAuthResponseHeaders], iguazioAuthAnnotations[commonAnnotations.AnnotationNginxAuthResponseHeaders])
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxAuthSignIn], testSignInUrl)
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxAuthURL], testAuthUrl)
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxProxyBodySize], iguazioAuthAnnotations[commonAnnotations.AnnotationNginxProxyBodySize])
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxProxyBufferSize], iguazioAuthAnnotations[commonAnnotations.AnnotationNginxProxyBufferSize])
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxServiceUpstream], iguazioAuthAnnotations[commonAnnotations.AnnotationNginxServiceUpstream])
-			suite.Require().Equal(ingress.Annotations[commonAnnotations.AnnotationNginxSSLRedirect], iguazioAuthAnnotations[commonAnnotations.AnnotationNginxSSLRedirect])
+			iguazioAuthAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
+			suite.Require().Equal(ingress.Annotations[annotations.NginxAuthResponseHeaders], iguazioAuthAnnotations[annotations.NginxAuthResponseHeaders])
+			suite.Require().Equal(ingress.Annotations[annotations.NginxAuthSignIn], testSignInUrl)
+			suite.Require().Equal(ingress.Annotations[annotations.NginxAuthURL], testAuthUrl)
+			suite.Require().Equal(ingress.Annotations[annotations.NginxProxyBodySize], iguazioAuthAnnotations[annotations.NginxProxyBodySize])
+			suite.Require().Equal(ingress.Annotations[annotations.NginxProxyBufferSize], iguazioAuthAnnotations[annotations.NginxProxyBufferSize])
+			suite.Require().Equal(ingress.Annotations[annotations.NginxServiceUpstream], iguazioAuthAnnotations[annotations.NginxServiceUpstream])
+			suite.Require().Equal(ingress.Annotations[annotations.NginxSSLRedirect], iguazioAuthAnnotations[annotations.NginxSSLRedirect])
 
 			// Test invocation to verify redirect behavior
 			apiGatewayInvokeURL := fmt.Sprintf("http://%s/", apiGatewayHost)

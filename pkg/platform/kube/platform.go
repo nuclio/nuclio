@@ -28,7 +28,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
-	commonAnnotations "github.com/nuclio/nuclio/pkg/common/annotations"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -2464,10 +2464,11 @@ func (p *Platform) validateAPIGatewayAuthentication(apiGatewayConfig *platform.A
 	switch apiGatewayConfig.Spec.AuthenticationMode {
 	case ingress.AuthenticationModeIguazio:
 		// In iguazio authentication mode, overriding the authentication's annotations is restricted by design
-		districtAnnotations := commonAnnotations.GetIguazioAuthenticationModeAnnotations()
+		// As the parameters optimized for the Iguazio tokens
+		restrictedAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
 		for annotationKey := range apiGatewayConfig.Meta.Annotations {
-			if _, isDistrictAnnotation := districtAnnotations[annotationKey]; isDistrictAnnotation {
-				return nuclio.NewErrBadRequest(fmt.Sprintf("Annotation %s cannot be overridden in iguazio authentication mode", annotationKey))
+			if _, isRestrictedAnnotation := restrictedAnnotations[annotationKey]; isRestrictedAnnotation {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Annotation cannot be overridden in iguazio authentication mode - %s", annotationKey))
 			}
 		}
 	default:

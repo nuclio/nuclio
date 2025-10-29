@@ -21,7 +21,7 @@ package ingress
 import (
 	"testing"
 
-	commonAnnotations "github.com/nuclio/nuclio/pkg/common/annotations"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
@@ -40,7 +40,7 @@ func (suite *IngressTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
+func (suite *IngressTestSuite) TestCompileIguazioAuthAnnotations() {
 	tests := []struct {
 		name                  string
 		platformConfiguration *platformconfig.Config
@@ -56,8 +56,8 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 				},
 			},
 			expectedAnnotations: map[string]string{
-				commonAnnotations.AnnotationNginxAuthURL:    "test-auth-url",
-				commonAnnotations.AnnotationNginxAuthSignIn: "test-sign-in-url",
+				annotations.NginxAuthURL:    "test-auth-url",
+				annotations.NginxAuthSignIn: "test-sign-in-url",
 			},
 		},
 		{
@@ -100,10 +100,10 @@ func (suite *IngressTestSuite) TestCompileSSOAuthAnnotations() {
 	}
 }
 
-func (suite *IngressTestSuite) getExpectedAnnotations(annotations map[string]string) map[string]string {
-	iguazioAnnotations := commonAnnotations.GetIguazioAuthenticationModeAnnotations()
-	iguazioAnnotations[commonAnnotations.AnnotationNginxAuthURL] = annotations[commonAnnotations.AnnotationNginxAuthURL]
-	iguazioAnnotations[commonAnnotations.AnnotationNginxAuthSignIn] = annotations[commonAnnotations.AnnotationNginxAuthSignIn]
+func (suite *IngressTestSuite) getExpectedAnnotations(testAnnotations map[string]string) map[string]string {
+	iguazioAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
+	iguazioAnnotations[annotations.NginxAuthURL] = testAnnotations[annotations.NginxAuthURL]
+	iguazioAnnotations[annotations.NginxAuthSignIn] = testAnnotations[annotations.NginxAuthSignIn]
 
 	return iguazioAnnotations
 }
