@@ -68,7 +68,7 @@ func (suite *IngressTestSuite) TestCompileIguazioAuthAnnotations() {
 				},
 			},
 			expectedAnnotations: map[string]string{},
-			expectedErr:         "No SSO auth URL configured",
+			expectedErr:         "Iguazio auth URL is not configured",
 		},
 		{
 			name: "missing LoginURL in conf",
@@ -78,7 +78,7 @@ func (suite *IngressTestSuite) TestCompileIguazioAuthAnnotations() {
 				},
 			},
 			expectedAnnotations: map[string]string{},
-			expectedErr:         "No SSO login URL configured",
+			expectedErr:         "Iguazio login URL is not configured",
 		},
 	}
 

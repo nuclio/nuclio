@@ -121,13 +121,7 @@ def handler(context, event):
 			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyApiGatewayName], apiGatewayName)
 			iguazioAuthAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
-			suite.Require().Equal(ingress.Annotations[annotations.NginxAuthResponseHeaders], iguazioAuthAnnotations[annotations.NginxAuthResponseHeaders])
-			suite.Require().Equal(ingress.Annotations[annotations.NginxAuthSignIn], testSignInUrl)
-			suite.Require().Equal(ingress.Annotations[annotations.NginxAuthURL], testAuthUrl)
-			suite.Require().Equal(ingress.Annotations[annotations.NginxProxyBodySize], iguazioAuthAnnotations[annotations.NginxProxyBodySize])
-			suite.Require().Equal(ingress.Annotations[annotations.NginxProxyBufferSize], iguazioAuthAnnotations[annotations.NginxProxyBufferSize])
-			suite.Require().Equal(ingress.Annotations[annotations.NginxServiceUpstream], iguazioAuthAnnotations[annotations.NginxServiceUpstream])
-			suite.Require().Equal(ingress.Annotations[annotations.NginxSSLRedirect], iguazioAuthAnnotations[annotations.NginxSSLRedirect])
+			suite.compareAnnotations(ingress.Annotations, iguazioAuthAnnotations, testSignInUrl, testAuthUrl)
 
 			// Test invocation to verify redirect behavior
 			apiGatewayInvokeURL := fmt.Sprintf("http://%s/", apiGatewayHost)
@@ -155,6 +149,22 @@ def handler(context, event):
 		suite.Require().NoError(err)
 		return true
 	})
+}
+
+func (suite *DeployAPIGatewayTestSuite) compareAnnotations(
+	ingressAnnotations, iguazioAuthAnnotations map[string]string,
+	testSignInUrl, testAuthUrl string,
+) {
+	for key, value := range iguazioAuthAnnotations {
+		switch key {
+		case annotations.NginxAuthSignIn:
+			suite.Require().Equal(ingressAnnotations[key], testSignInUrl)
+		case annotations.NginxAuthURL:
+			suite.Require().Equal(ingressAnnotations[key], testAuthUrl)
+		default:
+			suite.Require().Equal(ingressAnnotations[key], value)
+		}
+	}
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
@@ -244,11 +254,11 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 		// change host, update
 		afterUpdateHostValue := "after-update-host.com"
-		annotations := map[string]string{
+		testAnnotations := map[string]string{
 			"annotation-key": "annotation-value",
 		}
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = afterUpdateHostValue
-		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = annotations
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = testAnnotations
 		err = suite.Platform.UpdateAPIGateway(suite.Ctx, &platform.UpdateAPIGatewayOptions{
 			APIGatewayConfig: createAPIGatewayOptions.APIGatewayConfig,
 		})
@@ -264,7 +274,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		suite.Require().Equal(afterUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
 
 		apiGateway := suite.GetAPIGateway(getAPIGatewayOptions)
-		suite.Require().Equal(annotations, apiGateway.GetConfig().Meta.Annotations)
+		suite.Require().Equal(testAnnotations, apiGateway.GetConfig().Meta.Annotations)
 		return true
 	})
 }

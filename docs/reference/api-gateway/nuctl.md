@@ -15,7 +15,7 @@ $ nuctl create apigateway <api-gateway-name> \
 			--path "/some/path" \
 			--description "some-description" \
 			--function some-function-name \
-			--authentication-mode "none" \
+			--authentication-mode none \
 			--namespace <namespace>
 ```
 
@@ -31,7 +31,7 @@ $ nuctl create apigateway <api-gateway-name> \
 			--path "/some/path" \
 			--description "some-description" \
 			--function some-function-name \
-			--authentication-mode "basicAuth" \
+			--authentication-mode basicAuth \
 			--basic-auth-username <some-username> \
 			--basic-auth-password <some-password> \
 			--namespace <namespace>
@@ -49,7 +49,7 @@ $ nuctl create apigateway <api-gateway-name> \
 			--path "/some/path" \
 			--description "some-description" \
 			--function some-function-name \
-			--authentication-mode "iguazio" \
+			--authentication-mode iguazio \
 			--namespace <namespace> \
 ```
 
