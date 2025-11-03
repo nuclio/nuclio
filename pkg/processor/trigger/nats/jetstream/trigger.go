@@ -82,7 +82,10 @@ func (n *natsjetstream) validateConfiguration() error {
 }
 
 func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
-	natsConnection, err := natsio.Connect(n.configuration.URL)
+
+	natsOptions := n.configuration.GetNATSOptions()
+
+	natsConnection, err := natsio.Connect(n.configuration.URL, natsOptions...)
 	if err != nil {
 		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
 	}

@@ -17,38 +17,163 @@ limitations under the License.
 package natsjetstream
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/mitchellh/mapstructure"
+	nats "github.com/nats-io/nats.go"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 type Configuration struct {
 	trigger.Configuration
 	Stream   string
 	Consumer string
+
+	// NATS connection configuration
+	AllowReconnect  bool
+	MaxReconnect    int
+	ReconnectWait   string
+	ReconnectJitter string
+	Timeout         string
+	DrainTimeout    string
+	FlusherTimeout  string
+	PingInterval    string
+	MaxPingsOut     int
+
+	// resolved fields
+	allowReconnect  bool
+	maxReconnect    int
+	reconnectWait   time.Duration
+	reconnectJitter time.Duration
+	timeout         time.Duration
+	drainTimeout    time.Duration
+	flusherTimeout  time.Duration
+	pingInterval    time.Duration
+	maxPingsOut     int
 }
 
 func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
+	runtimeConfiguration *runtime.Configuration,
+	logger logger.Logger) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
-	// create base
 	baseConfiguration, err := trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create trigger configuration")
 	}
 	newConfiguration.Configuration = *baseConfiguration
 
-	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	// TODO: validate
+	err = newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
+		{Key: "nuclio.io/nats-allow-reconnect", ValueBool: &newConfiguration.AllowReconnect},
+		{Key: "nuclio.io/nats-max-reconnect", ValueInt: &newConfiguration.MaxReconnect},
+		{Key: "nuclio.io/nats-reconnect-wait", ValueString: &newConfiguration.ReconnectWait},
+		{Key: "nuclio.io/nats-reconnect-jitter", ValueString: &newConfiguration.ReconnectJitter},
+		{Key: "nuclio.io/nats-timeout", ValueString: &newConfiguration.Timeout},
+		{Key: "nuclio.io/nats-drain-timeout", ValueString: &newConfiguration.DrainTimeout},
+		{Key: "nuclio.io/nats-flusher-timeout", ValueString: &newConfiguration.FlusherTimeout},
+		{Key: "nuclio.io/nats-ping-interval", ValueString: &newConfiguration.PingInterval},
+		{Key: "nuclio.io/nats-max-pings-out", ValueInt: &newConfiguration.MaxPingsOut},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
+	}
+
+	// set default values and parse durations
+	newConfiguration.allowReconnect = newConfiguration.AllowReconnect
+	newConfiguration.maxReconnect = newConfiguration.MaxReconnect
+	newConfiguration.maxPingsOut = newConfiguration.MaxPingsOut
+
+	if !newConfiguration.AllowReconnect {
+		newConfiguration.allowReconnect = true
+	}
+
+	if newConfiguration.maxReconnect == 0 {
+		newConfiguration.maxReconnect = 60
+	}
+
+	if newConfiguration.maxPingsOut == 0 {
+		newConfiguration.maxPingsOut = 2
+	}
+
+	for _, durationConfigField := range []trigger.DurationConfigField{
+		{
+			Name:    "reconnect wait",
+			Value:   newConfiguration.ReconnectWait,
+			Field:   &newConfiguration.reconnectWait,
+			Default: 2 * time.Second,
+		},
+		{
+			Name:    "reconnect jitter",
+			Value:   newConfiguration.ReconnectJitter,
+			Field:   &newConfiguration.reconnectJitter,
+			Default: 100 * time.Millisecond,
+		},
+		{
+			Name:    "timeout",
+			Value:   newConfiguration.Timeout,
+			Field:   &newConfiguration.timeout,
+			Default: 2 * time.Second,
+		},
+		{
+			Name:    "drain timeout",
+			Value:   newConfiguration.DrainTimeout,
+			Field:   &newConfiguration.drainTimeout,
+			Default: 30 * time.Second,
+		},
+		{
+			Name:    "flusher timeout",
+			Value:   newConfiguration.FlusherTimeout,
+			Field:   &newConfiguration.flusherTimeout,
+			Default: 1 * time.Minute,
+		},
+		{
+			Name:    "ping interval",
+			Value:   newConfiguration.PingInterval,
+			Field:   &newConfiguration.pingInterval,
+			Default: 2 * time.Minute,
+		},
+	} {
+		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
+			return nil, err
+		}
+	}
+
+	if newConfiguration.Stream == "" {
+		return nil, errors.New("Stream must be set")
+	}
+
+	if newConfiguration.Consumer == "" {
+		return nil, errors.New("Consumer must be set")
+	}
 
 	return &newConfiguration, nil
+}
+
+func (c *Configuration) GetNATSOptions() []nats.Option {
+	var opts []nats.Option
+
+	if !c.allowReconnect {
+		opts = append(opts, nats.NoReconnect())
+	}
+
+	opts = append(opts, nats.MaxReconnects(c.maxReconnect))
+	opts = append(opts, nats.ReconnectWait(c.reconnectWait))
+	opts = append(opts, nats.ReconnectJitter(c.reconnectJitter, c.reconnectJitter*10)) // second argument is used if TLS is enabled
+	opts = append(opts, nats.Timeout(c.timeout))
+	opts = append(opts, nats.DrainTimeout(c.drainTimeout))
+	opts = append(opts, nats.FlusherTimeout(c.flusherTimeout))
+	opts = append(opts, nats.PingInterval(c.pingInterval))
+	opts = append(opts, nats.MaxPingsOutstanding(c.maxPingsOut))
+
+	return opts
 }
