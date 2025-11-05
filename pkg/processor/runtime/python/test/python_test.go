@@ -131,9 +131,11 @@ func (suite *TestSuite) TestAsyncHandlerManyRequestsManyWorkers() {
 }
 func (suite *TestSuite) TestStreamingHandler() {
 	for _, testCase := range []struct {
-		name    string
-		mode    functionconfig.TriggerWorkMode
-		handler string
+		name                string
+		mode                functionconfig.TriggerWorkMode
+		handler             string
+		expectedStatusCode  int
+		expectedContentType string
 	}{
 		// namings of these tests might be a bit confusing, but here is how they are structured:
 		// * <trigger_mode>_handler_as_<handler_type>[_as_<optional_python_handler_type>]
@@ -147,54 +149,74 @@ func (suite *TestSuite) TestStreamingHandler() {
 		// async_def - the python handler is defined as async def, even though it yields synchronously
 		// sync_def - the python handler is defined as def
 		{
-			name:    "sync_handler_as_response_with_sync_gen",
-			mode:    functionconfig.SyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_as_response_sync",
+			name:                "sync_handler_as_response_with_sync_gen",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_as_response_sync",
+			expectedStatusCode:  http.StatusAccepted,
+			expectedContentType: "text/custom",
 		},
 		{
-			name:    "sync_handler_as_response_with_sync_gen_as_async_def",
-			mode:    functionconfig.SyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_as_response_sync_as_async",
+			name:                "sync_handler_as_response_with_sync_gen_as_async_def",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_as_response_sync_as_async",
+			expectedStatusCode:  http.StatusAccepted,
+			expectedContentType: "text/custom",
 		},
 		{
-			name:    "sync_handler_as_response_with_async_gen",
-			mode:    functionconfig.SyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_as_response_async",
+			name:                "sync_handler_as_response_with_async_gen",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_as_response_async",
+			expectedStatusCode:  http.StatusAccepted,
+			expectedContentType: "text/custom",
 		},
 		{
-			name:    "async_handler_as_response_with_async_gen",
-			mode:    functionconfig.AsyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_as_response_async",
+			name:                "async_handler_as_response_with_async_gen",
+			mode:                functionconfig.AsyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_as_response_async",
+			expectedStatusCode:  http.StatusAccepted,
+			expectedContentType: "text/custom",
 		},
 		{
-			name:    "async_handler_as_response_with_sync_gen_as_async_def",
-			mode:    functionconfig.AsyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_as_response_sync_as_async",
+			name:                "async_handler_as_response_with_sync_gen_as_async_def",
+			mode:                functionconfig.AsyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_as_response_sync_as_async",
+			expectedStatusCode:  http.StatusAccepted,
+			expectedContentType: "text/custom",
 		},
 		{
-			name:    "sync_handler_as_sync_gen",
-			mode:    functionconfig.SyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_sync",
+			name:                "sync_handler_as_sync_gen",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_sync",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
 		},
 		{
-			name:    "sync_handler_as_async_gen",
-			mode:    functionconfig.SyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_async",
+			name:                "sync_handler_as_async_gen",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
 		},
 		{
-			name:    "async_handler_as_async_gen",
-			mode:    functionconfig.AsyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_async",
+			name:                "async_handler_as_async_gen",
+			mode:                functionconfig.AsyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
 		},
 		{
-			name:    "async_handler_as_sync_gen_as_async_def",
-			mode:    functionconfig.AsyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_sync_as_async",
+			name:                "async_handler_as_sync_gen_as_async_def",
+			mode:                functionconfig.AsyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_sync_as_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
 		},
 		{
-			name:    "sync_handler_as_sync_gen_as_async_as_sync_def",
-			mode:    functionconfig.SyncTriggerWorkMode,
-			handler: "stream_outputter:stream_file_lines_sync_as_async",
+			name:                "sync_handler_as_sync_gen_as_async_as_sync_def",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_file_lines_sync_as_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -204,8 +226,6 @@ func (suite *TestSuite) TestStreamingHandler() {
 			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
 				"python -m pip install aiofile==3.5.0",
 			}
-
-			statusOK := http.StatusOK
 
 			// Generate expected body: "Line 1\nLine 2\n...Line 50\n"
 			var expectedBody string
@@ -219,7 +239,10 @@ func (suite *TestSuite) TestStreamingHandler() {
 					Name:                       "streaming handler",
 					RequestBody:                "",
 					ExpectedResponseBody:       expectedBody,
-					ExpectedResponseStatusCode: &statusOK,
+					ExpectedResponseStatusCode: &testCase.expectedStatusCode,
+					ExpectedResponseHeadersValues: map[string][]string{
+						"Content-Type": {testCase.expectedContentType},
+					},
 				}
 			}
 

@@ -29,7 +29,7 @@ async def stream_file_lines_async(context, event):
             yield line
 
 async def stream_file_lines_as_response_async(context, event):
-    return context.Response(body=stream_file_lines_async(context, event))
+    return context.Response(body=stream_file_lines_async(context, event), status_code=202, content_type="text/custom")
 
 async def stream_file_lines_sync_as_async(context, event):
     with open(file_path, "r") as f:
@@ -37,7 +37,7 @@ async def stream_file_lines_sync_as_async(context, event):
             yield line
 
 async def stream_file_lines_as_response_sync_as_async(context, event):
-    return context.Response(body=stream_file_lines_sync(context, event))
+    return context.Response(body=stream_file_lines_sync(context, event), status_code=202, content_type="text/custom")
 
 def stream_file_lines_sync(context, event):
     with open(file_path, "r") as f:
@@ -45,4 +45,4 @@ def stream_file_lines_sync(context, event):
             yield line
 
 def stream_file_lines_as_response_sync(context, event):
-    return context.Response(body=stream_file_lines_sync(context, event))
+    return context.Response(body=stream_file_lines_sync(context, event),  status_code=202, content_type="text/custom")
