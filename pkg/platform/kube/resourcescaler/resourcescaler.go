@@ -361,6 +361,7 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(ctx context.Context, namesp
 func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nuclioio.NuclioFunction) error {
 	if !n.functionReadinessVerificationEnabled {
 		n.logger.DebugWithCtx(ctx, "Skipping function readiness verification")
+		return nil
 	}
 
 	url := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080%s",
