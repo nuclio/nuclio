@@ -376,6 +376,8 @@ func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nu
 	// Create a new TCP connection on each retry to avoid routing requests to the DLX pod
 	// when the Service still points to DLX. Reusing a single TCP connection can cause all
 	// retries to be routed to DLX instead of the function pod.
+	// Note: Safe because this is a GET with a nil body. If the request had a non-nil,
+	// non-rewindable body, reusing the same http.Request would fail on the second attempt
 	request.Close = true
 
 	startTime := time.Now()
