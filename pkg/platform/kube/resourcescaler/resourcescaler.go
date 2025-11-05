@@ -373,6 +373,10 @@ func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nu
 	if err != nil {
 		return errors.Wrap(err, "Failed to create request")
 	}
+	// Create a new TCP connection on each retry to avoid routing requests to the DLX pod
+	// when the Service still points to DLX. Reusing a single TCP connection can cause all
+	// retries to be routed to DLX instead of the function pod.
+	request.Close = true
 
 	startTime := time.Now()
 	if err := common.RetryUntilSuccessful(time.Minute,
