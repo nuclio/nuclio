@@ -242,6 +242,18 @@ jobs:
           # TODO: run on containerd as well
           container runtime: docker
 
+      - name: Install ingress-nginx
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+
+          # Install chart 4.7.1 (maps to controller v1.8.1)
+          helm install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --version 4.7.1 \
+            --set controller.image.tag=v1.8.1
+
       - name: Post minikube setup
         run: |
 
@@ -372,10 +384,22 @@ jobs:
           kubernetes version: "v1.31.13"
           driver: docker
           github token: ${{ github.token }}
-          start args: "--addons registry --addons ingress"
+          start args: "--addons registry"
 
           # TODO: run on containerd as well
           container runtime: docker
+
+      - name: Install ingress-nginx
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+
+          # Install chart 4.7.1 (maps to controller v1.8.1)
+          helm install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --version 4.7.1 \
+            --set controller.image.tag=v1.8.1
 
       - name: Post minikube setup
         run: |
