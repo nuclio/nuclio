@@ -17,8 +17,8 @@ limitations under the License.
 package natsjetstream
 
 import (
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"

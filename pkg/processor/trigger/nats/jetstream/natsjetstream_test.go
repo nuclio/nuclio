@@ -1,3 +1,5 @@
+//go:build test_unit
+
 /*
 Copyright 2023 The Nuclio Authors.
 
@@ -30,34 +32,33 @@ import (
 
 type TestSuite struct {
 	suite.Suite
-	trigger natsjetstream
-	logger  logger.Logger
+	logger logger.Logger
 }
 
 func (suite *TestSuite) TestStreamAndConsumerConfiguration() {
 	for _, testCase := range []struct {
-		name                   string
-		stream                 string
-		consumer               string
-		expectedFailure        bool
+		name            string
+		stream          string
+		consumer        string
+		expectedFailure bool
 	}{
 		{
-			name:                   "Stream and Consumer specified",
-			stream:                 "mystream",
-			consumer:               "myconsumer",
-			expectedFailure:        false,
+			name:            "Stream and Consumer specified",
+			stream:          "mystream",
+			consumer:        "myconsumer",
+			expectedFailure: false,
 		},
 		{
-			name:                   "Stream not specified",
-			stream:                 "",
-			consumer:               "myconsumer",
-			expectedFailure:        true,
+			name:            "Stream not specified",
+			stream:          "",
+			consumer:        "myconsumer",
+			expectedFailure: true,
 		},
 		{
-			name:            	"Consumer not specified",
-			stream:                 "mystream",
-			consumer:               "",
-			expectedFailure: 	true,
+			name:            "Consumer not specified",
+			stream:          "mystream",
+			consumer:        "",
+			expectedFailure: true,
 		},
 	} {
 		triggerInstance := &functionconfig.Trigger{
@@ -87,42 +88,42 @@ func (suite *TestSuite) TestStreamAndConsumerConfiguration() {
 }
 func (suite *TestSuite) TestReconnectConfiguration() {
 	for _, testCase := range []struct {
-		name                   string
-		allowReconnect         bool
-		maxReconnect           int
-		expectedMaxReconnect   int
+		name                 string
+		allowReconnect       bool
+		maxReconnect         int
+		expectedMaxReconnect int
 	}{
 		{
-			name:                   "MaxReconnect specified",
-			allowReconnect:         true,
-			maxReconnect:           2,
-			expectedMaxReconnect:   2,
+			name:                 "MaxReconnect specified",
+			allowReconnect:       true,
+			maxReconnect:         2,
+			expectedMaxReconnect: 2,
 		},
 		{
-			name:                   "MaxReconnect not specified",
-			allowReconnect:         true,
-			maxReconnect:           0,
-			expectedMaxReconnect:   60,
+			name:                 "MaxReconnect not specified",
+			allowReconnect:       true,
+			maxReconnect:         0,
+			expectedMaxReconnect: 60,
 		},
 		{
-			name:                   "MaxReconnect negative",
-			allowReconnect:         true,
-			maxReconnect:           -1,
-			expectedMaxReconnect:   -1,
+			name:                 "MaxReconnect negative",
+			allowReconnect:       true,
+			maxReconnect:         -1,
+			expectedMaxReconnect: -1,
 		},
 		{
-			name:                   "No Reconnect",
-			allowReconnect:         false,
-			maxReconnect:           -1,
-			expectedMaxReconnect:   -1,
+			name:                 "No Reconnect",
+			allowReconnect:       false,
+			maxReconnect:         -1,
+			expectedMaxReconnect: -1,
 		},
 	} {
 		triggerInstance := &functionconfig.Trigger{
 			Attributes: map[string]interface{}{
-				"stream":   "mystream",
-				"consumer": "myconsumer",
+				"stream":         "mystream",
+				"consumer":       "myconsumer",
 				"allowReconnect": testCase.allowReconnect,
-				"maxReconnect": testCase.maxReconnect,
+				"maxReconnect":   testCase.maxReconnect,
 			},
 		}
 		suite.Run(testCase.name, func() {
@@ -143,45 +144,45 @@ func (suite *TestSuite) TestReconnectConfiguration() {
 
 func (suite *TestSuite) TestReconnectWaitConfiguration() {
 	for _, testCase := range []struct {
-		name                   string
-		reconnectWait          string
-		reconnectJitter        string
-		expectedReconnectWait  time.Duration
+		name                    string
+		reconnectWait           string
+		reconnectJitter         string
+		expectedReconnectWait   time.Duration
 		expectedReconnectJitter time.Duration
-		expectedFailure 	bool
+		expectedFailure         bool
 	}{
 		{
-			name:                   "Time specified",
-			reconnectWait:          "2s",
-			reconnectJitter:        "3s",
-			expectedReconnectWait:  2 * time.Second,
-			expectedReconnectJitter:  3 * time.Second,
-			expectedFailure: false,
+			name:                    "Time specified",
+			reconnectWait:           "2s",
+			reconnectJitter:         "3s",
+			expectedReconnectWait:   2 * time.Second,
+			expectedReconnectJitter: 3 * time.Second,
+			expectedFailure:         false,
 		},
 		{
-			name:                   "Time not specified",
-			reconnectWait:          "",
-			reconnectJitter:        "",
-			expectedReconnectWait:  2 * time.Second,
-			expectedReconnectJitter:  100 * time.Millisecond,
-			expectedFailure: false,
+			name:                    "Time not specified",
+			reconnectWait:           "",
+			reconnectJitter:         "",
+			expectedReconnectWait:   2 * time.Second,
+			expectedReconnectJitter: 100 * time.Millisecond,
+			expectedFailure:         false,
 		},
 		{
 			name:            "Wrong wait value",
-			reconnectWait:          "wait",
+			reconnectWait:   "wait",
 			expectedFailure: true,
 		},
 		{
 			name:            "Wrong jitter value",
-			reconnectJitter:        "jitter",
+			reconnectJitter: "jitter",
 			expectedFailure: true,
 		},
 	} {
 		triggerInstance := &functionconfig.Trigger{
 			Attributes: map[string]interface{}{
-				"stream":   "mystream",
-				"consumer": "myconsumer",
-				"reconnectWait": testCase.reconnectWait,
+				"stream":          "mystream",
+				"consumer":        "myconsumer",
+				"reconnectWait":   testCase.reconnectWait,
 				"reconnectJitter": testCase.reconnectJitter,
 			},
 		}
@@ -224,7 +225,7 @@ func (suite *TestSuite) TestTimeoutConfiguration() {
 			expectedTimeout:        2 * time.Second,
 			expectedDrainTimeout:   3 * time.Second,
 			expectedFlusherTimeout: 4 * time.Second,
-			expectedFailure: false,
+			expectedFailure:        false,
 		},
 		{
 			name:                   "Time not specified",
@@ -234,7 +235,7 @@ func (suite *TestSuite) TestTimeoutConfiguration() {
 			expectedTimeout:        2 * time.Second,
 			expectedDrainTimeout:   30 * time.Second,
 			expectedFlusherTimeout: 1 * time.Minute,
-			expectedFailure: false,
+			expectedFailure:        false,
 		},
 		{
 			name:            "Wrong timeout value",
@@ -254,10 +255,10 @@ func (suite *TestSuite) TestTimeoutConfiguration() {
 	} {
 		triggerInstance := &functionconfig.Trigger{
 			Attributes: map[string]interface{}{
-				"stream":   "mystream",
-				"consumer": "myconsumer",
-				"timeout": testCase.timeout,
-				"drainTimeout": testCase.drainTimeout,
+				"stream":         "mystream",
+				"consumer":       "myconsumer",
+				"timeout":        testCase.timeout,
+				"drainTimeout":   testCase.drainTimeout,
 				"flusherTimeout": testCase.flusherTimeout,
 			},
 		}
@@ -284,49 +285,49 @@ func (suite *TestSuite) TestTimeoutConfiguration() {
 
 func (suite *TestSuite) TestPingConfiguration() {
 	for _, testCase := range []struct {
-		name                   string
-		pingInterval           string
-		maxPingsOut            int
-		expectedPingInterval   time.Duration
-		expectedMaxPingsOut    int
-		expectedFailure        bool
+		name                 string
+		pingInterval         string
+		maxPingsOut          int
+		expectedPingInterval time.Duration
+		expectedMaxPingsOut  int
+		expectedFailure      bool
 	}{
 		{
-			name:                   "Ping specified",
-			pingInterval:           "2s",
-			maxPingsOut:            5,
-			expectedPingInterval:   2 * time.Second,
-			expectedMaxPingsOut:    5,
-			expectedFailure: false,
+			name:                 "Ping specified",
+			pingInterval:         "2s",
+			maxPingsOut:          5,
+			expectedPingInterval: 2 * time.Second,
+			expectedMaxPingsOut:  5,
+			expectedFailure:      false,
 		},
 		{
-			name:                   "PingInterval not specified",
-			pingInterval:           "",
-			maxPingsOut:            5,
-			expectedPingInterval:   2 * time.Minute,
-			expectedMaxPingsOut:    5,
-			expectedFailure: false,
+			name:                 "PingInterval not specified",
+			pingInterval:         "",
+			maxPingsOut:          5,
+			expectedPingInterval: 2 * time.Minute,
+			expectedMaxPingsOut:  5,
+			expectedFailure:      false,
 		},
 		{
-			name:                   "MaxPingsOut not specified",
-			pingInterval:           "2s",
-			maxPingsOut:            0,
-			expectedPingInterval:   2 * time.Second,
-			expectedMaxPingsOut:    2,
-			expectedFailure: false,
+			name:                 "MaxPingsOut not specified",
+			pingInterval:         "2s",
+			maxPingsOut:          0,
+			expectedPingInterval: 2 * time.Second,
+			expectedMaxPingsOut:  2,
+			expectedFailure:      false,
 		},
 		{
 			name:            "Wrong pingInterval value",
-			pingInterval:          "pingInterval",
+			pingInterval:    "pingInterval",
 			expectedFailure: true,
 		},
 	} {
 		triggerInstance := &functionconfig.Trigger{
 			Attributes: map[string]interface{}{
-				"stream":   "mystream",
-				"consumer": "myconsumer",
+				"stream":       "mystream",
+				"consumer":     "myconsumer",
 				"pingInterval": testCase.pingInterval,
-				"maxPingsOut": testCase.maxPingsOut,
+				"maxPingsOut":  testCase.maxPingsOut,
 			},
 		}
 		suite.Run(testCase.name, func() {
