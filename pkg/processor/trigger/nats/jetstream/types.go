@@ -55,10 +55,10 @@ type Configuration struct {
 	pingInterval    time.Duration
 }
 
-func NewConfiguration(logger logger.Logger,
-	id string,
+func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
+	runtimeConfiguration *runtime.Configuration,
+	logger logger.Logger) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
@@ -89,10 +89,6 @@ func NewConfiguration(logger logger.Logger,
 	}
 
 	// set default values and parse durations
-	if !newConfiguration.AllowReconnect {
-		newConfiguration.AllowReconnect = true
-	}
-
 	if newConfiguration.MaxReconnect == 0 {
 		newConfiguration.MaxReconnect = 60
 	}
