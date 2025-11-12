@@ -657,7 +657,7 @@ func (ap *Platform) FilterProjectsByPermissions(ctx context.Context,
 	resources := make([]string, len(projects))
 	for idx, project := range projects {
 		projectName := project.GetConfig().Meta.Name
-		resources[idx] = opa.GenerateProjectResourceString(projectName, "")
+		resources[idx] = opa.GenerateProjectResourceString(projectName, ap.getOPAResourcesPrefix())
 	}
 
 	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
@@ -699,7 +699,7 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 	for idx, function := range functions {
 		functionName := function.GetConfig().Meta.Name
 		projectName := function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName, "")
+		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName, ap.getOPAResourcesPrefix())
 	}
 
 	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
@@ -744,7 +744,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 		resources = append(resources, opa.GenerateFunctionEventResourceString(projectName,
 			functionName,
 			functionEventName,
-			""))
+			ap.getOPAResourcesPrefix()))
 	}
 	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
 	if err != nil {
