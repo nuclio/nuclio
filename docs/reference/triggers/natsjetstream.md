@@ -14,7 +14,7 @@ Reads messages from [NATS](https://docs.nats.io/nats-concepts/jetstream) streams
 ### Optional
 | **Path** | **Type** | **Default** | **Description** |
 | :--- | :--- | :--- | :--- |
-| allowReconnect | bool | true | Enables reconnection logic to be used when we encounter a disconnect from the current server. |
+| allowReconnect | bool | false | Enables reconnection logic to be used when we encounter a disconnect from the current server. |
 | maxReconnect | int | 60 | Sets the number of reconnect attempts that will be tried before giving up. If negative, then it will never give up trying to reconnect. |
 | reconnectWait | duration | 2s | Sets the time to backoff after attempting a reconnect to a server that we were already connected to previously. |
 | reconnectJitter | duration | 100ms | Sets the upper bound for a random delay added to reconnectWait during a reconnect when no TLS is used. |
