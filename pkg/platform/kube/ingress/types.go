@@ -68,4 +68,5 @@ const (
 	AuthenticationModeBasicAuth AuthenticationMode = "basicAuth"
 	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
 	AuthenticationModeOauth2    AuthenticationMode = "oauth2"
+	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
 )

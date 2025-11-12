@@ -19,12 +19,14 @@ limitations under the License.
 package apigateway
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
@@ -52,8 +54,8 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Require().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+			suite.Require().NotContains(ingress.Annotations, annotations.NginxAuthSignIn)
+			suite.Require().Contains(ingress.Annotations[annotations.NginxAuthURL], configOauth2ProxyURL)
 			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyFunctionName], functionName)
 		})
 		suite.Require().NoError(err)
@@ -68,14 +70,101 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			},
 		}
 		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations, annotations.NginxAuthSignIn)
+			suite.Assert().Contains(ingress.Annotations[annotations.NginxAuthSignIn], overrideOauth2ProxyURL)
+			suite.Assert().Contains(ingress.Annotations[annotations.NginxAuthURL], overrideOauth2ProxyURL)
 		})
 		suite.Require().NoError(err)
 
 		return true
 	})
+}
+
+func (suite *DeployAPIGatewayTestSuite) TestIguazioAuthMode() {
+	// Test description:
+	// 1. Deploy a function that always returns 401 Unauthorized
+	// 2. Deploy an API Gateway in Iguazio auth mode on top of that function
+	// 3. Verify that the created Ingress has the correct Iguazio auth annotations
+	// 4. Invoke the API Gateway URL and verify that it redirects to the Iguazio sign-in URL
+
+	functionName := "sso-auth-function-name"
+	apiGatewayName := "sso-api-gateway-name"
+	apiGatewayHost := "nuclio-host1.com"
+	testAuthUrl := fmt.Sprintf("http://nuclio-%s.default.svc.cluster.local:8080", functionName)
+	testSignInUrl := "test-sign-in-url.com"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  # Not authenticated - return 401 to trigger redirect
+  return context.Response(
+      body='Unauthorized',
+      headers={},
+      content_type='text/plain',
+      status_code=401
+      )
+`))
+	oldIngressConfig := suite.PlatformConfiguration.IngressConfig
+	defer func() {
+		suite.PlatformConfiguration.IngressConfig = oldIngressConfig
+	}()
+	suite.PlatformConfiguration.IngressConfig = platformconfig.IngressConfig{
+		IguazioAuthURL:   testAuthUrl,
+		IguazioSignInURL: testSignInUrl,
+	}
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeIguazio
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = apiGatewayHost
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
+			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
+			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyApiGatewayName], apiGatewayName)
+			iguazioAuthAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
+			suite.compareAnnotations(ingress.Annotations, iguazioAuthAnnotations, testSignInUrl, testAuthUrl)
+
+			// Test invocation to verify redirect behavior
+			apiGatewayInvokeURL := fmt.Sprintf("http://%s/", apiGatewayHost)
+			suite.Logger.InfoWith("Invoking API Gateway URL", "url", apiGatewayInvokeURL)
+
+			// When not authenticated, should redirect to sign-in URL
+			httpClient := &http.Client{
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse // Don't follow redirects
+				},
+			}
+
+			suite.WaitForAPIGatewayState(&platform.GetAPIGatewaysOptions{
+				Name:      apiGatewayName,
+				Namespace: suite.Namespace,
+			}, platform.APIGatewayStateReady, 10*time.Second)
+
+			response, err := httpClient.Get(apiGatewayInvokeURL)
+			suite.Require().NoError(err)
+			suite.Require().Equal(http.StatusFound, response.StatusCode, "Should redirect unauthenticated requests")
+
+			redirectLocation := response.Header.Get("Location")
+			suite.Require().Contains(redirectLocation, testSignInUrl, "Should redirect to configured sign-in URL")
+		})
+		suite.Require().NoError(err)
+		return true
+	})
+}
+
+func (suite *DeployAPIGatewayTestSuite) compareAnnotations(
+	ingressAnnotations, iguazioAuthAnnotations map[string]string,
+	testSignInUrl, testAuthUrl string,
+) {
+	for key, value := range iguazioAuthAnnotations {
+		switch key {
+		case annotations.NginxAuthSignIn:
+			suite.Require().Equal(ingressAnnotations[key], testSignInUrl)
+		case annotations.NginxAuthURL:
+			suite.Require().Equal(ingressAnnotations[key], testAuthUrl)
+		default:
+			suite.Require().Equal(ingressAnnotations[key], value)
+		}
+	}
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
@@ -165,11 +254,11 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 		// change host, update
 		afterUpdateHostValue := "after-update-host.com"
-		annotations := map[string]string{
+		testAnnotations := map[string]string{
 			"annotation-key": "annotation-value",
 		}
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = afterUpdateHostValue
-		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = annotations
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = testAnnotations
 		err = suite.Platform.UpdateAPIGateway(suite.Ctx, &platform.UpdateAPIGatewayOptions{
 			APIGatewayConfig: createAPIGatewayOptions.APIGatewayConfig,
 		})
@@ -185,7 +274,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		suite.Require().Equal(afterUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
 
 		apiGateway := suite.GetAPIGateway(getAPIGatewayOptions)
-		suite.Require().Equal(annotations, apiGateway.GetConfig().Meta.Annotations)
+		suite.Require().Equal(testAnnotations, apiGateway.GetConfig().Meta.Annotations)
 		return true
 	})
 }

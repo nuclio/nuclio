@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -2291,9 +2292,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
-	if _, exists := meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"]; !exists &&
+	if _, exists := meta.Annotations[annotations.NginxSSLRedirect]; !exists &&
 		platformConfig.IngressConfig.EnableSSLRedirect {
-		meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
+		meta.Annotations[annotations.NginxSSLRedirect] = "true"
 	}
 
 	// clear out existing so that we don't keep adding rules
