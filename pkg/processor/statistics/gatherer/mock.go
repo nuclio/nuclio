@@ -88,4 +88,3 @@ func (mt *mockTrigger) SignalWorkersToDrain() error {
 func (mt *mockTrigger) SignalWorkersToContinue() error {
 	return nil
 }
-
