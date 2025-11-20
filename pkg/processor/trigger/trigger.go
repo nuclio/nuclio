@@ -67,7 +67,7 @@ type Trigger interface {
 	GetConfig() map[string]interface{}
 
 	// GetStatistics returns the trigger statistics
-	GetStatistics() *Statistics
+	GetStatistics() *UnsafeStatistics
 
 	// GetWorkers gets direct access to workers for things like housekeeping / management
 	// TODO: locks and such when relevant
@@ -241,20 +241,24 @@ func (at *AbstractTrigger) GetWorkers() []eventprocessor.EventProcessor {
 }
 
 // GetStatistics returns trigger statistics
-func (at *AbstractTrigger) GetStatistics() *Statistics {
+func (at *AbstractTrigger) GetStatistics() *UnsafeStatistics {
 	if at.Statistics == nil {
 		at.Statistics = &Statistics{}
 	}
 
 	statistics := at.WorkerAllocator.GetStatistics()
-	if statistics == nil {
-		return &Statistics{}
+	if statistics != nil {
+		// copy worker allocator statistics
+		at.Statistics.WorkerAllocatorStatistics = *statistics
 	}
 
-	// copy worker allocator statistics
-	at.Statistics.WorkerAllocatorStatistics = *statistics
-
-	return at.Statistics
+	// always return an unsafe copy
+	// so that it can not be updated from outside
+	return &UnsafeStatistics{
+		EventsHandledSuccessTotal: at.Statistics.EventsHandledSuccessTotal.Load(),
+		EventsHandledFailureTotal: at.Statistics.EventsHandledFailureTotal.Load(),
+		WorkerAllocatorStatistics: at.Statistics.WorkerAllocatorStatistics,
+	}
 }
 
 // GetID returns user given ID for this trigger

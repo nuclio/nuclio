@@ -186,18 +186,27 @@ type Statistics struct {
 	WorkerAllocatorStatistics statistics.AllocatorStatistics
 }
 
-func (s *Statistics) DiffFrom(prev *Statistics) *Statistics {
-	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
-	currEventsHandledSuccessTotal := s.EventsHandledSuccessTotal.Load()
-	currEventsHandledFailureTotal := s.EventsHandledFailureTotal.Load()
-	prevEventsHandledSuccessTotal := prev.EventsHandledSuccessTotal.Load()
-	prevEventsHandledFailureTotal := prev.EventsHandledFailureTotal.Load()
+// UnsafeStatistics is the same object as Statistics but thread unsafe
+// we need it to create a copy of Statistics (which contains atomic vars, which are not possible to copy)
+// and since we don't need statistics to be thread-safe during metrics gathering, we can avoid any synchronisation costs
+type UnsafeStatistics struct {
+	EventsHandledSuccessTotal uint64
+	EventsHandledFailureTotal uint64
+	WorkerAllocatorStatistics statistics.AllocatorStatistics
+}
 
-	diffStatistics := &Statistics{
+func (s *UnsafeStatistics) DiffFrom(prev *UnsafeStatistics) *UnsafeStatistics {
+	workerAllocatorStatisticsDiff := s.WorkerAllocatorStatistics.DiffFrom(&prev.WorkerAllocatorStatistics)
+	currEventsHandledSuccessTotal := s.EventsHandledSuccessTotal
+	currEventsHandledFailureTotal := s.EventsHandledFailureTotal
+	prevEventsHandledSuccessTotal := prev.EventsHandledSuccessTotal
+	prevEventsHandledFailureTotal := prev.EventsHandledFailureTotal
+
+	diffStatistics := &UnsafeStatistics{
 		WorkerAllocatorStatistics: workerAllocatorStatisticsDiff,
+		EventsHandledSuccessTotal: currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal,
+		EventsHandledFailureTotal: currEventsHandledFailureTotal - prevEventsHandledFailureTotal,
 	}
-	diffStatistics.EventsHandledSuccessTotal.Store(currEventsHandledSuccessTotal - prevEventsHandledSuccessTotal)
-	diffStatistics.EventsHandledFailureTotal.Store(currEventsHandledFailureTotal - prevEventsHandledFailureTotal)
 	return diffStatistics
 }
 

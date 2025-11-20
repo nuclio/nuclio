@@ -27,7 +27,7 @@ import (
 type triggerGatherer struct {
 	trigger            trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
-	prevStatistics     *trigger.Statistics
+	prevStatistics     *trigger.UnsafeStatistics
 	logger             logger.Logger
 }
 
@@ -39,7 +39,7 @@ func newTriggerGatherer(instanceName string,
 	newTriggerGatherer := &triggerGatherer{
 		trigger:        t,
 		logger:         logger.GetChild("gatherer"),
-		prevStatistics: &trigger.Statistics{},
+		prevStatistics: &trigger.UnsafeStatistics{},
 	}
 
 	// base labels for handle events
@@ -74,8 +74,8 @@ func (esg *triggerGatherer) Gather() error {
 	// diff from previous to get this period
 	diffStatistics := currentStatistics.DiffFrom(esg.prevStatistics)
 
-	eventsHandledSuccessTotal := diffStatistics.EventsHandledSuccessTotal.Load()
-	eventsHandledFailureTotal := diffStatistics.EventsHandledFailureTotal.Load()
+	eventsHandledSuccessTotal := diffStatistics.EventsHandledSuccessTotal
+	eventsHandledFailureTotal := diffStatistics.EventsHandledFailureTotal
 
 	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
