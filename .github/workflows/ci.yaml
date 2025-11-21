@@ -289,6 +289,15 @@ jobs:
           echo "NUCTL_DEFAULT_SERVICE_TYPE=NodePort" >> $GITHUB_ENV
           echo "PULL_POLICY=Never" >> $GITHUB_ENV
 
+      - name: Update /etc/hosts for ingress
+        run: |
+          # write function host to /etc/hosts
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
+          # hardcode nuclio-host1.com and nuclio-host2.com
+          # we use them to invoke api gateways in tests
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host1.com" | sudo tee -a /etc/hosts
+          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host2.com" | sudo tee -a /etc/hosts
+
       - name: Install nuclio helm chart
         run: |
           minikube kubectl -- create namespace ${NAMESPACE}
@@ -299,15 +308,6 @@ jobs:
 
       - name: Run nuctl k8s tests
         run: |
-
-          # write function host to /etc/hosts
-          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
-          # hardcode nuclio-host1.com and nuclio-host2.com
-          # we use them to invoke api gateways in tests
-          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host1.com" | sudo tee -a /etc/hosts
-          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} nuclio-host2.com" | sudo tee -a /etc/hosts
-
-          # run test
           make test-k8s-nuctl
 
       - name: Output some logs in case of failure
