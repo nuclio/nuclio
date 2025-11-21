@@ -14,8 +14,11 @@
 # limitations under the License.
 #
 
-helm upgrade --install ingress-nginx ingress-nginx \
-  --repo https://kubernetes.github.io/ingress-nginx \
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
   --set allowSnippetAnnotations=true \
-  --set controller.config.annotations-risk-level=Critical \
-  --namespace ingress-nginx --create-namespace
+  --set controller.config.annotations-risk-level=Critical
