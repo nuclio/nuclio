@@ -246,6 +246,13 @@ jobs:
         run: |
           ${GITHUB_WORKSPACE}/test/k8s/ci_assets/install_nginx_ingress_controller.sh
 
+      - name: Wait for ingress-nginx to be ready
+        run: |
+          minikube kubectl -- wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
+
       - name: Post minikube setup
         run: |
 
@@ -384,6 +391,13 @@ jobs:
       - name: Install ingress-nginx
         run: |
           ${GITHUB_WORKSPACE}/test/k8s/ci_assets/install_nginx_ingress_controller.sh
+
+      - name: Wait for ingress-nginx to be ready
+        run: |
+          minikube kubectl -- wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
 
       - name: Post minikube setup
         run: |
