@@ -21,8 +21,8 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx \
   --create-namespace \
   --version 4.7.1 \
-  --set controller.image.tag=v1.8.1 \
   --set allowSnippetAnnotations=true \
+  --set controller.image.tag=v1.8.1 \
   --set controller.config.annotations-risk-level=Critical \
   --set controller.hostPort.enabled=true \
   --set controller.kind=DaemonSet \
