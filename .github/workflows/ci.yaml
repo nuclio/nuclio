@@ -219,6 +219,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Run this again even after running it in build_docker_images
+      # So that we have as much memory as possible
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
@@ -368,6 +370,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Run this again even after running it in build_docker_images
+      # So that we have as much memory as possible
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
@@ -414,6 +418,8 @@ jobs:
         with:
           name: nuclio-docker-images
 
+      # Run this again even after running it in build_docker_images
+      # So that we have as much memory as possible
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
