@@ -262,7 +262,7 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 	cmd.Flags().StringVar(&commandeer.host, "host", "", "Api gateway host address")
 	cmd.Flags().StringVar(&commandeer.description, "description", "", "Api gateway description")
 	cmd.Flags().StringVar(&commandeer.path, "path", "", "Api gateway path (the URI that'll be concatenated to the host as an endpoint)")
-	cmd.Flags().StringVar(&commandeer.authenticationMode, "authentication-mode", "", "Api gateway authentication mode. ['none', 'basicAuth', 'accessKey']")
+	cmd.Flags().StringVar(&commandeer.authenticationMode, "authentication-mode", "", "Api gateway authentication mode. ['none', 'basicAuth', 'accessKey', 'iguazio']")
 	cmd.Flags().StringVar(&commandeer.basicAuthUsername, "basic-auth-username", "", "The basic-auth username")
 	cmd.Flags().StringVar(&commandeer.basicAuthPassword, "basic-auth-password", "", "The basic-auth password")
 	cmd.Flags().StringVar(&commandeer.function, "function", "", "The api gateway primary function")

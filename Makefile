@@ -1007,8 +1007,8 @@ generate-nuctl-docs:
 #
 
 PATCH_ENV_FILE_PATH = hack/scripts/patch-remote/patch_env.yml
-PATCH_HOST_IP ?= $(shell [ -f $(PATCH_ENV_FILE_PATH) ] && awk '/HOST_IP/ {print $$2}' $(PATCH_ENV_FILE_PATH))
-PATCH_USERNAME ?= $(shell [ -f $(PATCH_ENV_FILE_PATH) ] && awk '/SSH_USER/ {print $$2}' $(PATCH_ENV_FILE_PATH))
+PATCH_HOST_IP ?= $(shell [ -f $(PATCH_ENV_FILE_PATH) ] && awk '/^HOST_IP:/ {print $$2}' $(PATCH_ENV_FILE_PATH))
+PATCH_USERNAME ?= $(shell [ -f $(PATCH_ENV_FILE_PATH) ] && awk '/^SSH_USER:/ {print $$2}' $(PATCH_ENV_FILE_PATH))
 
 hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME):
 	mkdir -p hack/scripts/patch-remote/.ssh

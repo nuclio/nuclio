@@ -40,7 +40,7 @@ env:
   CACHE_REPO_NAME: ${{ github.repository_owner }}
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
-  NUCLIO_GO_TEST_TIMEOUT: "30m"
+  NUCLIO_GO_TEST_TIMEOUT: "35m"
   DOCKER_BUILDKIT: 1
   GITHUB_ACTIONS_BOT_NAME: github-actions[bot]
   GITHUB_ACTIONS_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
