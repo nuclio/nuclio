@@ -14,7 +14,16 @@
 # limitations under the License.
 #
 
-helm upgrade --install ingress-nginx ingress-nginx \
-  --repo https://kubernetes.github.io/ingress-nginx \
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --version 4.7.1 \
   --set allowSnippetAnnotations=true \
-  --namespace ingress-nginx --create-namespace
+  --set controller.image.tag=v1.8.1 \
+  --set controller.config.annotations-risk-level=Critical \
+  --set controller.hostPort.enabled=true \
+  --set controller.kind=DaemonSet \
+  --set controller.service.type=ClusterIP
