@@ -10,7 +10,7 @@ nuctl create apigateway name [flags]
 
 ```
       --attrs string                 JSON-encoded attributes for the api gateway (overrides all the rest) (default "{}")
-      --authentication-mode string   Api gateway authentication mode. ['none', 'basicAuth', 'accessKey']
+      --authentication-mode string   Api gateway authentication mode. ['none', 'basicAuth', 'accessKey', 'iguazio']
       --basic-auth-password string   The basic-auth password
       --basic-auth-username string   The basic-auth username
       --canary-function string       The api gateway canary function

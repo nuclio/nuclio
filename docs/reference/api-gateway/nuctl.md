@@ -15,7 +15,7 @@ $ nuctl create apigateway <api-gateway-name> \
 			--path "/some/path" \
 			--description "some-description" \
 			--function some-function-name \
-			--authentication-mode "none" \
+			--authentication-mode none \
 			--namespace <namespace>
 ```
 
@@ -31,10 +31,26 @@ $ nuctl create apigateway <api-gateway-name> \
 			--path "/some/path" \
 			--description "some-description" \
 			--function some-function-name \
-			--authentication-mode "basicAuth" \
+			--authentication-mode basicAuth \
 			--basic-auth-username <some-username> \
 			--basic-auth-password <some-password> \
 			--namespace <namespace>
+```
+
+## Iguazio authentication
+Iguazio authentication allows authenticating users via the Iguazio Platform, when Nuclio is running as part of Iguazio.
+The authentication and login URLs are configured at the platform config and remain identical across all API gateways - they cannot be customized or overridden per instance.
+Both AuthURL and loginURL must be configured.
+
+You can create an api gateway with Iguazio authentication by running the following command:
+```
+$ nuctl create apigateway <api-gateway-name> \
+			--host <api-gateway-name>-<project-name>.<nuclio-host-name> \
+			--path "/some/path" \
+			--description "some-description" \
+			--function some-function-name \
+			--authentication-mode iguazio \
+			--namespace <namespace> \
 ```
 
 To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](http.md#invoke-api-gateways-with-basic-authentication).

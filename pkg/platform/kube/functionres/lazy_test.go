@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -217,7 +218,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultIngressClassName() {
 }
 
 func (suite *lazyTestSuite) TestEnrichIngressTLS() {
-	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
+	sslRedirectAnnotation := annotations.NginxSSLRedirect
 
 	for _, testCase := range []struct {
 		name              string
@@ -309,7 +310,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
 	suite.Require().NotNil(ingressInstance)
 
 	// make sure default TLS secret exists
-	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
+	sslRedirectAnnotation := annotations.NginxSSLRedirect
 	suite.Require().Equal(ingressInstance.Spec.TLS[0].SecretName, tlsSecretName)
 	suite.Require().Contains(ingressInstance.Annotations, sslRedirectAnnotation)
 	suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])

@@ -104,5 +104,10 @@ func (r *resource) addAuthMiddleware(options *auth.Options) {
 }
 
 func (r *resource) getCtxSession(ctx context.Context) auth.Session {
-	return ctx.Value(auth.ContextKeyByKind(r.getDashboard().GetAuthenticator().Kind())).(auth.Session)
+	value, ok := ctx.Value(auth.ContextKeyByKind(r.getDashboard().GetAuthenticator().Kind())).(auth.Session)
+	if !ok {
+		r.Logger.WarnWithCtx(ctx, "No session found in context, using empty value")
+		return nil
+	}
+	return value
 }
