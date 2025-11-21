@@ -368,9 +368,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/cache@v4
-        with:
-          clean: true
+      - name: Freeing up disk space
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # 4.3.1
         with:
@@ -414,6 +413,9 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: nuclio-docker-images
+
+      - name: Freeing up disk space
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
       - name: Load nuclio docker images
         run: |
