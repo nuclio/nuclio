@@ -202,7 +202,7 @@ func (t *testTrigger) GetConfig() map[string]interface{} {
 	return nil
 }
 
-func (t *testTrigger) GetStatistics() *trigger.Statistics {
+func (t *testTrigger) GetStatistics() *trigger.UnsafeStatistics {
 	t.Called()
 	return nil
 }

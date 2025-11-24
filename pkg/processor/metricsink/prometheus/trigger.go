@@ -32,7 +32,7 @@ type TriggerGatherer struct {
 	workerAllocationTotal                       *prometheus.CounterVec
 	workerAllocationWaitDurationMilliSecondsSum prometheus.Counter
 	workerAllocationWorkersAvailablePercentage  prometheus.Counter
-	prevStatistics                              *trigger.Statistics
+	prevStatistics                              *trigger.UnsafeStatistics
 }
 
 func NewTriggerGatherer(instanceName string,
@@ -43,7 +43,7 @@ func NewTriggerGatherer(instanceName string,
 	newTriggerGatherer := &TriggerGatherer{
 		trigger:        t,
 		logger:         logger.GetChild("gatherer"),
-		prevStatistics: &trigger.Statistics{},
+		prevStatistics: &trigger.UnsafeStatistics{},
 	}
 
 	// base labels for handle events
@@ -116,11 +116,11 @@ func (tg *TriggerGatherer) Gather() error {
 
 	tg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
-	}).Add(float64(diffStatistics.EventsHandledSuccessTotal.Load()))
+	}).Add(float64(diffStatistics.EventsHandledSuccessTotal))
 
 	tg.handledEventsTotal.With(prometheus.Labels{
 		"result": "failure",
-	}).Add(float64(diffStatistics.EventsHandledFailureTotal.Load()))
+	}).Add(float64(diffStatistics.EventsHandledFailureTotal))
 
 	tg.workerAllocationCount.Add(
 		float64(diffStatistics.WorkerAllocatorStatistics.AllocationCount))
