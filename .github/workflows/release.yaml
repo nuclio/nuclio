@@ -196,7 +196,7 @@ jobs:
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
       - name: Create pull request with bumped charts
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
@@ -427,7 +427,7 @@ jobs:
           helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
 
       - name: Create PR to gh-pages
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "${{ env.HELM_PUBLISH_COMMIT_MESSAGE }}"
