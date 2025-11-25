@@ -23,6 +23,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
 
+const defaultBaseImage = "gcr.io/iguazio/ruby:2.4.4-alpine"
+
 type ruby struct {
 	*runtime.AbstractRuntime
 }
@@ -37,7 +39,7 @@ func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/ruby:2.4.4-alpine"
+	processorDockerfileInfo.BaseImage = defaultBaseImage
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
@@ -58,4 +60,9 @@ func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
+}
+
+// GetDefaultBaseImage returns the default base image for ruby runtime
+func (r *ruby) GetDefaultBaseImage() string {
+	return defaultBaseImage
 }

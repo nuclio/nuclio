@@ -24,6 +24,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
 
+const defaultBaseImage = "gcr.io/iguazio/node:20"
+
 type nodejs struct {
 	*runtime.AbstractRuntime
 }
@@ -39,7 +41,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/node:20"
+	processorDockerfileInfo.BaseImage = defaultBaseImage
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
@@ -66,4 +68,9 @@ func (n *nodejs) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	}
 
 	return &processorDockerfileInfo, nil
+}
+
+// GetDefaultBaseImage returns the default base image for nodejs runtime
+func (n *nodejs) GetDefaultBaseImage() string {
+	return defaultBaseImage
 }
