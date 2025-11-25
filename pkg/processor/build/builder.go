@@ -1087,6 +1087,8 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 		}
 	}
 
+	baseImage := b.platform.GetBaseImage(b.runtime)
+
 	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
@@ -1103,7 +1105,8 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	b.logger.InfoWithCtx(ctx,
 		"Building processor image",
 		"registryURL", registryURL,
-		"taggedImageName", taggedImageName)
+		"taggedImageName", taggedImageName,
+		"baseImage", baseImage)
 
 	err = b.platform.BuildAndPushContainerImage(ctx,
 		&containerimagebuilderpusher.BuildOptions{
