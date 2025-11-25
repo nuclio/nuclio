@@ -73,6 +73,12 @@ type Runtime interface {
 
 	// GetRuntimeBuildArgs returns building arguments
 	GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string
+
+	// GetBaseImageFromMap returns explicit base image from provided map if exists, otherwise default
+	GetBaseImageFromMap(baseImagesMap map[string]string, defaultBaseImage string) string
+
+	// GetDefaultBaseImage returns the runtime's default base image
+	GetDefaultBaseImage() string
 }
 
 type Factory interface {
@@ -159,23 +165,7 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 }
 
 func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map[string]string) string {
-	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
-
-	// supports both overrides per runtimeName and per runtimeName + runtimeVersion
-	if runtimeVersion != "" {
-		key := runtimeName + ":" + runtimeVersion
-		if imageOverride, ok := imagesOverrideMap[key]; ok {
-			return imageOverride
-		}
-	}
-
-	// no version-specific override, or no known version for our runtime, try for runtimeName only
-	if imageOverride, ok := imagesOverrideMap[runtimeName]; ok {
-		return imageOverride
-	}
-
-	// no override found
-	return ""
+	return ar.getImageFromMapOrDefault(imagesOverrideMap, "")
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
@@ -183,4 +173,29 @@ func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Conf
 		return runtimeConfig.Common.BuildArgs
 	}
 	return map[string]string{}
+}
+
+func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string, defaultBaseImage string) string {
+	return ar.getImageFromMapOrDefault(baseImagesMap, defaultBaseImage)
+}
+
+// getImageFromMapOrDefault returns an image from the provided map based on the runtime name and version
+// if no image is found, returns the provided default value
+func (ar *AbstractRuntime) getImageFromMapOrDefault(imagesMap map[string]string, defaultValue string) string {
+	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
+
+	// supports both values per runtimeName and per runtimeName + runtimeVersion
+	if runtimeVersion != "" {
+		key := runtimeName + ":" + runtimeVersion
+		if image, ok := imagesMap[key]; ok {
+			return image
+		}
+	}
+
+	// no version-specific value, or no known version for our runtime, try for runtimeName only
+	if image, ok := imagesMap[runtimeName]; ok {
+		return image
+	}
+
+	return defaultValue
 }
