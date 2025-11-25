@@ -35,12 +35,15 @@ func (s *shell) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (s *shell) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (s *shell) GetProcessorDockerfileInfo(
+	_ *runtimeconfig.Config,
+	onbuildImageRegistry, baseImage string,
+) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = defaultBaseImage
+	processorDockerfileInfo.BaseImage = baseImage
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{

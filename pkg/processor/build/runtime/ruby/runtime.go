@@ -35,11 +35,14 @@ func (r *ruby) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (r *ruby) GetProcessorDockerfileInfo(
+	_ *runtimeconfig.Config,
+	onbuildImageRegistry, baseImage string,
+) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	processorDockerfileInfo.BaseImage = defaultBaseImage
+	processorDockerfileInfo.BaseImage = baseImage
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",

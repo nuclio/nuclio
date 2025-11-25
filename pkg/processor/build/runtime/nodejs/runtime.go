@@ -36,12 +36,15 @@ func (n *nodejs) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (n *nodejs) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (n *nodejs) GetProcessorDockerfileInfo(
+	_ *runtimeconfig.Config,
+	onbuildImageRegistry, baseImage string,
+) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = defaultBaseImage
+	processorDockerfileInfo.BaseImage = baseImage
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",

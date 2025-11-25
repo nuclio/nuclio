@@ -50,10 +50,13 @@ func (j *java) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, sta
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (j *java) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (j *java) GetProcessorDockerfileInfo(
+	_ *runtimeconfig.Config,
+	onbuildImageRegistry, baseImage string,
+) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
-	processorDockerfileInfo.BaseImage = defaultBaseImage
+	processorDockerfileInfo.BaseImage = baseImage
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
