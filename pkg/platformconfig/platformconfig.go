@@ -55,6 +55,7 @@ type Config struct {
 	IngressConfig             IngressConfig                    `json:"ingressConfig,omitempty"`
 	Kube                      PlatformKubeConfig               `json:"kube,omitempty"`
 	Local                     PlatformLocalConfig              `json:"local,omitempty"`
+	BaseImages                map[string]string                `json:"baseImages,omitempty"`
 	ImageRegistryOverrides    ImageRegistryOverridesConfig     `json:"imageRegistryOverrides,omitempty"`
 	Runtime                   *runtimeconfig.Config            `json:"runtime,omitempty"`
 	ProjectsLeader            *ProjectsLeader                  `json:"projectsLeader,omitempty"`
