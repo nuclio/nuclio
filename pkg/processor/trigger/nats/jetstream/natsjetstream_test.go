@@ -68,14 +68,14 @@ func (suite *TestSuite) TestStreamAndConsumerConfiguration() {
 			},
 		}
 		suite.Run(testCase.name, func() {
-			configuration, err := NewConfiguration(testCase.name,
+			configuration, err := NewConfiguration(suite.logger,
+				testCase.name,
 				triggerInstance,
 				&runtime.Configuration{
 					Configuration: &processor.Configuration{
 						Config: functionconfig.Config{},
 					},
-				},
-				suite.logger)
+				})
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 			} else {
@@ -127,14 +127,14 @@ func (suite *TestSuite) TestReconnectConfiguration() {
 			},
 		}
 		suite.Run(testCase.name, func() {
-			configuration, err := NewConfiguration(testCase.name,
+			configuration, err := NewConfiguration(suite.logger,
+				testCase.name,
 				triggerInstance,
 				&runtime.Configuration{
 					Configuration: &processor.Configuration{
 						Config: functionconfig.Config{},
 					},
-				},
-				suite.logger)
+				})
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedMaxReconnect, configuration.MaxReconnect, "Bad maxReconnect value")
 			suite.Require().Equal(testCase.allowReconnect, configuration.AllowReconnect, "Bad allowReconnect value")
@@ -187,14 +187,14 @@ func (suite *TestSuite) TestReconnectWaitConfiguration() {
 			},
 		}
 		suite.Run(testCase.name, func() {
-			configuration, err := NewConfiguration(testCase.name,
+			configuration, err := NewConfiguration(suite.logger,
+				testCase.name,
 				triggerInstance,
 				&runtime.Configuration{
 					Configuration: &processor.Configuration{
 						Config: functionconfig.Config{},
 					},
-				},
-				suite.logger)
+				})
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 			} else {
@@ -263,14 +263,14 @@ func (suite *TestSuite) TestTimeoutConfiguration() {
 			},
 		}
 		suite.Run(testCase.name, func() {
-			configuration, err := NewConfiguration(testCase.name,
+			configuration, err := NewConfiguration(suite.logger,
+				testCase.name,
 				triggerInstance,
 				&runtime.Configuration{
 					Configuration: &processor.Configuration{
 						Config: functionconfig.Config{},
 					},
-				},
-				suite.logger)
+				})
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 			} else {
@@ -331,14 +331,14 @@ func (suite *TestSuite) TestPingConfiguration() {
 			},
 		}
 		suite.Run(testCase.name, func() {
-			configuration, err := NewConfiguration(testCase.name,
+			configuration, err := NewConfiguration(suite.logger,
+				testCase.name,
 				triggerInstance,
 				&runtime.Configuration{
 					Configuration: &processor.Configuration{
 						Config: functionconfig.Config{},
 					},
-				},
-				suite.logger)
+				})
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 			} else {

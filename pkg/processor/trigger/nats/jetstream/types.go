@@ -55,10 +55,10 @@ type Configuration struct {
 	pingInterval    time.Duration
 }
 
-func NewConfiguration(id string,
+func NewConfiguration(logger logger.Logger,
+	id string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration,
-	logger logger.Logger) (*Configuration, error) {
+	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
