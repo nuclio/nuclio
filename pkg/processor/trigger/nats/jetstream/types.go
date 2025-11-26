@@ -17,7 +17,6 @@ limitations under the License.
 package natsjetstream
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -157,7 +156,6 @@ func (c *Configuration) GetNATSOptions() []nats.Option {
 	if !c.AllowReconnect {
 		opts = append(opts, nats.NoReconnect())
 	}
-	fmt.Println(c.pingInterval)
 
 	opts = append(opts, nats.MaxReconnects(c.MaxReconnect))
 	opts = append(opts, nats.ReconnectWait(c.reconnectWait))
