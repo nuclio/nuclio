@@ -89,6 +89,13 @@ type runtimeInfo struct {
 	weight int
 }
 
+// processorImageBuildConfig holds configuration for processor image building
+type processorImageBuildConfig struct {
+	baseImageRegistry    string
+	onbuildImageRegistry string
+	baseImage            string
+}
+
 // Builder builds user handlers
 type Builder struct {
 	logger logger.Logger
@@ -1089,7 +1096,13 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 
 	baseImage := b.platform.GetBaseImage(b.runtime)
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, baseImageRegistry, onbuildImageRegistry, baseImage)
+	imageConfig := &processorImageBuildConfig{
+		baseImageRegistry:    baseImageRegistry,
+		onbuildImageRegistry: onbuildImageRegistry,
+		baseImage:            baseImage,
+	}
+
+	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, imageConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -1173,13 +1186,11 @@ func (b *Builder) resolveRepoName(registryURL string) string {
 }
 
 func (b *Builder) createProcessorDockerfile(ctx context.Context,
-	baseImageRegistry string,
-	onbuildImageRegistry string,
-	baseImage string) (
+	imageConfig *processorImageBuildConfig) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
-	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry, baseImage)
+	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo(imageConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get Dockerfile contents")
 	}
@@ -1188,8 +1199,8 @@ func (b *Builder) createProcessorDockerfile(ctx context.Context,
 	b.logger.DebugWithCtx(ctx,
 		"Created processor Dockerfile",
 		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
-		"baseImageRegistry", baseImageRegistry,
-		"onbuildImageRegistry", onbuildImageRegistry)
+		"baseImageRegistry", imageConfig.baseImageRegistry,
+		"onbuildImageRegistry", imageConfig.onbuildImageRegistry)
 
 	// write the contents to the path
 	if err := os.WriteFile(processorDockerfileInfo.DockerfilePath,
@@ -1308,11 +1319,11 @@ func (b *Builder) getHandlerDir(stagingDir string) string {
 	return path.Join(stagingDir, "handler")
 }
 
-func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry, baseImage string) (
+func (b *Builder) getRuntimeProcessorDockerfileInfo(imageConfig *processorImageBuildConfig) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// gather the processor dockerfile info
-	processorDockerfileInfo, err := b.resolveProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry, baseImage)
+	processorDockerfileInfo, err := b.resolveProcessorDockerfileInfo(imageConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1361,11 +1372,11 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry, onbuildIm
 	return processorDockerfileInfo, nil
 }
 
-func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry, baseImage string) (*runtime.ProcessorDockerfileInfo, error) {
+func (b *Builder) resolveProcessorDockerfileInfo(imageConfig *processorImageBuildConfig) (*runtime.ProcessorDockerfileInfo, error) {
 
 	// get defaults from the runtime
 	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(b.platform.GetConfig().Runtime,
-		onbuildImageRegistry, baseImage)
+		imageConfig.onbuildImageRegistry, imageConfig.baseImage)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1378,7 +1389,7 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry, onbuildImage
 
 	// set the base image
 	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage,
-		baseImageRegistry)
+		imageConfig.baseImageRegistry)
 	processorDockerfileInfo.BaseImage, err = b.renderDependantImageURL(processorDockerfileInfo.BaseImage,
 		b.options.DependantImagesRegistryURL)
 	if err != nil {
