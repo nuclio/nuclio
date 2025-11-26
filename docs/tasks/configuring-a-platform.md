@@ -4,6 +4,7 @@
 - [Overview](#overview)
 - [Creating a platform configuration in Kubernetes](#creating-a-platform-configuration-in-kubernetes)
 - [Configuration elements](#configuration-elements)
+- [Base Images (`baseImages`)](#base-images-baseimages)
 
 ### Overview
 
@@ -310,6 +311,36 @@ kubectl patch deployment nuclio-dashboard \
     }
   ]'
 ```
+
+<a id="base-images"></a>
+### Base Images (`baseImages`)
+
+The `baseImages` configuration allows you to override the default base images used for building function processor images on a per-runtime basis.
+This is useful when you need to use custom base images, such as in air-gapped environments or when using private registries.
+
+The configuration is a map where:
+- **Key**: Runtime name (e.g., `python`, `nodejs`) or runtime name with version (e.g., `python:3.12`, `nodejs:20`)
+- **Value**: The base image to use for that runtime
+
+When both a version-specific key (e.g., `python:3.12`) and a runtime-name-only key (e.g., `python`) are present, the version-specific key takes precedence.
+
+Example:
+```yaml
+baseImages:
+  python: "custom-registry.io/python:3.12"
+  python:3.12: "custom-registry.io/python-3.12:latest"
+  nodejs: "custom-registry.io/node:20"
+  golang: "custom-registry.io/golang:1.21"
+```
+
+In this example:
+- All Python functions will use `custom-registry.io/python:3.12` by default
+- Python 3.12 functions will specifically use `custom-registry.io/python-3.12:latest` (overriding the general `python` setting)
+- Node.js functions will use `custom-registry.io/node:20`
+- Go functions will use `custom-registry.io/golang:1.21`
+
+If a runtime is not specified in the `baseImages` map, Nuclio will use the default base image for that runtime.
+
 
 ## Project Secret-Based Service Account Enrichment and Validation
 
