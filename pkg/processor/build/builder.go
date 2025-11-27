@@ -1095,6 +1095,8 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	}
 
 	baseImage := b.platform.GetBaseImage(b.runtime)
+	baseImage = b.overrideBaseImageIfSpecified(baseImage, baseImageRegistry)
+	baseImage = b.renderDependantImageURL(baseImage, b.options.DependantImagesRegistryURL)
 
 	imageConfig := &processorImageBuildConfig{
 		baseImageRegistry:    baseImageRegistry,
@@ -1385,15 +1387,7 @@ func (b *Builder) resolveProcessorDockerfileInfo(imageConfig *processorImageBuil
 		OnbuildArtifacts:   runtimeProcessorDockerfileInfo.OnbuildArtifacts,
 		ImageArtifactPaths: runtimeProcessorDockerfileInfo.ImageArtifactPaths,
 		Directives:         runtimeProcessorDockerfileInfo.Directives,
-	}
-
-	// set the base image
-	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage,
-		imageConfig.baseImageRegistry)
-	processorDockerfileInfo.BaseImage, err = b.renderDependantImageURL(processorDockerfileInfo.BaseImage,
-		b.options.DependantImagesRegistryURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to render base image")
+		BaseImage:          runtimeProcessorDockerfileInfo.BaseImage,
 	}
 
 	// set the onbuild images
@@ -1404,11 +1398,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(imageConfig *processorImageBuil
 			return nil, errors.Wrap(err, "Failed to get onbuild image")
 		}
 
-		processorDockerfileInfo.OnbuildArtifacts[idx].Image, err = b.renderDependantImageURL(onbuildArtifact.Image,
+		processorDockerfileInfo.OnbuildArtifacts[idx].Image = b.renderDependantImageURL(onbuildArtifact.Image,
 			b.options.DependantImagesRegistryURL)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to render onbuild image")
-		}
 	}
 
 	// if the platform requires an internal healthcheck client - add health check artifact
@@ -1428,10 +1419,10 @@ func (b *Builder) resolveProcessorDockerfileInfo(imageConfig *processorImageBuil
 	return &processorDockerfileInfo, nil
 }
 
-func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string, baseImageRegistry string) string {
-
+func (b *Builder) overrideBaseImageIfSpecified(runtimeDefaultBaseImage string, baseImageRegistry string) string {
+	functionSpecBaseImage := b.options.FunctionConfig.Spec.Build.BaseImage
 	// override base image, if required
-	switch b.options.FunctionConfig.Spec.Build.BaseImage {
+	switch functionSpecBaseImage {
 
 	// if user didn't pass anything, use default as specified in Dockerfile
 	case "":
@@ -1447,8 +1438,8 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage
 	default:
 		b.logger.WarnWith("Using user provided base image, runtime interpreter version is provided by the base image",
-			"baseImage", b.options.FunctionConfig.Spec.Build.BaseImage)
-		return b.options.FunctionConfig.Spec.Build.BaseImage
+			"baseImage", functionSpecBaseImage)
+		return functionSpecBaseImage
 	}
 }
 
@@ -1640,9 +1631,9 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 }
 
 // replaces the registry url if applicable. e.g. quay.io/nuclio/some-image:0.0.1 -> 10.0.0.1:2000/some-image:0.0.1
-func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegistryURL string) (string, error) {
+func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegistryURL string) string {
 	if dependantImagesRegistryURL == "" {
-		return imageURL, nil
+		return imageURL
 	}
 
 	// be tolerant of trailing slash in dependantImagesRegistryURL
@@ -1659,7 +1650,7 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 		"dependantImagesRegistryURL", dependantImagesRegistryURL,
 		"renderedImageURL", renderedImageURL)
 
-	return renderedImageURL, nil
+	return renderedImageURL
 }
 
 func (b *Builder) resolveFunctionPathFromURL(ctx context.Context, functionPath string, codeEntryType string) (string, error) {
