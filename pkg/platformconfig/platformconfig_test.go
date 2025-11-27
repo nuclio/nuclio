@@ -821,6 +821,91 @@ func (suite *PlatformConfigTestSuite) TestEnrichNewPlatformConfig() {
 	}
 }
 
+func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
+	testCases := []struct {
+		name               string
+		baseImages         map[string]string
+		expectedBaseImages map[string]string
+	}{
+		{
+			name:               "no base images configured",
+			baseImages:         nil,
+			expectedBaseImages: map[string]string{},
+		},
+		{
+			name: "base images configured",
+			baseImages: map[string]string{
+				"python:3.12": "custom-python:3.12",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.12": "custom-python:3.12",
+			},
+		},
+		{
+			name: "not explicit version python base image",
+			baseImages: map[string]string{
+				"python": "custom-python:latest",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.12": "custom-python:latest",
+			},
+		},
+		{
+			name: "python base image overlap python:3.12",
+			baseImages: map[string]string{
+				"python":      "custom-python:latest",
+				"python:3.12": "custom-python:3.12",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.12": "custom-python:latest",
+			},
+		},
+		{
+			name: "python with multiple explicit versions",
+			baseImages: map[string]string{
+				"python:3.9":  "custom-python:3.9",
+				"python:3.10": "custom-python:3.10",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.9":  "custom-python:3.9",
+				"python:3.10": "custom-python:3.10",
+			},
+		},
+		{
+			name: "python base image and explicit version - base image takes precedence",
+			baseImages: map[string]string{
+				"python":      "custom-python:latest",
+				"python:3.10": "custom-python:3.10",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.10": "custom-python:3.10",
+				"python:3.12": "custom-python:latest",
+			},
+		},
+		{
+			name: "multiple runtimes with and without overlaps",
+			baseImages: map[string]string{
+				"python":      "custom-python:latest",
+				"golang:1.20": "custom-golang:1.20",
+				"nodejs":      "custom-nodejs:latest",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.12": "custom-python:latest",
+				"golang:1.20": "custom-golang:1.20",
+				"nodejs":      "custom-nodejs:latest",
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			testConfig := &Config{BaseImages: testCase.baseImages}
+			testConfig.enrichBaseImages()
+			suite.Require().Equal(testCase.expectedBaseImages, testConfig.BaseImages)
+		})
+	}
+}
+
 func (suite *PlatformConfigTestSuite) getTestProbeWithInitialDelayConfigured(testDefaultProbe *corev1.Probe, initialDelaySeconds int32) *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: initialDelaySeconds,

@@ -322,25 +322,37 @@ The configuration is a map where:
 - **Key**: Runtime name (e.g., `python`, `nodejs`) or runtime name with version (e.g., `python:3.12`, `nodejs:20`)
 - **Value**: The base image to use for that runtime
 
-When both a version-specific key (e.g., `python:3.12`) and a runtime-name-only key (e.g., `python`) are present, the version-specific key takes precedence.
+When both a version-specific key (e.g., `golang:1.21`) and a runtime-name-only key (e.g., `golang`) are present, the version-specific key takes precedence.
 
 Example:
 ```yaml
 baseImages:
-  python: "custom-registry.io/python:3.12"
-  python:3.12: "custom-registry.io/python-3.12:latest"
   nodejs: "custom-registry.io/node:20"
-  golang: "custom-registry.io/golang:1.21"
+  golang:1.21: "custom-registry.io/golang:1.21"
+  golang: "custom-registry.io/golang:latest"
 ```
 
 In this example:
-- All Python functions will use `custom-registry.io/python:3.12` by default
-- Python 3.12 functions will specifically use `custom-registry.io/python-3.12:latest` (overriding the general `python` setting)
-- Node.js functions will use `custom-registry.io/node:20`
-- Go functions will use `custom-registry.io/golang:1.21`
+- All Node.js functions will use `custom-registry.io/node:20` by default
+- Go 1.21 functions will specifically use `custom-registry.io/golang:1.21` (version-specific override takes precedence)
+- Other Go functions (without a version-specific match) will use `custom-registry.io/golang:latest` (the general `golang` setting)
+
+Best practice example with explicit versions:
+```yaml
+baseImages:
+  nodejs:20: "custom-registry.io/node:20"
+  nodejs:22: "custom-registry.io/node:22"
+  golang:1.21: "custom-registry.io/golang:1.21"
+  golang:1.22: "custom-registry.io/golang:1.22"
+  python:3.12: "custom-registry.io/python:3.12"
+  python:3.11: "custom-registry.io/python:3.11"
+```
 
 If a runtime is not specified in the `baseImages` map, Nuclio will use the default base image for that runtime.
 
+> **Note:** We recommend using explicit version-specific keys (e.g., `nodejs:20`, `python:3.12`) instead of runtime-name-only keys (e.g., `nodejs`, `python`). When using a runtime-name-only key, function updates may result in unexpected base image changes. For example, if the default base image for Node.js is `node:20` and you configure `baseImages: { nodejs: "node:22" }`, when you update a function, it will be rebuilt with `node:22` instead of the original `node:20`, since there is no per-version explicit configuration in the `baseImages` map.
+
+> **Important - Python Version Compatibility:** Python base images are **not backward compatible** across versions. Each Python version has its own wheel files (`.whl`), which are breaking compatible. Therefore, **avoid using a default Python base image** (i.e., `python` without a version). Always specify explicit Python versions (e.g., `python:3.12`, `python:3.11`). If you provide a generic `python` key, Nuclio will automatically migrate it to `python:3.12` (the current default Python version).
 
 ## Project Secret-Based Service Account Enrichment and Validation
 

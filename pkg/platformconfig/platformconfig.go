@@ -189,6 +189,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
+	c.enrichBaseImages()
 
 	return nil
 }
@@ -509,6 +510,19 @@ func (c *Config) enrichElasticSearchConfig() {
 	// override with environment variable if set
 	if envPassword := os.Getenv("NUCLIO_ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
 		c.Kube.ElasticSearchConfig.Password = envPassword
+	}
+}
+
+func (c *Config) enrichBaseImages() {
+	if c.BaseImages == nil {
+		c.BaseImages = map[string]string{}
+	}
+
+	// since python base images are not backward compatible, explicit version per base image is crucial
+	// migrate the generic "python" key to the specific "python:3.12" key (our current default python version)
+	if pythonBaseImage, exists := c.BaseImages["python"]; exists {
+		c.BaseImages["python:3.12"] = pythonBaseImage
+		delete(c.BaseImages, "python")
 	}
 }
 
