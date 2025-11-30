@@ -50,7 +50,8 @@ func (p *python) GetName() string {
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *python) GetProcessorDockerfileInfo(
 	runtimeConfig *runtimeconfig.Config,
-	onbuildImageRegistry, baseImage string,
+	onbuildImageRegistry string,
+	baseImage string,
 ) (*runtime.ProcessorDockerfileInfo, error) {
 	var installSDKDependenciesCommand string
 

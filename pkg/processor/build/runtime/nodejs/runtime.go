@@ -36,7 +36,8 @@ func (n *nodejs) GetName() string {
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (n *nodejs) GetProcessorDockerfileInfo(
 	_ *runtimeconfig.Config,
-	onbuildImageRegistry, baseImage string,
+	onbuildImageRegistry string,
+	baseImage string,
 ) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
