@@ -317,42 +317,28 @@ kubectl patch deployment nuclio-dashboard \
 
 The `baseImages` configuration allows you to override the default base images used for building function processor images on a per-runtime basis.
 This is useful when you need to use custom base images, such as in air-gapped environments or when using private registries.
+If a runtime is not specified in the `baseImages` map, Nuclio will use the default base image for that runtime.
 
 The configuration is a map where:
-- **Key**: Runtime name (e.g., `python`, `nodejs`) or runtime name with version (e.g., `python:3.12`, `nodejs:20`)
+- **Key**: Runtime name (e.g., `golang`, `nodejs`); for Python, include both the name and version (e.g., `python:3.11`, `python:3.12`)
 - **Value**: The base image to use for that runtime
-
-When both a version-specific key (e.g., `golang:1.21`) and a runtime-name-only key (e.g., `golang`) are present, the version-specific key takes precedence.
-
-Example:
-```yaml
-baseImages:
-  nodejs: "custom-registry.io/node:20"
-  golang:1.21: "custom-registry.io/golang:1.21"
-  golang: "custom-registry.io/golang:latest"
-```
-
-In this example:
-- All Node.js functions will use `custom-registry.io/node:20` by default
-- Go 1.21 functions will specifically use `custom-registry.io/golang:1.21` (version-specific override takes precedence)
-- Other Go functions (without a version-specific match) will use `custom-registry.io/golang:latest` (the general `golang` setting)
 
 Best practice example with explicit versions:
 ```yaml
-baseImages:
-  nodejs:20: "custom-registry.io/node:20"
-  nodejs:22: "custom-registry.io/node:22"
-  golang:1.21: "custom-registry.io/golang:1.21"
-  golang:1.22: "custom-registry.io/golang:1.22"
-  python:3.12: "custom-registry.io/python:3.12"
+runtimeBaseImages:
+  nodejs: "custom-registry.io/node:20"
   python:3.11: "custom-registry.io/python:3.11"
+  python:3.12: "custom-registry.io/python:3.12"
 ```
 
-If a runtime is not specified in the `baseImages` map, Nuclio will use the default base image for that runtime.
+In this example:
+- All Node.js functions will use `custom-registry.io/node:20` by default 
+- All Golang functions will use the default Nuclio Go base image (`gcr.io/iguazio/alpine:3.20`), since no image is explicitly specified
+- Python 3.11 functions will specifically use `custom-registry.io/python:3.11`
+- Python 3.12 functions will specifically use `custom-registry.io/python:3.12`
+- Other python functions (without a version-specific match) will use `custom-registry.io/python:3.12`, since `3.12` is the current default Python version
 
-> **Note:** We recommend using explicit version-specific keys (e.g., `nodejs:20`, `python:3.12`) instead of runtime-name-only keys (e.g., `nodejs`, `python`). When using a runtime-name-only key, function updates may result in unexpected base image changes. For example, if the default base image for Node.js is `node:20` and you configure `baseImages: { nodejs: "node:22" }`, when you update a function, it will be rebuilt with `node:22` instead of the original `node:20`, since there is no per-version explicit configuration in the `baseImages` map.
-
-> **Important - Python Version Compatibility:** Python base images are **not backward compatible** across versions. Each Python version has its own wheel files (`.whl`), which are breaking compatible. Therefore, **avoid using a default Python base image** (i.e., `python` without a version). Always specify explicit Python versions (e.g., `python:3.12`, `python:3.11`). If you provide a generic `python` key, Nuclio will automatically migrate it to `python:3.12` (the current default Python version).
+> **Important - Python Version Compatibility:** Python base images are **not backward compatible** across versions. Each Python version requires its own wheel (.whl) files, and these wheels are not compatible across different Python versions.. Therefore, **avoid using a default Python base image** (i.e., `python` without a version). Always specify explicit Python versions (e.g., `python:3.12`, `python:3.11`).
 
 ## Project Secret-Based Service Account Enrichment and Validation
 
