@@ -27,8 +27,6 @@ import (
 	"github.com/nuclio/errors"
 )
 
-const defaultBaseImage = "gcr.io/iguazio/alpine:3.20"
-
 type golang struct {
 	*runtime.AbstractRuntime
 }
@@ -96,9 +94,4 @@ func (g *golang) GetProcessorDockerfileInfo(
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
-}
-
-// GetDefaultBaseImage returns the default base image for golang runtime
-func (g *golang) GetDefaultBaseImage() string {
-	return defaultBaseImage
 }

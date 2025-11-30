@@ -23,8 +23,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
 
-const defaultBaseImage = "gcr.io/iguazio/dotnet/runtime:9.0"
-
 type dotnetcore struct {
 	*runtime.AbstractRuntime
 }
@@ -60,9 +58,4 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(
 
 	processorDockerfileInfo.BaseImage = baseImage
 	return &processorDockerfileInfo, nil
-}
-
-// GetDefaultBaseImage returns the default base image for dotnetcore runtime
-func (d *dotnetcore) GetDefaultBaseImage() string {
-	return defaultBaseImage
 }

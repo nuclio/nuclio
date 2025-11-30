@@ -180,9 +180,3 @@ func (p *python) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, s
 	}
 	return p.AbstractRuntime.OnAfterStagingDirCreated(runtimeConfig, stagingDir)
 }
-
-// GetDefaultBaseImage returns the default base image for python runtime
-func (p *python) GetDefaultBaseImage() string {
-	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.FunctionConfig.Spec.Runtime)
-	return fmt.Sprintf("gcr.io/iguazio/python:%s", runtimeVersion)
-}

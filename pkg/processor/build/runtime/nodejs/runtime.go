@@ -24,8 +24,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
 
-const defaultBaseImage = "gcr.io/iguazio/node:20"
-
 type nodejs struct {
 	*runtime.AbstractRuntime
 }
@@ -71,9 +69,4 @@ func (n *nodejs) GetProcessorDockerfileInfo(
 	}
 
 	return &processorDockerfileInfo, nil
-}
-
-// GetDefaultBaseImage returns the default base image for nodejs runtime
-func (n *nodejs) GetDefaultBaseImage() string {
-	return defaultBaseImage
 }

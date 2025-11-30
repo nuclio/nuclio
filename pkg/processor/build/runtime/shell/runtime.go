@@ -23,8 +23,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 )
 
-const defaultBaseImage = "gcr.io/iguazio/alpine:3.20"
-
 type shell struct {
 	*runtime.AbstractRuntime
 }
@@ -73,9 +71,4 @@ func (s *shell) GetHandlerDirObjectPaths() []string {
 	}
 
 	return []string{}
-}
-
-// GetDefaultBaseImage returns the default base image for shell runtime
-func (s *shell) GetDefaultBaseImage() string {
-	return defaultBaseImage
 }

@@ -68,10 +68,6 @@ type mockRuntime struct {
 	defaultBaseImage string
 }
 
-func (m *mockRuntime) GetDefaultBaseImage() string {
-	return m.defaultBaseImage
-}
-
 type AbstractPlatformTestSuite struct {
 	suite.Suite
 	mockedPlatform *mockedplatform.Platform
@@ -2478,21 +2474,16 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 		name              string
 		baseImages        map[string]string
 		specRuntime       string
-		defaultBaseImage  string
 		expectedBaseImage string
 	}{
 		{
 			name:              "No base images configured - returns default",
-			baseImages:        nil,
 			specRuntime:       "python:3.12",
-			defaultBaseImage:  "gcr.io/iguazio/python:3.12",
 			expectedBaseImage: "gcr.io/iguazio/python:3.12",
 		},
 		{
 			name:              "Empty base images map - returns default",
-			baseImages:        map[string]string{},
 			specRuntime:       "nodejs",
-			defaultBaseImage:  "gcr.io/iguazio/node:20",
 			expectedBaseImage: "gcr.io/iguazio/node:20",
 		},
 		{
@@ -2500,8 +2491,7 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 			baseImages: map[string]string{
 				"nodejs": "custom-nodejs:20",
 			},
-			specRuntime:       "nodejs:22",
-			defaultBaseImage:  "gcr.io/iguazio/nodejs:22",
+			specRuntime:       "nodejs",
 			expectedBaseImage: "custom-nodejs:20",
 		},
 		{
@@ -2510,36 +2500,24 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 				"python:3.12": "custom-python-3.12:latest",
 			},
 			specRuntime:       "python:3.12",
-			defaultBaseImage:  "gcr.io/iguazio/python:3.12",
 			expectedBaseImage: "custom-python-3.12:latest",
 		},
 		{
 			name: "Version-specific override takes precedence over name-only",
 			baseImages: map[string]string{
-				"nodejs":    "nodejs-base:latest",
-				"nodejs:20": "nodejs-20-specific:latest",
+				"python":      "bad example: only for testing",
+				"python:3.12": "python-3.12-specific:latest",
 			},
-			specRuntime:       "nodejs:20",
-			defaultBaseImage:  "gcr.io/iguazio/nodejs:20",
-			expectedBaseImage: "nodejs-20-specific:latest",
+			specRuntime:       "python:3.12",
+			expectedBaseImage: "python-3.12-specific:latest",
 		},
 		{
 			name: "No matching base image - returns default when runtime is not explicit",
 			baseImages: map[string]string{
 				"golang": "custom-golang:latest",
 			},
-			specRuntime:       "python",
-			defaultBaseImage:  "gcr.io/iguazio/python:3.12",
+			specRuntime:       "python:3.12",
 			expectedBaseImage: "gcr.io/iguazio/python:3.12",
-		},
-		{
-			name: "No matching base image - returns default when runtime is explicit",
-			baseImages: map[string]string{
-				"golang": "custom-golang:latest",
-			},
-			specRuntime:       "python:3.11",
-			defaultBaseImage:  "gcr.io/iguazio/python:3.11",
-			expectedBaseImage: "gcr.io/iguazio/python:3.11",
 		},
 	}
 
@@ -2553,12 +2531,14 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 			runtimeInstance := suite.createTestRuntime(functionConfig)
 			testRuntime := &mockRuntime{
 				Runtime:          runtimeInstance,
-				defaultBaseImage: testCase.defaultBaseImage,
+				defaultBaseImage: "",
 			}
 
 			platformConfig := &platformconfig.Config{
 				RuntimeBaseImages: testCase.baseImages,
 			}
+			err := platformConfig.EnrichPlatformConfig()
+			suite.Require().NoError(err)
 
 			backupBaseImages := suite.Platform.Config.RuntimeBaseImages
 			suite.Platform.Config.RuntimeBaseImages = platformConfig.RuntimeBaseImages

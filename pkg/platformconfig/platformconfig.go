@@ -189,7 +189,9 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
-	c.enrichRuntimeBaseImages()
+	if err = c.enrichRuntimeBaseImages(); err != nil {
+		return errors.Wrap(err, "Failed to enrich runtime base images")
+	}
 
 	return nil
 }
@@ -513,17 +515,41 @@ func (c *Config) enrichElasticSearchConfig() {
 	}
 }
 
-func (c *Config) enrichRuntimeBaseImages() {
+// GetDefaultRuntimeBaseImages returns the default runtime base images
+func (c *Config) GetDefaultRuntimeBaseImages() map[string]string {
+	return map[string]string{
+		common.RuntimeShell:      "gcr.io/iguazio/alpine:3.20",
+		common.RuntimeGolang:     "gcr.io/iguazio/alpine:3.20",
+		common.RuntimePython39:   "gcr.io/iguazio/python:3.9",
+		common.RuntimePython310:  "gcr.io/iguazio/python:3.10",
+		common.RuntimePython311:  "gcr.io/iguazio/python:3.11",
+		common.RuntimePython312:  "gcr.io/iguazio/python:3.12",
+		common.RuntimeNodejs:     "gcr.io/iguazio/node:20",
+		common.RuntimeJava:       "gcr.io/iguazio/openjdk:11-jre-slim",
+		common.RuntimeRuby:       "gcr.io/iguazio/ruby:2.4.4-alpine",
+		common.RuntimeDotnetcore: "gcr.io/iguazio/dotnet/runtime:9.0",
+	}
+}
+
+func (c *Config) enrichRuntimeBaseImages() error {
 	if c.RuntimeBaseImages == nil {
-		c.RuntimeBaseImages = map[string]string{}
+		c.RuntimeBaseImages = c.GetDefaultRuntimeBaseImages()
+		return nil
 	}
 
-	// since python base images are not backward compatible, explicit version per base image is crucial
-	// migrate the generic "python" key to the specific "python:3.12" key (our current default python version)
-	if pythonBaseImage, exists := c.RuntimeBaseImages["python"]; exists {
-		c.RuntimeBaseImages["python:3.12"] = pythonBaseImage
-		delete(c.RuntimeBaseImages, "python")
+	// validate that specific python versions are used
+	if _, genericPythonExists := c.RuntimeBaseImages[common.RuntimePython]; genericPythonExists {
+		return errors.New("python runtime base image keys must specify a version (e.g., python:3.11)")
 	}
+
+	// fill in any missing runtime base images with defaults
+	for runtimeName, defaultBaseImage := range c.GetDefaultRuntimeBaseImages() {
+		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
+			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
+		}
+	}
+
+	return nil
 }
 
 func GetDefaultPlatformConfiguration() *Config {

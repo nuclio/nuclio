@@ -76,9 +76,6 @@ type Runtime interface {
 
 	// GetBaseImageFromMap returns explicit base image from provided map if exists, otherwise default
 	GetBaseImageFromMap(baseImagesMap map[string]string, defaultBaseImage string) string
-
-	// GetDefaultBaseImage returns the runtime's default base image
-	GetDefaultBaseImage() string
 }
 
 type Factory interface {

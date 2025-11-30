@@ -31,8 +31,6 @@ import (
 	"github.com/nuclio/errors"
 )
 
-const defaultBaseImage = "gcr.io/iguazio/openjdk:11-jre-slim"
-
 type java struct {
 	*runtime.AbstractRuntime
 }
@@ -73,11 +71,6 @@ func (j *java) GetProcessorDockerfileInfo(
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
-}
-
-// GetDefaultBaseImage returns the default base image for java runtime
-func (j *java) GetDefaultBaseImage() string {
-	return defaultBaseImage
 }
 
 func (j *java) createGradleBuildScript(stagingBuildDir string) error {

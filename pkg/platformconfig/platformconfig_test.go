@@ -826,6 +826,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 		name               string
 		baseImages         map[string]string
 		expectedBaseImages map[string]string
+		expectedError      bool
 	}{
 		{
 			name:               "no base images configured",
@@ -846,19 +847,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 			baseImages: map[string]string{
 				"python": "custom-python:latest",
 			},
-			expectedBaseImages: map[string]string{
-				"python:3.12": "custom-python:latest",
-			},
-		},
-		{
-			name: "python base image overlap python:3.12",
-			baseImages: map[string]string{
-				"python":      "custom-python:latest",
-				"python:3.12": "custom-python:3.12",
-			},
-			expectedBaseImages: map[string]string{
-				"python:3.12": "custom-python:latest",
-			},
+			expectedError: true,
 		},
 		{
 			name: "python with multiple explicit versions",
@@ -872,20 +861,9 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 			},
 		},
 		{
-			name: "python base image and explicit version - base image takes precedence",
-			baseImages: map[string]string{
-				"python":      "custom-python:latest",
-				"python:3.10": "custom-python:3.10",
-			},
-			expectedBaseImages: map[string]string{
-				"python:3.10": "custom-python:3.10",
-				"python:3.12": "custom-python:latest",
-			},
-		},
-		{
 			name: "multiple runtimes with and without overlaps",
 			baseImages: map[string]string{
-				"python":      "custom-python:latest",
+				"python:3.12": "custom-python:latest",
 				"golang:1.20": "custom-golang:1.20",
 				"nodejs":      "custom-nodejs:latest",
 			},
@@ -900,10 +878,25 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
 			testConfig := &Config{RuntimeBaseImages: testCase.baseImages}
-			testConfig.enrichRuntimeBaseImages()
-			suite.Require().Equal(testCase.expectedBaseImages, testConfig.RuntimeBaseImages)
+			err := testConfig.enrichRuntimeBaseImages()
+			if testCase.expectedError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(suite.getTestExpectedRuntimeBaseImages(testCase.expectedBaseImages), testConfig.RuntimeBaseImages)
+			}
 		})
 	}
+}
+
+func (suite *PlatformConfigTestSuite) getTestExpectedRuntimeBaseImages(testRuntimeBaseImages map[string]string) map[string]string {
+	config := Config{}
+	expectedImages := config.GetDefaultRuntimeBaseImages()
+	for runtimeName, defaultRuntime := range testRuntimeBaseImages {
+		expectedImages[runtimeName] = defaultRuntime
+	}
+
+	return expectedImages
 }
 
 func (suite *PlatformConfigTestSuite) getTestProbeWithInitialDelayConfigured(testDefaultProbe *corev1.Probe, initialDelaySeconds int32) *corev1.Probe {
