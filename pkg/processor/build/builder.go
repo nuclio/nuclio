@@ -441,17 +441,17 @@ func (b *Builder) initializeSupportedRuntimes() {
 	slashSlashParser := inlineparser.NewParser(b.logger, "//")
 	poundParser := inlineparser.NewParser(b.logger, "#")
 
-	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
-	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
-	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
-	b.runtimeInfo["python:3.9"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["python:3.10"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["python:3.11"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["python:3.12"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
-	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
-	b.runtimeInfo["ruby"] = runtimeInfo{"rb", poundParser, 0}
-	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimeShell] = runtimeInfo{"sh", poundParser, 0}
+	b.runtimeInfo[common.RuntimeGolang] = runtimeInfo{"go", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimePython] = runtimeInfo{"py", poundParser, 10}
+	b.runtimeInfo[common.RuntimePython39] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimePython310] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimePython311] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimePython312] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimeNodejs] = runtimeInfo{"js", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimeJava] = runtimeInfo{"java", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimeRuby] = runtimeInfo{"rb", poundParser, 0}
+	b.runtimeInfo[common.RuntimeDotnetcore] = runtimeInfo{"cs", slashSlashParser, 0}
 }
 
 func (b *Builder) readConfiguration() (string, error) {

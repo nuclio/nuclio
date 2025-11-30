@@ -2051,7 +2051,7 @@ func (ap *Platform) getBaseImagesOverrides() map[string]string {
 
 // returns explicit base images per runtime
 func (ap *Platform) getBaseImages() map[string]string {
-	if baseImages := ap.Config.BaseImages; baseImages != nil {
+	if baseImages := ap.Config.RuntimeBaseImages; baseImages != nil {
 		return baseImages
 	}
 	return map[string]string{}

@@ -68,3 +68,18 @@ const FunctionTagLatest = "latest"
 const FunctionContainerName = "nuclio"
 
 const AnnotationKubectlDefaultContainer = "kubectl.kubernetes.io/default-container"
+
+// Runtime identifiers
+const (
+	RuntimeShell      = "shell"
+	RuntimeGolang     = "golang"
+	RuntimePython     = "python"
+	RuntimePython39   = "python:3.9"
+	RuntimePython310  = "python:3.10"
+	RuntimePython311  = "python:3.11"
+	RuntimePython312  = "python:3.12"
+	RuntimeNodejs     = "nodejs"
+	RuntimeJava       = "java"
+	RuntimeRuby       = "ruby"
+	RuntimeDotnetcore = "dotnetcore"
+)

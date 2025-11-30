@@ -55,7 +55,7 @@ type Config struct {
 	IngressConfig             IngressConfig                    `json:"ingressConfig,omitempty"`
 	Kube                      PlatformKubeConfig               `json:"kube,omitempty"`
 	Local                     PlatformLocalConfig              `json:"local,omitempty"`
-	BaseImages                map[string]string                `json:"baseImages,omitempty"`
+	RuntimeBaseImages         map[string]string                `json:"runtimeBaseImages,omitempty"`
 	ImageRegistryOverrides    ImageRegistryOverridesConfig     `json:"imageRegistryOverrides,omitempty"`
 	Runtime                   *runtimeconfig.Config            `json:"runtime,omitempty"`
 	ProjectsLeader            *ProjectsLeader                  `json:"projectsLeader,omitempty"`
@@ -189,7 +189,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
-	c.enrichBaseImages()
+	c.enrichRuntimeBaseImages()
 
 	return nil
 }
@@ -513,16 +513,16 @@ func (c *Config) enrichElasticSearchConfig() {
 	}
 }
 
-func (c *Config) enrichBaseImages() {
-	if c.BaseImages == nil {
-		c.BaseImages = map[string]string{}
+func (c *Config) enrichRuntimeBaseImages() {
+	if c.RuntimeBaseImages == nil {
+		c.RuntimeBaseImages = map[string]string{}
 	}
 
 	// since python base images are not backward compatible, explicit version per base image is crucial
 	// migrate the generic "python" key to the specific "python:3.12" key (our current default python version)
-	if pythonBaseImage, exists := c.BaseImages["python"]; exists {
-		c.BaseImages["python:3.12"] = pythonBaseImage
-		delete(c.BaseImages, "python")
+	if pythonBaseImage, exists := c.RuntimeBaseImages["python"]; exists {
+		c.RuntimeBaseImages["python:3.12"] = pythonBaseImage
+		delete(c.RuntimeBaseImages, "python")
 	}
 }
 

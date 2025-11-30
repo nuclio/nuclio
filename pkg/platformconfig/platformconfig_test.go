@@ -899,9 +899,9 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			testConfig := &Config{BaseImages: testCase.baseImages}
-			testConfig.enrichBaseImages()
-			suite.Require().Equal(testCase.expectedBaseImages, testConfig.BaseImages)
+			testConfig := &Config{RuntimeBaseImages: testCase.baseImages}
+			testConfig.enrichRuntimeBaseImages()
+			suite.Require().Equal(testCase.expectedBaseImages, testConfig.RuntimeBaseImages)
 		})
 	}
 }

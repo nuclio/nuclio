@@ -2557,13 +2557,13 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 			}
 
 			platformConfig := &platformconfig.Config{
-				BaseImages: testCase.baseImages,
+				RuntimeBaseImages: testCase.baseImages,
 			}
 
-			backupBaseImages := suite.Platform.Config.BaseImages
-			suite.Platform.Config.BaseImages = platformConfig.BaseImages
+			backupBaseImages := suite.Platform.Config.RuntimeBaseImages
+			suite.Platform.Config.RuntimeBaseImages = platformConfig.RuntimeBaseImages
 			defer func() {
-				suite.Platform.Config.BaseImages = backupBaseImages
+				suite.Platform.Config.RuntimeBaseImages = backupBaseImages
 			}()
 
 			result := suite.Platform.GetBaseImage(testRuntime)
