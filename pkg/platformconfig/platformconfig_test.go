@@ -891,7 +891,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 
 func (suite *PlatformConfigTestSuite) getTestExpectedRuntimeBaseImages(testRuntimeBaseImages map[string]string) map[string]string {
 	config := Config{}
-	expectedImages := config.GetDefaultRuntimeBaseImages()
+	expectedImages := config.getDefaultRuntimeBaseImages()
 	for runtimeName, defaultRuntime := range testRuntimeBaseImages {
 		expectedImages[runtimeName] = defaultRuntime
 	}

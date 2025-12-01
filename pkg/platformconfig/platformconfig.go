@@ -515,8 +515,8 @@ func (c *Config) enrichElasticSearchConfig() {
 	}
 }
 
-// GetDefaultRuntimeBaseImages returns the default runtime base images
-func (c *Config) GetDefaultRuntimeBaseImages() map[string]string {
+// getDefaultRuntimeBaseImages returns the default runtime base images
+func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
 	return map[string]string{
 		common.RuntimeShell:      "gcr.io/iguazio/alpine:3.20",
 		common.RuntimeGolang:     "gcr.io/iguazio/alpine:3.20",
@@ -533,8 +533,15 @@ func (c *Config) GetDefaultRuntimeBaseImages() map[string]string {
 
 func (c *Config) enrichRuntimeBaseImages() error {
 	if c.RuntimeBaseImages == nil {
-		c.RuntimeBaseImages = c.GetDefaultRuntimeBaseImages()
+		c.RuntimeBaseImages = c.getDefaultRuntimeBaseImages()
 		return nil
+	}
+
+	// validate that each runtime has a non-empty base image
+	for runtimeName, baseImage := range c.RuntimeBaseImages {
+		if baseImage == "" {
+			return errors.Errorf("Runtime base image cannot be empty, problematic runtime: %s", runtimeName)
+		}
 	}
 
 	// validate that specific python versions are used
@@ -543,7 +550,7 @@ func (c *Config) enrichRuntimeBaseImages() error {
 	}
 
 	// fill in any missing runtime base images with defaults
-	for runtimeName, defaultBaseImage := range c.GetDefaultRuntimeBaseImages() {
+	for runtimeName, defaultBaseImage := range c.getDefaultRuntimeBaseImages() {
 		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
 			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
 		}

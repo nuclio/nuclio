@@ -1141,8 +1141,7 @@ func (suite *testSuite) TestGetProcessorDockerfileBaseImage() {
 			defer func() {
 				suite.builder.options.FunctionConfig.Spec.Build.BaseImage = oldBaseImage
 			}()
-			result, err := suite.builder.overrideBaseImageIfSpecified(tc.runtimeDefaultBaseImage, tc.baseImageRegistry)
-			suite.Require().NoError(err)
+			result := suite.builder.overrideBaseImageIfSpecified(tc.runtimeDefaultBaseImage, tc.baseImageRegistry)
 			suite.Require().Equal(tc.expected, result)
 		})
 	}

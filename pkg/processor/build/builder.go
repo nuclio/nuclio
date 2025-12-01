@@ -1095,10 +1095,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	}
 
 	baseImage := b.platform.GetBaseImage(b.runtime)
-	baseImage, err = b.overrideBaseImageIfSpecified(baseImage, baseImageRegistry)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to set base image")
-	}
+	baseImage = b.overrideBaseImageIfSpecified(baseImage, baseImageRegistry)
 	baseImage = b.renderDependantImageURL(baseImage, b.options.DependantImagesRegistryURL)
 
 	imageConfig := &processorImageBuildConfig{
@@ -1422,7 +1419,7 @@ func (b *Builder) resolveProcessorDockerfileInfo(imageConfig *processorImageBuil
 	return &processorDockerfileInfo, nil
 }
 
-func (b *Builder) overrideBaseImageIfSpecified(runtimeBaseImage string, baseImageRegistry string) (string, error) {
+func (b *Builder) overrideBaseImageIfSpecified(runtimeBaseImage string, baseImageRegistry string) string {
 	functionSpecBaseImage := b.options.FunctionConfig.Spec.Build.BaseImage
 	// override base image, if required
 	switch functionSpecBaseImage {
@@ -1430,24 +1427,19 @@ func (b *Builder) overrideBaseImageIfSpecified(runtimeBaseImage string, baseImag
 	// if user didn't pass anything, use default as specified in Dockerfile
 	case "":
 		if baseImageRegistry == "" {
-			return runtimeBaseImage, nil
-		}
-
-		// Validation occurs here because the function spec may override the runtime base image; if both are empty, raise an error
-		if runtimeBaseImage == "" {
-			return "", errors.Errorf("Base image not specified")
+			return runtimeBaseImage
 		}
 
 		// get only image name and concatenate it with registry
 		imageName := path.Base(runtimeBaseImage)
-		return strings.Join([]string{baseImageRegistry, imageName}, "/"), nil
+		return strings.Join([]string{baseImageRegistry, imageName}, "/")
 
 	// if user specified something - use that, as is
 	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage
 	default:
 		b.logger.WarnWith("Using user provided base image, runtime interpreter version is provided by the base image",
 			"baseImage", functionSpecBaseImage)
-		return functionSpecBaseImage, nil
+		return functionSpecBaseImage
 	}
 }
 

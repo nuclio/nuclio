@@ -104,7 +104,7 @@ func (suite *AbstractRuntimeTestSuite) TestGetBaseImageFromMap() {
 			testAbstractRuntime, err := NewAbstractRuntime(suite.logger, "nop", "/tmp", functionConfig)
 			suite.Require().NoError(err)
 
-			result := testAbstractRuntime.GetBaseImageFromMap(testCase.baseImages, defaultPythonBaseImage)
+			result := testAbstractRuntime.GetBaseImageFromMap(testCase.baseImages)
 
 			suite.Require().Equal(testCase.expectedBaseImage, result)
 		})

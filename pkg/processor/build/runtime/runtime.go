@@ -74,8 +74,8 @@ type Runtime interface {
 	// GetRuntimeBuildArgs returns building arguments
 	GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string
 
-	// GetBaseImageFromMap returns explicit base image from provided map if exists, otherwise default
-	GetBaseImageFromMap(baseImagesMap map[string]string, defaultBaseImage string) string
+	// GetBaseImageFromMap returns explicit base image from provided map if exists, otherwise empty string
+	GetBaseImageFromMap(baseImagesMap map[string]string) string
 }
 
 type Factory interface {
@@ -162,7 +162,7 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 }
 
 func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map[string]string) string {
-	return ar.getImageFromMapOrDefault(imagesOverrideMap, "")
+	return ar.getImageFromMap(imagesOverrideMap)
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
@@ -172,13 +172,13 @@ func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Conf
 	return map[string]string{}
 }
 
-func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string, defaultBaseImage string) string {
-	return ar.getImageFromMapOrDefault(baseImagesMap, defaultBaseImage)
+func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string) string {
+	return ar.getImageFromMap(baseImagesMap)
 }
 
-// getImageFromMapOrDefault returns an image from the provided map based on the runtime name and version
+// getImageFromMap returns an image from the provided map based on the runtime name and version
 // if no image is found, returns the provided default value
-func (ar *AbstractRuntime) getImageFromMapOrDefault(imagesMap map[string]string, defaultValue string) string {
+func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string) string {
 	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
 
 	// supports both values per runtimeName and per runtimeName + runtimeVersion
@@ -194,5 +194,9 @@ func (ar *AbstractRuntime) getImageFromMapOrDefault(imagesMap map[string]string,
 		return image
 	}
 
-	return defaultValue
+	ar.Logger.WarnWith("Failed to find image for runtime",
+		"runtime name", runtimeName,
+		"runtime version", runtimeVersion,
+	)
+	return ""
 }
