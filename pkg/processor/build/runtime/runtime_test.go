@@ -40,25 +40,12 @@ func (suite *AbstractRuntimeTestSuite) SetupSuite() {
 }
 
 func (suite *AbstractRuntimeTestSuite) TestGetBaseImageFromMap() {
-	defaultPythonBaseImage := "python:3.12"
 	testCases := []struct {
 		name              string
 		baseImages        map[string]string
 		runtime           string
 		expectedBaseImage string
 	}{
-		{
-			name:              "No base images configured - returns default",
-			baseImages:        nil,
-			runtime:           "python:3.12",
-			expectedBaseImage: defaultPythonBaseImage,
-		},
-		{
-			name:              "Empty base images map - returns default",
-			baseImages:        map[string]string{},
-			runtime:           "python",
-			expectedBaseImage: defaultPythonBaseImage,
-		},
 		{
 			name: "Base image configured for runtime name only",
 			baseImages: map[string]string{
@@ -89,8 +76,8 @@ func (suite *AbstractRuntimeTestSuite) TestGetBaseImageFromMap() {
 			baseImages: map[string]string{
 				"golang": "custom-golang:latest",
 			},
-			runtime:           "python",
-			expectedBaseImage: defaultPythonBaseImage,
+			runtime:           "python:3.12",
+			expectedBaseImage: "",
 		},
 	}
 

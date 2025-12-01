@@ -31,10 +31,10 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/opa-client"
+	opaclient "github.com/nuclio/opa-client"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	autosv2 "k8s.io/api/autoscaling/v2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -546,7 +546,7 @@ func (c *Config) enrichRuntimeBaseImages() error {
 
 	// validate that specific python versions are used
 	if _, genericPythonExists := c.RuntimeBaseImages[common.RuntimePython]; genericPythonExists {
-		return errors.New("python runtime base image keys must specify a version (e.g., python:3.11)")
+		return errors.New("Python runtime base image keys must specify a version (e.g. `python:3.11`)")
 	}
 
 	// fill in any missing runtime base images with defaults
