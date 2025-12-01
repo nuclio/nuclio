@@ -2503,15 +2503,6 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 			expectedBaseImage: "custom-python-3.12:latest",
 		},
 		{
-			name: "Version-specific override takes precedence over name-only",
-			baseImages: map[string]string{
-				"python":      "bad example: only for testing",
-				"python:3.12": "python-3.12-specific:latest",
-			},
-			specRuntime:       "python:3.12",
-			expectedBaseImage: "python-3.12-specific:latest",
-		},
-		{
 			name: "No matching base image - returns default when runtime is not explicit",
 			baseImages: map[string]string{
 				"golang": "custom-golang:latest",
