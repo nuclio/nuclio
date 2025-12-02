@@ -161,8 +161,8 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
 
-func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map[string]string) string {
-	return ar.getImageFromMap(imagesOverrideMap)
+func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imageRegistriesMap map[string]string) string {
+	return ar.getImageFromMap(imageRegistriesMap)
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
