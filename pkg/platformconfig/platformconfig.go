@@ -385,7 +385,7 @@ func (c *Config) validateRuntimeBaseImages() error {
 
 	// validate that specific python versions are used
 	if _, genericPythonExists := c.RuntimeBaseImages[common.RuntimePython]; genericPythonExists {
-		return errors.New("python runtime base image keys must specify a version (e.g. `python:3.11`)")
+		return errors.New("Python runtime base image keys must specify a version (e.g. `python:3.11`)")
 	}
 
 	// validate there is no empty base image value
