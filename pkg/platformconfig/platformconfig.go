@@ -99,6 +99,10 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		return nil, errors.Wrap(err, "Failed to enrich platform configurations")
 	}
 
+	if err = config.ValidatePlatformConfig(); err != nil {
+		return nil, errors.Wrap(err, "Failed to validate platform configuration")
+	}
+
 	return config, nil
 }
 
@@ -366,6 +370,34 @@ func (c *Config) DisableSensitiveFieldMasking() {
 	c.SensitiveFields.MaskSensitiveFields = false
 }
 
+func (c *Config) ValidatePlatformConfig() error {
+	if err := c.validateRuntimeBaseImages(); err != nil {
+		return errors.Wrap(err, "Failed to validate runtime base images")
+	}
+
+	return nil
+}
+
+func (c *Config) validateRuntimeBaseImages() error {
+	if c.RuntimeBaseImages == nil {
+		return errors.New("No runtime base images specified")
+	}
+
+	// validate that specific python versions are used
+	if _, genericPythonExists := c.RuntimeBaseImages[common.RuntimePython]; genericPythonExists {
+		return errors.New("python runtime base image keys must specify a version (e.g. `python:3.11`)")
+	}
+
+	// validate there is no empty base image value
+	for runtimeName, baseImage := range c.RuntimeBaseImages {
+		if baseImage == "" {
+			return errors.Errorf("Runtime has an empty base image value. Runtime: %s", runtimeName)
+		}
+	}
+
+	return nil
+}
+
 // enrichContainerResources enriches an object's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
 func (c *Config) enrichContainerResources(ctx context.Context,
@@ -535,13 +567,9 @@ func (c *Config) enrichRuntimeBaseImages() {
 		return
 	}
 
-	// Python runtime base image keys must specify a version (e.g. `python:3.11`)
-	// remove general python version if exists
-	delete(c.RuntimeBaseImages, common.RuntimePython)
-
 	// fill in any missing runtime base images with defaults and runtimes with an empty base image value
 	for runtimeName, defaultBaseImage := range c.getDefaultRuntimeBaseImages() {
-		if baseImage, exists := c.RuntimeBaseImages[runtimeName]; !exists || baseImage == "" {
+		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
 			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
 		}
 	}

@@ -842,8 +842,11 @@ func (suite *PlatformConfigTestSuite) TestEnrichRuntimeBaseImages() {
 			},
 		},
 		{
-			name: "not explicit version python base image- should remove the general python runtime",
+			name: "not explicit version python base image",
 			baseImages: map[string]string{
+				"python": "custom-python:latest",
+			},
+			expectedBaseImages: map[string]string{
 				"python": "custom-python:latest",
 			},
 		},
@@ -869,16 +872,6 @@ func (suite *PlatformConfigTestSuite) TestEnrichRuntimeBaseImages() {
 				"python:3.12": "custom-python:latest",
 				"golang:1.20": "custom-golang:1.20",
 				"nodejs":      "custom-nodejs:latest",
-			},
-		},
-		{
-			name: "empty base image for a runtime- should be override default",
-			baseImages: map[string]string{
-				"python:3.11": "",
-				"python:3.12": "custom-python:latest",
-			},
-			expectedBaseImages: map[string]string{
-				"python:3.12": "custom-python:latest",
 			},
 		},
 	}
