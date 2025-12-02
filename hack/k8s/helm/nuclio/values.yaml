@@ -225,6 +225,8 @@ dashboard:
       # invalidate a cache entry after specific timeout
       cacheExpirationTimeout: 60s
 
+      verificationMethod: "POST"
+
   opa:
     enabled: false
     name: opa-server
