@@ -1068,9 +1068,7 @@ func (ap *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtim
 
 // GetBaseImage returns the base image resolved for the runtime (explicit or default)
 func (ap *Platform) GetBaseImage(runtime runtime.Runtime) string {
-	baseImages := ap.getBaseImages()
-
-	return runtime.GetBaseImageFromMap(baseImages)
+	return runtime.GetBaseImageFromMap(ap.Config.RuntimeBaseImages)
 }
 
 // GetOnbuildImageRegistry returns onbuild image registry
@@ -2046,11 +2044,6 @@ func (ap *Platform) enrichProcessingMode(
 // returns overrides for base images per runtime
 func (ap *Platform) getBaseImagesOverrides() map[string]string {
 	return ap.Config.ImageRegistryOverrides.BaseImageRegistries
-}
-
-// returns explicit base images per runtime
-func (ap *Platform) getBaseImages() map[string]string {
-	return ap.Config.RuntimeBaseImages
 }
 
 // returns overrides for base images per runtime

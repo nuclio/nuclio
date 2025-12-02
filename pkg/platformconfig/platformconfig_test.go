@@ -821,12 +821,11 @@ func (suite *PlatformConfigTestSuite) TestEnrichNewPlatformConfig() {
 	}
 }
 
-func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
+func (suite *PlatformConfigTestSuite) TestEnrichRuntimeBaseImages() {
 	testCases := []struct {
 		name               string
 		baseImages         map[string]string
 		expectedBaseImages map[string]string
-		expectedError      bool
 	}{
 		{
 			name:               "no base images configured",
@@ -843,11 +842,10 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 			},
 		},
 		{
-			name: "not explicit version python base image",
+			name: "not explicit version python base image- should remove the general python runtime",
 			baseImages: map[string]string{
 				"python": "custom-python:latest",
 			},
-			expectedError: true,
 		},
 		{
 			name: "python with multiple explicit versions",
@@ -873,18 +871,23 @@ func (suite *PlatformConfigTestSuite) TestEnrichBaseImages() {
 				"nodejs":      "custom-nodejs:latest",
 			},
 		},
+		{
+			name: "empty base image for a runtime- should be override default",
+			baseImages: map[string]string{
+				"python:3.11": "",
+				"python:3.12": "custom-python:latest",
+			},
+			expectedBaseImages: map[string]string{
+				"python:3.12": "custom-python:latest",
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
 			testConfig := &Config{RuntimeBaseImages: testCase.baseImages}
-			err := testConfig.enrichRuntimeBaseImages()
-			if testCase.expectedError {
-				suite.Require().Error(err)
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(suite.getTestExpectedRuntimeBaseImages(testCase.expectedBaseImages), testConfig.RuntimeBaseImages)
-			}
+			testConfig.enrichRuntimeBaseImages()
+			suite.Require().Equal(suite.getTestExpectedRuntimeBaseImages(testCase.expectedBaseImages), testConfig.RuntimeBaseImages)
 		})
 	}
 }

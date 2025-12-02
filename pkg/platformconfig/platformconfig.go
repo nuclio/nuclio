@@ -189,9 +189,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
-	if err = c.enrichRuntimeBaseImages(); err != nil {
-		return errors.Wrap(err, "Failed to enrich runtime base images")
-	}
+	c.enrichRuntimeBaseImages()
 
 	return nil
 }
@@ -531,32 +529,22 @@ func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
 	}
 }
 
-func (c *Config) enrichRuntimeBaseImages() error {
+func (c *Config) enrichRuntimeBaseImages() {
 	if c.RuntimeBaseImages == nil {
 		c.RuntimeBaseImages = c.getDefaultRuntimeBaseImages()
-		return nil
+		return
 	}
 
-	// validate that each runtime has a non-empty base image
-	for runtimeName, baseImage := range c.RuntimeBaseImages {
-		if baseImage == "" {
-			return errors.Errorf("Runtime base image cannot be empty, problematic runtime: %s", runtimeName)
-		}
-	}
+	// Python runtime base image keys must specify a version (e.g. `python:3.11`)
+	// remove general python version if exists
+	delete(c.RuntimeBaseImages, common.RuntimePython)
 
-	// validate that specific python versions are used
-	if _, genericPythonExists := c.RuntimeBaseImages[common.RuntimePython]; genericPythonExists {
-		return errors.New("Python runtime base image keys must specify a version (e.g. `python:3.11`)")
-	}
-
-	// fill in any missing runtime base images with defaults
+	// fill in any missing runtime base images with defaults and runtimes with an empty base image value
 	for runtimeName, defaultBaseImage := range c.getDefaultRuntimeBaseImages() {
-		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
+		if baseImage, exists := c.RuntimeBaseImages[runtimeName]; !exists || baseImage == "" {
 			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
 		}
 	}
-
-	return nil
 }
 
 func GetDefaultPlatformConfiguration() *Config {
