@@ -124,7 +124,7 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
 
 	// both processors are not ready, should fail
 	allocatedEventProcessor, err = allocator.Allocate(100 * time.Millisecond)
-	suite.Require().ErrorIs(err, eventprocessor.ErrNoAvailableObjects)
+	suite.Require().ErrorIs(err, eventprocessor.ErrNoAvailableObjectsTimeout)
 	suite.Require().Nil(allocatedEventProcessor)
 
 	allocator.Release(eventProcessor1)
