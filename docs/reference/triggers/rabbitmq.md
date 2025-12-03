@@ -6,21 +6,49 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 
 ## Attributes
 
-| **Path**          | **Type**           | **Description**                                                                                                                                                 |
-|:------------------|:-------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| exchangeName      | string             | The exchange that contains the queue                                                                                                                            |
-| queueName         | string             | If specified, the trigger reads messages from this queue                                                                                                        |
-| topics            | list of strings    | If specified, the trigger creates a queue with a unique name and subscribes it to these topics                                                                  |
-| reconnectDuration | string of duration | The timeout when trying to reconnect to RabbitMQ. Default is 5 minutes.                                                                                         |
-| reconnectInterval | string of duration | The interval to wait before reconnecting to RabbitMQ. Default is 15 seconds.                                                                                    |
-| prefetchCount     | int                | The prefetch count of the broker channel. Default is 0.                                                                                                         |
-| durableExchange   | bool               | Define if the exchange is durable. Default is false.                                                                                                            |
-| durableQueue      | bool               | Define if the queue is durable. Default is false.                                                                                                               |
-| onError           | string             | Determines the behaviour when a message processing error occurs. Possible values: `"ack"` (acknowledge and remove) or `"nack"` (reject and optionally requeue). |
-| requeueOnError    | bool               | If `true`, messages that fail processing are requeued when `onError` is set to `"nack"`. Default is false.                                                      |
+| **Path**          | **Type**           | **Description**                                                                                                                                                                      |
+|:------------------|:-------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| exchangeName      | string             | The exchange that contains the queue                                                                                                                                                 |
+| queueName         | string             | If specified, the trigger reads messages from this queue                                                                                                                             |
+| topics            | list of strings    | If specified, the trigger creates a queue with a unique name and subscribes it to these topics                                                                                       |
+| reconnectDuration | string of duration | The timeout when trying to reconnect to RabbitMQ. Default is 5 minutes.                                                                                                              |
+| reconnectInterval | string of duration | The interval to wait before reconnecting to RabbitMQ. Default is 15 seconds.                                                                                                         |
+| prefetchCount     | int                | The prefetch count of the broker channel. Default is 0.                                                                                                                              |
+| durableExchange   | bool               | Define if the exchange is durable. Default is false.                                                                                                                                 |
+| durableQueue      | bool               | Define if the queue is durable. Default is false.                                                                                                                                    |
+| onError           | string             | Determines the behaviour when a message processing error occurs. Possible values: `"ack"` (acknowledge and remove) or `"nack"` (reject and optionally requeue). Default is `"nack"`. |
+| requeueOnError    | bool               | If `true`, messages that fail processing are requeued when `onError` is set to `"nack"`. Default is false.                                                                           |
 
-> **Note:** `topics` and `queueName` are mutually exclusive.
-> The trigger can either create to an existing queue specified by `queueName` or create its own queue, subscribing it to `topics` 
+### Queue and Exchange Configuration
+
+If `queueName` is not specified in the attributes, it defaults to `nuclio-{namespace}-{function-name}`. If the specified queue (or the default queue name) doesn't exist, it will be created automatically.
+
+If `topics` are not specified, no exchange or bindings are created. If `topics` are specified, the trigger creates a topic-type exchange (if it doesn't exist) and binds the queue to the specified routing keys (topics).
+
+> **Note:** When `topics` is specified, the exchange type is always `"topic"`. This trigger only works with topic-type exchanges when automatically creating resources. If you need to use other exchange types (direct, fanout, headers), you must create the exchange and queue manually and set only `queueName` (without `topics`).
+
+#### Queue Creation Parameters
+
+When a queue is created automatically, it is created with the following parameters:
+
+- **Queue name**: `queueName` (if specified) or `nuclio-{namespace}-{function-name}` (if not specified)
+- **Durable**: `durableQueue` (default: `false`)
+- **Delete when unused**: `false`
+- **Exclusive**: `false`
+- **No-wait**: `false`
+- **Arguments**: `nil`
+
+#### Exchange Creation Parameters
+
+When an exchange is created automatically (only when `topics` is specified), it is created with the following parameters:
+
+- **Exchange name**: `exchangeName`
+- **Exchange type**: `"topic"` (hardcoded)
+- **Durable**: `durableExchange` (default: `false`)
+- **Auto-delete**: `false`
+- **Internal**: `false`
+- **No-wait**: `false`
+- **Arguments**: `nil`
 
 > **Note:** when running in Kubernetes / docker, the consumer name is the host name (pod name, e.g.: `my-pod-1234`)
 > and the connection name is consisted of `nuclio-<func-name>-<trigger-name>` to allow differentiation between multiple functions
