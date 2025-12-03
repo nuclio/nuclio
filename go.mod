@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/coreos/go-semver v0.3.1
 	github.com/distribution/reference v0.6.0
-	github.com/eclipse/paho.mqtt.golang v1.5.0
+	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/elastic/go-elasticsearch/v9 v9.1.0
 	github.com/fatih/color v1.18.0
 	github.com/fatih/structs v1.1.0
