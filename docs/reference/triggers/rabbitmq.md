@@ -25,7 +25,7 @@ If `queueName` is not specified in the attributes, it defaults to `nuclio-{names
 
 If `topics` are not specified, no exchange or bindings are created. If `topics` are specified, the trigger creates a topic-type exchange (if it doesn't exist) and binds the queue to the specified routing keys (topics).
 
-> **Note:** When `topics` is specified, the exchange type is always `"topic"`. This trigger only works with topic-type exchanges when automatically creating resources. If you need to use other exchange types (direct, fanout, headers), you must create the exchange and queue manually and set only `queueName` (without `topics`).
+> **Note:** When `topics` is specified, the exchange type is always `"topic"`. This trigger only works with topic-type exchanges when automatically creating resources. If you need to use other exchange types (`direct`, `fanout`, `headers`), you must create the exchange and queue manually and set only `queueName` (without `topics`).
 
 #### Queue Creation Parameters
 
