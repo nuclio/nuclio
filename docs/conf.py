@@ -66,6 +66,8 @@ linkcheck_ignore = [
 ]
 linkcheck_anchors = True
 linkcheck_timeout = 60
+linkcheck_retries = 5
+linkcheck_workers = 10
 
 language = "go"
 
