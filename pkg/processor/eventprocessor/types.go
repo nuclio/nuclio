@@ -31,7 +31,8 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-var ErrNoAvailableObjects = errors.New("No available objects")
+var ErrNoAvailableObjectsImmediately = errors.New("No available objects, function configured not to wait. Failed immediately")
+var ErrNoAvailableObjectsTimeout = errors.New("No available objects in the given timeout")
 var ErrAllObjectsAreTerminated = errors.New("All objects are terminated")
 
 type Allocator interface {

@@ -70,7 +70,7 @@ func (a *blockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor,
 		// if there's no timeout, return now
 		if timeout == 0 {
 			a.statistics.AllocationSuccessAfterWaitTotal.Add(1)
-			return nil, ErrNoAvailableObjects
+			return nil, ErrNoAvailableObjectsImmediately
 		}
 
 		waitStartAt := time.Now()
@@ -86,7 +86,7 @@ func (a *blockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor,
 			a.statistics.AllocationTimeoutTotal.Add(1)
 			a.logger.DebugWith("Timed out waiting for objects to be available",
 				"timeout", timeout)
-			return nil, ErrNoAvailableObjects
+			return nil, ErrNoAvailableObjectsTimeout
 		}
 	}
 }
@@ -224,7 +224,10 @@ func (nba *nonBlockingPoolAllocator) Allocate(timeout time.Duration) (EventProce
 		}
 	}
 
-	return nil, ErrNoAvailableObjects
+	if timeout == 0 {
+		return nil, ErrNoAvailableObjectsImmediately
+	}
+	return nil, ErrNoAvailableObjectsTimeout
 }
 
 func (nba *nonBlockingPoolAllocator) allocate() EventProcessor {

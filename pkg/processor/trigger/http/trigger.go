@@ -527,7 +527,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		switch errors.Cause(submitError) {
 
 		// no available workers
-		case eventprocessor.ErrNoAvailableObjects, eventprocessor.ErrAllObjectsAreTerminated:
+		case eventprocessor.ErrNoAvailableObjectsImmediately, eventprocessor.ErrNoAvailableObjectsTimeout, eventprocessor.ErrAllObjectsAreTerminated:
 			h.Logger.WarnWith("No workers available",
 				"err", submitError.Error())
 			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
