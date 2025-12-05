@@ -83,3 +83,24 @@ const (
 func IsNuclioHeader(headerName string) bool {
 	return strings.HasPrefix(headerName, HeaderPrefix)
 }
+
+// GetAllowedResponseHeaderNames returns a slice of X-Nuclio header names that are
+// allowed to pass through in function invocation responses. This is useful for
+// CORS ExposedHeaders configuration.
+func GetAllowedResponseHeaderNames() []string {
+	return []string{
+		Logs, // Function logs can be returned to client
+	}
+}
+
+// GetAllowedResponseHeaders returns a map of X-Nuclio headers that are allowed
+// to pass through in function invocation responses. This ensures consistency
+// between response filtering and CORS exposed headers configuration.
+func GetAllowedResponseHeaders() map[string]bool {
+	allowedHeaderNames := GetAllowedResponseHeaderNames()
+	allowedHeaders := make(map[string]bool, len(allowedHeaderNames))
+	for _, headerName := range allowedHeaderNames {
+		allowedHeaders[headerName] = true
+	}
+	return allowedHeaders
+}
