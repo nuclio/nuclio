@@ -31,10 +31,10 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/opa-client"
+	opaclient "github.com/nuclio/opa-client"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	autosv2 "k8s.io/api/autoscaling/v2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -55,6 +55,7 @@ type Config struct {
 	IngressConfig             IngressConfig                    `json:"ingressConfig,omitempty"`
 	Kube                      PlatformKubeConfig               `json:"kube,omitempty"`
 	Local                     PlatformLocalConfig              `json:"local,omitempty"`
+	RuntimeBaseImages         map[string]string                `json:"runtimeBaseImages,omitempty"`
 	ImageRegistryOverrides    ImageRegistryOverridesConfig     `json:"imageRegistryOverrides,omitempty"`
 	Runtime                   *runtimeconfig.Config            `json:"runtime,omitempty"`
 	ProjectsLeader            *ProjectsLeader                  `json:"projectsLeader,omitempty"`
@@ -96,6 +97,10 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 	if err := config.EnrichPlatformConfig(); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich platform configurations")
+	}
+
+	if err = config.ValidatePlatformConfig(); err != nil {
+		return nil, errors.Wrap(err, "Failed to validate platform configuration")
 	}
 
 	return config, nil
@@ -188,6 +193,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
+	c.enrichRuntimeBaseImages()
 
 	return nil
 }
@@ -364,6 +370,34 @@ func (c *Config) DisableSensitiveFieldMasking() {
 	c.SensitiveFields.MaskSensitiveFields = false
 }
 
+func (c *Config) ValidatePlatformConfig() error {
+	if err := c.validateRuntimeBaseImages(); err != nil {
+		return errors.Wrap(err, "Failed to validate runtime base images")
+	}
+
+	return nil
+}
+
+func (c *Config) validateRuntimeBaseImages() error {
+	if c.RuntimeBaseImages == nil {
+		return errors.New("No runtime base images specified")
+	}
+
+	// validate that specific python versions are used
+	if _, genericPythonExists := c.RuntimeBaseImages[common.RuntimePython]; genericPythonExists {
+		return errors.New("Python runtime base image keys must specify a version (e.g. `python:3.11`)")
+	}
+
+	// validate there is no empty base image value
+	for runtimeName, baseImage := range c.RuntimeBaseImages {
+		if baseImage == "" {
+			return errors.Errorf("Runtime has an empty base image value. Runtime: %s", runtimeName)
+		}
+	}
+
+	return nil
+}
+
 // enrichContainerResources enriches an object's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
 func (c *Config) enrichContainerResources(ctx context.Context,
@@ -508,6 +542,36 @@ func (c *Config) enrichElasticSearchConfig() {
 	// override with environment variable if set
 	if envPassword := os.Getenv("NUCLIO_ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
 		c.Kube.ElasticSearchConfig.Password = envPassword
+	}
+}
+
+// getDefaultRuntimeBaseImages returns the default runtime base images
+func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
+	return map[string]string{
+		common.RuntimeShell:      "gcr.io/iguazio/alpine:3.20",
+		common.RuntimeGolang:     "gcr.io/iguazio/alpine:3.20",
+		common.RuntimePython39:   "gcr.io/iguazio/python:3.9",
+		common.RuntimePython310:  "gcr.io/iguazio/python:3.10",
+		common.RuntimePython311:  "gcr.io/iguazio/python:3.11",
+		common.RuntimePython312:  "gcr.io/iguazio/python:3.12",
+		common.RuntimeNodejs:     "gcr.io/iguazio/node:20",
+		common.RuntimeJava:       "gcr.io/iguazio/openjdk:11-jre-slim",
+		common.RuntimeRuby:       "gcr.io/iguazio/ruby:2.4.4-alpine",
+		common.RuntimeDotnetcore: "gcr.io/iguazio/dotnet/runtime:9.0",
+	}
+}
+
+func (c *Config) enrichRuntimeBaseImages() {
+	if c.RuntimeBaseImages == nil {
+		c.RuntimeBaseImages = c.getDefaultRuntimeBaseImages()
+		return
+	}
+
+	// fill in any missing runtime base images with defaults and runtimes with an empty base image value
+	for runtimeName, defaultBaseImage := range c.getDefaultRuntimeBaseImages() {
+		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
+			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
+		}
 	}
 }
 

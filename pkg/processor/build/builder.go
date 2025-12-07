@@ -89,6 +89,13 @@ type runtimeInfo struct {
 	weight int
 }
 
+// processorImageBuildConfig holds configuration for processor image building
+type processorImageBuildConfig struct {
+	baseImageRegistry    string
+	onbuildImageRegistry string
+	baseImage            string
+}
+
 // Builder builds user handlers
 type Builder struct {
 	logger logger.Logger
@@ -434,17 +441,17 @@ func (b *Builder) initializeSupportedRuntimes() {
 	slashSlashParser := inlineparser.NewParser(b.logger, "//")
 	poundParser := inlineparser.NewParser(b.logger, "#")
 
-	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
-	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
-	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
-	b.runtimeInfo["python:3.9"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["python:3.10"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["python:3.11"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["python:3.12"] = runtimeInfo{"py", poundParser, 5}
-	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
-	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
-	b.runtimeInfo["ruby"] = runtimeInfo{"rb", poundParser, 0}
-	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimeShell] = runtimeInfo{"sh", poundParser, 0}
+	b.runtimeInfo[common.RuntimeGolang] = runtimeInfo{"go", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimePython] = runtimeInfo{"py", poundParser, 10}
+	b.runtimeInfo[common.RuntimePython39] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimePython310] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimePython311] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimePython312] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo[common.RuntimeNodejs] = runtimeInfo{"js", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimeJava] = runtimeInfo{"java", slashSlashParser, 0}
+	b.runtimeInfo[common.RuntimeRuby] = runtimeInfo{"rb", poundParser, 0}
+	b.runtimeInfo[common.RuntimeDotnetcore] = runtimeInfo{"cs", slashSlashParser, 0}
 }
 
 func (b *Builder) readConfiguration() (string, error) {
@@ -1087,7 +1094,17 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 		}
 	}
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, baseImageRegistry, onbuildImageRegistry)
+	baseImage := b.platform.GetBaseImage(b.runtime)
+	baseImage = b.overrideBaseImageIfSpecified(baseImage, baseImageRegistry)
+	baseImage = b.renderDependantImageURL(baseImage, b.options.DependantImagesRegistryURL)
+
+	imageConfig := &processorImageBuildConfig{
+		baseImageRegistry:    baseImageRegistry,
+		onbuildImageRegistry: onbuildImageRegistry,
+		baseImage:            baseImage,
+	}
+
+	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, imageConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -1103,7 +1120,8 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	b.logger.InfoWithCtx(ctx,
 		"Building processor image",
 		"registryURL", registryURL,
-		"taggedImageName", taggedImageName)
+		"taggedImageName", taggedImageName,
+		"baseImage", baseImage)
 
 	err = b.platform.BuildAndPushContainerImage(ctx,
 		&containerimagebuilderpusher.BuildOptions{
@@ -1170,12 +1188,11 @@ func (b *Builder) resolveRepoName(registryURL string) string {
 }
 
 func (b *Builder) createProcessorDockerfile(ctx context.Context,
-	baseImageRegistry string,
-	onbuildImageRegistry string) (
+	imageConfig *processorImageBuildConfig) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
-	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry)
+	processorDockerfileInfo, err := b.getRuntimeProcessorDockerfileInfo(imageConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get Dockerfile contents")
 	}
@@ -1184,8 +1201,8 @@ func (b *Builder) createProcessorDockerfile(ctx context.Context,
 	b.logger.DebugWithCtx(ctx,
 		"Created processor Dockerfile",
 		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
-		"baseImageRegistry", baseImageRegistry,
-		"onbuildImageRegistry", onbuildImageRegistry)
+		"baseImageRegistry", imageConfig.baseImageRegistry,
+		"onbuildImageRegistry", imageConfig.onbuildImageRegistry)
 
 	// write the contents to the path
 	if err := os.WriteFile(processorDockerfileInfo.DockerfilePath,
@@ -1304,11 +1321,11 @@ func (b *Builder) getHandlerDir(stagingDir string) string {
 	return path.Join(stagingDir, "handler")
 }
 
-func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, onbuildImageRegistry string) (
+func (b *Builder) getRuntimeProcessorDockerfileInfo(imageConfig *processorImageBuildConfig) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// gather the processor dockerfile info
-	processorDockerfileInfo, err := b.resolveProcessorDockerfileInfo(baseImageRegistry, onbuildImageRegistry)
+	processorDockerfileInfo, err := b.resolveProcessorDockerfileInfo(imageConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1357,12 +1374,11 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	return processorDockerfileInfo, nil
 }
 
-func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
-	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (b *Builder) resolveProcessorDockerfileInfo(imageConfig *processorImageBuildConfig) (*runtime.ProcessorDockerfileInfo, error) {
 
 	// get defaults from the runtime
 	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(b.platform.GetConfig().Runtime,
-		onbuildImageRegistry)
+		imageConfig.onbuildImageRegistry, imageConfig.baseImage)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1371,15 +1387,7 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 		OnbuildArtifacts:   runtimeProcessorDockerfileInfo.OnbuildArtifacts,
 		ImageArtifactPaths: runtimeProcessorDockerfileInfo.ImageArtifactPaths,
 		Directives:         runtimeProcessorDockerfileInfo.Directives,
-	}
-
-	// set the base image
-	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage,
-		baseImageRegistry)
-	processorDockerfileInfo.BaseImage, err = b.renderDependantImageURL(processorDockerfileInfo.BaseImage,
-		b.options.DependantImagesRegistryURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to render base image")
+		BaseImage:          runtimeProcessorDockerfileInfo.BaseImage,
 	}
 
 	// set the onbuild images
@@ -1390,11 +1398,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 			return nil, errors.Wrap(err, "Failed to get onbuild image")
 		}
 
-		processorDockerfileInfo.OnbuildArtifacts[idx].Image, err = b.renderDependantImageURL(onbuildArtifact.Image,
+		processorDockerfileInfo.OnbuildArtifacts[idx].Image = b.renderDependantImageURL(onbuildArtifact.Image,
 			b.options.DependantImagesRegistryURL)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to render onbuild image")
-		}
 	}
 
 	// if the platform requires an internal healthcheck client - add health check artifact
@@ -1414,27 +1419,27 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 	return &processorDockerfileInfo, nil
 }
 
-func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string, baseImageRegistry string) string {
-
+func (b *Builder) overrideBaseImageIfSpecified(runtimeBaseImage string, baseImageRegistry string) string {
+	functionSpecBaseImage := b.options.FunctionConfig.Spec.Build.BaseImage
 	// override base image, if required
-	switch b.options.FunctionConfig.Spec.Build.BaseImage {
+	switch functionSpecBaseImage {
 
 	// if user didn't pass anything, use default as specified in Dockerfile
 	case "":
 		if baseImageRegistry == "" {
-			return runtimeDefaultBaseImage
+			return runtimeBaseImage
 		}
 
 		// get only image name and concatenate it with registry
-		imageName := path.Base(runtimeDefaultBaseImage)
+		imageName := path.Base(runtimeBaseImage)
 		return strings.Join([]string{baseImageRegistry, imageName}, "/")
 
 	// if user specified something - use that, as is
 	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage
 	default:
 		b.logger.WarnWith("Using user provided base image, runtime interpreter version is provided by the base image",
-			"baseImage", b.options.FunctionConfig.Spec.Build.BaseImage)
-		return b.options.FunctionConfig.Spec.Build.BaseImage
+			"baseImage", functionSpecBaseImage)
+		return functionSpecBaseImage
 	}
 }
 
@@ -1626,9 +1631,9 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 }
 
 // replaces the registry url if applicable. e.g. quay.io/nuclio/some-image:0.0.1 -> 10.0.0.1:2000/some-image:0.0.1
-func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegistryURL string) (string, error) {
+func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegistryURL string) string {
 	if dependantImagesRegistryURL == "" {
-		return imageURL, nil
+		return imageURL
 	}
 
 	// be tolerant of trailing slash in dependantImagesRegistryURL
@@ -1645,7 +1650,7 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 		"dependantImagesRegistryURL", dependantImagesRegistryURL,
 		"renderedImageURL", renderedImageURL)
 
-	return renderedImageURL, nil
+	return renderedImageURL
 }
 
 func (b *Builder) resolveFunctionPathFromURL(ctx context.Context, functionPath string, codeEntryType string) (string, error) {

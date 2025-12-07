@@ -492,8 +492,7 @@ func (suite *testSuite) TestRenderDependantImageURL() {
 		{"base/" + imageNameAndTag, replacementURL + "/", replacementURL + "/" + imageNameAndTag},
 		{"base/sub/" + imageNameAndTag, replacementURL, replacementURL + "/" + imageNameAndTag},
 	} {
-		renderedImageURL, err := suite.builder.renderDependantImageURL(testCase.imageURL, testCase.replacementURL)
-		suite.Require().NoError(err)
+		renderedImageURL := suite.builder.renderDependantImageURL(testCase.imageURL, testCase.replacementURL)
 		suite.Require().Equal(testCase.expectedImageURL, renderedImageURL)
 	}
 }
@@ -1142,7 +1141,7 @@ func (suite *testSuite) TestGetProcessorDockerfileBaseImage() {
 			defer func() {
 				suite.builder.options.FunctionConfig.Spec.Build.BaseImage = oldBaseImage
 			}()
-			result := suite.builder.getProcessorDockerfileBaseImage(tc.runtimeDefaultBaseImage, tc.baseImageRegistry)
+			result := suite.builder.overrideBaseImageIfSpecified(tc.runtimeDefaultBaseImage, tc.baseImageRegistry)
 			suite.Require().Equal(tc.expected, result)
 		})
 	}

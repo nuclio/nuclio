@@ -1066,6 +1066,11 @@ func (ap *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtim
 	return ap.ContainerBuilder.GetBaseImageRegistry(registry), nil
 }
 
+// GetBaseImage returns the base image resolved for the runtime (explicit or default)
+func (ap *Platform) GetBaseImage(runtime runtime.Runtime) string {
+	return runtime.GetBaseImageFromMap(ap.Config.RuntimeBaseImages)
+}
+
 // GetOnbuildImageRegistry returns onbuild image registry
 func (ap *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
 	onbuildImagesOverrides := ap.getOnbuildImagesOverrides()

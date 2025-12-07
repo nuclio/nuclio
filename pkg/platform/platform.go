@@ -211,6 +211,9 @@ type Platform interface {
 	// GetBaseImageRegistry returns base image registry
 	GetBaseImageRegistry(registry string, runtime runtime.Runtime) (string, error)
 
+	// GetBaseImage returns the base image resolved for the runtime (explicit or default)
+	GetBaseImage(runtime runtime.Runtime) string
+
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
 
