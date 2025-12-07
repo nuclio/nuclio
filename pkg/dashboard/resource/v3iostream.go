@@ -144,6 +144,8 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		&v3ioStreamInfoInstance,
 		consumerGroups)
 	if err != nil {
+		vsr.Logger.WarnWithCtx(ctx, "Failed to get shard lags",
+			"error", errors.GetErrorStack(err, 10))
 		return nil, errors.Wrap(err, "Failed getting shard lags")
 	}
 
