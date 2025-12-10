@@ -19,6 +19,7 @@ package v4
 type identityResponse struct {
 	Metadata struct {
 		Username string `json:"username"`
+		ID       string `json:"id"`
 	} `json:"metadata"`
 	Relationships []struct {
 		Type     string `json:"@type"`
