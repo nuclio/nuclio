@@ -9,8 +9,8 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 | **Path** | **Type** | **Description**                                                                                                                                                                                                  |
 |:---------|:---------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | url      | string   | The RabbitMQ connection URL in AMQP format (e.g., `amqp://host:port` or `amqp://user:pass@host:port`). If credentials are included in the URL, they will be automatically extracted and used for authentication. |
-| username | string   | The username for RabbitMQ authentication. Can also be provided in the URL. If username is provided in `url`, it takes a precedence.                                                                              |
-| password | string   | The password for RabbitMQ authentication. Can also be provided in the URL. If password is provided in `url`, it takes a precedence.                                                                              |
+| username | string   | The username for RabbitMQ authentication. Can also be provided in the URL. If username is provided in `url`, it takes precedence.                                                                                |
+| password | string   | The password for RabbitMQ authentication. Can also be provided in the URL. If password is provided in `url`, it takes precedence.                                                                                |
 
 ## Attributes
 
