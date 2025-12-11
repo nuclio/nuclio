@@ -22,10 +22,11 @@ type Session struct {
 	*iguazio.AbstractSession
 }
 
-func NewSession(username string, groupIDs []string) *Session {
+func NewSession(username string, userID string, groupIDs []string) *Session {
 	return &Session{
 		AbstractSession: &iguazio.AbstractSession{
 			Username: username,
+			UserID:   userID,
 			GroupIDs: groupIDs,
 		},
 	}
