@@ -359,22 +359,20 @@ Extended Response (includeOffline=true):
 #### Request
 
 * URL: `GET /api/functions/<function name>/proxy-logs`
-    * Headers:
+* Headers:
     * `x-nuclio-function-namespace`: Namespace (required)
-    * Params:
-    | Parameter      | Type       | Description                                                                 |
-    |----------------|------------|-----------------------------------------------------------------------------|
-    | `timeFilter`   | object     | Time range to filter logs (optional). See `TimeFilter` structure below.     |
-    | `substring`    | string     | Filter logs containing a specific substring (optional).                     |
-    | `regexp`       | string     | Filter logs matching a regular expression (optional).                       |
-    | `replicaNames` | string[]   | Filter logs by specific replica names (optional).                           |
-    | `logLevels`    | string[]   | Filter logs by log levels (e.g. `debug`, `info`, `error`) (optional).       |
-    | `size`         | integer    | Max number of log entries to return (optional).                             |
-    | `searchAfter`  | [types.FieldValue[]](https://github.com/elastic/elasticsearch-specification/blob/52c473efb1fb5320a5bac12572d0b285882862fb/specification/_types/common.ts#L25-L31)   | For paginated log fetching (optional).                                      |
-    | `source`       | string     | Source to retrieve logs from (e.g. `elasticsearch`) (optional).             |
-    | `from`         | int        | From parameter for pagination. Should be used in pair with `size`           |
+* Params:
+    * `timeFilter` (object): Time range to filter logs (optional). See `TimeFilter` structure below.
+    * `substring` (string): Filter logs containing a specific substring (optional).
+    * `regexp` (string): Filter logs matching a regular expression (optional).
+    * `replicaNames` (string[]): Filter logs by specific replica names (optional).
+    * `logLevels` (string[]): Filter logs by log levels (e.g. `debug`, `info`, `error`) (optional).
+    * `size` (integer): Max number of log entries to return (optional).
+    * `searchAfter` ([types.FieldValue[]](https://github.com/elastic/elasticsearch-specification/blob/52c473efb1fb5320a5bac12572d0b285882862fb/specification/_types/common.ts#L25-L31)): For paginated log fetching (optional).
+    * `source` (string): Source to retrieve logs from (e.g. `elasticsearch`) (optional).
+    * `from` (int): From parameter for pagination. Should be used in pair with `size`.
 
-timeFilter example:
+`timeFilter` example:
 ```
 {
   "since": "2025-05-01T00:00:00Z",   // ISO 8601 format, optional
@@ -385,8 +383,8 @@ timeFilter example:
 
 #### Response
 
-    * Status code: 200
-    * Body:
+* Status code: 200
+* Body:
 
 ```text
 ...Stream logs...
