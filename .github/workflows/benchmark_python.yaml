@@ -71,7 +71,7 @@ jobs:
           make test-docker-benchmark-python BENCHMARK_REPORT_PATH="$BENCHMARK_REPORT_PATH"
 
       - name: Upload benchmark report artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-report
           path: ${{ env.BENCHMARK_REPORT_PATH }}
