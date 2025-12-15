@@ -73,7 +73,7 @@ jobs:
           echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
 
       - name: Login to registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ${{ env.REPO }}
           username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
