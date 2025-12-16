@@ -33,7 +33,7 @@ Benchmarking output contains:
 
 Prerequisites:
  - vegeta                  - https://github.com/tsenart/vegeta
- - python                  - https://realpython.com/intro-to-pyenv (tl;dr: pyenv install 3.8)       
+ - python                  - https://realpython.com/intro-to-pyenv (tl;dr: pyenv install 3.8)
 
 Usage: `python benchmark.py --help`
 
@@ -42,7 +42,7 @@ Or remotely: `wget -qO- \
  | python3 /dev/stdin --help`
 
 
-TODO: 
+TODO:
  - Structured logs
  - Add README
  - Update Benchmarking.md
@@ -61,12 +61,11 @@ class Runtimes(object):
     dotnetcore = "dotnetcore"
     shell = "shell"
     ruby = "ruby"
-    python39 = "python:3.9"
     python310 = "python:3.10"
     python311 = "python:3.11"
     python312 = "python:3.12"
 
-    # NOTE: python is just an alias to python3.9
+    # NOTE: python is just an alias to python3.12
     python = "python"
 
     @staticmethod
@@ -74,11 +73,9 @@ class Runtimes(object):
         return {
             "empty": {
                 Runtimes.python: "empty:handler",
-                Runtimes.python37: "empty:handler",
-                Runtimes.python38: "empty:handler",
-                Runtimes.python39: "empty:handler",
                 Runtimes.python310: "empty:handler",
                 Runtimes.python311: "empty:handler",
+                Runtimes.python312: "empty:handler",
                 Runtimes.golang: "empty:Handler",
                 Runtimes.java: "EmptyHandler",
                 Runtimes.nodejs: "empty:handler",
@@ -93,11 +90,9 @@ class Runtimes(object):
         return {
             "empty": {
                 Runtimes.python: "empty.py",
-                Runtimes.python37: "empty.py",
-                Runtimes.python38: "empty.py",
-                Runtimes.python39: "empty.py",
                 Runtimes.python310: "empty.py",
                 Runtimes.python311: "empty.py",
+                Runtimes.python312: "empty.py",
                 Runtimes.golang: "empty.go",
                 Runtimes.java: "EmptyHandler.java",
                 Runtimes.nodejs: "empty.js",
@@ -111,11 +106,9 @@ class Runtimes(object):
     def all():
         return [
             Runtimes.golang,
-            Runtimes.python37,
-            Runtimes.python38,
-            Runtimes.python39,
             Runtimes.python310,
             Runtimes.python311,
+            Runtimes.python312,
             Runtimes.java,
             Runtimes.nodejs,
             Runtimes.dotnetcore,

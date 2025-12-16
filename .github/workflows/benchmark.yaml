@@ -56,7 +56,7 @@ jobs:
         run: |
 
           # map runtimes to desired onbuild-targets
-          # golang,python:3.9 -> golang python
+          # golang,python:3.12 -> golang python
           if [ "$INPUT_RUNTIMES" == "all" ]; then\
             RUNTIMES=(golang java python dotnetcore nodejs);\
           else\

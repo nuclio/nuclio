@@ -801,7 +801,7 @@ func (suite *testSuite) TestFallbackOnUnknownArchiveExtension() {
 func (suite *testSuite) TestImageNameConfigurationEnrichment() {
 	suite.builder.options.FunctionConfig.Meta.Name = "name"
 	suite.builder.options.FunctionConfig.Spec.Handler = "handler"
-	suite.builder.options.FunctionConfig.Spec.Runtime = "python3.9"
+	suite.builder.options.FunctionConfig.Spec.Runtime = "python"
 
 	type testAttributes struct {
 		inputImageName             string

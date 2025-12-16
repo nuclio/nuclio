@@ -88,14 +88,13 @@ CMD [ "processor" ]
 ```
 
 ## Supported versions
-* Python 3.9
 * Python 3.10
 * Python 3.11
 * Python 3.12
 
 These versions are no longer supported: [EOL versions](#python-versions-eol)
 
-In Python 3.9+ runtimes, events metadata, such as headers, path, method, etc can be decoded as byte-strings.
+In Python 3.10+ runtimes, events metadata, such as headers, path, method, etc can be decoded as byte-strings.
 This may incur changes in your code to refer to the various (now) byte-string event properties correctly in the new runtimes.
 e.g.: Simple code snipped which worked on python 2.7 and 3.6, using some event metadata, such as `event.path`
 
@@ -129,6 +128,7 @@ The following Python versions are no longer supported in Nuclio, due to their En
 - Python 3.6 (EOL since Dec 2021)
 - Python 3.7 (EOL since June 2023)
 - Python 3.8 (EOL since October 2024)
+- Python 3.9 (EOL since October 2025)
 
 For more information, see the [Python version status](https://devguide.python.org/versions/) page.
 

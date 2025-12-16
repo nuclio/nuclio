@@ -444,7 +444,6 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo[common.RuntimeShell] = runtimeInfo{"sh", poundParser, 0}
 	b.runtimeInfo[common.RuntimeGolang] = runtimeInfo{"go", slashSlashParser, 0}
 	b.runtimeInfo[common.RuntimePython] = runtimeInfo{"py", poundParser, 10}
-	b.runtimeInfo[common.RuntimePython39] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo[common.RuntimePython310] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo[common.RuntimePython311] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo[common.RuntimePython312] = runtimeInfo{"py", poundParser, 5}

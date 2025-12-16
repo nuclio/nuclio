@@ -237,7 +237,7 @@ func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *p
 		},
 	}
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.9"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
 def handler(context, event):
   return "hello world"

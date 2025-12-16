@@ -64,12 +64,12 @@ func (p *python) GetProcessorDockerfileInfo(
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.FunctionConfig.Spec.Runtime)
 
 	switch runtimeVersion {
-	case "3.6":
-		return nil, errors.New("Python 3.6 runtime is deprecated and is not supported anymore." +
-			"Migrate your code and use Python 3.9 runtime (`python:3.9`) or higher")
-	case "3.7", "3.8":
-		p.Logger.Warn(fmt.Sprintf("Python %s runtime is deprecated and will soon not be supported. ", runtimeVersion) +
-			"Migrate your code and use Python 3.9 runtime (`python:3.9`) or higher")
+	case "3.6", "3.7", "3.8", "3.9":
+		return nil, errors.New(fmt.Sprintf("Python %s runtime is deprecated and not supported anymore."+
+			"Migrate your code to Python 3.11 (`python:3.11`) or higher", runtimeVersion))
+	case "3.10":
+		p.Logger.Warn("Python 3.10 runtime is still supported but will be deprecated soon " +
+			"Migrate your code to Python 3.11 (`python:3.11`) or higher")
 	default:
 	}
 	srcOnbuildWheelsPath := fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
