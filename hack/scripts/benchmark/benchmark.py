@@ -33,7 +33,7 @@ Benchmarking output contains:
 
 Prerequisites:
  - vegeta                  - https://github.com/tsenart/vegeta
- - python                  - https://realpython.com/intro-to-pyenv (tl;dr: pyenv install 3.8)
+ - python                  - https://realpython.com/intro-to-pyenv (tl;dr: pyenv install 3.12)
 
 Usage: `python benchmark.py --help`
 
