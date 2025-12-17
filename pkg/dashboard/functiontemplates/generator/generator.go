@@ -262,8 +262,8 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 			runtimeVersion == "3.9" &&
 			functionName == "helloworld" {
 
-			// add helloworld function example to python 3.7+
-			for _, runtimeCopy := range []string{"python:3.9", "python:3.10", "python:3.11", "python:3.12"} {
+			// add helloworld function example to python 3.10+
+			for _, runtimeCopy := range []string{"python:3.10", "python:3.11", "python:3.12"} {
 				configurationCopy := *configuration
 				configurationCopy.Spec.Runtime = runtimeCopy
 

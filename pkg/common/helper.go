@@ -559,7 +559,7 @@ func GetRuntimeNameAndVersion(runtime string) (string, string) {
 
 	switch runtimeAndVersion := strings.Split(runtime, ":"); len(runtimeAndVersion) {
 
-	// if both are passed (e.g. python:3.9) - return them both
+	// if both are passed (e.g. python:3.12) - return them both
 	case 2:
 		return runtimeAndVersion[0], runtimeAndVersion[1]
 

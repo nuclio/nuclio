@@ -825,7 +825,7 @@ def handler(context, event):
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
-    baseImage: python:3.9-buster
+    baseImage: python:3.12-buster
     commands:
     - apt-get update && apt-get install -y wget
     - wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz

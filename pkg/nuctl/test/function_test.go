@@ -141,11 +141,6 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 			filename: "empty.cs",
 		},
 		{
-			runtime:  "python:3.9",
-			handler:  "empty:handler",
-			filename: "empty.py",
-		},
-		{
 			runtime:  "python:3.10",
 			handler:  "empty:handler",
 			filename: "empty.py",

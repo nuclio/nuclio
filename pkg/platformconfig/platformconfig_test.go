@@ -853,12 +853,12 @@ func (suite *PlatformConfigTestSuite) TestEnrichRuntimeBaseImages() {
 		{
 			name: "python with multiple explicit versions",
 			baseImages: map[string]string{
-				"python:3.9":  "custom-python:3.9",
-				"python:3.10": "custom-python:3.10",
+				"python:3.11": "custom-python:3.11",
+				"python:3.12": "custom-python:3.12",
 			},
 			expectedBaseImages: map[string]string{
-				"python:3.9":  "custom-python:3.9",
-				"python:3.10": "custom-python:3.10",
+				"python:3.11": "custom-python:3.11",
+				"python:3.12": "custom-python:3.12",
 			},
 		},
 		{

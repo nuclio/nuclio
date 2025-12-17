@@ -34,7 +34,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/test/offline"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
@@ -47,10 +46,9 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	CloudEventsTestSuite  cloudevents.TestSuite
-	CallFunctionTestSuite callfunction.TestSuite
-	OfflineTestSuite      offline.TestSuite
-	runtime               string
+	CloudEventsTestSuite cloudevents.TestSuite
+	OfflineTestSuite     offline.TestSuite
+	runtime              string
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -63,9 +61,6 @@ func (suite *TestSuite) SetupTest() {
 	// cloud events suite
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 	suite.CloudEventsTestSuite.CloudEventsHandler = "eventreturner:handler"
-
-	// call function suite
-	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
 
 	// offline suite
 	suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
@@ -753,7 +748,6 @@ func TestIntegrationSuite(t *testing.T) {
 	for _, testCase := range []struct {
 		runtimeName string
 	}{
-		{runtimeName: "python:3.9"},
 		{runtimeName: "python:3.10"},
 		{runtimeName: "python:3.11"},
 		{runtimeName: "python:3.12"},
