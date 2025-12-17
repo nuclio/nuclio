@@ -68,7 +68,7 @@ func (p *python) GetProcessorDockerfileInfo(
 		return nil, errors.New(fmt.Sprintf("Python %s runtime is deprecated and not supported anymore."+
 			"Migrate your code to Python 3.11 (`python:3.11`) or higher", runtimeVersion))
 	case "3.10":
-		p.Logger.Warn("Python 3.10 runtime is still supported but will be deprecated soon " +
+		p.Logger.Warn("Python 3.10 runtime is still supported but will be deprecated soon. " +
 			"Migrate your code to Python 3.11 (`python:3.11`) or higher")
 	default:
 	}
