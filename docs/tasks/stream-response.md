@@ -137,7 +137,7 @@ Nuclio supports streaming files via special response headers. This allows functi
 When a function returns a response with specific headers, the HTTP trigger intercepts these headers and streams the file content directly:
 
 1. **`X-nuclio-filestream-path`**: Specifies the file path to stream
-2. **`X-nuclio-filestream-delete-after-send`** (optional): If set to any value, the file is automatically deleted after streaming completes
+2. **`X-nuclio-filestream-delete-after-send`** (optional): If set to **any** value, the file is automatically deleted after streaming completes
 
 The trigger opens the file and streams it directly to the HTTP response using `io.ReadCloser`, avoiding memory buffering for large files.
 
