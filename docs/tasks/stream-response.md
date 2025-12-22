@@ -123,3 +123,65 @@ def stream_file_lines_sync_handler(context, event):
 async def stream_file_lines_as_response_sync_handler(context, event):
     return context.Response(body=stream_file_lines_sync_handler(context, event))
 ```
+
+---
+
+## File Streaming via Headers (Legacy Workaround)
+
+> **Note:** This feature was implemented as a workaround before native streaming support existed. For **Python** and **Go** runtimes, it's recommended to use the native streaming API described above. However, this header-based approach remains useful for other runtimes that don't yet support native streaming.
+
+Nuclio supports streaming files via special response headers. This allows functions to stream file contents directly to the HTTP client without loading the entire file into memory.
+
+### How It Works
+
+When a function returns a response with specific headers, the HTTP trigger intercepts these headers and streams the file content directly:
+
+1. **`X-nuclio-filestream-path`**: Specifies the file path to stream
+2. **`X-nuclio-filestream-delete-after-send`** (optional): If set to any value, the file is automatically deleted after streaming completes
+
+The trigger opens the file and streams it directly to the HTTP response using `io.ReadCloser`, avoiding memory buffering for large files.
+
+### Example Usage
+
+#### Go Runtime
+
+```go
+package main
+
+import (
+	"github.com/nuclio/nuclio-sdk-go"
+)
+
+func FileStreamer(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	headers := map[string]interface{}{
+		"X-nuclio-filestream-path": "/path/to/file.txt",
+		// Optionally delete file after streaming
+		"X-nuclio-filestream-delete-after-send": "true",
+	}
+
+	return nuclio.Response{
+		Headers: headers,
+		StatusCode: 200,
+	}, nil
+}
+```
+
+#### Python Runtime (Legacy - Use Native Streaming Instead)
+
+```python
+def file_streamer_handler(context, event):
+    return context.Response(
+        headers={
+            "X-nuclio-filestream-path": "/path/to/file.txt",
+            "X-nuclio-filestream-delete-after-send": "true"  # optional
+        },
+        status_code=200
+    )
+```
+
+> **Recommendation for Python:** Use native streaming with generators (see examples above) instead of file streaming headers for better performance and cleaner code.
+
+### When to Use
+
+- **Use native streaming** (recommended): For Python and Go runtimes when you need to stream data
+- **Use file streaming headers**: For other runtimes (Node.js, Java, .NET, Ruby, Shell) that don't yet support native streaming, or when you specifically need to stream files from the filesystem
