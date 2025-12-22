@@ -35,7 +35,7 @@ spec:
   maxReplicas: 1
   minReplicas: 10
   platform: {}
-  runtime: python:3.9
+  runtime: python
   priorityClassName: igz-workload-medium
   triggers:
     default-http:

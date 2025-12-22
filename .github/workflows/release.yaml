@@ -146,7 +146,7 @@ jobs:
           fetch-depth: 0
 
       - name: Generate Changelog with git-cliff
-        uses: orhun/git-cliff-action@d77b37db2e3f7398432d34b72a12aa3e2ba87e51 # 4.6.0
+        uses: orhun/git-cliff-action@e16f179f0be49ecdfe63753837f20b9531642772 # 4.7.0
         id: git-cliff
         with:
           config: cliff.toml
@@ -196,7 +196,7 @@ jobs:
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
       - name: Create pull request with bumped charts
-        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
@@ -427,7 +427,7 @@ jobs:
           helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
 
       - name: Create PR to gh-pages
-        uses: peter-evans/create-pull-request@84ae59a2cdc2258d6fa0732dd66352dddae2a412 # v7.0.9
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "${{ env.HELM_PUBLISH_COMMIT_MESSAGE }}"

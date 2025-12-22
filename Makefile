@@ -83,7 +83,7 @@ NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND=list-all-dirs-with-tests
 LIST_TESTS_MAKE_COMMAND := $(if $(LIST_TESTS_MAKE_COMMAND),$(LIST_TESTS_MAKE_COMMAND),$(NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND))
 
 # Docker client cli to be used
-NUCLIO_DOCKER_CLIENT_VERSION ?= 29.0.2
+NUCLIO_DOCKER_CLIENT_VERSION ?= 29.1.2
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
 else ifeq ($(NUCLIO_ARCH), arm64)
@@ -915,7 +915,7 @@ test-nodejs:
 .PHONY: test-python
 test-python:
 	@set -e; \
-	for runtime in 3.12 3.11 3.10 3.9; do \
+	for runtime in 3.12 3.11 3.10; do \
 		docker build \
 			--build-arg PYTHON_IMAGE_TAG=$$runtime \
 			--build-arg CACHEBUST=$(shell date +%s) \

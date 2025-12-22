@@ -130,7 +130,7 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 			name:                 "Python-Enable-Pool",
 			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
 			workerAllocationMode: partitionworker.AllocationModePool,
-			runtime:              "python3.9",
+			runtime:              "python",
 			expectedFailure:      true,
 		},
 		{

@@ -427,31 +427,16 @@ func (suite *testSuite) initializeBrokerConnection() {
 }
 
 func (suite *testSuite) closeAllBrokerConnections() {
-
+	// default user
+	user := "guest"
 	var stdout string
-	// stdout will be something like "[{"name":"192.168.101.3:57931 -> 172.17.0.2:5672"}]"
 	err := suite.DockerClient.ExecInContainer(suite.BrokerContainerID,
 		&dockerclient.ExecOptions{
-			Command: `rabbitmqadmin list connections name --format raw_json`,
+			Command: fmt.Sprintf(`rabbitmqadmin close user_connections --username '%s'`, user),
 			Stdout:  &stdout,
 		})
-	suite.Require().NoError(err)
 
-	// unmarshal the json
-	var connections []struct {
-		Name string `json:"name"`
-	}
-	err = json.Unmarshal([]byte(stdout), &connections)
 	suite.Require().NoError(err)
-	for _, connection := range connections {
-		stdout = ""
-		err = suite.DockerClient.ExecInContainer(suite.BrokerContainerID,
-			&dockerclient.ExecOptions{
-				Command: fmt.Sprintf(`rabbitmqadmin close connection name='%s'`, connection.Name),
-				Stdout:  &stdout,
-			})
-		suite.Require().NoError(err)
-	}
 }
 
 func TestIntegrationSuite(t *testing.T) {

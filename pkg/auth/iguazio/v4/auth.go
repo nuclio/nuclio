@@ -94,5 +94,5 @@ func (a *Auth) BuildSessionFromResponse(response *http.Response) (authpkg.Sessio
 		}
 	}
 
-	return NewSession(resp.Metadata.Username, groupIDs), nil
+	return NewSession(resp.Metadata.Username, resp.Metadata.ID, groupIDs), nil
 }

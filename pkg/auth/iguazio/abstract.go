@@ -257,6 +257,7 @@ func (a *AbstractAuth) buildIdentityRequest(authParams *AuthParameters) (*http.R
 
 type AbstractSession struct {
 	Username string
+	UserID   string
 	GroupIDs []string
 }
 
@@ -273,7 +274,7 @@ func (a *AbstractSession) CompileAuthorizationBasicHeader() string {
 }
 
 func (a *AbstractSession) GetUserID() string {
-	return ""
+	return a.UserID
 }
 
 func (a *AbstractSession) GetPassword() string {
