@@ -55,10 +55,11 @@ limitations under the License.
          * Deletes function
          * @param {Object} functionToDelete
          * @param {Boolean} ignoreValidation - determines whether to forcibly remove the function
+         * @param {Boolean} deleteApiGateway - determines whether to delete API Gateway
          * @returns {Promise}
          */
-        function deleteFunction(functionToDelete, ignoreValidation) {
-            return NuclioFunctionsDataService.deleteFunction(functionToDelete, ignoreValidation);
+        function deleteFunction(functionToDelete, ignoreValidation, deleteApiGateway) {
+            return NuclioFunctionsDataService.deleteFunction(functionToDelete, ignoreValidation, deleteApiGateway);
         }
 
         /**
