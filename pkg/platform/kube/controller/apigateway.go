@@ -114,6 +114,8 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 			"Failed to create/update api gateway. Updating state accordingly",
 			"err", errors.GetErrorStackString(err, 10),
 		)
+
+		// deferring to ensure apigw status is updated
 		defer func() {
 			if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateError, err); err != nil {
 				ago.logger.WarnWithCtx(ctx,
