@@ -191,6 +191,7 @@ class NuclioPatcher:
     def _docker_login_if_configured(self):
         registry_username = self._config.get("REGISTRY_USERNAME")
         registry_password = self._config.get("REGISTRY_PASSWORD")
+        registry_url = self._config.get("DOCKER_REGISTRY")
         if registry_username is not None:
             self._exec_local(
                 [
@@ -200,6 +201,7 @@ class NuclioPatcher:
                     registry_username,
                     "--password",
                     registry_password,
+                    registry_url,
                 ],
                 live=True,
             )
