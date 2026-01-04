@@ -751,6 +751,18 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 		return errors.Wrap(err, "Failed to create project")
 	}
 
+	// ensure project permissions are populated in OPA
+	if err := common.RetryUntilSuccessful(time.Second*10,
+		time.Second*1,
+		func() bool {
+			if err := p.EnsureProjectRead(ctx, createProjectOptions.ProjectConfig.Meta.Name, &createProjectOptions.PermissionOptions); err != nil {
+				return false
+			}
+			return true
+		}); err != nil {
+		return errors.Wrap(err, "Failed to ensure project permissions are populated in OPA")
+	}
+
 	// adding to cache for 30 seconds, allowing
 	p.projectsCache.Set(
 		p.getProjectCacheKey(
