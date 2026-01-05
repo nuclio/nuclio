@@ -2304,6 +2304,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.SyncTriggerWorkMode,
 						},
@@ -2318,6 +2319,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name:        "test-trigger",
 							Kind:        "http",
 							Mode:        functionconfig.SyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{MaxConnectionsNumber: 10},
@@ -2334,6 +2336,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "cron",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2352,6 +2355,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "java",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2370,6 +2374,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2389,6 +2394,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2408,6 +2414,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2422,10 +2429,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 		{
 			name: "set custom availability timeout -> error",
 			functionConfig: &functionconfig.Config{
+
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2438,18 +2447,23 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 			expectedError: "failed to parse connection availability timeout",
 		},
 	}
-
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
+			validateError := func(err error) {
+				if testCase.expectedError == "" {
+					suite.Require().NoError(err)
+				} else {
+					suite.Require().Error(err)
+					suite.Contains(err.Error(), testCase.expectedError)
+				}
+			}
 			triggerInstance := testCase.functionConfig.Spec.Triggers["test-trigger"]
 			err := suite.Platform.validateProcessingMode(triggerInstance, testCase.functionConfig)
+			validateError(err)
 
-			if testCase.expectedError == "" {
-				suite.Require().NoError(err)
-			} else {
-				suite.Require().Error(err)
-				suite.Contains(err.Error(), testCase.expectedError)
-			}
+			// check that it is successfully validate from enrich triggers method as well
+			err = suite.Platform.validateTriggers(testCase.functionConfig)
+			validateError(err)
 		})
 	}
 }
