@@ -1637,11 +1637,10 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 
 		// no more than one http trigger is allowed
 		if triggerInstance.Kind == "http" {
-			if !httpTriggerExists {
-				httpTriggerExists = true
-				continue
+			if httpTriggerExists {
+				return nuclio.NewErrBadRequest("There's more than one http trigger (unsupported)")
 			}
-			return nuclio.NewErrBadRequest("There's more than one http trigger (unsupported)")
+			httpTriggerExists = true
 		}
 
 		// explicit ack is only allowed for Static Allocation mode
