@@ -103,10 +103,9 @@ limitations under the License.
          * Deletes function
          * @param {Object} functionData
          * @param {Boolean} ignoreValidation - determines whether to forcibly remove the function
-         * @param {Boolean} deleteApiGateway - determines whether to delete API Gateway
          * @returns {Promise}
          */
-        function deleteFunction(functionData, ignoreValidation, deleteApiGateway) {
+        function deleteFunction(functionData, ignoreValidation) {
             var headers = {
                 'Content-Type': 'application/json'
             };
@@ -118,10 +117,6 @@ limitations under the License.
 
             if (ignoreValidation) {
                 headers['x-nuclio-delete-function-ignore-state-validation'] = true;
-            }
-
-            if (deleteApiGateway) {
-                headers['x-nuclio-delete-function-with-api-gateways'] = true;
             }
 
             var config = {
