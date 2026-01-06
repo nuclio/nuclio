@@ -674,10 +674,6 @@ lint: modules ensure-test-files-annotated ensure-golangci-linter
 	$(GOLANGCI_LINT_BIN) run -v
 	@echo Done.
 
-.PHONY: test-coverage
-test-coverage:
-	go test -tags=test_unit -coverprofile=coverage.out ./pkg/... || go tool cover -html=coverage.out
-
 .PHONY: lint-docs
 lint-docs:
 	vale docs
@@ -737,6 +733,15 @@ govulncheck: modules ensure-govulncheck
 #
 # Testing
 #
+
+GOTESTSUM_VERSION := v1.13.0
+GOTESTSUM_BIN := $(CURDIR)/.bin/gotestsum-$(GOTESTSUM_VERSION)
+
+$(GOTESTSUM_BIN):
+	@echo "$(YELLOW)Installing gotestsum $(GOTESTSUM_VERSION)...$(NC)"
+	GOBIN=$(CURDIR)/.bin go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION) && \
+    mv $(CURDIR)/.bin/gotestsum $(GOTESTSUM_BIN)
+
 .PHONY: benchmarking
 benchmarking:
 	$(eval NUCLIO_BENCHMARKING_RUNTIMES ?= all)
@@ -760,33 +765,38 @@ generate-crds: build-builder
 		--workdir /nuclio \
 		nuclio/crds:latest
 
+.PHONY: test-coverage
+test-coverage: $(GOTESTSUM_BIN)
+	$(GOTESTSUM_BIN) --format testname -- -tags=test_unit -coverprofile=coverage.out ./pkg/... || go tool cover -html=coverage.out
+
+
 .PHONY: test-unit
-test-unit: modules ensure-gopath
-	go test -race -tags=test_unit -v ./cmd/... ./pkg/... -short
+test-unit: modules ensure-gopath $(GOTESTSUM_BIN)
+	$(GOTESTSUM_BIN) --format testname -- -race -tags=test_unit -v ./cmd/... ./pkg/... -short
 
 .PHONY: test-k8s-nuctl
-test-k8s-nuctl:
+test-k8s-nuctl: $(GOTESTSUM_BIN)
 	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
 		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
 		NUCTL_PLATFORM=kube \
 		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
-		go test -tags="test_integration,test_kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+		$(GOTESTSUM_BIN) --format testname -- -tags="test_integration,test_kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-docker-nuctl
-test-docker-nuctl:
+test-docker-nuctl: $(GOTESTSUM_BIN)
 	NUCTL_PLATFORM=local \
-		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+		$(GOTESTSUM_BIN) --format testname -- -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-docker-benchmark-python
-test-docker-benchmark-python:
+test-docker-benchmark-python: $(GOTESTSUM_BIN)
 	NUCTL_PLATFORM=local \
 	BENCHMARK_REPORT_PATH=$(BENCHMARK_REPORT_PATH) \
-	go test -tags="test_integration,test_local,test_benchmark" -v github.com/nuclio/nuclio/pkg/processor/runtime/python/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+	$(GOTESTSUM_BIN) --format testname -- -tags="test_integration,test_local,test_benchmark" -v github.com/nuclio/nuclio/pkg/processor/runtime/python/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-undockerized
-test-undockerized: ensure-gopath
+test-undockerized: ensure-gopath $(GOTESTSUM_BIN)
 	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
-	go test  \
+	$(GOTESTSUM_BIN) --format testname -- \
 		-tags="test_integration,test_local" \
 		-v \
 		-p 1 \
@@ -794,9 +804,9 @@ test-undockerized: ensure-gopath
 		${LIST}
 
 .PHONY: test-k8s-undockerized
-test-k8s-undockerized: ensure-gopath
+test-k8s-undockerized: ensure-gopath $(GOTESTSUM_BIN)
 	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
-	go test \
+	$(GOTESTSUM_BIN) --format testname -- \
 		-tags="test_integration,test_kube" \
  		-v \
  		-p 1 \
@@ -804,9 +814,9 @@ test-k8s-undockerized: ensure-gopath
  		$(shell go list -tags="test_integration,test_kube" ./cmd/... ./pkg/... | grep -v nuctl)
 
 .PHONY: test-functions-k8s-undockerized
-test-functions-k8s-undockerized: ensure-gopath
+test-functions-k8s-undockerized: ensure-gopath $(GOTESTSUM_BIN)
 	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
-	go test \
+	$(GOTESTSUM_BIN) --format testname -- \
 		-tags="test_integration,test_functions_kube" \
  		-v \
  		-p 1 \
@@ -814,9 +824,9 @@ test-functions-k8s-undockerized: ensure-gopath
  		$(shell go list -tags="test_integration,test_functions_kube" ./cmd/... ./pkg/... | grep -v nuctl)
 
 .PHONY: test-broken-undockerized
-test-broken-undockerized: ensure-gopath
+test-broken-undockerized: ensure-gopath $(GOTESTSUM_BIN)
 	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
-	go test  \
+	$(GOTESTSUM_BIN) --format testname --  \
 		-tags="test_integration,test_broken" \
 		-v \
 		-p 1 \
@@ -872,8 +882,8 @@ test-k8s: build-test
 
 # Runs from host to allow full control over Kubernetes cluster
 .PHONY: test-k8s-functional
-test-k8s-functional:
-	go test \
+test-k8s-functional: $(GOTESTSUM_BIN)
+	$(GOTESTSUM_BIN) --format testname -- \
 		-tags="test_kube,test_functional" \
  		-v \
  		-p 1 \
