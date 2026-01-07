@@ -208,7 +208,6 @@ func (h *http) flushIfTimeout(ctx *fasthttp.RequestCtx, processError error) bool
 
 func (h *http) allocateWorker(timeout time.Duration) (eventprocessor.EventProcessor, int, error) {
 	// allocate a worker
-	h.Logger.DebugWith("AllocateWorker", "timeout", timeout)
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
 		h.UpdateStatistics(false, 1)
