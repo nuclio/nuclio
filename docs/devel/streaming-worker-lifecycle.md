@@ -20,8 +20,8 @@ There are **two levels** of event processors, each with their own allocator:
 │                     │  Async Mode: NonBlockingPoolAlloc  │                  │
 │                     └──────────────┬─────────────────────┘                  │
 └────────────────────────────────────┼────────────────────────────────────────┘
-│
-▼
+                                     │
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    Worker (EventProcessor) = Python Process                  │
 │                                                                             │
@@ -35,8 +35,8 @@ There are **two levels** of event processors, each with their own allocator:
 │                     │  N conns: BlockingPoolAllocator    │                  │
 │                     └──────────────┬─────────────────────┘                  │
 └────────────────────────────────────┼────────────────────────────────────────┘
-│
-▼
+                                     │
+                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    Connection (EventProcessor) = Socket to Python            │
 │                                                                             │
@@ -88,8 +88,8 @@ There are **two levels** of event processors, each with their own allocator:
 │                     │  (Level 1)     │         │  Stream Data   │          │
 │                     └────────────────┘         └────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────────┘
-│
-▼
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │              Worker (Python Process) - Level 1 EventProcessor                │
 │                                                                             │
@@ -107,8 +107,8 @@ There are **two levels** of event processors, each with their own allocator:
 │  │ (allocates conn)│    │  (returns fast) │    │  (goroutine)    │         │
 │  └─────────────────┘    └─────────────────┘    └─────────────────┘         │
 └─────────────────────────────────────────────────────────────────────────────┘
-│
-▼
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │              Connection (Socket) - Level 2 EventProcessor                    │
 │                                                                             │
@@ -125,9 +125,9 @@ There are **two levels** of event processors, each with their own allocator:
 ```go
 var releaseOnce sync.Once
 releaseWorker := func() {
-releaseOnce.Do(func() {
-h.WorkerAllocator.Release(workerInstance)
-})
+    releaseOnce.Do(func() {
+        h.WorkerAllocator.Release(workerInstance)
+    })
 }
 ```
 
@@ -140,16 +140,16 @@ h.WorkerAllocator.Release(workerInstance)
 streamingMode := false
 
 defer func() {
-if !streamingMode {
-releaseWorker()
-}
+    if !streamingMode {
+        releaseWorker()
+    }
 }()
 
 // In streaming case:
 streamingMode = true
 ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
-defer releaseWorker()
-// ... streaming logic
+    defer releaseWorker()
+    // ... streaming logic
 })
 ```
 
@@ -166,24 +166,24 @@ defer releaseWorker()
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python
-│                      │                    │               │
-│──── Request ────────▶│                    │               │
-│                      │─── Allocate ──────▶│               │
-│                      │                    │─── Process ──▶│
-│                      │                    │◀── Response ──│
-│                      │◀── Response ───────│               │
-│                      │                    │               │
-│                      │─── releaseWorker() │               │
-│                      │    (sync.Once) ───▶│ (back to pool)│
-│                      │                    │               │
-│◀─── Response ────────│                    │               │
-│                      │                    │               │
-│                      │─── defer runs ─────│               │
-│                      │    streamingMode=  │               │
-│                      │    false           │               │
-│                      │    releaseWorker() │               │
-│                      │    (no-op, already │               │
-│                      │     released)      │               │
+  │                      │                    │               │
+  │──── Request ────────▶│                    │               │
+  │                      │─── Allocate ──────▶│               │
+  │                      │                    │─── Process ──▶│
+  │                      │                    │◀── Response ──│
+  │                      │◀── Response ───────│               │
+  │                      │                    │               │
+  │                      │─── releaseWorker() │               │
+  │                      │    (sync.Once) ───▶│ (back to pool)│
+  │                      │                    │               │
+  │◀─── Response ────────│                    │               │
+  │                      │                    │               │
+  │                      │─── defer runs ─────│               │
+  │                      │    streamingMode=  │               │
+  │                      │    false           │               │
+  │                      │    releaseWorker() │               │
+  │                      │    (no-op, already │               │
+  │                      │     released)      │               │
 ```
 
 ### Flow 2: Successful Streaming Response
@@ -194,41 +194,41 @@ Client              HTTP Trigger           Worker          Python
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python
-│                      │                    │               │
-│──── Request ────────▶│                    │               │
-│                      │─── Allocate ──────▶│               │
-│                      │                    │─── Process ──▶│
-│                      │                    │◀─ StreamStart─│
-│                      │◀── StreamStart ────│               │
-│                      │                    │               │
-│                      │ streamingMode=true │               │
-│                      │                    │               │
-│                      │ SetBodyStreamWriter│               │
-│                      │ (registers callback│               │
-│                      │  returns immediately)              │
-│                      │                    │               │
-│                      │─── Handler returns │               │
-│                      │    defer runs:     │               │
-│                      │    streamingMode=  │               │
-│                      │    true → SKIP     │               │
-│                      │                    │               │
-│                      │                    │               │
-│                   ┌──┴──────────────────────────────────┐ │
-│                   │  Callback runs (fasthttp writes)    │ │
-│                   └──┬──────────────────────────────────┘ │
-│                      │                    │               │
-│◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│◀── Chunk 3 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│                      │                    │               │
-│                      │◀─── io.Copy done ──│◀── EOF ──────│
-│                      │                    │               │
-│                      │ typedResponse.Close()              │
-│                      │                    │               │
-│                      │ StreamProcessedSuccessfully()      │
-│                      │                    │               │
-│                      │─── defer releaseWorker()           │
-│                      │    (in callback) ─▶│ (back to pool)│
+  │                      │                    │               │
+  │──── Request ────────▶│                    │               │
+  │                      │─── Allocate ──────▶│               │
+  │                      │                    │─── Process ──▶│
+  │                      │                    │◀─ StreamStart─│
+  │                      │◀── StreamStart ────│               │
+  │                      │                    │               │
+  │                      │ streamingMode=true │               │
+  │                      │                    │               │
+  │                      │ SetBodyStreamWriter│               │
+  │                      │ (registers callback│               │
+  │                      │  returns immediately)              │
+  │                      │                    │               │
+  │                      │─── Handler returns │               │
+  │                      │    defer runs:     │               │
+  │                      │    streamingMode=  │               │
+  │                      │    true → SKIP     │               │
+  │                      │                    │               │
+  │                      │                    │               │
+  │                   ┌──┴──────────────────────────────────┐ │
+  │                   │  Callback runs (fasthttp writes)    │ │
+  │                   └──┬──────────────────────────────────┘ │
+  │                      │                    │               │
+  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 3 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │                      │                    │               │
+  │                      │◀─── io.Copy done ──│◀── EOF ──────│
+  │                      │                    │               │
+  │                      │ typedResponse.Close()              │
+  │                      │                    │               │
+  │                      │ StreamProcessedSuccessfully()      │
+  │                      │                    │               │
+  │                      │─── defer releaseWorker()           │
+  │                      │    (in callback) ─▶│ (back to pool)│
 ```
 
 ### Flow 3: Client Disconnects Mid-Stream
@@ -239,42 +239,42 @@ Client              HTTP Trigger           Worker          Python
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python
-│                      │                    │               │
-│──── Request ────────▶│                    │               │
-│                      │─── Allocate ──────▶│               │
-│                      │◀── StreamStart ────│◀─────────────│
-│                      │                    │               │
-│◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│                      │                    │               │
-│ ╳ DISCONNECT ╳       │                    │               │
-│                      │                    │               │
-│                      │─── io.Copy FAILS ──│               │
-│                      │    (write error)   │               │
-│                      │                    │               │
-│                      │ Log: "Failed to    │               │
-│                      │  copy stream..."   │               │
-│                      │                    │               │
-│                      │ SetStatus(         │               │
-│                      │  RestartRequired)  │  ◀─────────── │ (sync mode only)
-│                      │                    │               │
-│                      │ typedResponse.Close()              │
-│                      │    (closes read    │               │
-│                      │     end of pipe)   │               │
-│                      │                    │               │
-│                      │                    │    ┌─────────────────┐
-│                      │                    │    │ Python tries    │
-│                      │                    │    │ to yield next   │
-│                      │                    │    │ → ErrClosedPipe │
-│                      │                    │    │ → generator     │
-│                      │                    │    │    stops        │
-│                      │                    │    └─────────────────┘
-│                      │                    │               │
-│                      │─── defer releaseWorker()           │
-│                      │                    │               │
-│                      │    SocketAllocator.Release():      │
-│                      │    sees RestartRequired            │
-│                      │    → triggers restart              │
+  │                      │                    │               │
+  │──── Request ────────▶│                    │               │
+  │                      │─── Allocate ──────▶│               │
+  │                      │◀── StreamStart ────│◀─────────────│
+  │                      │                    │               │
+  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │                      │                    │               │
+  │ ╳ DISCONNECT ╳       │                    │               │
+  │                      │                    │               │
+  │                      │─── io.Copy FAILS ──│               │
+  │                      │    (write error)   │               │
+  │                      │                    │               │
+  │                      │ Log: "Failed to    │               │
+  │                      │  copy stream..."   │               │
+  │                      │                    │               │
+  │                      │ SetStatus(         │               │
+  │                      │  RestartRequired)  │  ◀─────────── │ (sync mode only)
+  │                      │                    │               │
+  │                      │ typedResponse.Close()              │
+  │                      │    (closes read    │               │
+  │                      │     end of pipe)   │               │
+  │                      │                    │               │
+  │                      │                    │    ┌─────────────────┐
+  │                      │                    │    │ Python tries    │
+  │                      │                    │    │ to yield next   │
+  │                      │                    │    │ → ErrClosedPipe │
+  │                      │                    │    │ → generator     │
+  │                      │                    │    │    stops        │
+  │                      │                    │    └─────────────────┘
+  │                      │                    │               │
+  │                      │─── defer releaseWorker()           │
+  │                      │                    │               │
+  │                      │    SocketAllocator.Release():      │
+  │                      │    sees RestartRequired            │
+  │                      │    → triggers restart              │
 ```
 
 ### Flow 3b: Client Disconnects Mid-Stream (Async Mode)
@@ -287,68 +287,68 @@ In async mode, we use a **non-blocking worker allocator** but still use a **bloc
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python/Connection
-│                      │                    │               │
-│──── Request ────────▶│                    │               │
-│                      │─── Allocate ──────▶│               │
-│                      │◀── StreamStart ────│◀─────────────│
-│                      │                    │               │
-│◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
-│                      │                    │               │
-│ ╳ DISCONNECT ╳       │                    │               │
-│                      │                    │               │
-│                      │─── io.Copy FAILS ──│               │
-│                      │    (write error)   │               │
-│                      │                    │               │
-│                      │ Log: "Failed to    │               │
-│                      │  copy stream..."   │               │
-│                      │                    │               │
-│                      │ (NO SetStatus -    │               │
-│                      │  async mode)       │               │
-│                      │                    │               │
-│                      │ typedResponse.Close()              │
-│                      │    ┌───────────────────────────────────────┐
-│                      │    │  Closes READ end of io.Pipe           │
-│                      │    │  Writer (Python) will get             │
-│                      │    │  ErrClosedPipe on next write          │
-│                      │    └───────────────────────────────────────┘
-│                      │                    │               │
-│                      │                    │               │
-│                      │                    │    ┌─────────────────────┐
-│                      │                    │    │ Python generator    │
-│                      │                    │    │ yields next chunk   │
-│                      │                    │    └──────────┬──────────┘
-│                      │                    │               │
-│                      │                    │               ▼
-│                      │                    │    ┌─────────────────────┐
-│                      │                    │    │ SendChunk() called  │
-│                      │                    │    │ in ProcessStream    │
-│                      │                    │    └──────────┬──────────┘
-│                      │                    │               │
-│                      │                    │               ▼
-│                      │                    │    ┌─────────────────────┐
-│                      │                    │    │ Write to closed     │
-│                      │                    │    │ pipe FAILS          │
-│                      │                    │    │ → ErrClosedPipe     │
-│                      │                    │    └──────────┬──────────┘
-│                      │                    │               │
-│                      │                    │               ▼
-│                      │                    │    ┌─────────────────────┐
-│                      │                    │    │ ProcessStream       │
-│                      │                    │    │ returns error       │
-│                      │                    │    │                     │
-│                      │                    │    │ defer sets:         │
-│                      │                    │    │ SetStatus(          │
-│                      │                    │    │  RestartRequired)   │
-│                      │                    │    └──────────┬──────────┘
-│                      │                    │               │
-│                      │                    │               ▼
-│                      │                    │    ┌─────────────────────┐
-│                      │                    │    │ Connection released │
-│                      │                    │    │ with RestartRequired│
-│                      │                    │    │ → allocator sees it │
-│                      │                    │    │ → triggers restart  │
-│                      │                    │    └─────────────────────┘
+  │                      │                    │               │
+  │──── Request ────────▶│                    │               │
+  │                      │─── Allocate ──────▶│               │
+  │                      │◀── StreamStart ────│◀─────────────│
+  │                      │                    │               │
+  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │                      │                    │               │
+  │ ╳ DISCONNECT ╳       │                    │               │
+  │                      │                    │               │
+  │                      │─── io.Copy FAILS ──│               │
+  │                      │    (write error)   │               │
+  │                      │                    │               │
+  │                      │ Log: "Failed to    │               │
+  │                      │  copy stream..."   │               │
+  │                      │                    │               │
+  │                      │ (NO SetStatus -    │               │
+  │                      │  async mode)       │               │
+  │                      │                    │               │
+  │                      │ typedResponse.Close()              │
+  │                      │    ┌───────────────────────────────────────┐
+  │                      │    │  Closes READ end of io.Pipe           │
+  │                      │    │  Writer (Python) will get             │
+  │                      │    │  ErrClosedPipe on next write          │
+  │                      │    └───────────────────────────────────────┘
+  │                      │                    │               │
+  │                      │                    │               │
+  │                      │                    │    ┌─────────────────────┐
+  │                      │                    │    │ Python generator    │
+  │                      │                    │    │ yields next chunk   │
+  │                      │                    │    └──────────┬──────────┘
+  │                      │                    │               │
+  │                      │                    │               ▼
+  │                      │                    │    ┌─────────────────────┐
+  │                      │                    │    │ SendChunk() called  │
+  │                      │                    │    │ in ProcessStream    │
+  │                      │                    │    └──────────┬──────────┘
+  │                      │                    │               │
+  │                      │                    │               ▼
+  │                      │                    │    ┌─────────────────────┐
+  │                      │                    │    │ Write to closed     │
+  │                      │                    │    │ pipe FAILS          │
+  │                      │                    │    │ → ErrClosedPipe     │
+  │                      │                    │    └──────────┬──────────┘
+  │                      │                    │               │
+  │                      │                    │               ▼
+  │                      │                    │    ┌─────────────────────┐
+  │                      │                    │    │ ProcessStream       │
+  │                      │                    │    │ returns error       │
+  │                      │                    │    │                     │
+  │                      │                    │    │ defer sets:         │
+  │                      │                    │    │ SetStatus(          │
+  │                      │                    │    │  RestartRequired)   │
+  │                      │                    │    └──────────┬──────────┘
+  │                      │                    │               │
+  │                      │                    │               ▼
+  │                      │                    │    ┌─────────────────────┐
+  │                      │                    │    │ Connection released │
+  │                      │                    │    │ with RestartRequired│
+  │                      │                    │    │ → allocator sees it │
+  │                      │                    │    │ → triggers restart  │
+  │                      │                    │    └─────────────────────┘
 ```
 
 **Key difference from Sync Mode:**
@@ -366,10 +366,10 @@ Client              HTTP Trigger           Worker          Python/Connection
 1. In async mode, the **non-blocking worker allocator** uses round-robin - workers aren't "locked" during use
 2. The **connection** is still managed by the blocking allocator in `ProcessStream`
 3. `ProcessStream` runs in a goroutine and will eventually:
-- Try to `SendChunk()` to the closed pipe
-- Get `ErrClosedPipe`
-- Set `RestartRequired` in its defer
-- Release connection with restart status
+   - Try to `SendChunk()` to the closed pipe
+   - Get `ErrClosedPipe`
+   - Set `RestartRequired` in its defer
+   - Release connection with restart status
 4. The connection won't be reused until `ProcessStream` completes and releases it
 
 ### Flow 4: Panic Before Streaming Setup
@@ -380,24 +380,24 @@ Client              HTTP Trigger           Worker          Python/Connection
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker
-│                      │                    │
-│──── Request ────────▶│                    │
-│                      │─── Allocate ──────▶│
-│                      │◀── Response ───────│
-│                      │                    │
-│                      │ streamingMode=false│
-│                      │                    │
-│                      │ PANIC! ────────────│
-│                      │                    │
-│                      │─── defer runs ─────│
-│                      │    streamingMode=  │
-│                      │    false           │
-│                      │    → releaseWorker()
-│                      │                   ▶│ (back to pool)
-│                      │                    │
-│                      │ HandleSubmitPanic  │
-│                      │ also catches panic │
-│                      │ (pointer to worker)│
+  │                      │                    │
+  │──── Request ────────▶│                    │
+  │                      │─── Allocate ──────▶│
+  │                      │◀── Response ───────│
+  │                      │                    │
+  │                      │ streamingMode=false│
+  │                      │                    │
+  │                      │ PANIC! ────────────│
+  │                      │                    │
+  │                      │─── defer runs ─────│
+  │                      │    streamingMode=  │
+  │                      │    false           │
+  │                      │    → releaseWorker()
+  │                      │                   ▶│ (back to pool)
+  │                      │                    │
+  │                      │ HandleSubmitPanic  │
+  │                      │ also catches panic │
+  │                      │ (pointer to worker)│
 ```
 
 ### Flow 5: Panic After Streaming Setup
@@ -408,36 +408,36 @@ Client              HTTP Trigger           Worker
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker
-│                      │                    │
-│──── Request ────────▶│                    │
-│                      │─── Allocate ──────▶│
-│                      │◀── StreamStart ────│
-│                      │                    │
-│                      │ streamingMode=true │
-│                      │                    │
-│                      │ SetBodyStreamWriter│
-│                      │ (callback registered)
-│                      │                    │
-│                      │ PANIC! ────────────│
-│                      │                    │
-│                      │─── defer runs ─────│
-│                      │    streamingMode=  │
-│                      │    true            │
-│                      │    → SKIP release  │
-│                      │                    │
-│                      │                    │
-│                   ┌──┴──────────────────────────────────┐
-│                   │  Callback may or may not run        │
-│                   │  depending on fasthttp behavior     │
-│                   └──┬──────────────────────────────────┘
-│                      │                    │
-│                      │ If callback runs:  │
-│                      │ defer releaseWorker()
-│                      │                   ▶│ (back to pool)
-│                      │                    │
-│                      │ If callback doesn't│
-│                      │ run: WORKER LEAK!  │
-│                      │ (edge case)        │
+  │                      │                    │
+  │──── Request ────────▶│                    │
+  │                      │─── Allocate ──────▶│
+  │                      │◀── StreamStart ────│
+  │                      │                    │
+  │                      │ streamingMode=true │
+  │                      │                    │
+  │                      │ SetBodyStreamWriter│
+  │                      │ (callback registered)
+  │                      │                    │
+  │                      │ PANIC! ────────────│
+  │                      │                    │
+  │                      │─── defer runs ─────│
+  │                      │    streamingMode=  │
+  │                      │    true            │
+  │                      │    → SKIP release  │
+  │                      │                    │
+  │                      │                    │
+  │                   ┌──┴──────────────────────────────────┐
+  │                   │  Callback may or may not run        │
+  │                   │  depending on fasthttp behavior     │
+  │                   └──┬──────────────────────────────────┘
+  │                      │                    │
+  │                      │ If callback runs:  │
+  │                      │ defer releaseWorker()
+  │                      │                   ▶│ (back to pool)
+  │                      │                    │
+  │                      │ If callback doesn't│
+  │                      │ run: WORKER LEAK!  │
+  │                      │ (edge case)        │
 ```
 
 ## Restart Propagation
@@ -449,21 +449,21 @@ When a streaming error occurs in sync mode:
 │                    Restart Status Propagation                    │
 └─────────────────────────────────────────────────────────────────┘
 
-HTTP Trigger                    SocketAllocator              Runtime
-│                                │                         │
-│ workerInstance.SetStatus(      │                         │
-│   RestartRequired)             │                         │
-│                                │                         │
-│ releaseWorker() ──────────────▶│                         │
-│                                │                         │
-│                    if connection.GetStatus() ==          │
-│                       RestartRequired:                   │
-│                       sa.SetStatus(RestartRequired)      │
-│                                │                         │
-│                                │──── Restart triggered ─▶│
-│                                │                         │
-│                                │                    Python process
-│                                │                    restarted
+  HTTP Trigger                    SocketAllocator              Runtime
+       │                                │                         │
+       │ workerInstance.SetStatus(      │                         │
+       │   RestartRequired)             │                         │
+       │                                │                         │
+       │ releaseWorker() ──────────────▶│                         │
+       │                                │                         │
+       │                    if connection.GetStatus() ==          │
+       │                       RestartRequired:                   │
+       │                       sa.SetStatus(RestartRequired)      │
+       │                                │                         │
+       │                                │──── Restart triggered ─▶│
+       │                                │                         │
+       │                                │                    Python process
+       │                                │                    restarted
 ```
 
 ## Key Design Decisions
@@ -489,11 +489,11 @@ HTTP Trigger                    SocketAllocator              Runtime
 - Uses **non-blocking worker allocator** - round-robin, workers not locked
 - Connection is still managed by **blocking connection allocator** inside `ProcessStream` goroutine
 - `ProcessStream` will eventually fail when trying to write to closed pipe:
-1. `typedResponse.Close()` closes read end of pipe
-2. Python generator tries to yield next chunk
-3. `SendChunk()` fails with `ErrClosedPipe`
-4. `ProcessStream` sets `RestartRequired` in its defer
-5. Connection released with restart status → allocator triggers restart
+  1. `typedResponse.Close()` closes read end of pipe
+  2. Python generator tries to yield next chunk
+  3. `SendChunk()` fails with `ErrClosedPipe`
+  4. `ProcessStream` sets `RestartRequired` in its defer
+  5. Connection released with restart status → allocator triggers restart
 - No race condition because connection isn't released until `ProcessStream` completes
 
 ### 4. Why pointer to workerInstance in HandleSubmitPanic?
