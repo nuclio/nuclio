@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -207,6 +208,7 @@ func (h *http) flushIfTimeout(ctx *fasthttp.RequestCtx, processError error) bool
 
 func (h *http) allocateWorker(timeout time.Duration) (eventprocessor.EventProcessor, int, error) {
 	// allocate a worker
+	h.Logger.DebugWith("AllocateWorker", "timeout", timeout)
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
 		h.UpdateStatistics(false, 1)
@@ -495,20 +497,31 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
 	}
 
-	workerReleased := false
+	// Use sync.Once to ensure worker is released exactly once, regardless of code path
+	var releaseOnce sync.Once
+	releaseWorker := func() {
+		releaseOnce.Do(func() {
+			h.WorkerAllocator.Release(workerInstance)
+		})
+	}
+
+	// Track if we're setting up streaming - if so, outer defer should NOT release
+	// (the streaming callback will handle release after streaming completes)
+	streamingMode := false
+
+	// Safety net: ensure worker is always released when handler returns
+	// But skip if we're in streaming mode (callback will release)
+	defer func() {
+		if !streamingMode {
+			releaseWorker()
+		}
+	}()
+
 	errorDuringProcessing := processError != nil || submitError != nil || timedOut
 	// if any error happened or response is not a stream, then release the worker instance asap
 	if errorDuringProcessing ||
 		response == nil || response != nil && !response.IsStream() {
-		h.WorkerAllocator.Release(workerInstance)
-		workerReleased = true
-	} else {
-		// in any other case (for now, only streaming case), defer the release of the worker instance
-		defer func() {
-			if !workerReleased {
-				h.WorkerAllocator.Release(workerInstance)
-			}
-		}()
+		releaseWorker()
 	}
 
 	// if we got a process error, check if we timed out
@@ -605,6 +618,9 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 			return
 		}
+		// this is not a blocking call, so we can use it only for file steaming, because the file persists on FS
+		// and worker is not involved in streaming
+		// it also closes fileResponse when done
 		ctx.Response.SetBodyStream(fileResponse, -1)
 	} else {
 		// set body
@@ -612,22 +628,39 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		case []byte:
 			ctx.Response.SetBodyRaw(response.GetBody().([]byte))
 		case io.ReadCloser:
-			ctx.Response.SetBodyStream(typedResponse, -1)
+			// SetBodyStreamWriter registers a callback that runs AFTER the handler returns.
+			// The callback will release the worker after streaming completes.
+			// Mark streaming mode so the outer defer doesn't release early.
+			streamingMode = true
+			isStream := response.IsStream()
+			ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
+				// Ensure worker is released after streaming
+				defer releaseWorker()
+
+				_, copyErr := io.Copy(w, typedResponse)
+				if copyErr != nil {
+					h.Logger.WarnWith("Failed to copy stream to response", "error", copyErr)
+					// In sync mode, mark worker for restart to clean up connection resources
+					// (e.g., when client disconnected mid-stream)
+					// the reason why we do it only in sync mode is that in async mode,
+					// the connection will not be reused anyway
+					if h.configuration.Mode == TriggerModeSync {
+						workerInstance.SetStatus(status.RestartRequired)
+					}
+				}
+				// Close explicitly because io.Copy doesn't close the source,
+				// and SetBodyStreamWriter (unlike SetBodyStream) has no reference to close it
+				if err := typedResponse.Close(); err != nil {
+					h.Logger.WarnWith("Failed to close response stream", "error", err)
+				}
+
+				if isStream && copyErr == nil {
+					workerInstance.StreamProcessedSuccessfully()
+				}
+			})
 		}
 	}
 
-	if response.IsStream() {
-		// signal to worker that the stream has been processed successfully
-		// worker will increment the statistics
-		workerInstance.StreamProcessedSuccessfully()
-	}
-
-	if !workerReleased {
-		// try to release the worker instance asap
-		// if code won't get here (because of the error, then the defer will take care of it)
-		h.WorkerAllocator.Release(workerInstance)
-		workerReleased = true
-	}
 }
 
 func (h *http) allocateEvents(size int) {
