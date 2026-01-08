@@ -631,7 +631,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			// The callback will release the worker after streaming completes.
 			// Mark streaming mode so the outer defer doesn't release early.
 			streamingMode = true
-			isStream := response.IsStream()
 			ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 				// Ensure worker is released after streaming
 				defer releaseWorker()
@@ -653,7 +652,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 					h.Logger.WarnWith("Failed to close response stream", "error", err)
 				}
 
-				if isStream && copyErr == nil {
+				if streamingMode && copyErr == nil {
 					workerInstance.StreamProcessedSuccessfully()
 				}
 			})

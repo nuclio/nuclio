@@ -1,5 +1,7 @@
 # HTTP Streaming Worker Lifecycle
 
+>**Note:** This document is only relevant for the **Python runtime**.
+
 This document describes the worker allocation, streaming, and release flows in the HTTP trigger, with special attention to edge cases like client disconnection and panic handling.
 
 ## Architecture Overview
@@ -10,7 +12,7 @@ There are **two levels** of event processors, each with their own allocator:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              HTTP Trigger                                    │
+│                              HTTP Trigger                                   │
 │                                                                             │
 │                     ┌────────────────────────────────────┐                  │
 │                     │         Worker Allocator           │                  │
@@ -23,7 +25,7 @@ There are **two levels** of event processors, each with their own allocator:
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Worker (EventProcessor) = Python Process                  │
+│                    Worker (EventProcessor) = Python Process                 │
 │                                                                             │
 │    Each worker wraps a Python process and manages connections to it         │
 │                                                                             │
@@ -38,15 +40,15 @@ There are **two levels** of event processors, each with their own allocator:
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Connection (EventProcessor) = Socket to Python            │
+│                    Connection (EventProcessor) = Socket to Python           │
 │                                                                             │
 │    Each connection is a socket connection to the Python wrapper             │
 │    Used to send events and receive responses (including stream chunks)      │
 │                                                                             │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐         │
-│  │ Python Handler  │───▶│   Generator     │───▶│  yield chunks   │         │
-│  │                 │    │                 │    │  via io.Pipe    │         │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘         │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
+│  │ Python Handler  │───▶│   Generator     │───▶│  yield chunks   │          │
+│  │                 │    │                 │    │  via io.Pipe    │          │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -75,42 +77,42 @@ There are **two levels** of event processors, each with their own allocator:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              HTTP Trigger                                    │
+│                              HTTP Trigger                                   │
 │                                                                             │
-│  ┌─────────────┐    ┌──────────────────┐    ┌─────────────────────────┐    │
-│  │   fasthttp  │───▶│  Request Handler │───▶│  SetBodyStreamWriter    │    │
-│  │   Server    │    │                  │    │  (async callback)       │    │
-│  └─────────────┘    └──────────────────┘    └─────────────────────────┘    │
+│  ┌─────────────┐    ┌──────────────────┐    ┌─────────────────────────┐     │
+│  │   fasthttp  │───▶│  Request Handler │───▶│  SetBodyStreamWriter    │     │
+│  │   Server    │    │                  │    │  (async callback)       │     │
+│  └─────────────┘    └──────────────────┘    └─────────────────────────┘     │
 │                              │                          │                   │
 │                              ▼                          ▼                   │
-│                     ┌────────────────┐         ┌────────────────┐          │
-│                     │ WorkerAllocator│         │   io.Copy()    │          │
-│                     │  (Level 1)     │         │  Stream Data   │          │
-│                     └────────────────┘         └────────────────┘          │
+│                     ┌────────────────┐         ┌────────────────┐           │
+│                     │ WorkerAllocator│         │   io.Copy()    │           │
+│                     │  (Level 1)     │         │  Stream Data   │           │
+│                     └────────────────┘         └────────────────┘           │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│              Worker (Python Process) - Level 1 EventProcessor                │
-│                                                                             │
+┌────────────────────────────────────────────────────────────────────────────┐
+│              Worker (Python Process) - Level 1 EventProcessor              │
+│                                                                            │
 │  ┌───────────────────────────────────────────────────────────────────┐     │
-│  │                    Connection Allocator (Level 2)                  │     │
-│  │                                                                    │     │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐               │     │
-│  │  │ Connection 1│  │ Connection 2│  │ Connection N│               │     │
-│  │  │  (socket)   │  │  (socket)   │  │  (socket)   │               │     │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘               │     │
+│  │                    Connection Allocator (Level 2)                 │     │
+│  │                                                                   │     │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │     │
+│  │  │ Connection 1│  │ Connection 2│  │ Connection N│                │     │
+│  │  │  (socket)   │  │  (socket)   │  │  (socket)   │                │     │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                │     │
 │  └───────────────────────────────────────────────────────────────────┘     │
-│                              │                                              │
+│                              │                                             │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐         │
 │  │  ProcessEvent   │───▶│  StreamStart    │───▶│  ProcessStream  │         │
 │  │ (allocates conn)│    │  (returns fast) │    │  (goroutine)    │         │
 │  └─────────────────┘    └─────────────────┘    └─────────────────┘         │
-└─────────────────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│              Connection (Socket) - Level 2 EventProcessor                    │
+│              Connection (Socket) - Level 2 EventProcessor                   │
 │                                                                             │
 │  Communicates with Python wrapper via socket                                │
 │  Handles streaming by waiting for chunks in ProcessStream                   │
@@ -162,7 +164,7 @@ ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Non-Streaming Request Flow                     │
+│                    Non-Streaming Request Flow                    │
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python
@@ -190,7 +192,7 @@ Client              HTTP Trigger           Worker          Python
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Streaming Request Flow (Success)               │
+│                    Streaming Request Flow (Success)              │
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python
@@ -217,11 +219,11 @@ Client              HTTP Trigger           Worker          Python
   │                   │  Callback runs (fasthttp writes)    │ │
   │                   └──┬──────────────────────────────────┘ │
   │                      │                    │               │
-  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
-  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
-  │◀── Chunk 3 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ─────│
+  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ─────│
+  │◀── Chunk 3 ──────────│◀─── io.Copy ───────│◀── yield ─────│
   │                      │                    │               │
-  │                      │◀─── io.Copy done ──│◀── EOF ──────│
+  │                      │◀─── io.Copy done ──│◀── EOF ───────│
   │                      │                    │               │
   │                      │ typedResponse.Close()              │
   │                      │                    │               │
@@ -235,17 +237,17 @@ Client              HTTP Trigger           Worker          Python
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                Client Disconnection During Streaming              │
+│                Client Disconnection During Streaming             │
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python
   │                      │                    │               │
   │──── Request ────────▶│                    │               │
   │                      │─── Allocate ──────▶│               │
-  │                      │◀── StreamStart ────│◀─────────────│
+  │                      │◀── StreamStart ────│◀──────────────│
   │                      │                    │               │
-  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
-  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ─────│
+  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ─────│
   │                      │                    │               │
   │ ╳ DISCONNECT ╳       │                    │               │
   │                      │                    │               │
@@ -283,17 +285,17 @@ In async mode, we use a **non-blocking worker allocator** but still use a **bloc
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│          Client Disconnection During Streaming (Async Mode)       │
+│          Client Disconnection During Streaming (Async Mode)      │
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker          Python/Connection
   │                      │                    │               │
   │──── Request ────────▶│                    │               │
   │                      │─── Allocate ──────▶│               │
-  │                      │◀── StreamStart ────│◀─────────────│
+  │                      │◀── StreamStart ────│◀──────────────│
   │                      │                    │               │
-  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ────│
-  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ────│
+  │◀── Chunk 1 ──────────│◀─── io.Copy ───────│◀── yield ─────│
+  │◀── Chunk 2 ──────────│◀─── io.Copy ───────│◀── yield ─────│
   │                      │                    │               │
   │ ╳ DISCONNECT ╳       │                    │               │
   │                      │                    │               │
@@ -376,7 +378,7 @@ Client              HTTP Trigger           Worker          Python/Connection
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                Panic Before streamingMode=true                    │
+│                Panic Before streamingMode=true                   │
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker
@@ -404,7 +406,7 @@ Client              HTTP Trigger           Worker
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                Panic After streamingMode=true                     │
+│                Panic After streamingMode=true                    │
 └──────────────────────────────────────────────────────────────────┘
 
 Client              HTTP Trigger           Worker
@@ -446,7 +448,7 @@ When a streaming error occurs in sync mode:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Restart Status Propagation                    │
+│                    Restart Status Propagation                   │
 └─────────────────────────────────────────────────────────────────┘
 
   HTTP Trigger                    SocketAllocator              Runtime
