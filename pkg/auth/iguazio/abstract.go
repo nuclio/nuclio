@@ -98,7 +98,7 @@ func (a *AbstractAuth) Authenticate(request *http.Request, options *authpkg.Opti
 	}
 
 	// Extract the session from the response
-	session, err := a.authenticator.BuildSessionFromResponse(resp)
+	session, err := a.authenticator.BuildSessionFromResponse(resp, authParams)
 	if err != nil {
 		a.Logger.WarnWithCtx(request.Context(),
 			"Failed to extract session from response",
@@ -269,7 +269,7 @@ func (a *AbstractSession) GetGroupIDs() []string {
 	return a.GroupIDs
 }
 
-func (a *AbstractSession) CompileAuthorizationBasicHeader() string {
+func (a *AbstractSession) CompileAuthorizationHeader() string {
 	return ""
 }
 

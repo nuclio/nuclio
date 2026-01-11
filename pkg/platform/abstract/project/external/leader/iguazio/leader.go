@@ -234,7 +234,7 @@ func (l *LeaderOps) GetAuthSessionCookie(authSession auth.Session) *http.Cookie 
 }
 
 func (l *LeaderOps) AddAuthSessionHeaders(headers map[string]string, authSession auth.Session) {
-	headers["authorization"] = authSession.CompileAuthorizationBasicHeader()
+	headers["authorization"] = authSession.CompileAuthorizationHeader()
 }
 
 func (l *LeaderOps) projectRequestURL(apiAddress string) string {

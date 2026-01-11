@@ -91,7 +91,7 @@ type Session interface {
 	GetPassword() string
 	GetUserID() string
 	GetGroupIDs() []string
-	CompileAuthorizationBasicHeader() string
+	CompileAuthorizationHeader() string
 	GetUserLabels() map[string]string
 }
 

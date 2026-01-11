@@ -45,8 +45,8 @@ func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectCo
 	return args.Get(0).([]byte), args.Error(1)
 }
 
-func (l *LeaderOps) GenerateCreateProjectRequestURL(projectName string) string {
-	args := l.Called(projectName)
+func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
+	args := l.Called(apiAddress)
 	return args.String(0)
 }
 

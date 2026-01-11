@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"io"
 	"net/http"
 	"time"
 
@@ -244,20 +245,31 @@ func (c *Client) logLeaderResponseError(ctx context.Context,
 		c.logger.WarnWithCtx(ctx, "Got an empty response", "errMessage", errMessage)
 		return
 	}
+
+	// Try to read response body for additional context
+	var responseBody string
+	if response.Body != nil {
+		bodyBytes, err := io.ReadAll(response.Body)
+		if err == nil {
+			responseBody = string(bodyBytes)
+		}
+		// Close the body after reading
+		response.Body.Close() // nolint: errcheck
+	}
+
+	logFields := []interface{}{
+		"statusCode", response.StatusCode,
+	}
+	if responseBody != "" {
+		logFields = append(logFields, "responseBody", responseBody)
+	}
+
 	if response.StatusCode >= 500 {
-		c.logger.WarnWithCtx(ctx,
-			errMessage,
-			"statusCode", response.StatusCode,
-			"response", response,
-		)
+		c.logger.WarnWithCtx(ctx, errMessage, logFields...)
 		return
 	}
 
-	c.logger.DebugWithCtx(ctx,
-		errMessage,
-		"statusCode", response.StatusCode,
-		"response", response,
-	)
+	c.logger.DebugWithCtx(ctx, errMessage, logFields...)
 }
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {

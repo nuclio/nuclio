@@ -38,7 +38,7 @@ type Authenticator interface {
 	ValidateResponse(response *http.Response) error
 
 	// BuildSessionFromResponse constructs a session from the response received from the Iguazio session verification endpoint
-	BuildSessionFromResponse(response *http.Response) (authpkg.Session, error)
+	BuildSessionFromResponse(response *http.Response, authParams *AuthParameters) (authpkg.Session, error)
 
 	// VerifySessionType checks if the provided session is of the expected type
 	// and returns (typedValue, true) if valid and (nil, false) otherwise
@@ -69,6 +69,10 @@ func (a *AuthParameters) GenerateCacheKey() ([32]byte, error) {
 	}
 	// generate cache key based on authorization header and URL
 	return sha256.Sum256([]byte(a.authorizationHeader + a.verificationURL)), nil
+}
+
+func (a *AuthParameters) GetAuthorizationHeader() string {
+	return a.authorizationHeader
 }
 
 // TimeUntilExpiration parses the JWT access token from the Authorization header,

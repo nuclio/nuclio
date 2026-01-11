@@ -92,7 +92,7 @@ func (a *Auth) resolveUrl(options *authpkg.Options) string {
 	return a.GetConfig().Iguazio.VerificationURL
 }
 
-func (a *Auth) BuildSessionFromResponse(response *http.Response) (authpkg.Session, error) {
+func (a *Auth) BuildSessionFromResponse(response *http.Response, authParams *iguazio.AuthParameters) (authpkg.Session, error) {
 	encodedResponseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read response body")
