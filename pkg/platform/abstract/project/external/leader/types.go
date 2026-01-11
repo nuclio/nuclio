@@ -107,7 +107,7 @@ type LeaderOps interface {
 
 	// Get operations
 
-	// GenerateGetProjectsRequestURL generates the request URL for getting projects
+	// GenerateGetProjectsRequestURL generates the request URL for getting projects or a single project
 	GenerateGetProjectsRequestURL(string, string) string
 
 	// ResolveGetProjectResponse resolves the response from getting projects

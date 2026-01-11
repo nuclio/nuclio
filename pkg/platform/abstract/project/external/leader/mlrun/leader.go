@@ -140,10 +140,11 @@ func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 }
 
 func (l *LeaderOps) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
+	url := fmt.Sprintf("%s/%s/projects", apiAddress, APIVersionV1)
 	if projectName != "" {
-		projectName = fmt.Sprintf("/%s", projectName)
+		url += fmt.Sprintf("/%s", projectName)
 	}
-	return fmt.Sprintf("%s/%s/projects%s", apiAddress, APIVersionV1, projectName)
+	return url
 }
 
 func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
