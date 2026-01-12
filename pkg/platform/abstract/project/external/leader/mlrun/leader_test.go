@@ -180,13 +180,13 @@ func (suite *LeaderTestSuite) TestGenerateCreateProjectRequestURL() {
 	}{
 		{
 			name:     "Basic",
-			address:  "http://localhost",
-			expected: "http://localhost/projects",
+			address:  "http://localhost/api",
+			expected: "http://localhost/api/v1/projects",
 		},
 		{
 			name:     "WithoutHttpPrefix",
 			address:  "some-address",
-			expected: "some-address/projects",
+			expected: "some-address/v1/projects",
 		},
 	}
 
@@ -256,15 +256,15 @@ func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 	}{
 		{
 			name:        "Basic",
-			address:     "http://localhost",
+			address:     "http://localhost/api",
 			projectName: "test-project",
-			expected:    "http://localhost/projects/test-project",
+			expected:    "http://localhost/api/v1/projects/test-project",
 		},
 		{
 			name:        "WithEmptyUrl",
 			address:     "",
 			projectName: "test-project",
-			expected:    "/projects/test-project",
+			expected:    "/v1/projects/test-project",
 		},
 	}
 
@@ -289,8 +289,8 @@ func (suite *LeaderTestSuite) TestGetDeleteStrategyHeaderName() {
 }
 
 func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
-	url := suite.leaderOps.GenerateGetProjectsRequestURL("a", "b")
-	suite.Require().Equal("", url)
+	url := suite.leaderOps.GenerateGetProjectsRequestURL("http://localhost/api", "b")
+	suite.Require().Equal("http://localhost/api/v1/projects/b", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
@@ -299,8 +299,8 @@ func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 }
 
 func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
-	url := suite.leaderOps.GenerateDeleteProjectRequestURL("http://localhost", "test-project")
-	suite.Require().Equal("http://localhost/projects/test-project", url)
+	url := suite.leaderOps.GenerateDeleteProjectRequestURL("http://localhost/api", "test-project")
+	suite.Require().Equal("http://localhost/api/v2/projects/test-project", url)
 }
 
 func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {

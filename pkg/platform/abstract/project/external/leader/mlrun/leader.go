@@ -33,6 +33,13 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+type APIVersion string
+
+const (
+	APIVersionV1 APIVersion = "v1"
+	APIVersionV2 APIVersion = "v2"
+)
+
 type LeaderOps struct {
 	logger logger.Logger
 	// namespace is used to enrich the MLRun responses, which omit the namespace
@@ -89,7 +96,7 @@ func (l *LeaderOps) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderC
 }
 
 func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
-	return fmt.Sprintf("%s/%s", apiAddress, "projects")
+	return fmt.Sprintf("%s/%s/%s", apiAddress, APIVersionV1, "projects")
 }
 
 func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
@@ -121,7 +128,7 @@ func (l *LeaderOps) IsJobCompleted(_ context.Context, _ leaderCommon.JobResponse
 }
 
 func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
-	return l.projectRequestURL(apiAddress, projectName)
+	return l.projectRequestURL(apiAddress, projectName, APIVersionV1)
 }
 
 func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
@@ -132,8 +139,12 @@ func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 	return "x-mlrun-deletion-strategy"
 }
 
-func (l *LeaderOps) GenerateGetProjectsRequestURL(_, _ string) string {
-	return ""
+func (l *LeaderOps) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
+	url := fmt.Sprintf("%s/%s/projects", apiAddress, APIVersionV1)
+	if projectName != "" {
+		url += fmt.Sprintf("/%s", projectName)
+	}
+	return url
 }
 
 func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
@@ -142,7 +153,7 @@ func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string 
 }
 
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
-	return l.projectRequestURL(apiAddress, projectName)
+	return l.projectRequestURL(apiAddress, projectName, APIVersionV2)
 }
 
 func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return false }
@@ -153,8 +164,10 @@ func (l *LeaderOps) GetJobRequestFilter(_ *time.Time) string { return "" }
 
 func (l *LeaderOps) GetAuthSessionCookie(_ auth.Session) *http.Cookie { return nil }
 
-func (l *LeaderOps) AddAuthSessionHeaders(_ map[string]string, _ auth.Session) {}
+func (l *LeaderOps) AddAuthSessionHeaders(headers map[string]string, authSession auth.Session) {
+	headers["authorization"] = authSession.CompileAuthorizationHeader()
+}
 
-func (l *LeaderOps) projectRequestURL(apiAddress, projectName string) string {
-	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects", projectName)
+func (l *LeaderOps) projectRequestURL(apiAddress, projectName string, version APIVersion) string {
+	return fmt.Sprintf("%s/%s/%s/%s", apiAddress, version, "projects", projectName)
 }
