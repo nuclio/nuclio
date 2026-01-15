@@ -86,7 +86,7 @@ func createAutoScaler(platformConfigurationPath string,
 	}
 
 	// create metrics client instance
-	metricsClient, err := metricsclient.NewMetricsClient(rootLogger,restConfig, resourceScalerConfig.AutoScalerOptions)
+	metricsClient, err := metricsclient.NewMetricsClient(rootLogger, restConfig, resourceScalerConfig.AutoScalerOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create new metric client")
 	}
