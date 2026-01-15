@@ -116,9 +116,23 @@ type ScaleToZero struct {
 
 	// Used for DLX options, specifies how often the DLX resync it's internal state
 	ResyncInterval string `json:"resyncInterval,omitempty"`
+
+	// Used for scaler options, specifies metrics client configuration and type
+	MetricsClient MetricsClient `json:"metricsClient,omitempty"`
 }
 
 type ScaleToZeroMode string
+
+type MetricsClientTemplates struct {
+	Name     string `json:"name,omitempty"`
+	Template string `json:"template,omitempty"`
+}
+
+type MetricsClient struct {
+	Kind      scalertypes.MetricsClientKind `json:"kind,omitempty"`
+	URL       string                        `json:"url,omitempty"`
+	Templates []MetricsClientTemplates      `json:"templates,omitempty"`
+}
 
 const (
 	EnabledScaleToZeroMode  ScaleToZeroMode = "enabled"

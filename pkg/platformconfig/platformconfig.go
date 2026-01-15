@@ -160,6 +160,11 @@ func (c *Config) EnrichPlatformConfig() error {
 		c.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
 	}
 
+	// default to custom metrics client for backwards compatibility because it was the only option before
+	if c.ScaleToZero.MetricsClient.Kind == "" {
+		c.ScaleToZero.MetricsClient.Kind = scalertypes.KindK8sMetricsClient
+	}
+
 	// fall back to legacy default
 	if !AutoScaleMetricsModeIsValid(c.AutoScaleMetricsMode) {
 		c.AutoScaleMetricsMode = AutoScaleMetricsModeLegacy
