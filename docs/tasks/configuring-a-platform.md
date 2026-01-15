@@ -5,6 +5,7 @@
 - [Creating a platform configuration in Kubernetes](#creating-a-platform-configuration-in-kubernetes)
 - [Configuration elements](#configuration-elements)
 - [Base Images (`baseImages`)](#base-images-baseimages)
+- [Scale-to-Zero (`scaleToZero`)](#scale-to-zero-scaletozero)
 
 ### Overview
 
@@ -340,6 +341,38 @@ In this example:
 
 > **Important - Python Version Compatibility:** Python base images are **not backward compatible** across versions. Each Python version requires its own wheel (.whl) files, and these wheels are not compatible across different Python versions.. Therefore, **avoid using a default Python base image** (i.e., `python` without a version). Always specify explicit Python versions (e.g., `python:3.12`, `python:3.11`).
 
+<a id="scale-to-zero-scaletozero"></a>
+## Scale-to-Zero (`scaleToZero`)
+
+The `scaleToZero` configuration section allows you to configure scale-to-zero behavior for functions, including metrics client configuration for the scaler.
+
+### Metrics Client (`metricsClient`)
+
+The `metricsClient` field specifies the metrics client URL, type, and queries templates. This field is optional and can be empty.
+
+Example configuration:
+
+```yaml
+scaleToZero:
+  metricsClient:
+    kind: prometheus
+    url: {url}
+    templates:
+      - name: "nuclio_processor_handled_events_total"
+        template: |-
+          sum(rate(nuclio_processor_handled_events_total{namespace="{{ .Namespace }}", trigger_kind="http", function=~"{{ .Resources }}"}[{{ .WindowSize }}])) by (function)
+```
+
+| Field       | Type   | Description                                                                |
+|-------------|--------|----------------------------------------------------------------------------|
+| `kind`      | string | The kind of metrics client (e.g., `prometheusClient` or `k8sMetricsClient`) |
+| `url`       | string | The URL at which the metrics server resides.                               |
+| `templates` | array  | Templates for custom metric formatting                                     |
+
+> **Note:** If `metricsClient` is not specified or is empty, Nuclio will use the k8sMetricsClient by default.
+
+> **Note:** The url field is not required when using the `k8sMetricsClient`, as it retrieves metrics directly from the Kubernetes API.
+> However, it is required when using the `prometheusClient`, and the URL should point to the Prometheus server that is located in the same namespace as Nuclio.
 ## Project Secret-Based Service Account Enrichment and Validation
 
 Nuclio now supports enriching and validating service accounts using project-specific Kubernetes secrets. This enables fine-grained control over which service accounts are allowed to run functions for a given project.
