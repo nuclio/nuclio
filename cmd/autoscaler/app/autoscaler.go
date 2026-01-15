@@ -25,11 +25,8 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/autoscaler"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/discovery/cached/memory"
+	"github.com/v3io/scaler/pkg/autoscaler/metricsclient"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/restmapper"
-	"k8s.io/metrics/pkg/client/custom_metrics"
 
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
@@ -66,12 +63,6 @@ func createAutoScaler(platformConfigurationPath string,
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	// create k8s rest config
-	customMetricsClient, err := newMetricsCustomClient(kubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create new metric custom client")
-	}
-
 	restConfig, err := common.GetClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
@@ -94,10 +85,16 @@ func createAutoScaler(platformConfigurationPath string,
 		return nil, errors.Wrap(err, "Failed to get resource scaler config")
 	}
 
+	// create metrics client instance
+	metricsClient, err := metricsclient.NewMetricsClient(rootLogger,restConfig, resourceScalerConfig.AutoScalerOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create new metric client")
+	}
+
 	// create autoscaler
 	autoScaler, err := autoscaler.NewAutoScaler(rootLogger,
 		resourceScaler,
-		customMetricsClient,
+		metricsClient,
 		resourceScalerConfig.AutoScalerOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create autoscaler")
@@ -106,20 +103,4 @@ func createAutoScaler(platformConfigurationPath string,
 	rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 
 	return autoScaler, nil
-}
-
-func newMetricsCustomClient(kubeconfigPath string) (custom_metrics.CustomMetricsClient, error) {
-	restConfig, err := common.GetClientConfig(kubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get rest config")
-	}
-
-	// create metric client and
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create discovery client")
-	}
-	availableAPIsGetter := custom_metrics.NewAvailableAPIsGetter(discoveryClient)
-	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
-	return custom_metrics.NewForConfig(restConfig, restMapper, availableAPIsGetter), nil
 }
