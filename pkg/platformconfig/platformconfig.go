@@ -65,6 +65,7 @@ type Config struct {
 	StreamMonitoring          StreamMonitoringConfig           `json:"streamMonitoring,omitempty"`
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
+	ServiceAccountConfig      ServiceAccountConfig             `json:"serviceAccount,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 

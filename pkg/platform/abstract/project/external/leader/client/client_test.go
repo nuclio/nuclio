@@ -28,7 +28,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	authIgzV1 "github.com/nuclio/nuclio/pkg/auth/iguazio/v1"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio/v4/serviceaccounttoken"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
@@ -726,6 +729,116 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 	}
 
 	return newClient
+}
+
+func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
+	testAuthSession := &iguazio.AbstractSession{
+		Username: "test-username",
+		UserID:   "test-user-id",
+		GroupIDs: []string{"test-group-id"},
+	}
+	testCookie := &http.Cookie{Name: "test", Value: "cookie"}
+
+	for _, testCase := range []struct {
+		name                           string
+		authSession                    auth.Session
+		sessionCookie                  *http.Cookie
+		serviceAccount                 bool
+		mockServiceAccountTokenError   error
+		expectServiceAccountTokenCall  bool
+		expectServiceAccountTokenError bool
+		expectHeaders                  bool
+		expectCookiesAmount            int
+		expectError                    bool
+	}{
+		{
+			name:                "no auth, no cookie, no sa",
+			expectHeaders:       true,
+			expectCookiesAmount: 0,
+		},
+		{
+			name:                "with auth session",
+			authSession:         testAuthSession,
+			expectHeaders:       true,
+			expectCookiesAmount: 1, // auth session cookie
+		},
+		{
+			name:                "with session cookie",
+			sessionCookie:       testCookie,
+			expectHeaders:       true,
+			expectCookiesAmount: 1,
+		},
+		{
+			name:                "with both auth session and session cookie",
+			authSession:         testAuthSession,
+			sessionCookie:       testCookie,
+			expectHeaders:       true,
+			expectCookiesAmount: 2,
+		},
+		{
+			name:                          "service account success",
+			serviceAccount:                true,
+			expectServiceAccountTokenCall: true,
+			expectHeaders:                 true,
+			expectCookiesAmount:           0,
+		},
+		{
+			name:                           "service account failure",
+			serviceAccount:                 true,
+			mockServiceAccountTokenError:   errors.New("escalation failed"),
+			expectServiceAccountTokenCall:  true,
+			expectServiceAccountTokenError: true,
+			expectHeaders:                  false,
+			expectCookiesAmount:            0,
+			expectError:                    true,
+		},
+		{
+			name:                          "all features",
+			authSession:                   testAuthSession,
+			sessionCookie:                 testCookie,
+			serviceAccount:                true,
+			expectServiceAccountTokenCall: true,
+			expectHeaders:                 true,
+			expectCookiesAmount:           2,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			leaderOpsMock := mockClient.NewLeaderOps()
+			mockServiceAccountTokenClient := &serviceaccounttoken.MockClient{}
+			client := &Client{
+				serviceAccountTokenClient: mockServiceAccountTokenClient,
+				leaderOps:                 leaderOpsMock,
+			}
+
+			leaderOpsMock.On("AddAuthSessionHeaders", mock.Anything, mock.Anything).Return()
+			leaderOpsMock.On("GetAuthSessionCookie", mock.Anything).Return(&http.Cookie{Name: "auth-session", Value: "some-value"})
+
+			if testCase.expectServiceAccountTokenCall {
+				mockServiceAccountTokenClient.On("EscalateAuthHeaders", mock.Anything).Return(testCase.mockServiceAccountTokenError)
+			}
+
+			headers, cookies, err := client.generateRequestHeadersAndCookies(testCase.authSession,
+				testCase.sessionCookie,
+				testCase.serviceAccount)
+
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+
+			if testCase.expectHeaders {
+				suite.Require().NotNil(headers)
+			} else {
+				suite.Require().Nil(headers)
+			}
+
+			suite.Require().Len(cookies, testCase.expectCookiesAmount)
+			if testCase.expectServiceAccountTokenCall {
+				mockServiceAccountTokenClient.AssertCalled(suite.T(), "EscalateAuthHeaders", mock.Anything)
+			}
+		})
+	}
 }
 
 func TestClientTestSuite(t *testing.T) {

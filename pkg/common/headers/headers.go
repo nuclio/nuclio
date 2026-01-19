@@ -62,12 +62,13 @@ const (
 	FunctionEventNamespace = "X-Nuclio-Function-Event-Namespace"
 
 	// Auth headers
-	RemoteUser          = "X-Remote-User"
-	V3IOSessionKey      = "X-V3io-Session-Key"
-	UserID              = "X-User-Id"
-	UserGroupIds        = "X-User-Group-Ids"
-	AuthorizationHeader = "authorization"
-	CookieHeader        = "Cookie"
+	RemoteUser               = "X-Remote-User"
+	V3IOSessionKey           = "X-V3io-Session-Key"
+	UserID                   = "X-User-Id"
+	UserGroupIds             = "X-User-Group-Ids"
+	AuthorizationHeader      = "authorization"
+	CookieHeader             = "Cookie"
+	IguazioAuthenticatorKind = "X-IGZ-Authenticator-Kind"
 
 	// Others
 	Logs           = "X-Nuclio-Logs"

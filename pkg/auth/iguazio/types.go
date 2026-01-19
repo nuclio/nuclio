@@ -23,8 +23,8 @@ import (
 	"time"
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/utils"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/nuclio/errors"
 )
 
@@ -92,34 +92,9 @@ func (a *AuthParameters) TimeUntilExpiration(maxTime time.Duration) (time.Durati
 	// Extract the JWT token string from the header
 	tokenString := a.authorizationHeader[len(bearerPrefix):]
 
-	// Parse the token without verifying the signature (used for claims inspection only)
-	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	remaining, err := utils.TimeUntilExpiration(tokenString)
 	if err != nil {
-		return 0, errors.Wrap(err, "Failed to parse JWT")
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return 0, errors.New("Failed to parse claims from token")
-	}
-
-	// Extract the 'exp' claim (expiration time)
-	expClaim, ok := claims["exp"]
-	if !ok {
-		return 0, errors.New("Missing `exp` field in token")
-	}
-
-	// Parse the 'exp' field, which is typically a float64 (seconds since epoch)
-	expFloat, ok := expClaim.(float64)
-	if !ok {
-		return 0, errors.Errorf("Invalid `exp` claim type: %T", expClaim)
-	}
-	expUnix := int64(expFloat)
-
-	expTime := time.Unix(expUnix, 0)
-	remaining := time.Until(expTime)
-	if remaining <= 0 {
-		return 0, errors.New("Token is expired")
+		return 0, errors.Wrap(err, "Failed to get time until expiration from token")
 	}
 
 	if remaining < maxTime {
