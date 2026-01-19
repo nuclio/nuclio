@@ -50,10 +50,6 @@ func (suite *ServiceAccountTokenClientTestSuite) TearDownTest() {
 	}
 }
 
-func (suite *ServiceAccountTokenClientTestSuite) writeToken(token string) {
-	suite.Require().NoError(os.WriteFile(suite.tokenFile.Name(), []byte(token), 0600))
-}
-
 func (suite *ServiceAccountTokenClientTestSuite) TestGetSATokenSuccess() {
 	token := "test-token"
 	suite.writeToken(token)
@@ -117,6 +113,10 @@ func (suite *ServiceAccountTokenClientTestSuite) TestEscalateAuthHeaders() {
 	suite.Require().NoError(client.EscalateAuthHeaders(headers))
 	suite.Require().Equal("Bearer "+token, headers["Authorization"])
 	suite.Require().Equal("bar", headers["foo"])
+}
+
+func (suite *ServiceAccountTokenClientTestSuite) writeToken(token string) {
+	suite.Require().NoError(os.WriteFile(suite.tokenFile.Name(), []byte(token), 0600))
 }
 
 func TestServiceAccountTokenClientTestSuite(t *testing.T) {
