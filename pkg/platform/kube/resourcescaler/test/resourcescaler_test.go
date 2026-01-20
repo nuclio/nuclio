@@ -55,26 +55,6 @@ type mockMetricClient struct {
 	scaleToZeroConfig map[string]bool
 }
 
-// newMockMetricClient creates a new mock metrics client instance.
-func newMockMetricClient() *mockMetricClient {
-	return &mockMetricClient{
-		scaleToZeroConfig: make(map[string]bool),
-	}
-}
-
-// buildMetricKey creates a composite key from function and metric names.
-// This ensures each function's metrics are tracked independently, even when
-// multiple functions share the same metric name.
-func (m *mockMetricClient) buildMetricKey(functionName, metricName string) string {
-	return functionName + ":" + metricName
-}
-
-// setMetricValue configures the metric value for a specific function and metric to control scale-to-zero behavior.
-func (m *mockMetricClient) setMetricValue(functionName, metricName string, shouldScaleToZero bool) {
-	key := m.buildMetricKey(functionName, metricName)
-	m.scaleToZeroConfig[key] = shouldScaleToZero
-}
-
 // GetResourceMetrics implements scalertypes.MetricsClient interface.
 // Returns metric values for the requested resources based on test configuration.
 //
@@ -411,4 +391,24 @@ func TestResourceScalerTestSuite(t *testing.T) {
 		return
 	}
 	suite.Run(t, new(ResourceScalerTestSuite))
+}
+
+// newMockMetricClient creates a new mock metrics client instance.
+func newMockMetricClient() *mockMetricClient {
+	return &mockMetricClient{
+		scaleToZeroConfig: make(map[string]bool),
+	}
+}
+
+// buildMetricKey creates a composite key from function and metric names.
+// This ensures each function's metrics are tracked independently, even when
+// multiple functions share the same metric name.
+func (m *mockMetricClient) buildMetricKey(functionName, metricName string) string {
+	return functionName + ":" + metricName
+}
+
+// setMetricValue configures the metric value for a specific function and metric to control scale-to-zero behavior.
+func (m *mockMetricClient) setMetricValue(functionName, metricName string, shouldScaleToZero bool) {
+	key := m.buildMetricKey(functionName, metricName)
+	m.scaleToZeroConfig[key] = shouldScaleToZero
 }
