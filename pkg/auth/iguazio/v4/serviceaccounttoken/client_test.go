@@ -55,7 +55,7 @@ func (suite *ServiceAccountTokenClientTestSuite) TestGetSATokenSuccess() {
 	token := "test-token"
 	suite.writeToken(token)
 	client, err := NewClient(&platformconfig.ServiceAccountConfig{
-		TokenPath: &[]string{suite.tokenFile.Name()}[0],
+		TokenPath: []string{suite.tokenFile.Name()}[0],
 	})
 	suite.Require().NoError(err)
 	readToken, err := client.GetSAToken()
@@ -66,7 +66,7 @@ func (suite *ServiceAccountTokenClientTestSuite) TestGetSATokenSuccess() {
 func (suite *ServiceAccountTokenClientTestSuite) TestGetSATokenFileNotFound() {
 	badPath := suite.tokenFile.Name() + "-notfound"
 	client, err := NewClient(&platformconfig.ServiceAccountConfig{
-		TokenPath: &badPath,
+		TokenPath: badPath,
 	})
 	suite.Require().NoError(err)
 	_, err = client.GetSAToken()
@@ -77,9 +77,9 @@ func (suite *ServiceAccountTokenClientTestSuite) TestTokenCachingAndExpiration()
 	token := utils.GenerateTestJWT(jwt.MapClaims{}, time.Now().Add(2*time.Hour), TestSecretKey)
 	suite.writeToken(token)
 	client, err := NewClient(&platformconfig.ServiceAccountConfig{
-		TokenPath:              &[]string{suite.tokenFile.Name()}[0],
-		TokenExpirationSeconds: &[]int{3600}[0],
-		TokenRefreshRatio:      &[]float64{0.5}[0],
+		TokenPath:              []string{suite.tokenFile.Name()}[0],
+		TokenExpirationSeconds: []int{3600}[0],
+		TokenRefreshRatio:      []float64{0.5}[0],
 	})
 	suite.Require().NoError(err)
 	readToken, err := client.GetSAToken()
@@ -95,7 +95,7 @@ func (suite *ServiceAccountTokenClientTestSuite) TestAuthHeaders() {
 	token := "test-token"
 	suite.writeToken(token)
 	client, err := NewClient(&platformconfig.ServiceAccountConfig{
-		TokenPath: &[]string{suite.tokenFile.Name()}[0],
+		TokenPath: []string{suite.tokenFile.Name()}[0],
 	})
 	suite.Require().NoError(err)
 	authHeaders, err := client.AuthHeaders()
@@ -107,7 +107,7 @@ func (suite *ServiceAccountTokenClientTestSuite) TestEscalateAuthHeaders() {
 	token := "test-token"
 	suite.writeToken(token)
 	client, err := NewClient(&platformconfig.ServiceAccountConfig{
-		TokenPath: &[]string{suite.tokenFile.Name()}[0],
+		TokenPath: []string{suite.tokenFile.Name()}[0],
 	})
 	suite.Require().NoError(err)
 	authHeaders := map[string]string{"foo": "bar"}
