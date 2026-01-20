@@ -18,8 +18,10 @@ package serviceaccounttoken
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/nuclio/nuclio/pkg/auth/utils"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -80,13 +82,8 @@ func (c *Client) AuthHeaders() (map[string]string, error) {
 		return nil, errors.Wrap(err, "Failed to get service account token")
 	}
 
-	// copy ServiceAccountAuthenticationHeader
-	authHeaders := make(map[string]string)
-	for k, v := range ServiceAccountAuthenticationHeader {
-		authHeaders[k] = v
-	}
-
-	authHeaders["Authorization"] = fmt.Sprintf("Bearer %s", token)
+	authHeaders := maps.Clone(ServiceAccountAuthenticationHeader)
+	authHeaders[headers.AuthorizationHeader] = fmt.Sprintf("Bearer %s", token)
 
 	return authHeaders, nil
 }

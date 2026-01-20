@@ -83,7 +83,7 @@ func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProject
 	projectName := getProjectOptions.Meta.Name
 	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(getProjectOptions.AuthSession,
 		getProjectOptions.SessionCookie,
-		false)
+		getProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to generate request headers and cookies")
 	}
@@ -120,7 +120,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 	requestURL := c.leaderOps.GenerateCreateProjectRequestURL(c.apiAddress)
 	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(createProjectOptions.AuthSession,
 		createProjectOptions.SessionCookie,
-		false)
+		createProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate request headers and cookies")
 	}
@@ -168,7 +168,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 	requestURL := c.leaderOps.GenerateUpdateProjectRequestURL(c.apiAddress, projectName)
 	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(updateProjectOptions.AuthSession,
 		updateProjectOptions.SessionCookie,
-		false)
+		updateProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate request headers and cookies")
 	}
@@ -210,7 +210,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	requestURL := c.leaderOps.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
 	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession,
 		deleteProjectOptions.SessionCookie,
-		false)
+		deleteProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate request headers and cookies")
 	}

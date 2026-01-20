@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/utils"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -97,9 +98,9 @@ func (suite *ServiceAccountTokenClientTestSuite) TestAuthHeaders() {
 		TokenPath: &[]string{suite.tokenFile.Name()}[0],
 	})
 	suite.Require().NoError(err)
-	headers, err := client.AuthHeaders()
+	authHeaders, err := client.AuthHeaders()
 	suite.Require().NoError(err)
-	suite.Require().Equal("Bearer "+token, headers["Authorization"])
+	suite.Require().Equal("Bearer "+token, authHeaders[headers.AuthorizationHeader])
 }
 
 func (suite *ServiceAccountTokenClientTestSuite) TestEscalateAuthHeaders() {
@@ -109,10 +110,10 @@ func (suite *ServiceAccountTokenClientTestSuite) TestEscalateAuthHeaders() {
 		TokenPath: &[]string{suite.tokenFile.Name()}[0],
 	})
 	suite.Require().NoError(err)
-	headers := map[string]string{"foo": "bar"}
-	suite.Require().NoError(client.EscalateAuthHeaders(headers))
-	suite.Require().Equal("Bearer "+token, headers["Authorization"])
-	suite.Require().Equal("bar", headers["foo"])
+	authHeaders := map[string]string{"foo": "bar"}
+	suite.Require().NoError(client.EscalateAuthHeaders(authHeaders))
+	suite.Require().Equal("Bearer "+token, authHeaders[headers.AuthorizationHeader])
+	suite.Require().Equal("bar", authHeaders["foo"])
 }
 
 func (suite *ServiceAccountTokenClientTestSuite) writeToken(token string) {
