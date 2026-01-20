@@ -28,8 +28,6 @@ import (
 	"github.com/nuclio/errors"
 )
 
-const bearerPrefix = "Bearer "
-
 type Authenticator interface {
 	// GetAuthParameters retrieves the authentication parameters from the request
 	GetAuthParameters(request *http.Request, options *authpkg.Options) (*AuthParameters, error)
@@ -85,12 +83,12 @@ func (a *AuthParameters) TimeUntilExpiration(maxTime time.Duration) (time.Durati
 	}
 
 	// Ensure the Authorization header is a Bearer token
-	if len(a.authorizationHeader) <= len(bearerPrefix) || a.authorizationHeader[:len(bearerPrefix)] != bearerPrefix {
+	if len(a.authorizationHeader) <= len(utils.BearerPrefix) || a.authorizationHeader[:len(utils.BearerPrefix)] != utils.BearerPrefix {
 		return 0, errors.New("Authorization header is missing or not a Bearer token")
 	}
 
 	// Extract the JWT token string from the header
-	tokenString := a.authorizationHeader[len(bearerPrefix):]
+	tokenString := a.authorizationHeader[len(utils.BearerPrefix):]
 
 	remaining, err := utils.TimeUntilExpiration(tokenString)
 	if err != nil {

@@ -248,6 +248,9 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 
 // GetUpdatedAfter retrieves projects from the leader that were updated after the specified time.
 func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
+	// TODO: The authentication of this request is currently handled in the leaderOps implementation. Which depends on
+	//       the specific leader implementation. When working on IG4 Project Sync, a new leaderOps implementation should
+	//       be created that handles authentication for this request with the service account token client.
 	requestURL := c.leaderOps.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
 	requestHeaders := c.generateCommonRequestHeaders()
 	if updatedAfterTime != nil && updatedAfterTime.IsZero() {

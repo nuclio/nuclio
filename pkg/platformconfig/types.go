@@ -321,10 +321,10 @@ type IngressConfig struct {
 
 // ServiceAccountConfig holds configuration for service account tokens
 type ServiceAccountConfig struct {
-	Enabled                bool     `json:"enabled,omitempty"`
-	TokenPath              *string  `json:"tokenPath,omitempty"`
-	TokenExpirationSeconds *int     `json:"tokenExpirationSeconds,omitempty"`
-	TokenRefreshRatio      *float64 `json:"tokenRefreshRatio,omitempty"`
+	Enabled                bool    `json:"enabled,omitempty"`
+	TokenPath              string  `json:"tokenPath,omitempty"`
+	TokenExpirationSeconds int     `json:"tokenExpirationSeconds,omitempty"`
+	TokenRefreshRatio      float64 `json:"tokenRefreshRatio,omitempty"`
 }
 
 type ElasticSearchConfig struct {

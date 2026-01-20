@@ -23,6 +23,8 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const BearerPrefix = "Bearer "
+
 // TimeUntilExpiration parses the JWT access token from the Authorization header,
 // extracts the 'exp' claim, and returns the time until expiration.
 func TimeUntilExpiration(tokenString string) (time.Duration, error) {

@@ -17,7 +17,6 @@ limitations under the License.
 package serviceaccounttoken
 
 import (
-	"fmt"
 	"maps"
 
 	"github.com/nuclio/nuclio/pkg/auth/utils"
@@ -42,14 +41,14 @@ func NewClient(serviceAccountConfig *platformconfig.ServiceAccountConfig) (*Clie
 	tokenRefreshRatio := DefaultTokenRefreshRatio
 
 	if serviceAccountConfig != nil {
-		if serviceAccountConfig.TokenPath != nil && *serviceAccountConfig.TokenPath != "" {
-			tokenPath = *serviceAccountConfig.TokenPath
+		if serviceAccountConfig.TokenPath != "" {
+			tokenPath = serviceAccountConfig.TokenPath
 		}
-		if serviceAccountConfig.TokenExpirationSeconds != nil {
-			tokenExpirationSeconds = *serviceAccountConfig.TokenExpirationSeconds
+		if serviceAccountConfig.TokenExpirationSeconds != 0 {
+			tokenExpirationSeconds = serviceAccountConfig.TokenExpirationSeconds
 		}
-		if serviceAccountConfig.TokenRefreshRatio != nil {
-			tokenRefreshRatio = *serviceAccountConfig.TokenRefreshRatio
+		if serviceAccountConfig.TokenRefreshRatio != float64(0) {
+			tokenRefreshRatio = serviceAccountConfig.TokenRefreshRatio
 		}
 	}
 
@@ -83,7 +82,7 @@ func (c *Client) AuthHeaders() (map[string]string, error) {
 	}
 
 	authHeaders := maps.Clone(ServiceAccountAuthenticationHeader)
-	authHeaders[headers.AuthorizationHeader] = fmt.Sprintf("Bearer %s", token)
+	authHeaders[headers.AuthorizationHeader] = utils.BearerPrefix + token
 
 	return authHeaders, nil
 }
