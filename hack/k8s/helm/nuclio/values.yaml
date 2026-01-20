@@ -534,6 +534,16 @@ platform: {}
 #    tokenPath: /var/run/secrets/kubernetes.io/serviceaccount/token
 #    tokenExpirationSeconds: 600
 #    tokenRefreshRatio: 0.75
+#
+#  scaleToZero:
+#      scalerInterval: 1m
+#      metricsClient:
+#        kind: prometheusClient
+#        url: http://monitoring-prometheus-server
+#        templates:
+#          - name: "nuclio_processor_handled_events_total"
+#            template: |-
+#              add_here_your_prometheus_query
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
