@@ -319,6 +319,14 @@ type IngressConfig struct {
 	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
 }
 
+// ServiceAccountConfig holds configuration for service account tokens
+type ServiceAccountConfig struct {
+	Enabled                bool    `json:"enabled,omitempty"`
+	TokenPath              string  `json:"tokenPath,omitempty"`
+	TokenExpirationSeconds int     `json:"tokenExpirationSeconds,omitempty"`
+	TokenRefreshRatio      float64 `json:"tokenRefreshRatio,omitempty"`
+}
+
 type ElasticSearchConfig struct {
 	URL                  string `json:"url,omitempty"`
 	SSLVerificationMode  string `json:"sslVerificationMode,omitempty"`

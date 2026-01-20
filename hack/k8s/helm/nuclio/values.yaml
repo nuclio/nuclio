@@ -528,6 +528,12 @@ platform: {}
 #
 #  sensitiveFields:
 #    maskSensitiveFields: true
+#
+#  serviceAccount:
+#    enabled: false
+#    tokenPath: /var/run/secrets/kubernetes.io/serviceaccount/token
+#    tokenExpirationSeconds: 600
+#    tokenRefreshRatio: 0.75
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

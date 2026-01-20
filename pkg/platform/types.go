@@ -312,20 +312,22 @@ func (pc *ProjectConfig) Scrub() {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig           *ProjectConfig
-	RequestOrigin           platformconfig.ProjectsLeaderKind
-	SessionCookie           *http.Cookie
-	PermissionOptions       opaclient.PermissionOptions
-	AuthSession             auth.Session
-	WaitForCreateCompletion bool
+	ProjectConfig                *ProjectConfig
+	RequestOrigin                platformconfig.ProjectsLeaderKind
+	SessionCookie                *http.Cookie
+	PermissionOptions            opaclient.PermissionOptions
+	AuthSession                  auth.Session
+	ServiceAccountAuthentication bool
+	WaitForCreateCompletion      bool
 }
 
 type UpdateProjectOptions struct {
-	ProjectConfig     ProjectConfig
-	RequestOrigin     platformconfig.ProjectsLeaderKind
-	SessionCookie     *http.Cookie
-	PermissionOptions opaclient.PermissionOptions
-	AuthSession       auth.Session
+	ProjectConfig                ProjectConfig
+	RequestOrigin                platformconfig.ProjectsLeaderKind
+	SessionCookie                *http.Cookie
+	PermissionOptions            opaclient.PermissionOptions
+	AuthSession                  auth.Session
+	ServiceAccountAuthentication bool
 }
 
 type DeleteProjectStrategy string
@@ -354,12 +356,13 @@ func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) Del
 }
 
 type DeleteProjectOptions struct {
-	Meta              ProjectMeta
-	Strategy          DeleteProjectStrategy
-	RequestOrigin     platformconfig.ProjectsLeaderKind
-	SessionCookie     *http.Cookie
-	PermissionOptions opaclient.PermissionOptions
-	AuthSession       auth.Session
+	Meta                         ProjectMeta
+	Strategy                     DeleteProjectStrategy
+	RequestOrigin                platformconfig.ProjectsLeaderKind
+	SessionCookie                *http.Cookie
+	PermissionOptions            opaclient.PermissionOptions
+	AuthSession                  auth.Session
+	ServiceAccountAuthentication bool
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -368,11 +371,12 @@ type DeleteProjectOptions struct {
 }
 
 type GetProjectsOptions struct {
-	Meta              ProjectMeta
-	PermissionOptions opaclient.PermissionOptions
-	RequestOrigin     platformconfig.ProjectsLeaderKind
-	SessionCookie     *http.Cookie
-	AuthSession       auth.Session
+	Meta                         ProjectMeta
+	PermissionOptions            opaclient.PermissionOptions
+	RequestOrigin                platformconfig.ProjectsLeaderKind
+	SessionCookie                *http.Cookie
+	AuthSession                  auth.Session
+	ServiceAccountAuthentication bool
 }
 
 // DeepCopyInto to appease k8s
