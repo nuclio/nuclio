@@ -42,7 +42,7 @@ const (
 func RequestID(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if requestID := resolveContextId(r); requestID != "" {
+		if requestID := resolveContextID(r); requestID != "" {
 
 			// for logging purposes
 			ctx = context.WithValue(ctx, middleware.RequestIDKey, requestID)
@@ -134,14 +134,13 @@ func ModifyIguazioRequestHeaderPrefix(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-// resolveContextId resolves the context ID from the request headers, with fallback to legacy header name
-func resolveContextId(request *http.Request) string {
+// resolveContextID resolves the context ID from the request headers, with fallback to legacy header name
+func resolveContextID(request *http.Request) string {
 	for _, headerName := range []string{
 		headers.IguazioContextHeaderName,
 		headers.IguazioContextLegacyHeaderName,
 	} {
-		requestID := request.Header.Get(headerName)
-		if requestID != "" {
+		if requestID := request.Header.Get(headerName); requestID != "" {
 			return requestID
 		}
 	}

@@ -82,7 +82,7 @@ func (suite *middlewareTestSuite) TestModifyIguazioRequestHeaderPrefix() {
 	handlerToTest.ServeHTTP(httptest.NewRecorder(), req)
 }
 
-func (suite *middlewareTestSuite) TestResolveContextId() {
+func (suite *middlewareTestSuite) TestResolveContextID() {
 	for _, testCase := range []struct {
 		name     string
 		headers  map[string]string
@@ -121,7 +121,7 @@ func (suite *middlewareTestSuite) TestResolveContextId() {
 			for headerName, headerValue := range testCase.headers {
 				request.Header.Add(headerName, headerValue)
 			}
-			suite.Require().Equal(testCase.expected, resolveContextId(request))
+			suite.Require().Equal(testCase.expected, resolveContextID(request))
 		})
 	}
 }

@@ -314,8 +314,7 @@ func (c *Client) generateCommonRequestHeaders(ctx context.Context) map[string]st
 		"Content-Type":       "application/json",
 	}
 
-	contextID := ctx.Value(middleware.RequestIDKey)
-	if contextID != nil {
+	if contextID := ctx.Value(middleware.RequestIDKey); contextID != nil {
 		commonHeaders[headers.IguazioContextHeaderName] = contextID.(string)
 	}
 	return commonHeaders
