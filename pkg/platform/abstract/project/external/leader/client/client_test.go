@@ -32,15 +32,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	authIgzV1 "github.com/nuclio/nuclio/pkg/auth/iguazio/v1"
 	"github.com/nuclio/nuclio/pkg/auth/iguazio/v4/serviceaccounttoken"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	mockClient "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -744,6 +746,7 @@ func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 		authSession                    auth.Session
 		sessionCookie                  *http.Cookie
 		serviceAccount                 bool
+		contextID                      string
 		mockServiceAccountTokenError   error
 		expectServiceAccountTokenCall  bool
 		expectServiceAccountTokenError bool
@@ -793,16 +796,29 @@ func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 			expectError:                    true,
 		},
 		{
+			name:                "with context ID",
+			contextID:           "test-context-id",
+			expectHeaders:       true,
+			expectCookiesAmount: 0,
+		},
+		{
 			name:                          "all features",
 			authSession:                   testAuthSession,
 			sessionCookie:                 testCookie,
 			serviceAccount:                true,
+			contextID:                     "test-context-id",
 			expectServiceAccountTokenCall: true,
 			expectHeaders:                 true,
 			expectCookiesAmount:           2,
 		},
 	} {
 		suite.Run(testCase.name, func() {
+
+			ctx := context.Background()
+			if testCase.contextID != "" {
+				ctx = context.WithValue(ctx, middleware.RequestIDKey, testCase.contextID)
+			}
+
 			leaderOpsMock := mockClient.NewLeaderOps()
 			mockServiceAccountTokenClient := &serviceaccounttoken.MockClient{}
 			client := &Client{
@@ -817,7 +833,8 @@ func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 				mockServiceAccountTokenClient.On("EscalateAuthHeaders", mock.Anything).Return(testCase.mockServiceAccountTokenError)
 			}
 
-			headers, cookies, err := client.generateRequestHeadersAndCookies(testCase.authSession,
+			headersMap, cookies, err := client.generateRequestHeadersAndCookies(ctx,
+				testCase.authSession,
 				testCase.sessionCookie,
 				testCase.serviceAccount)
 
@@ -828,9 +845,14 @@ func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 			}
 
 			if testCase.expectHeaders {
-				suite.Require().NotNil(headers)
+				suite.Require().NotNil(headersMap)
+				if testCase.contextID != "" {
+					suite.Require().Equal(headersMap[headers.IguazioContextHeaderName], testCase.contextID)
+				} else {
+					suite.Require().NotContains(headersMap, headers.IguazioContextHeaderName)
+				}
 			} else {
-				suite.Require().Nil(headers)
+				suite.Require().Nil(headersMap)
 			}
 
 			suite.Require().Len(cookies, testCase.expectCookiesAmount)

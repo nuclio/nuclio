@@ -23,6 +23,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -78,6 +80,50 @@ func (suite *middlewareTestSuite) TestModifyIguazioRequestHeaderPrefix() {
 
 	// call the handler using a mock response recorder (we'll not use that anyway)
 	handlerToTest.ServeHTTP(httptest.NewRecorder(), req)
+}
+
+func (suite *middlewareTestSuite) TestResolveContextId() {
+	for _, testCase := range []struct {
+		name     string
+		headers  map[string]string
+		expected string
+	}{
+		{
+			name: "standard header",
+			headers: map[string]string{
+				headers.IguazioContextHeaderName: "some-value",
+			},
+			expected: "some-value",
+		},
+		{
+			name: "legacy header",
+			headers: map[string]string{
+				headers.IguazioContextLegacyHeaderName: "some-value",
+			},
+			expected: "some-value",
+		},
+		{
+			name:     "no header",
+			headers:  map[string]string{},
+			expected: "",
+		},
+		{
+			name: "both headers",
+			headers: map[string]string{
+				headers.IguazioContextHeaderName:       "some-value",
+				headers.IguazioContextLegacyHeaderName: "legacy-value",
+			},
+			expected: "some-value",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			request := httptest.NewRequest("GET", "http://some-url", nil)
+			for headerName, headerValue := range testCase.headers {
+				request.Header.Add(headerName, headerValue)
+			}
+			suite.Require().Equal(testCase.expected, resolveContextId(request))
+		})
+	}
 }
 
 func TestMiddlewareTestSuite(t *testing.T) {
