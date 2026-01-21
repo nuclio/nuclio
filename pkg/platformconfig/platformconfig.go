@@ -65,6 +65,7 @@ type Config struct {
 	StreamMonitoring          StreamMonitoringConfig           `json:"streamMonitoring,omitempty"`
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
+	ServiceAccountConfig      ServiceAccountConfig             `json:"serviceAccount,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -157,6 +158,11 @@ func (c *Config) EnrichPlatformConfig() error {
 
 	if c.ScaleToZero.MultiTargetStrategy == "" {
 		c.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
+	}
+
+	// default to custom metrics client for backwards compatibility because it was the only option before
+	if c.ScaleToZero.MetricsClient.Kind == "" {
+		c.ScaleToZero.MetricsClient.Kind = scalertypes.KindK8sMetricsClient
 	}
 
 	// fall back to legacy default
