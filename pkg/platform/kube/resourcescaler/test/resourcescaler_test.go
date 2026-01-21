@@ -34,32 +34,80 @@ import (
 	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"github.com/v3io/scaler/pkg/autoscaler"
 	"github.com/v3io/scaler/pkg/dlx"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/metrics/pkg/apis/custom_metrics/v1beta2"
-	"k8s.io/metrics/pkg/client/custom_metrics/fake"
 )
+
+// mockMetricClient implements scalertypes.MetricsClient for testing purposes.
+// It allows tests to control metric values programmatically, enabling predictable
+// scale-to-zero behavior without relying on external metrics systems.
+type mockMetricClient struct {
+	// scaleToZeroConfig maps function:metric keys to whether the metric should indicate
+	// scale-to-zero (true = return 0) or keep-running (false = return threshold+1).
+	// The composite key format is "functionName:metricName" to avoid conflicts
+	// when multiple functions use the same metric name.
+	scaleToZeroConfig map[string]bool
+}
+
+// GetResourceMetrics implements scalertypes.MetricsClient interface.
+// Returns metric values for the requested resources based on test configuration.
+//
+// Behavior:
+//   - If a metric is configured via setMetricValue, returns the configured value:
+//   - shouldScaleToZero=true: returns 0 (below threshold, triggers scale-to-zero)
+//   - shouldScaleToZero=false: returns threshold+1 (above threshold, keeps function running)
+//   - If a metric is not configured, defaults to 0 (allows scale-to-zero)
+func (m *mockMetricClient) GetResourceMetrics(resources []scalertypes.Resource) (map[string]map[string]int, error) {
+	result := make(map[string]map[string]int, len(resources))
+
+	for _, r := range resources {
+		resourceMetrics := make(map[string]int)
+
+		for _, scaleResource := range r.ScaleResources {
+			metricName := scaleResource.GetKubernetesMetricName()
+			key := m.buildMetricKey(r.Name, metricName)
+
+			shouldScaleToZero, isConfigured := m.scaleToZeroConfig[key]
+			if !isConfigured {
+				// Default behavior: return 0 to allow scale-to-zero when not explicitly configured
+				resourceMetrics[metricName] = 0
+				continue
+			}
+
+			if shouldScaleToZero {
+				// Metric value below threshold triggers scale-to-zero
+				resourceMetrics[metricName] = 0
+			} else {
+				// Return threshold+1 to ensure value > threshold, preventing scale-to-zero
+				// The autoscaler uses "value > threshold" comparison, so threshold+1 keeps the function running
+				resourceMetrics[metricName] = scaleResource.Threshold + 1
+			}
+		}
+		result[r.Name] = resourceMetrics
+	}
+	return result, nil
+}
 
 type ResourceScalerTestSuite struct {
 	kubesuite.KubeTestSuite
 	dlx            *dlx.DLX
 	autoscaler     *autoscaler.Autoscaler
-	metricClient   *fake.FakeCustomMetricsClient
+	metricClient   *mockMetricClient
 	resourceScaler *resourcescaler.NuclioResourceScaler
 	dlxHTTPClient  *http.Client
 }
 
 func (suite *ResourceScalerTestSuite) SetupSuite() {
 	var err error
+
+	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
 
 	suite.KubeTestSuite.SetupSuite()
 	resourceScaler, err := resourcescaler.New(suite.Logger,
@@ -91,7 +139,7 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 		suite.Require().NoError(err, "Failed to start DLX server")
 	}()
 
-	suite.metricClient = &fake.FakeCustomMetricsClient{}
+	suite.metricClient = newMockMetricClient()
 	suite.autoscaler, err = autoscaler.NewAutoScaler(suite.Logger,
 		resourceScaler,
 		suite.metricClient,
@@ -102,6 +150,7 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 
 func (suite *ResourceScalerTestSuite) SetupTest() {
 	suite.KubeTestSuite.SetupTest()
+	suite.metricClient.scaleToZeroConfig = make(map[string]bool)
 
 	// preserve it, it might be mutated during tests
 	suite.dlxHTTPClient = suite.resourceScaler.GetHTTPClient()
@@ -168,23 +217,8 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
-		// add metrics data
-		// make metric client return value that is small enough (e.g.: 0)
-		// to ensure scaler will scale the function to zero
-		suite.metricClient.AddReactor("get", "nucliofunctions.nuclio.io", func(action k8stesting.Action) (
-			handled bool, ret runtime.Object, err error) {
-			return true, &v1beta2.MetricValueList{
-				Items: []v1beta2.MetricValue{
-					{
-						DescribedObject: v1.ObjectReference{
-							Name:      functionName,
-							Namespace: suite.Namespace,
-						},
-						Value: resource.MustParse("0"),
-					},
-				},
-			}, nil
-		})
+		// set metric value to 0 (scale to zero) using the mock metric client
+		suite.metricClient.setMetricValue(functionName, "something_per_250ms", true)
 
 		// wait for the function to scale to zero
 		suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -199,8 +233,10 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 			return deployment.Status.Replicas == 0
 		})
 
-		// function has scaled to zero, remove the reactor we added to send "fake" metric values
-		suite.metricClient.ReactionChain = suite.metricClient.ReactionChain[:len(suite.metricClient.ReactionChain)-1]
+		// set metric value to 1 to keep function up after wake-up
+		// This must be done BEFORE the HTTP request so that when DLX wakes it up,
+		// the autoscaler will see non-zero metrics and keep it up
+		suite.metricClient.setMetricValue(functionName, "something_per_250ms", false)
 
 		// try invoke function without the target header
 		// expect DLX to fail on 400
@@ -278,23 +314,8 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 
 	scaleToZero := func(functionName string) {
 
-		// add metrics data
-		// make metric client return value that is small enough (e.g.: 0)
-		// to ensure scaler will scale the function to zero
-		suite.metricClient.AddReactor("get", "nucliofunctions.nuclio.io", func(action k8stesting.Action) (
-			handled bool, ret runtime.Object, err error) {
-			return true, &v1beta2.MetricValueList{
-				Items: []v1beta2.MetricValue{
-					{
-						DescribedObject: v1.ObjectReference{
-							Name:      functionName,
-							Namespace: suite.Namespace,
-						},
-						Value: resource.MustParse("0"),
-					},
-				},
-			}, nil
-		})
+		// set metric value to 0 (scale to zero) using the mock metric client
+		suite.metricClient.setMetricValue(functionName, "something_per_250ms", true)
 
 		// wait for the function to scale to zero
 		suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -308,9 +329,6 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 		suite.WaitForFunctionDeployment(functionName, 15*time.Second, func(deployment *appsv1.Deployment) bool {
 			return deployment.Status.Replicas == 0
 		})
-
-		// function has scaled to zero, remove the reactor we added to send "fake" metric values
-		suite.metricClient.ReactionChain = suite.metricClient.ReactionChain[:len(suite.metricClient.ReactionChain)-1]
 	}
 
 	suite.DeployFunction(createFunctionOptions1, func(deployResult *platform.CreateFunctionResult) bool {
@@ -321,6 +339,12 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 			err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*networkingv1.Ingress) {
 				scaleToZero(functionName1)
 				scaleToZero(functionName2)
+
+				// set metric values to keep functions up after wake-up
+				// This must be done BEFORE the HTTP request so that when DLX wakes them up,
+				// the autoscaler will see non-zero metrics and keep them up
+				suite.metricClient.setMetricValue(functionName1, "something_per_250ms", false)
+				suite.metricClient.setMetricValue(functionName2, "something_per_250ms", false)
 
 				// add target header, expect it to wake up both functions
 				// for this specific test case, the response status code is 502
@@ -367,4 +391,24 @@ func TestResourceScalerTestSuite(t *testing.T) {
 		return
 	}
 	suite.Run(t, new(ResourceScalerTestSuite))
+}
+
+// newMockMetricClient creates a new mock metrics client instance.
+func newMockMetricClient() *mockMetricClient {
+	return &mockMetricClient{
+		scaleToZeroConfig: make(map[string]bool),
+	}
+}
+
+// buildMetricKey creates a composite key from function and metric names.
+// This ensures each function's metrics are tracked independently, even when
+// multiple functions share the same metric name.
+func (m *mockMetricClient) buildMetricKey(functionName, metricName string) string {
+	return functionName + ":" + metricName
+}
+
+// setMetricValue configures the metric value for a specific function and metric to control scale-to-zero behavior.
+func (m *mockMetricClient) setMetricValue(functionName, metricName string, shouldScaleToZero bool) {
+	key := m.buildMetricKey(functionName, metricName)
+	m.scaleToZeroConfig[key] = shouldScaleToZero
 }
