@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -73,7 +74,7 @@ func NewClient(parentLogger logger.Logger,
 // Get retrieves projects from the leader
 func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	projectName := getProjectOptions.Meta.Name
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(getProjectOptions.AuthSession, getProjectOptions.SessionCookie)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(ctx, getProjectOptions.AuthSession, getProjectOptions.SessionCookie)
 	getSingleProject := projectName != ""
 	requestURL := c.leaderOps.GenerateGetProjectsRequestURL(c.apiAddress, projectName)
 
@@ -105,7 +106,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 	}
 
 	requestURL := c.leaderOps.GenerateCreateProjectRequestURL(c.apiAddress)
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(createProjectOptions.AuthSession, createProjectOptions.SessionCookie)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(ctx, createProjectOptions.AuthSession, createProjectOptions.SessionCookie)
 
 	c.logger.DebugWithCtx(ctx,
 		"Sending create project request to leader",
@@ -148,7 +149,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 	projectName := updateProjectOptions.ProjectConfig.Meta.Name
 	projectNamespace := updateProjectOptions.ProjectConfig.Meta.Namespace
 	requestURL := c.leaderOps.GenerateUpdateProjectRequestURL(c.apiAddress, projectName)
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(updateProjectOptions.AuthSession, updateProjectOptions.SessionCookie)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(ctx, updateProjectOptions.AuthSession, updateProjectOptions.SessionCookie)
 	requestBody, err := c.leaderOps.GenerateProjectRequestBody(&updateProjectOptions.ProjectConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project request body")
@@ -184,7 +185,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	projectName := deleteProjectOptions.Meta.Name
 	projectNamespace := deleteProjectOptions.Meta.Namespace
 	requestURL := c.leaderOps.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession, deleteProjectOptions.SessionCookie)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(ctx, deleteProjectOptions.AuthSession, deleteProjectOptions.SessionCookie)
 	headerName := c.leaderOps.GetDeleteStrategyHeaderName()
 	requestHeaders[headerName] = string(deleteProjectOptions.Strategy)
 
@@ -219,7 +220,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 // GetUpdatedAfter retrieves projects from the leader that were updated after the specified time.
 func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
 	requestURL := c.leaderOps.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
-	requestHeaders := c.generateCommonRequestHeaders()
+	requestHeaders := c.generateCommonRequestHeaders(ctx)
 	if updatedAfterTime != nil && updatedAfterTime.IsZero() {
 		updatedAfterTime = nil
 	}
@@ -272,20 +273,27 @@ func (c *Client) logLeaderResponseError(ctx context.Context,
 	c.logger.DebugWithCtx(ctx, errMessage, logFields...)
 }
 
-func (c *Client) generateCommonRequestHeaders() map[string]string {
-	return map[string]string{
+func (c *Client) generateCommonRequestHeaders(ctx context.Context) map[string]string {
+	commonHeaders := map[string]string{
 		headers.ProjectsRole: "nuclio",
 		"Content-Type":       "application/json",
 	}
+
+	contextID := ctx.Value(middleware.RequestIDKey)
+	if contextID != nil {
+		commonHeaders[headers.IguazioContextHeaderName] = contextID.(string)
+	}
+	return commonHeaders
 }
 
 func (c *Client) generateRequestHeadersAndCookies(
+	ctx context.Context,
 	authSession auth.Session,
 	sessionCookie *http.Cookie,
 ) (map[string]string, []*http.Cookie) {
 	var cookies []*http.Cookie
 
-	requestHeaders := c.generateCommonRequestHeaders()
+	requestHeaders := c.generateCommonRequestHeaders(ctx)
 	if authSession != nil {
 		c.leaderOps.AddAuthSessionHeaders(requestHeaders, authSession)
 		if cookie := c.leaderOps.GetAuthSessionCookie(authSession); cookie != nil {
@@ -314,7 +322,7 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 				http.MethodGet,
 				c.leaderOps.GetJobIdUrl(c.apiAddress, jobID),
 				nil,
-				c.generateCommonRequestHeaders(),
+				c.generateCommonRequestHeaders(ctx),
 				requestCookies,
 				http.StatusOK)
 			if err != nil {

@@ -78,6 +78,10 @@ const (
 	// streaming file via HTTP trigger
 	FileStreamDeleteAfterSend = "X-nuclio-filestream-delete-after-send"
 	FileStreamPath            = "X-nuclio-filestream-path"
+
+	// Iguazio context headers
+	IguazioContextHeaderName       = "x-igz-ctx"
+	IguazioContextLegacyHeaderName = "igz-ctx"
 )
 
 func IsNuclioHeader(headerName string) bool {
