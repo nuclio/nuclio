@@ -315,7 +315,7 @@ func (c *Client) generateCommonRequestHeaders(ctx context.Context) map[string]st
 	}
 
 	if contextID := ctx.Value(middleware.RequestIDKey); contextID != nil {
-		commonHeaders[headers.IguazioContextHeaderName] = contextID.(string)
+		commonHeaders[headers.IguazioContext] = contextID.(string)
 	}
 	return commonHeaders
 }

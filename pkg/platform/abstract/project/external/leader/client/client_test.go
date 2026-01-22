@@ -847,9 +847,9 @@ func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 			if testCase.expectHeaders {
 				suite.Require().NotNil(headersMap)
 				if testCase.contextID != "" {
-					suite.Require().Equal(headersMap[headers.IguazioContextHeaderName], testCase.contextID)
+					suite.Require().Equal(headersMap[headers.IguazioContext], testCase.contextID)
 				} else {
-					suite.Require().NotContains(headersMap, headers.IguazioContextHeaderName)
+					suite.Require().NotContains(headersMap, headers.IguazioContext)
 				}
 			} else {
 				suite.Require().Nil(headersMap)

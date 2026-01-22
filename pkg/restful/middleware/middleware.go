@@ -137,8 +137,8 @@ func ModifyIguazioRequestHeaderPrefix(next http.Handler) http.Handler {
 // resolveContextID resolves the context ID from the request headers, with fallback to legacy header name
 func resolveContextID(request *http.Request) string {
 	for _, headerName := range []string{
-		headers.IguazioContextHeaderName,
-		headers.IguazioContextLegacyHeaderName,
+		headers.IguazioContext,
+		headers.IguazioContextLegacy,
 	} {
 		if requestID := request.Header.Get(headerName); requestID != "" {
 			return requestID

@@ -81,8 +81,8 @@ const (
 	FileStreamPath            = "X-nuclio-filestream-path"
 
 	// Iguazio context headers
-	IguazioContextHeaderName       = "x-igz-ctx"
-	IguazioContextLegacyHeaderName = "igz-ctx"
+	IguazioContext       = "x-igz-ctx"
+	IguazioContextLegacy = "igz-ctx"
 )
 
 func IsNuclioHeader(headerName string) bool {

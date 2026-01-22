@@ -91,14 +91,14 @@ func (suite *middlewareTestSuite) TestResolveContextID() {
 		{
 			name: "standard header",
 			headers: map[string]string{
-				headers.IguazioContextHeaderName: "some-value",
+				headers.IguazioContext: "some-value",
 			},
 			expected: "some-value",
 		},
 		{
 			name: "legacy header",
 			headers: map[string]string{
-				headers.IguazioContextLegacyHeaderName: "some-value",
+				headers.IguazioContextLegacy: "some-value",
 			},
 			expected: "some-value",
 		},
@@ -110,8 +110,8 @@ func (suite *middlewareTestSuite) TestResolveContextID() {
 		{
 			name: "both headers",
 			headers: map[string]string{
-				headers.IguazioContextHeaderName:       "some-value",
-				headers.IguazioContextLegacyHeaderName: "legacy-value",
+				headers.IguazioContext:       "some-value",
+				headers.IguazioContextLegacy: "legacy-value",
 			},
 			expected: "some-value",
 		},
