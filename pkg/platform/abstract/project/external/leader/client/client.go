@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -81,7 +82,8 @@ func NewClient(parentLogger logger.Logger,
 // Get retrieves projects from the leader
 func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	projectName := getProjectOptions.Meta.Name
-	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(getProjectOptions.AuthSession,
+	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(ctx,
+		getProjectOptions.AuthSession,
 		getProjectOptions.SessionCookie,
 		getProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
@@ -118,7 +120,8 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 	}
 
 	requestURL := c.leaderOps.GenerateCreateProjectRequestURL(c.apiAddress)
-	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(createProjectOptions.AuthSession,
+	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(ctx,
+		createProjectOptions.AuthSession,
 		createProjectOptions.SessionCookie,
 		createProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
@@ -166,13 +169,13 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 	projectName := updateProjectOptions.ProjectConfig.Meta.Name
 	projectNamespace := updateProjectOptions.ProjectConfig.Meta.Namespace
 	requestURL := c.leaderOps.GenerateUpdateProjectRequestURL(c.apiAddress, projectName)
-	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(updateProjectOptions.AuthSession,
+	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(ctx,
+		updateProjectOptions.AuthSession,
 		updateProjectOptions.SessionCookie,
 		updateProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate request headers and cookies")
 	}
-
 	requestBody, err := c.leaderOps.GenerateProjectRequestBody(&updateProjectOptions.ProjectConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate project request body")
@@ -208,13 +211,13 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	projectName := deleteProjectOptions.Meta.Name
 	projectNamespace := deleteProjectOptions.Meta.Namespace
 	requestURL := c.leaderOps.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
-	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession,
+	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(ctx,
+		deleteProjectOptions.AuthSession,
 		deleteProjectOptions.SessionCookie,
 		deleteProjectOptions.ServiceAccountAuthentication)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate request headers and cookies")
 	}
-
 	headerName := c.leaderOps.GetDeleteStrategyHeaderName()
 	requestHeaders[headerName] = string(deleteProjectOptions.Strategy)
 
@@ -252,7 +255,7 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 	//       the specific leader implementation. When working on IG4 Project Sync, a new leaderOps implementation should
 	//       be created that handles authentication for this request with the service account token client.
 	requestURL := c.leaderOps.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
-	requestHeaders := c.generateCommonRequestHeaders()
+	requestHeaders := c.generateCommonRequestHeaders(ctx)
 	if updatedAfterTime != nil && updatedAfterTime.IsZero() {
 		updatedAfterTime = nil
 	}
@@ -305,21 +308,27 @@ func (c *Client) logLeaderResponseError(ctx context.Context,
 	c.logger.DebugWithCtx(ctx, errMessage, logFields...)
 }
 
-func (c *Client) generateCommonRequestHeaders() map[string]string {
-	return map[string]string{
+func (c *Client) generateCommonRequestHeaders(ctx context.Context) map[string]string {
+	commonHeaders := map[string]string{
 		headers.ProjectsRole: "nuclio",
 		"Content-Type":       "application/json",
 	}
+
+	if contextID := ctx.Value(middleware.RequestIDKey); contextID != nil {
+		commonHeaders[headers.IguazioContext] = contextID.(string)
+	}
+	return commonHeaders
 }
 
 func (c *Client) generateRequestHeadersAndCookies(
+	ctx context.Context,
 	authSession auth.Session,
 	sessionCookie *http.Cookie,
 	serviceAccount bool,
 ) (map[string]string, []*http.Cookie, error) {
 	var cookies []*http.Cookie
 
-	requestHeaders := c.generateCommonRequestHeaders()
+	requestHeaders := c.generateCommonRequestHeaders(ctx)
 	if authSession != nil {
 		c.leaderOps.AddAuthSessionHeaders(requestHeaders, authSession)
 		if cookie := c.leaderOps.GetAuthSessionCookie(authSession); cookie != nil {
@@ -356,7 +365,7 @@ func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName st
 				http.MethodGet,
 				c.leaderOps.GetJobIdUrl(c.apiAddress, jobID),
 				nil,
-				c.generateCommonRequestHeaders(),
+				c.generateCommonRequestHeaders(ctx),
 				requestCookies,
 				http.StatusOK)
 			if err != nil {

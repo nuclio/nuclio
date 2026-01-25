@@ -31,8 +31,6 @@ import (
 type ContextKey int
 
 const (
-	iguazioContextHeaderName = "igz-ctx"
-
 	IguazioContextKey ContextKey = iota
 
 	IguazioHeaderPrefix = "x-igz"
@@ -44,7 +42,7 @@ const (
 func RequestID(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if requestID := r.Header.Get(iguazioContextHeaderName); requestID != "" {
+		if requestID := resolveContextID(r); requestID != "" {
 
 			// for logging purposes
 			ctx = context.WithValue(ctx, middleware.RequestIDKey, requestID)
@@ -134,4 +132,17 @@ func ModifyIguazioRequestHeaderPrefix(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
+}
+
+// resolveContextID resolves the context ID from the request headers, with fallback to legacy header name
+func resolveContextID(request *http.Request) string {
+	for _, headerName := range []string{
+		headers.IguazioContext,
+		headers.IguazioContextLegacy,
+	} {
+		if requestID := request.Header.Get(headerName); requestID != "" {
+			return requestID
+		}
+	}
+	return ""
 }
