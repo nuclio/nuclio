@@ -31,7 +31,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-const groupType = "type.googleapis.com/group.Group"
+const groupType = "type.googleapis.com/usergroup.Group"
 
 type Auth struct {
 	*iguazio.AbstractAuth

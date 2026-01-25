@@ -72,7 +72,7 @@ func (suite *AuthTestSuite) TestAuthentication() {
   },
   "relationships": [
     {
-      "@type": "type.googleapis.com/group.Group",
+      "@type": "type.googleapis.com/usergroup.Group",
       "metadata": {
         "id": "61c12dc0-9863-4e56-9151-a1e09e8a69ed",
         "parentId": "6497f385-0958-42c0-88f0-8ee05e91bf8d",
@@ -84,7 +84,7 @@ func (suite *AuthTestSuite) TestAuthentication() {
       "status": {}
     },
     {
-      "@type": "type.googleapis.com/group.Group",
+      "@type": "type.googleapis.com/usergroup.Group",
       "metadata": {
         "id": "6497f385-0958-42c0-88f0-8ee05e91bf8d",
         "path": "/g1",
@@ -179,13 +179,13 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
   },
   "relationships": [
     {
-      "@type": "type.googleapis.com/group.Group",
+      "@type": "type.googleapis.com/usergroup.Group",
       "metadata": {
         "id": "group1"
       }
     },
     {
-      "@type": "type.googleapis.com/group.Group",
+      "@type": "type.googleapis.com/usergroup.Group",
       "metadata": {
         "id": "group2"
       }
