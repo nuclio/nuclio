@@ -29,9 +29,17 @@ func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
 	if session == nil {
 		return []string{}
 	}
-	ids := []string{
-		session.GetUserID(),
+	var ids []string
+
+	userID := session.GetUserID()
+	if userID != "" {
+		ids = append(ids, userID)
 	}
+
+	if username := session.GetUsername(); username != "" && username != userID {
+		ids = append(ids, username)
+	}
+
 	ids = append(ids, session.GetGroupIDs()...)
 	return ids
 }

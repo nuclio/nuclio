@@ -62,12 +62,13 @@ const (
 	FunctionEventNamespace = "X-Nuclio-Function-Event-Namespace"
 
 	// Auth headers
-	RemoteUser          = "X-Remote-User"
-	V3IOSessionKey      = "X-V3io-Session-Key"
-	UserID              = "X-User-Id"
-	UserGroupIds        = "X-User-Group-Ids"
-	AuthorizationHeader = "authorization"
-	CookieHeader        = "Cookie"
+	RemoteUser               = "X-Remote-User"
+	V3IOSessionKey           = "X-V3io-Session-Key"
+	UserID                   = "X-User-Id"
+	UserGroupIds             = "X-User-Group-Ids"
+	AuthorizationHeader      = "authorization"
+	CookieHeader             = "Cookie"
+	IguazioAuthenticatorKind = "X-IGZ-Authenticator-Kind"
 
 	// Others
 	Logs           = "X-Nuclio-Logs"
@@ -78,8 +79,33 @@ const (
 	// streaming file via HTTP trigger
 	FileStreamDeleteAfterSend = "X-nuclio-filestream-delete-after-send"
 	FileStreamPath            = "X-nuclio-filestream-path"
+
+	// Iguazio context headers
+	IguazioContext       = "x-igz-ctx"
+	IguazioContextLegacy = "igz-ctx"
 )
 
 func IsNuclioHeader(headerName string) bool {
 	return strings.HasPrefix(headerName, HeaderPrefix)
+}
+
+// GetAllowedResponseHeaderNames returns a slice of X-Nuclio header names that are
+// allowed to pass through in function invocation responses. This is useful for
+// CORS ExposedHeaders configuration.
+func GetAllowedResponseHeaderNames() []string {
+	return []string{
+		Logs, // Function logs can be returned to client
+	}
+}
+
+// GetAllowedResponseHeaders returns a map of X-Nuclio headers that are allowed
+// to pass through in function invocation responses. This ensures consistency
+// between response filtering and CORS exposed headers configuration.
+func GetAllowedResponseHeaders() map[string]bool {
+	allowedHeaderNames := GetAllowedResponseHeaderNames()
+	allowedHeaders := make(map[string]bool, len(allowedHeaderNames))
+	for _, headerName := range allowedHeaderNames {
+		allowedHeaders[headerName] = true
+	}
+	return allowedHeaders
 }

@@ -20,13 +20,20 @@ import "github.com/nuclio/nuclio/pkg/auth/iguazio"
 
 type Session struct {
 	*iguazio.AbstractSession
+	AuthorizationHeader string
 }
 
-func NewSession(username string, groupIDs []string) *Session {
+func NewSession(username string, userID string, groupIDs []string, authorizationHeader string) *Session {
 	return &Session{
 		AbstractSession: &iguazio.AbstractSession{
 			Username: username,
+			UserID:   userID,
 			GroupIDs: groupIDs,
 		},
+		AuthorizationHeader: authorizationHeader,
 	}
+}
+
+func (s *Session) CompileAuthorizationHeader() string {
+	return s.AuthorizationHeader
 }

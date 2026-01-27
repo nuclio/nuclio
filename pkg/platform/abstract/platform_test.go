@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 
@@ -60,6 +61,12 @@ const (
 	BriefErrorsMessageFile                   = "brief_errors_message.txt"
 	testProjectName                          = "test-project"
 )
+
+// mockRuntime wraps a concrete Runtime and overrides GetDefaultBaseImage for testing
+type mockRuntime struct {
+	runtime.Runtime
+	defaultBaseImage string
+}
 
 type AbstractPlatformTestSuite struct {
 	suite.Suite
@@ -2297,6 +2304,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.SyncTriggerWorkMode,
 						},
@@ -2311,6 +2319,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name:        "test-trigger",
 							Kind:        "http",
 							Mode:        functionconfig.SyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{MaxConnectionsNumber: 10},
@@ -2327,6 +2336,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "cron",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2345,6 +2355,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "java",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2363,6 +2374,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2382,6 +2394,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2401,6 +2414,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2415,10 +2429,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 		{
 			name: "set custom availability timeout -> error",
 			functionConfig: &functionconfig.Config{
+
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
 						"test-trigger": {
+							Name: "test-trigger",
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2431,18 +2447,23 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 			expectedError: "failed to parse connection availability timeout",
 		},
 	}
-
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
+			validateError := func(err error) {
+				if testCase.expectedError == "" {
+					suite.Require().NoError(err)
+				} else {
+					suite.Require().Error(err)
+					suite.Contains(err.Error(), testCase.expectedError)
+				}
+			}
 			triggerInstance := testCase.functionConfig.Spec.Triggers["test-trigger"]
 			err := suite.Platform.validateProcessingMode(triggerInstance, testCase.functionConfig)
+			validateError(err)
 
-			if testCase.expectedError == "" {
-				suite.Require().NoError(err)
-			} else {
-				suite.Require().Error(err)
-				suite.Contains(err.Error(), testCase.expectedError)
-			}
+			// check that it is successfully validate from enrich triggers method as well
+			err = suite.Platform.validateTriggers(testCase.functionConfig)
+			validateError(err)
 		})
 	}
 }
@@ -2460,6 +2481,91 @@ func (suite *AbstractPlatformTestSuite) TestEnrichPythonVersion() {
 	suite.Require().Equal("python:3.12",
 		functionConfig.Spec.Runtime,
 		"Python version was not set to the default value")
+}
+
+func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
+	testCases := []struct {
+		name              string
+		baseImages        map[string]string
+		specRuntime       string
+		expectedBaseImage string
+	}{
+		{
+			name:              "No base images configured - returns default",
+			specRuntime:       "python:3.12",
+			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+		},
+		{
+			name:              "Empty base images map - returns default",
+			specRuntime:       "nodejs",
+			expectedBaseImage: "gcr.io/iguazio/node:20",
+		},
+		{
+			name: "Base image configured for runtime name only",
+			baseImages: map[string]string{
+				"nodejs": "custom-nodejs:20",
+			},
+			specRuntime:       "nodejs",
+			expectedBaseImage: "custom-nodejs:20",
+		},
+		{
+			name: "Base image configured for runtime name and version",
+			baseImages: map[string]string{
+				"python:3.12": "custom-python-3.12:latest",
+			},
+			specRuntime:       "python:3.12",
+			expectedBaseImage: "custom-python-3.12:latest",
+		},
+		{
+			name: "No matching base image - returns default when runtime is not explicit",
+			baseImages: map[string]string{
+				"golang": "custom-golang:latest",
+			},
+			specRuntime:       "python:3.12",
+			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			functionConfig := &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: testCase.specRuntime,
+				},
+			}
+			runtimeInstance := suite.createTestRuntime(functionConfig)
+			testRuntime := &mockRuntime{
+				Runtime:          runtimeInstance,
+				defaultBaseImage: "",
+			}
+
+			platformConfig := &platformconfig.Config{
+				RuntimeBaseImages: testCase.baseImages,
+			}
+			err := platformConfig.EnrichPlatformConfig()
+			suite.Require().NoError(err)
+
+			backupBaseImages := suite.Platform.Config.RuntimeBaseImages
+			suite.Platform.Config.RuntimeBaseImages = platformConfig.RuntimeBaseImages
+			defer func() {
+				suite.Platform.Config.RuntimeBaseImages = backupBaseImages
+			}()
+
+			result := suite.Platform.GetBaseImage(testRuntime)
+			suite.Require().Equal(testCase.expectedBaseImage, result)
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) createTestRuntime(functionConfig *functionconfig.Config) runtime.Runtime {
+	runtimeName, _ := common.GetRuntimeNameAndVersion(functionConfig.Spec.Runtime)
+	factory, err := runtime.RuntimeRegistrySingleton.Get(runtimeName)
+	suite.Require().NoError(err)
+
+	runtimeInstance, err := factory.(runtime.Factory).Create(suite.Logger, "nop", "/tmp", functionConfig)
+	suite.Require().NoError(err)
+
+	return runtimeInstance
 }
 
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage

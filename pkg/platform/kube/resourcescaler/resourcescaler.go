@@ -169,6 +169,8 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 		return nil, errors.Wrap(err, "Failed to parse resync interval")
 	}
 
+	templates := n.getMetricsClientTemplates()
+
 	return &scalertypes.ResourceScalerConfig{
 		AutoScalerOptions: scalertypes.AutoScalerOptions{
 			Namespace:     n.namespace,
@@ -176,6 +178,11 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 			GroupKind: schema.GroupKind{
 				Group: "nuclio.io",
 				Kind:  "NuclioFunction",
+			},
+			MetricsClientOptions: scalertypes.MetricsClientOptions{
+				MetricsClientKind: n.platformConfiguration.ScaleToZero.MetricsClient.Kind,
+				URL:               n.platformConfiguration.ScaleToZero.MetricsClient.URL,
+				QueryTemplates:    templates,
 			},
 		},
 		DLXOptions: scalertypes.DLXOptions{
@@ -414,6 +421,18 @@ func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nu
 		return errors.Wrap(err, "Exhausted waiting for function readiness verification")
 	}
 	return nil
+}
+
+func (n *NuclioResourceScaler) getMetricsClientTemplates() []scalertypes.QueryTemplate {
+	configTemplates := n.platformConfiguration.ScaleToZero.MetricsClient.Templates
+	templates := make([]scalertypes.QueryTemplate, len(configTemplates))
+	for i, template := range configTemplates {
+		templates[i] = scalertypes.QueryTemplate{
+			Name:     template.Name,
+			Template: template.Template,
+		}
+	}
+	return templates
 }
 
 // ResolveTargetsFromIngressCallback is scalertype.ResolveTargetsFromIngressCallback callback that extracts

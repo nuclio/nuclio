@@ -60,10 +60,14 @@ func (g *golang) GetName() string {
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
-func (g *golang) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
+func (g *golang) GetProcessorDockerfileInfo(
+	_ *runtimeconfig.Config,
+	onbuildImageRegistry string,
+	baseImage string,
+) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
-		BaseImage: "gcr.io/iguazio/alpine:3.20",
+		BaseImage: baseImage,
 	}
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image

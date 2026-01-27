@@ -24,7 +24,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.15.9-amd64
+    tag: 1.15.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -97,7 +97,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.15.9-amd64
+    tag: 1.15.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -225,6 +225,8 @@ dashboard:
       # invalidate a cache entry after specific timeout
       cacheExpirationTimeout: 60s
 
+      verificationMethod: "POST"
+
   opa:
     enabled: false
     name: opa-server
@@ -302,7 +304,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.15.9-amd64
+    tag: 1.15.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -336,7 +338,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.15.9-amd64
+    tag: 1.15.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -526,6 +528,22 @@ platform: {}
 #
 #  sensitiveFields:
 #    maskSensitiveFields: true
+#
+#  serviceAccount:
+#    enabled: false
+#    tokenPath: /var/run/secrets/kubernetes.io/serviceaccount/token
+#    tokenExpirationSeconds: 600
+#    tokenRefreshRatio: 0.75
+#
+#  scaleToZero:
+#      scalerInterval: 1m
+#      metricsClient:
+#        kind: prometheusClient
+#        url: http://monitoring-prometheus-server
+#        templates:
+#          - name: "nuclio_processor_handled_events_total"
+#            template: |-
+#              add_here_your_prometheus_query
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

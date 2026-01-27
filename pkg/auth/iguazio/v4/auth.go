@@ -31,7 +31,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-const groupType = "type.googleapis.com/group.Group"
+const groupType = "type.googleapis.com/usergroup.Group"
 
 type Auth struct {
 	*iguazio.AbstractAuth
@@ -81,7 +81,7 @@ func (a *Auth) ValidateResponse(response *http.Response) error {
 }
 
 // BuildSessionFromResponse parses the response body and builds the session object
-func (a *Auth) BuildSessionFromResponse(response *http.Response) (authpkg.Session, error) {
+func (a *Auth) BuildSessionFromResponse(response *http.Response, authParams *iguazio.AuthParameters) (authpkg.Session, error) {
 	var resp identityResponse
 	if err := json.NewDecoder(response.Body).Decode(&resp); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode identity response")
@@ -94,5 +94,5 @@ func (a *Auth) BuildSessionFromResponse(response *http.Response) (authpkg.Sessio
 		}
 	}
 
-	return NewSession(resp.Metadata.Username, groupIDs), nil
+	return NewSession(resp.Metadata.Username, resp.Metadata.ID, groupIDs, authParams.GetAuthorizationHeader()), nil
 }

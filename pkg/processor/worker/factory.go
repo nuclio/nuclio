@@ -38,7 +38,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) (eventprocessor.Allocator, error) {
 
-	logger.DebugWith("Creating worker pool", "num", numWorkers)
+	logger.DebugWith("Creating fixed pool worker allocator", "num", numWorkers)
 
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
@@ -58,6 +58,8 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 func (waf *Factory) CreateNonBlockingWorkerAllocator(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) (eventprocessor.Allocator, error) {
+
+	logger.DebugWith("Creating non blocking worker allocator", "num", numWorkers)
 
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)

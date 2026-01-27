@@ -2022,7 +2022,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 		},
 		{
 			name:         "igzV4",
-			session:      authIgzV4.NewSession("another-user", nil),
+			session:      authIgzV4.NewSession("another-user", "", nil, ""),
 			expectedUser: "another-user",
 		},
 	}
@@ -2154,7 +2154,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
 
 			switch testCase.authKind {
 			case auth.KindIguazioV4:
-				session = authIgzV4.NewSession(testCase.fullUsername, nil)
+				session = authIgzV4.NewSession(testCase.fullUsername, "", nil, "")
 			case auth.KindIguazio:
 				session = authIgzV1.NewSession(testCase.fullUsername, "", "", nil)
 			default:
@@ -2638,7 +2638,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				}
 				return &apiGatewayConfig
 			}(),
-			authSession: authIgzV4.NewSession("some-username1", nil),
+			authSession: authIgzV4.NewSession("some-username1", "", nil, ""),
 		},
 		{
 			name: "ValidateNamespaceExistence",

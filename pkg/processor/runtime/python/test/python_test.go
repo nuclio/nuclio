@@ -34,7 +34,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/test/offline"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
@@ -47,10 +46,9 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	CloudEventsTestSuite  cloudevents.TestSuite
-	CallFunctionTestSuite callfunction.TestSuite
-	OfflineTestSuite      offline.TestSuite
-	runtime               string
+	CloudEventsTestSuite cloudevents.TestSuite
+	OfflineTestSuite     offline.TestSuite
+	runtime              string
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -63,9 +61,6 @@ func (suite *TestSuite) SetupTest() {
 	// cloud events suite
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 	suite.CloudEventsTestSuite.CloudEventsHandler = "eventreturner:handler"
-
-	// call function suite
-	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
 
 	// offline suite
 	suite.OfflineTestSuite.HTTPSuite = &suite.TestSuite
@@ -251,12 +246,101 @@ func (suite *TestSuite) TestStreamingHandler() {
 	}
 }
 
+func (suite *TestSuite) TestParallelStreamingHandler() {
+	for _, testCase := range []struct {
+		name             string
+		mode             functionconfig.TriggerWorkMode
+		handler          string
+		requestPath      string
+		expectedBody     string
+		totalRequests    int
+		parallelRequests int
+	}{
+		{
+			name:             "sync_parallel_generator",
+			mode:             functionconfig.SyncTriggerWorkMode,
+			handler:          "parallel_stream_outputter:handler",
+			requestPath:      "/generator",
+			expectedBody:     "12345",
+			totalRequests:    10,
+			parallelRequests: 2,
+		},
+		{
+			name:             "sync_parallel_async_generator",
+			mode:             functionconfig.SyncTriggerWorkMode,
+			handler:          "parallel_stream_outputter:handler",
+			requestPath:      "/async-generator",
+			expectedBody:     "12345",
+			totalRequests:    10,
+			parallelRequests: 2,
+		},
+		{
+			name:             "async_parallel_async_generator",
+			mode:             functionconfig.AsyncTriggerWorkMode,
+			handler:          "parallel_stream_outputter:async_handler",
+			requestPath:      "/async-generator",
+			expectedBody:     "12345",
+			totalRequests:    10,
+			parallelRequests: 2,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("parallel-stream-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
+
+			suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResults)
+				suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
+
+				statusOK := http.StatusOK
+				request := &httpsuite.Request{
+					Name:                       "parallel streaming request",
+					RequestPath:                testCase.requestPath,
+					RequestBody:                "",
+					ExpectedResponseBody:       testCase.expectedBody,
+					ExpectedResponseStatusCode: &statusOK,
+				}
+				request.Enrich(deployResults)
+
+				// Send requests with limited parallelism
+				// Each request takes ~5 seconds (5 iterations * 1 second sleep)
+				start := time.Now()
+
+				// Semaphore to limit concurrent requests
+				sem := make(chan struct{}, testCase.parallelRequests)
+				errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
+
+				for i := 0; i < testCase.totalRequests; i++ {
+					index := i
+					sem <- struct{}{} // acquire semaphore
+					errGroup.Go("parallel-streaming-request", func() error {
+						defer func() { <-sem }() // release semaphore
+						reqCopy := *request
+						reqCopy.RequestPath = testCase.requestPath
+						if !suite.SendRequestVerifyResponse(&reqCopy) {
+							return fmt.Errorf("request %d failed", index)
+						}
+						return nil
+					})
+				}
+
+				err := errGroup.Wait()
+				suite.Require().NoError(err)
+
+				totalTime := time.Since(start)
+				suite.Logger.InfoWith("Parallel streaming requests completed",
+					"totalRequests", testCase.totalRequests,
+					"parallelRequests", testCase.parallelRequests,
+					"totalTime", totalTime)
+
+				return true
+			})
+		})
+	}
+}
+
 func (suite *TestSuite) TestStreamingSingleYield() {
-	// Test streaming handlers that yield only once to verify END_OF_STREAM is sent.
-	// This test verifies the fix where END_OF_STREAM is sent even when a streaming
-	// generator yields only a single value. Previously, END_OF_STREAM was only sent
-	// when message_num > 1, but now it's sent for any streaming response
-	// (message_num > 0 and handler_output_type != SINGLE_RESPONSE).
 	for _, testCase := range []struct {
 		name                string
 		mode                functionconfig.TriggerWorkMode

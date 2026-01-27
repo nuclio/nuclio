@@ -247,10 +247,10 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			headers.CreationStateUpdatedTimeout,
 			headers.ProjectsRole,
 		},
-		ExposedHeaders: []string{
-			"Content-Length",
-			headers.Logs,
-		},
+		ExposedHeaders: append(
+			[]string{"Content-Length"},
+			headers.GetAllowedResponseHeaderNames()...,
+		),
 		AllowCredentials: true,
 		MaxAge:           300,
 	}

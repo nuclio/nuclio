@@ -116,9 +116,23 @@ type ScaleToZero struct {
 
 	// Used for DLX options, specifies how often the DLX resync it's internal state
 	ResyncInterval string `json:"resyncInterval,omitempty"`
+
+	// Used for scaler options, specifies metrics client configuration and type
+	MetricsClient MetricsClientConfig `json:"metricsClient,omitempty"`
 }
 
 type ScaleToZeroMode string
+
+type MetricsTemplate struct {
+	Name     string `json:"name,omitempty"`
+	Template string `json:"template,omitempty"`
+}
+
+type MetricsClientConfig struct {
+	Kind      scalertypes.MetricsClientKind `json:"kind,omitempty"`
+	URL       string                        `json:"url,omitempty"`
+	Templates []MetricsTemplate             `json:"templates,omitempty"`
+}
 
 const (
 	EnabledScaleToZeroMode  ScaleToZeroMode = "enabled"
@@ -317,6 +331,14 @@ type IngressConfig struct {
 	IguazioSignInURL           string   `json:"iguazioSignInURL,omitempty"`
 	AllowedAuthenticationModes []string `json:"allowedAuthenticationModes,omitempty"`
 	Oauth2ProxyURL             string   `json:"oauth2ProxyURL,omitempty"`
+}
+
+// ServiceAccountConfig holds configuration for service account tokens
+type ServiceAccountConfig struct {
+	Enabled                bool    `json:"enabled,omitempty"`
+	TokenPath              string  `json:"tokenPath,omitempty"`
+	TokenExpirationSeconds int     `json:"tokenExpirationSeconds,omitempty"`
+	TokenRefreshRatio      float64 `json:"tokenRefreshRatio,omitempty"`
 }
 
 type ElasticSearchConfig struct {

@@ -363,6 +363,10 @@ func (mp *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtim
 	return "quay.io", nil
 }
 
+func (mp *Platform) GetBaseImage(_ runtime.Runtime) string {
+	return "testBaseImage"
+}
+
 func (mp *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
 	return "", nil
 }

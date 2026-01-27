@@ -77,7 +77,6 @@ func newAPIGatewayOperator(ctx context.Context,
 
 // CreateOrUpdate handles creation/update of an object
 func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
-	var err error
 
 	apiGateway, objectIsAPIGateway := object.(*nuclioio.NuclioAPIGateway)
 	if !objectIsAPIGateway {
@@ -110,12 +109,21 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	// create/update the api gateway
-	if _, err = ago.controller.apigatewayresClient.CreateOrUpdate(ctx, *apiGateway); err != nil {
-		ago.logger.WarnWithCtx(ctx, "Failed to create/update api gateway. Updating state accordingly")
-		if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateError, err); err != nil {
-			ago.logger.WarnWithCtx(ctx, "Failed to set api gateway state as error", "err", err)
-		}
+	if _, err := ago.controller.apigatewayresClient.CreateOrUpdate(ctx, *apiGateway); err != nil {
+		ago.logger.WarnWithCtx(ctx,
+			"Failed to create/update api gateway. Updating state accordingly",
+			"err", errors.GetErrorStackString(err, 10),
+		)
 
+		// deferring to ensure apigw status is updated
+		defer func() {
+			if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateError, err); err != nil {
+				ago.logger.WarnWithCtx(ctx,
+					"Failed to set api gateway state as error",
+					"err", errors.GetErrorStackString(err, 10),
+				)
+			}
+		}()
 		return errors.Wrap(err, "Failed to create/update api gateway")
 	}
 

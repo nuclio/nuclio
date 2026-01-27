@@ -34,7 +34,7 @@ spec:
     requests:
       cpu: 25m
       memory: 1Mi
-  runtime: python:3.9
+  runtime: python
   securityContext:
     runAsGroup: 65534
     runAsUser: 50

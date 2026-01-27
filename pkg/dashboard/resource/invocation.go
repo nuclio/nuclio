@@ -127,9 +127,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	// set headers
 	for headerName, headerValue := range invocationResult.Headers {
-
-		// don't send nuclio headers to the actual function
-		if !headers.IsNuclioHeader(headerName) {
+		if tr.shouldPassThroughResponseHeader(headerName) {
 			responseWriter.Header().Set(headerName, headerValue[0])
 		}
 	}
@@ -164,6 +162,19 @@ func (tr *invocationResource) resolveInvokeTimeout(invokeTimeout string) (time.D
 		return 0, nuclio.NewErrBadRequest("Invalid invoke timeout")
 	}
 	return parsedDuration, nil
+}
+
+// shouldPassThroughResponseHeader determines if an X-Nuclio header from the function response
+// should be passed through to the client. Only specific headers that are safe to expose are allowed.
+func (tr *invocationResource) shouldPassThroughResponseHeader(headerName string) bool {
+	// Allow all non-X-Nuclio headers
+	if !headers.IsNuclioHeader(headerName) {
+		return true
+	}
+
+	// Use shared list of allowed response headers to ensure consistency
+	allowedResponseHeaders := headers.GetAllowedResponseHeaders()
+	return allowedResponseHeaders[headerName]
 }
 
 // register the resource

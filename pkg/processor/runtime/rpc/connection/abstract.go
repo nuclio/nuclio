@@ -370,7 +370,7 @@ func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogg
 
 	normalizedResult, normalisationErr := result.NormalizeToResultWithProcessingResult(processingResult)
 	if normalisationErr != nil {
-		return nil, errors.Wrap(normalisationErr, "Failed to normalize result")
+		return nil, errors.Wrap(normalisationErr, fmt.Sprintf("Failed to normalize result. Type is not supported: %T", processingResult))
 	}
 
 	return normalizedResult, err
@@ -384,7 +384,7 @@ func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, funct
 
 	normalizedResult, normalisationErr := result.NormalizeToBatchedResults(processingResult)
 	if normalisationErr != nil {
-		return nil, errors.Wrap(normalisationErr, "Failed to normalize result")
+		return nil, errors.Wrap(normalisationErr, fmt.Sprintf("Failed to normalize result. Type is not supported: %T", processingResult))
 	}
 
 	return normalizedResult, err

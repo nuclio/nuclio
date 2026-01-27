@@ -32,3 +32,21 @@ This represents the maximum number of events that can be processed concurrently 
 
 If all connections are occupied and a new event arrives, the event will wait for a connection to become available for up to `spec.triggers.trigger-name.async.connectionAvailabilityTimeout`.
 By default, this timeout is set to 10 seconds, but it can be customized to any desired value.
+
+### Troubleshooting
+
+#### "Failed to allocate connection for processing event"
+
+This error occurs when a new event arrives but all connections are occupied, and the `connectionAvailabilityTimeout` expires before a connection becomes available.
+
+**Causes:**
+- High concurrency with long-running requests
+- Blocking operations in async handlers
+- `maxConnectionsNumber` is too low for the workload
+- `connectionAvailabilityTimeout` is too short
+
+**Solutions:**
+1. **Increase timeout:** Set `spec.triggers.trigger-name.async.connectionAvailabilityTimeout` to a higher value (default is 10s)
+2. **Increase connections:** Set `spec.triggers.trigger-name.async.maxConnectionsNumber` to a higher value (default is 1000)
+3. **Scale horizontally:** Increase `numWorkers` or pod replicas
+4. **Review handler code:** Ensure async handlers don't perform blocking operations

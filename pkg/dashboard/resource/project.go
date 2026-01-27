@@ -337,6 +337,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		SessionCookie: sessionCookie,
 		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 

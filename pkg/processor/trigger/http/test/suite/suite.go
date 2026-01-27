@@ -265,7 +265,12 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 				if err != nil {
 					return false
 				}
-				return httpResponse.StatusCode == *request.RetryUntilSuccessfulStatusCode
+				if httpResponse.StatusCode != *request.RetryUntilSuccessfulStatusCode {
+					// Close body on failed retries to avoid leaking connections
+					httpResponse.Body.Close()
+					return false
+				}
+				return true
 			})
 
 	} else {
@@ -288,6 +293,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	}
 
 	suite.Require().NoError(err, "Failed to send request")
+	defer httpResponse.Body.Close()
+
 	suite.Logger.DebugWith("Got response", "statusCode", httpResponse.StatusCode)
 
 	body, err := io.ReadAll(httpResponse.Body)
