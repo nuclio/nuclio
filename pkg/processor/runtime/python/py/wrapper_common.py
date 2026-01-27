@@ -290,8 +290,8 @@ class AbstractWrapper(object):
             yield prefix, response
             message_num += 1
 
-        # Only send end-of-stream if multiple chunks were sent
-        if message_num > 1:
+        # if streaming response and send at least one package, send end of stream packet always
+        if message_num > 0 and handler_output_type != SINGLE_RESPONSE:
             duration = time.time() - start_time or sys.float_info.min
             yield PacketType.END_OF_STREAM, None
 
