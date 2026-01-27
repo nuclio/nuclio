@@ -337,6 +337,55 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         self.assertIn(PacketType.METRICS, prefixes)
         self.assertNotIn(PacketType.SINGLE_RESPONSE, prefixes)
 
+    def test_encode_streaming_single_yield_entrypoint_output(self):
+        """
+        Test streaming handler that yields only once.
+        
+        This test verifies the fix where END_OF_STREAM is sent even when
+        a streaming generator yields only a single value. Previously, END_OF_STREAM
+        was only sent when message_num > 1, but now it's sent for any streaming
+        response (message_num > 0 and handler_output_type != SINGLE_RESPONSE).
+        """
+        # Simulated streaming output with only a single yield
+        async def single_yield_streaming_handler_output():
+            yield "single_chunk"
+
+        # Entrypoint output is an async generator
+        entrypoint_output = single_yield_streaming_handler_output()
+
+        # Collect packets from the async generator
+        packets = asyncio.run(self._collect_packets_async(entrypoint_output))
+
+        # Extract prefix sequence for ordering check
+        prefixes = [prefix for prefix, _ in packets]
+
+        # Should have exactly 3 packets: STREAM_START, END_OF_STREAM, METRICS
+        self.assertEqual(len(packets), 3, f"Expected 3 packets, got {len(packets)}: {prefixes}")
+
+        # Ensure 'c' (STREAM_START) exists
+        self.assertIn(PacketType.STREAM_START, prefixes, "Should have STREAM_START packet")
+        # Ensure 'e' (END_OF_STREAM) exists - this is the key fix being tested
+        self.assertIn(PacketType.END_OF_STREAM, prefixes, "Should have END_OF_STREAM packet even with single yield")
+        # Ensure 'm' (METRICS) exists
+        self.assertIn(PacketType.METRICS, prefixes, "Should have METRICS packet")
+
+        # Ensure 'e' comes after 'c' and before 'm'
+        assert prefixes.index(PacketType.STREAM_START) < prefixes.index(PacketType.END_OF_STREAM)
+        assert prefixes.index(PacketType.END_OF_STREAM) < prefixes.index(PacketType.METRICS)
+
+        # Should NOT have BODY_CHUNK since there's only one yield
+        self.assertNotIn(PacketType.BODY_CHUNK, prefixes, "Should not have BODY_CHUNK for single yield")
+        # Should NOT have SINGLE_RESPONSE since it's a streaming response
+        self.assertNotIn(PacketType.SINGLE_RESPONSE, prefixes, "Should not have SINGLE_RESPONSE for streaming")
+
+        payload_by_prefix = {
+            prefix: payload for prefix, payload in packets
+        }
+
+        # Verify the content of the stream start packet
+        stream_start_payload = json.loads(payload_by_prefix[PacketType.STREAM_START])
+        self.assertEqual(stream_start_payload["body"], "single_chunk")
+
     def test_encode_single_value_entrypoint_output(self):
         # Simulate regular async function returning a single value
         async def single_value_handler_output():
