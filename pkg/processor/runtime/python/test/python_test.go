@@ -340,6 +340,65 @@ func (suite *TestSuite) TestParallelStreamingHandler() {
 	}
 }
 
+func (suite *TestSuite) TestStreamingSingleYield() {
+	for _, testCase := range []struct {
+		name                string
+		mode                functionconfig.TriggerWorkMode
+		handler             string
+		expectedStatusCode  int
+		expectedContentType string
+	}{
+		{
+			name:                "sync_handler_as_async_gen_single_yield",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_single_yield_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
+		},
+		{
+			name:                "async_handler_as_async_gen_single_yield",
+			mode:                functionconfig.AsyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_single_yield_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
+		},
+		{
+			name:                "sync_handler_as_sync_gen_single_yield",
+			mode:                functionconfig.SyncTriggerWorkMode,
+			handler:             "stream_outputter:stream_single_yield_sync_as_async",
+			expectedStatusCode:  http.StatusOK,
+			expectedContentType: "text/plain",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("stream-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
+			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+				"python -m pip install aiofile==3.5.0",
+			}
+
+			// Expected body is just the single chunk
+			expectedBody := "single_chunk"
+
+			requests := make([]*httpsuite.Request, 3)
+			for i := range requests {
+				requests[i] = &httpsuite.Request{
+					Name:                       "streaming single yield handler",
+					RequestBody:                "",
+					ExpectedResponseBody:       expectedBody,
+					ExpectedResponseStatusCode: &testCase.expectedStatusCode,
+					ExpectedResponseHeadersValues: map[string][]string{
+						"Content-Type": {testCase.expectedContentType},
+					},
+				}
+			}
+
+			suite.DeployFunctionAndRequests(createFunctionOptions, requests)
+		})
+	}
+}
+
 func (suite *TestSuite) TestStress() {
 	if os.Getenv("NUCLIO_CI_SKIP_STRESS_TEST") == "true" {
 		suite.T().Skip("Skipping stress test")

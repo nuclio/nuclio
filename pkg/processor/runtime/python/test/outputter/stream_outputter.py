@@ -46,3 +46,11 @@ def stream_file_lines_sync(context, event):
 
 def stream_file_lines_as_response_sync(context, event):
     return context.Response(body=stream_file_lines_sync(context, event),  status_code=202, content_type="text/custom")
+
+async def stream_single_yield_async(context, event):
+    """Stream handler that yields only once - tests END_OF_STREAM behavior for single yield"""
+    yield "single_chunk"
+
+async def stream_single_yield_sync_as_async(context, event):
+    """Sync generator defined as async def that yields only once"""
+    yield "single_chunk"
