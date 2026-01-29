@@ -353,13 +353,19 @@ platform:
   kube:
     projectSecretTemplate: "{{ .ProjectName }}-nuclio-project-secret"
     projectSecretAllowedServiceAccountsKey: "allowedServiceAccounts"
+    projectSecretForbiddenServiceAccountsKey: "forbiddenServiceAccounts"
     projectSecretDefaultServiceAccountKey: "defaultServiceAccount"
+    forbiddenPlatformServiceAccounts:
+      - "cluster-admin"
+      - "restricted-sa"
 ```
 | Field                                    | Description                                                                                                                         |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `projectSecretTemplate`                  | A Go template used to compute the name of the Kubernetes secret that holds project-specific settings.                               |
 | `projectSecretAllowedServiceAccountsKey` | The key in the secret that lists comma-separated allowed service accounts for the project.                                          |
+| `projectSecretForbiddenServiceAccountsKey` | The key in the secret that lists comma-separated forbidden service accounts for the project.                                      |
 | `projectSecretDefaultServiceAccountKey`  | The key in the secret containing the default service account for the project, used when no service account is explicitly specified. |
+| `forbiddenPlatformServiceAccounts`       | A list of forbidden service accounts enforced across the platform (merged with secret-based forbidden list).                         |
 
 The `projectSecretTemplate` is rendered using the following context:
 ```go
@@ -374,6 +380,7 @@ Data in a secret example:
 ```yaml
   defaultServiceAccount: "project-service-account"
   allowedServiceAccounts: "project-service-account,team-a-sa,team-b-sa"
+  forbiddenServiceAccounts: "cluster-admin,restricted-sa"
 ```
 
 ### Enrichment and Validation logic overview
@@ -381,7 +388,9 @@ The function's service account (SA) is enriched or validated based on the presen
 
 #### ✅ Scenario 1: Function SA is provided & project secret exists
 - Validate that the provided SA is included in the list defined under the `allowedServiceAccounts` key in the secret.
+- Validate that the provided SA is **not** included in the merged forbidden list (platform + secret).
 - ❌ If the SA is **not** in the allowed list, the function deployment **fails**.
+- ❌ If the SA is **in** the forbidden list, the function deployment **fails**, even if it is allowed.
 
 #### ✅ Scenario 2: Function SA is provided & project secret does **not** exist
 - Use the function's provided SA **as-is**, with no validation or enrichment.

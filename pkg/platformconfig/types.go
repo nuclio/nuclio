@@ -201,35 +201,41 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType                     corev1.ServiceType      `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector            map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultHTTPIngressHostTemplate         string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
-	DefaultHTTPIngressAnnotations          map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
-	DefaultHTTPIngressClassName            string                  `json:"defaultHTTPIngressClassName,omitempty"`
-	DefaultFunctionPriorityClassName       string                  `json:"defaultFunctionPriorityClassName,omitempty"`
-	DefaultFunctionServiceAccount          string                  `json:"defaultFunctionServiceAccount,omitempty"`
-	ValidFunctionPriorityClassNames        []string                `json:"validFunctionPriorityClassNames,omitempty"`
-	DefaultFunctionPodResources            PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
-	DefaultSidecarResources                PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
-	DefaultFunctionTolerations             []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
-	PreemptibleNodes                       *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
-	DefaultReadinessProbe                  *corev1.Probe           `json:"readinessProbe,omitempty"`
-	DefaultLivenessProbe                   *corev1.Probe           `json:"livenessProbe,omitempty"`
-	ElasticSearchConfig                    *ElasticSearchConfig    `json:"elasticSearchConfig,omitempty"`
-	ProjectSecretTemplate                  string                  `json:"projectSecretTemplate,omitempty"`
-	ProjectSecretAllowedServiceAccountsKey string                  `json:"projectSecretAllowedServiceAccountsKey,omitempty"`
-	ProjectSecretDefaultServiceAccountKey  string                  `json:"projectSecretDefaultServiceAccountKey,omitempty"`
+	DefaultServiceType                       corev1.ServiceType      `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector              map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultHTTPIngressHostTemplate           string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations            map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultHTTPIngressClassName              string                  `json:"defaultHTTPIngressClassName,omitempty"`
+	DefaultFunctionPriorityClassName         string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionServiceAccount            string                  `json:"defaultFunctionServiceAccount,omitempty"`
+	ForbiddenPlatformServiceAccounts         []string                `json:"forbiddenPlatformServiceAccounts,omitempty"`
+	ValidFunctionPriorityClassNames          []string                `json:"validFunctionPriorityClassNames,omitempty"`
+	DefaultFunctionPodResources              PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
+	DefaultSidecarResources                  PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
+	DefaultFunctionTolerations               []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
+	PreemptibleNodes                         *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
+	DefaultReadinessProbe                    *corev1.Probe           `json:"readinessProbe,omitempty"`
+	DefaultLivenessProbe                     *corev1.Probe           `json:"livenessProbe,omitempty"`
+	ElasticSearchConfig                      *ElasticSearchConfig    `json:"elasticSearchConfig,omitempty"`
+	ProjectSecretTemplate                    string                  `json:"projectSecretTemplate,omitempty"`
+	ProjectSecretAllowedServiceAccountsKey   string                  `json:"projectSecretAllowedServiceAccountsKey,omitempty"`
+	ProjectSecretForbiddenServiceAccountsKey string                  `json:"projectSecretForbiddenServiceAccountsKey,omitempty"`
+	ProjectSecretDefaultServiceAccountKey    string                  `json:"projectSecretDefaultServiceAccountKey,omitempty"`
 }
 
 // IsConfiguredToVerifyServiceAccountFromProject checks if the platform kube config is configured to verify service accounts
 func (pkc *PlatformKubeConfig) IsConfiguredToVerifyServiceAccountFromProject() bool {
+	if len(pkc.ForbiddenPlatformServiceAccounts) > 0 {
+		return true
+	}
 	// if project secret template is not specified, skip validation
 	if pkc.ProjectSecretTemplate == "" {
 		return false
 	}
 
-	// if project secret allowed service accounts key is not configured, skip validation
-	if pkc.ProjectSecretAllowedServiceAccountsKey == "" {
+	// if project secret service accounts keys are not configured, skip validation
+	if pkc.ProjectSecretAllowedServiceAccountsKey == "" &&
+		pkc.ProjectSecretForbiddenServiceAccountsKey == "" {
 		return false
 	}
 	return true
