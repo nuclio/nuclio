@@ -223,8 +223,8 @@ type PlatformKubeConfig struct {
 	ProjectSecretDefaultServiceAccountKey    string                  `json:"projectSecretDefaultServiceAccountKey,omitempty"`
 }
 
-// IsConfiguredToVerifyServiceAccountFromProject checks if the platform kube config is configured to verify service accounts
-func (pkc *PlatformKubeConfig) IsConfiguredToVerifyServiceAccountFromProject() bool {
+// IsConfiguredToVerifyServiceAccount checks if the platform kube config is configured to verify service accounts
+func (pkc *PlatformKubeConfig) IsConfiguredToVerifyServiceAccount() bool {
 	if len(pkc.ForbiddenPlatformServiceAccounts) > 0 {
 		return true
 	}
