@@ -363,7 +363,7 @@ func (suite *utilsTestSuite) TestIsServiceAccountForbidden() {
 	)
 	secretData := &v1.Secret{
 		Data: map[string][]byte{
-			forbiddenKey: []byte(strings.Join([]string{forbiddenService, allowedService}, serviceAccountListSeparator)),
+			forbiddenKey: []byte(strings.Join([]string{forbiddenService, allowedService}, ",")),
 		},
 	}
 	testCases := []struct {
@@ -515,7 +515,7 @@ func (suite *utilsTestSuite) TestGetServiceAccountsFromSecretForbidden() {
 	const forbiddenKey = "forbidden"
 	secretData := &v1.Secret{
 		Data: map[string][]byte{
-			forbiddenKey: []byte(strings.Join([]string{"sa1", "sa2"}, serviceAccountListSeparator)),
+			forbiddenKey: []byte(strings.Join([]string{"sa1", "sa2"}, ",")),
 		},
 	}
 

@@ -32,16 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// Service account validation constants.
-const (
-	serviceAccountListSeparator        = ","
-	errNoServiceAccountsAllowed        = "No service accounts are allowed"
-	errServiceAccountNotAllowedFormat  = "Service account %q is not allowed"
-	errServiceAccountForbiddenFormat   = "Service account %q is forbidden"
-	errServiceAccountNotAllowedProject = "Service account %s is not allowed for project %s"
-	errServiceAccountForbiddenProject  = "Service account %s is forbidden for project %s"
-)
-
 // ValidateLabels validates the given labels according to k8s label constraints
 func ValidateLabels(labels map[string]string) error {
 	if labels == nil {
@@ -185,10 +175,10 @@ func EnrichAndValidateServiceAccount(ctx context.Context,
 		projectSecretForbiddenServiceAccountsKey,
 		forbiddenPlatformServiceAccounts,
 		serviceAccount); err != nil {
-		return "", errors.Wrapf(err, errServiceAccountForbiddenProject, serviceAccount, projectName)
+		return "", errors.Wrapf(err, "Service account %s is forbidden for project %s", serviceAccount, projectName)
 	}
 	if err = IsServiceAccountAllowed(secret, projectSecretAllowedServiceAccountsKey, serviceAccount); err != nil {
-		return "", errors.Wrapf(err, errServiceAccountNotAllowedProject, serviceAccount, projectName)
+		return "", errors.Wrapf(err, "Service account %s is not allowed for project %s", serviceAccount, projectName)
 	}
 
 	return serviceAccount, nil
@@ -235,7 +225,7 @@ func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey 
 
 	// if the key is found, but is empty, treat it as no allowed service accounts configured
 	if len(allowedServiceAccounts) == 0 && found {
-		return errors.Errorf(errNoServiceAccountsAllowed)
+		return errors.Errorf("No service accounts are allowed")
 	}
 	if len(allowedServiceAccounts) == 0 {
 		return nil
@@ -248,7 +238,7 @@ func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey 
 		}
 	}
 
-	return errors.Errorf(errServiceAccountNotAllowedFormat, requestedSA)
+	return errors.Errorf("Service account %s is not allowed", requestedSA)
 }
 
 // IsServiceAccountForbidden validates that the service account is not in forbidden lists.
@@ -275,7 +265,7 @@ func IsServiceAccountForbidden(secret *v1.Secret,
 	requestedSA := strings.ToLower(strings.TrimSpace(serviceAccount))
 	for _, sa := range forbiddenServiceAccounts {
 		if sa == requestedSA {
-			return errors.Errorf(errServiceAccountForbiddenFormat, requestedSA)
+			return errors.Errorf("Service account %s is forbidden", requestedSA)
 		}
 	}
 	return nil
@@ -308,7 +298,7 @@ func getServiceAccountsFromSecret(secret *v1.Secret, secretServiceAccountsKey st
 
 	// if the key is found, set found to true and split the string by comma
 	found = true
-	rawAccounts := strings.Split(accounts, serviceAccountListSeparator)
+	rawAccounts := strings.Split(accounts, ",")
 	for _, sa := range rawAccounts {
 		trimmedLowered := strings.ToLower(strings.TrimSpace(sa))
 		if trimmedLowered != "" {
