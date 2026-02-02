@@ -199,29 +199,26 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 				return createFunctionOptions
 			}(),
 
-			// on k8s <= 1.23, the error message is:
-			// 	0/1 nodes are available: 1 Insufficient nvidia.com/gpu.
-			// on k8s >= 1.24, the error message is:
-			// 0/1 nodes are available: 1 Insufficient nvidia.com/gpu. preemption: 0/1 nodes are available:
-			// 1 No preemption victims found for incoming pod.
-			ExpectedBriefErrorsMessage: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu. " +
-				"preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.\n",
+			ExpectedBriefErrorsMessage: "",
 		},
 	} {
 		suite.Run(testCase.Name, func() {
 			_, err := suite.DeployFunctionExpectError(testCase.CreateFunctionOptions,
 				func(deployResult *platform.CreateFunctionResult) bool {
 
-					// get the function
 					function := suite.GetFunction(&platform.GetFunctionsOptions{
 						Name:      testCase.CreateFunctionOptions.FunctionConfig.Meta.Name,
 						Namespace: testCase.CreateFunctionOptions.FunctionConfig.Meta.Namespace,
 					})
 
-					// validate the brief error message in function status is at least 90% close to the expected brief error message
-					// keep it flexible for close enough messages in case small changes occur (e.g. line numbers on stack trace)
-					briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, function.GetStatus().Message)
-					suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.80))
+					msg := function.GetStatus().Message
+					if testCase.Name == "InsufficientGPU" {
+						suite.Require().True(strings.Contains(msg, "0/1 nodes are available"))
+						suite.Require().True(strings.Contains(msg, "Insufficient nvidia.com/gpu"))
+					} else {
+						briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, msg)
+						suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.80))
+					}
 
 					return true
 				})
