@@ -1219,17 +1219,17 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccount() {
 	}
 }
 
-// TestValidateServiceAccountWithForbiddenPlatformList validates forbidden platform list enforcement.
-func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithForbiddenPlatformList() {
+// TestValidateServiceAccountWithDefaultForbiddenList validates default forbidden list enforcement.
+func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithDefaultForbiddenList() {
 	const forbiddenServiceAccount = "sa-forbidden"
 	config := &suite.platform.Config.Kube
 	oldAllowedKey, oldForbiddenKey := config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey
-	oldProjectSecretTemplate, oldForbiddenList := config.ProjectSecretTemplate, config.ForbiddenPlatformServiceAccounts
+	oldProjectSecretTemplate, oldDefaultForbiddenList := config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts
 	config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey = "", ""
-	config.ProjectSecretTemplate, config.ForbiddenPlatformServiceAccounts = "", []string{forbiddenServiceAccount}
+	config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts = "", []string{forbiddenServiceAccount}
 	defer func() {
 		config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey = oldAllowedKey, oldForbiddenKey
-		config.ProjectSecretTemplate, config.ForbiddenPlatformServiceAccounts = oldProjectSecretTemplate, oldForbiddenList
+		config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts = oldProjectSecretTemplate, oldDefaultForbiddenList
 	}()
 
 	functionConfig := &functionconfig.Config{

@@ -495,7 +495,7 @@ platform: {}
 #    projectSecretAllowedServiceAccountsKey: ""
 #    projectSecretForbiddenServiceAccountsKey: ""
 #    projectSecretDefaultServiceAccountKey: ""
-#    forbiddenPlatformServiceAccounts: []
+#    defaultForbiddenServiceAccounts: []
 #    defaultHTTPIngressAnnotations:
 #      ingressAnnotationKey: ingressAnnotationValue
 #    defaultHTTPIngressClassName: ""

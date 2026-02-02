@@ -355,7 +355,7 @@ platform:
     projectSecretAllowedServiceAccountsKey: "allowedServiceAccounts"
     projectSecretForbiddenServiceAccountsKey: "forbiddenServiceAccounts"
     projectSecretDefaultServiceAccountKey: "defaultServiceAccount"
-    forbiddenPlatformServiceAccounts:
+    defaultForbiddenServiceAccounts:
       - "cluster-admin"
       - "restricted-sa"
 ```
@@ -365,7 +365,7 @@ platform:
 | `projectSecretAllowedServiceAccountsKey` | The key in the secret that lists comma-separated allowed service accounts for the project.                                          |
 | `projectSecretForbiddenServiceAccountsKey` | The key in the secret that lists comma-separated forbidden service accounts for the project.                                      |
 | `projectSecretDefaultServiceAccountKey`  | The key in the secret containing the default service account for the project, used when no service account is explicitly specified. |
-| `forbiddenPlatformServiceAccounts`       | A list of forbidden service accounts enforced across the platform (merged with secret-based forbidden list).                         |
+| `defaultForbiddenServiceAccounts`       | A list of forbidden service accounts enforced across the platform (merged with secret-based forbidden list).                         |
 
 The `projectSecretTemplate` is rendered using the following context:
 ```go

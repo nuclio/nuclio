@@ -1161,7 +1161,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			ProjectSecretForbiddenServiceAccountsKey: b.platform.GetConfig().Kube.ProjectSecretForbiddenServiceAccountsKey,
 			ProjectSecretDefaultServiceAccountKey:    b.platform.GetConfig().Kube.ProjectSecretDefaultServiceAccountKey,
 			DefaultPlatformServiceAccount:            b.platform.GetConfig().Kube.DefaultFunctionServiceAccount,
-			ForbiddenPlatformServiceAccounts:         b.platform.GetConfig().Kube.ForbiddenPlatformServiceAccounts,
+			DefaultForbiddenServiceAccounts:          b.platform.GetConfig().Kube.DefaultForbiddenServiceAccounts,
 		})
 
 	return taggedImageName, err

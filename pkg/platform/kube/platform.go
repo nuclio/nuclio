@@ -1978,7 +1978,7 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		p.Config.Kube.ProjectSecretDefaultServiceAccountKey,
 		p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
 		p.Config.Kube.ProjectSecretForbiddenServiceAccountsKey,
-		p.Config.Kube.ForbiddenPlatformServiceAccounts,
+		p.Config.Kube.DefaultForbiddenServiceAccounts,
 		functionConfig.Spec.ServiceAccount,
 		projectName,
 		functionConfig.Meta.Namespace,

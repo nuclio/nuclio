@@ -201,14 +201,15 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType                       corev1.ServiceType      `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector              map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultHTTPIngressHostTemplate           string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
-	DefaultHTTPIngressAnnotations            map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
-	DefaultHTTPIngressClassName              string                  `json:"defaultHTTPIngressClassName,omitempty"`
-	DefaultFunctionPriorityClassName         string                  `json:"defaultFunctionPriorityClassName,omitempty"`
-	DefaultFunctionServiceAccount            string                  `json:"defaultFunctionServiceAccount,omitempty"`
-	ForbiddenPlatformServiceAccounts         []string                `json:"forbiddenPlatformServiceAccounts,omitempty"`
+	DefaultServiceType               corev1.ServiceType `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector      map[string]string  `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultHTTPIngressHostTemplate   string             `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations    map[string]string  `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultHTTPIngressClassName      string             `json:"defaultHTTPIngressClassName,omitempty"`
+	DefaultFunctionPriorityClassName string             `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionServiceAccount    string             `json:"defaultFunctionServiceAccount,omitempty"`
+	// DefaultForbiddenServiceAccounts is a list of forbidden service accounts enforced across the platform.
+	DefaultForbiddenServiceAccounts          []string                `json:"defaultForbiddenServiceAccounts,omitempty"`
 	ValidFunctionPriorityClassNames          []string                `json:"validFunctionPriorityClassNames,omitempty"`
 	DefaultFunctionPodResources              PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
 	DefaultSidecarResources                  PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
@@ -225,7 +226,7 @@ type PlatformKubeConfig struct {
 
 // IsConfiguredToVerifyServiceAccount checks if the platform kube config is configured to verify service accounts
 func (pkc *PlatformKubeConfig) IsConfiguredToVerifyServiceAccount() bool {
-	if len(pkc.ForbiddenPlatformServiceAccounts) > 0 {
+	if len(pkc.DefaultForbiddenServiceAccounts) > 0 {
 		return true
 	}
 	// if project secret template is not specified, skip validation

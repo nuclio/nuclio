@@ -821,7 +821,7 @@ func (k *Kaniko) enrichAndValidateServiceAccount(ctx context.Context, buildOptio
 		buildOptions.ProjectSecretDefaultServiceAccountKey,
 		buildOptions.ProjectSecretAllowedServiceAccountsKey,
 		buildOptions.ProjectSecretForbiddenServiceAccountsKey,
-		buildOptions.ForbiddenPlatformServiceAccounts,
+		buildOptions.DefaultForbiddenServiceAccounts,
 		enrichedServiceAccount,
 		buildOptions.ProjectName,
 		namespace,

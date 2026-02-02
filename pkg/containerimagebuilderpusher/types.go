@@ -60,7 +60,8 @@ type BuildOptions struct {
 	ProjectSecretForbiddenServiceAccountsKey string
 	ProjectSecretDefaultServiceAccountKey    string
 	DefaultPlatformServiceAccount            string
-	ForbiddenPlatformServiceAccounts         []string
+	// DefaultForbiddenServiceAccounts is a list of forbidden service accounts enforced across the platform.
+	DefaultForbiddenServiceAccounts []string
 
 	BuildLogger logger.Logger
 }
