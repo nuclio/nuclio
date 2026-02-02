@@ -201,14 +201,13 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType               corev1.ServiceType `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector      map[string]string  `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultHTTPIngressHostTemplate   string             `json:"defaultHTTPIngressHostTemplate,omitempty"`
-	DefaultHTTPIngressAnnotations    map[string]string  `json:"defaultHTTPIngressAnnotations,omitempty"`
-	DefaultHTTPIngressClassName      string             `json:"defaultHTTPIngressClassName,omitempty"`
-	DefaultFunctionPriorityClassName string             `json:"defaultFunctionPriorityClassName,omitempty"`
-	DefaultFunctionServiceAccount    string             `json:"defaultFunctionServiceAccount,omitempty"`
-	// DefaultForbiddenServiceAccounts is a list of forbidden service accounts enforced across the platform.
+	DefaultServiceType                       corev1.ServiceType      `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector              map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultHTTPIngressHostTemplate           string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations            map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultHTTPIngressClassName              string                  `json:"defaultHTTPIngressClassName,omitempty"`
+	DefaultFunctionPriorityClassName         string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionServiceAccount            string                  `json:"defaultFunctionServiceAccount,omitempty"`
 	DefaultForbiddenServiceAccounts          []string                `json:"defaultForbiddenServiceAccounts,omitempty"`
 	ValidFunctionPriorityClassNames          []string                `json:"validFunctionPriorityClassNames,omitempty"`
 	DefaultFunctionPodResources              PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
