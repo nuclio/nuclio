@@ -137,15 +137,17 @@ func GetStringValueFromSecret(secret *v1.Secret, key string) (string, bool) {
 	return string(value), ok
 }
 
-// EnrichAndValidateServiceAccount enriches the service account with the default platform service account if it is not set
-// and validates that the service account is allowed for the project by checking the project secret
-// It returns the enriched service account and an error if the service account is not allowed or if there was an error fetching the project secret
+// EnrichAndValidateServiceAccount enriches the service account with the default platform service account if it is not set.
+// It validates that the service account is allowed and not forbidden for the project by checking the project secret.
+// It returns the enriched service account and an error if the service account is not allowed or if there was an error fetching the project secret.
 func EnrichAndValidateServiceAccount(ctx context.Context,
 	kubeClient kube.Client,
 	defaultPlatformServiceAccount,
 	projectSecretTemplate,
 	projectSecretDefaultServiceAccountKey,
 	projectSecretAllowedServiceAccountsKey,
+	projectSecretForbiddenServiceAccountsKey string,
+	forbiddenPlatformServiceAccounts []string,
 	serviceAccount,
 	projectName,
 	namespace string,
@@ -168,6 +170,12 @@ func EnrichAndValidateServiceAccount(ctx context.Context,
 			projectSecretDefaultServiceAccountKey,
 			serviceAccount,
 			defaultPlatformServiceAccount)
+	}
+	if err = IsServiceAccountForbidden(secret,
+		projectSecretForbiddenServiceAccountsKey,
+		forbiddenPlatformServiceAccounts,
+		serviceAccount); err != nil {
+		return "", errors.Wrapf(err, "Service account %s is forbidden for project %s", serviceAccount, projectName)
 	}
 	if err = IsServiceAccountAllowed(secret, projectSecretAllowedServiceAccountsKey, serviceAccount); err != nil {
 		return "", errors.Wrapf(err, "Service account %s is not allowed for project %s", serviceAccount, projectName)
@@ -213,7 +221,7 @@ func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey 
 	if serviceAccount == "" {
 		return nil
 	}
-	allowedServiceAccounts, found := getAllowedServiceAccountsFromSecret(secret, secretAllowedServiceAccountsKey)
+	allowedServiceAccounts, found := getServiceAccountsFromSecret(secret, secretAllowedServiceAccountsKey)
 
 	// if the key is found, but is empty, treat it as no allowed service accounts configured
 	if len(allowedServiceAccounts) == 0 && found {
@@ -230,7 +238,37 @@ func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey 
 		}
 	}
 
-	return errors.Errorf("Service account %q is not allowed", requestedSA)
+	return errors.Errorf("Service account %s is not allowed", requestedSA)
+}
+
+// IsServiceAccountForbidden validates that the service account is not in forbidden lists.
+func IsServiceAccountForbidden(secret *v1.Secret,
+	secretForbiddenServiceAccountsKey string,
+	forbiddenPlatformServiceAccounts []string,
+	serviceAccount string) error {
+	if serviceAccount == "" {
+		return nil
+	}
+
+	forbiddenServiceAccounts := make([]string, 0, len(forbiddenPlatformServiceAccounts))
+	for _, sa := range forbiddenPlatformServiceAccounts {
+		trimmedLowered := strings.ToLower(strings.TrimSpace(sa))
+		if trimmedLowered != "" {
+			forbiddenServiceAccounts = append(forbiddenServiceAccounts, trimmedLowered)
+		}
+	}
+	secretForbidden, _ := getServiceAccountsFromSecret(secret, secretForbiddenServiceAccountsKey)
+	forbiddenServiceAccounts = append(forbiddenServiceAccounts, secretForbidden...)
+	if len(forbiddenServiceAccounts) == 0 {
+		return nil
+	}
+	requestedSA := strings.ToLower(strings.TrimSpace(serviceAccount))
+	for _, sa := range forbiddenServiceAccounts {
+		if sa == requestedSA {
+			return errors.Errorf("Service account %s is forbidden", requestedSA)
+		}
+	}
+	return nil
 }
 
 func EnrichServiceAccount(secret *v1.Secret, secretDefaultServiceAccountsKey, serviceAccount, defaultPlatformServiceAccount string) string {
@@ -244,14 +282,15 @@ func EnrichServiceAccount(secret *v1.Secret, secretDefaultServiceAccountsKey, se
 	return defaultProjectSa
 }
 
-// getAllowedServiceAccountsFromSecret retrieves the allowed service accounts from the secret
-// It returns a slice of allowed service accounts and a boolean indicating if the key was found in the secret
-func getAllowedServiceAccountsFromSecret(secret *v1.Secret, secretAllowedServiceAccountsKey string) (allowedServiceAccounts []string, found bool) {
-	if secret == nil || secretAllowedServiceAccountsKey == "" {
+// getServiceAccountsFromSecret retrieves service accounts from the secret by key.
+// It returns a slice of normalized service accounts and a boolean indicating if the key was found.
+func getServiceAccountsFromSecret(secret *v1.Secret, secretServiceAccountsKey string) (
+	serviceAccounts []string, found bool) {
+	if secret == nil || secretServiceAccountsKey == "" {
 		return
 	}
 
-	allowed, ok := GetStringValueFromSecret(secret, secretAllowedServiceAccountsKey)
+	accounts, ok := GetStringValueFromSecret(secret, secretServiceAccountsKey)
 	if !ok {
 		// if the key is not found, return empty slice
 		return
@@ -259,11 +298,11 @@ func getAllowedServiceAccountsFromSecret(secret *v1.Secret, secretAllowedService
 
 	// if the key is found, set found to true and split the string by comma
 	found = true
-	rawAccounts := strings.Split(allowed, ",")
+	rawAccounts := strings.Split(accounts, ",")
 	for _, sa := range rawAccounts {
 		trimmedLowered := strings.ToLower(strings.TrimSpace(sa))
 		if trimmedLowered != "" {
-			allowedServiceAccounts = append(allowedServiceAccounts, trimmedLowered)
+			serviceAccounts = append(serviceAccounts, trimmedLowered)
 		}
 	}
 	return

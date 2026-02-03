@@ -1219,6 +1219,35 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccount() {
 	}
 }
 
+// TestValidateServiceAccountWithDefaultForbiddenList validates default forbidden list enforcement.
+func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithDefaultForbiddenList() {
+	const forbiddenServiceAccount = "sa-forbidden"
+	config := &suite.platform.Config.Kube
+	oldAllowedKey, oldForbiddenKey := config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey
+	oldProjectSecretTemplate, oldDefaultForbiddenList := config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts
+	config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey = "", ""
+	config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts = "", []string{forbiddenServiceAccount}
+	defer func() {
+		config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey = oldAllowedKey, oldForbiddenKey
+		config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts = oldProjectSecretTemplate, oldDefaultForbiddenList
+	}()
+
+	functionConfig := &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Namespace: suite.Namespace,
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyProjectName: suite.projectName,
+			},
+		},
+		Spec: functionconfig.Spec{
+			ServiceAccount: forbiddenServiceAccount,
+		},
+	}
+
+	err := suite.platform.validateServiceAccount(suite.ctx, functionConfig)
+	suite.Require().Error(err)
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestValidateSecretsAllowed_EnvFrom() {
 	projectName := "test-project-name"
 

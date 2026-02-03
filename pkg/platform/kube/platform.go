@@ -1967,7 +1967,7 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		return errors.New("Function does not have a project label, cannot validate service account")
 	}
 
-	if !p.Config.Kube.IsConfiguredToVerifyServiceAccountFromProject() {
+	if !p.Config.Kube.IsConfiguredToVerifyServiceAccount() {
 		return nil
 	}
 
@@ -1977,6 +1977,8 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		p.Config.Kube.ProjectSecretTemplate,
 		p.Config.Kube.ProjectSecretDefaultServiceAccountKey,
 		p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
+		p.Config.Kube.ProjectSecretForbiddenServiceAccountsKey,
+		p.Config.Kube.DefaultForbiddenServiceAccounts,
 		functionConfig.Spec.ServiceAccount,
 		projectName,
 		functionConfig.Meta.Namespace,

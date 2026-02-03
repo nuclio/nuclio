@@ -1152,14 +1152,16 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuilderServiceAccount:  b.options.FunctionConfig.Spec.Build.BuilderServiceAccount,
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
-			SecurityContext:                        b.options.FunctionConfig.Spec.SecurityContext,
-			BuildLogger:                            b.logger,
-			Resources:                              b.resolveResources(),
-			ProjectName:                            projectName,
-			ProjectSecretTemplate:                  b.platform.GetConfig().Kube.ProjectSecretTemplate,
-			ProjectSecretAllowedServiceAccountsKey: b.platform.GetConfig().Kube.ProjectSecretAllowedServiceAccountsKey,
-			ProjectSecretDefaultServiceAccountKey:  b.platform.GetConfig().Kube.ProjectSecretDefaultServiceAccountKey,
-			DefaultPlatformServiceAccount:          b.platform.GetConfig().Kube.DefaultFunctionServiceAccount,
+			SecurityContext:                          b.options.FunctionConfig.Spec.SecurityContext,
+			BuildLogger:                              b.logger,
+			Resources:                                b.resolveResources(),
+			ProjectName:                              projectName,
+			ProjectSecretTemplate:                    b.platform.GetConfig().Kube.ProjectSecretTemplate,
+			ProjectSecretAllowedServiceAccountsKey:   b.platform.GetConfig().Kube.ProjectSecretAllowedServiceAccountsKey,
+			ProjectSecretForbiddenServiceAccountsKey: b.platform.GetConfig().Kube.ProjectSecretForbiddenServiceAccountsKey,
+			ProjectSecretDefaultServiceAccountKey:    b.platform.GetConfig().Kube.ProjectSecretDefaultServiceAccountKey,
+			DefaultPlatformServiceAccount:            b.platform.GetConfig().Kube.DefaultFunctionServiceAccount,
+			DefaultForbiddenServiceAccounts:          b.platform.GetConfig().Kube.DefaultForbiddenServiceAccounts,
 		})
 
 	return taggedImageName, err

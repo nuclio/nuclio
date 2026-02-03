@@ -493,7 +493,9 @@ platform: {}
 #    defaultHTTPIngressHostTemplate: ""
 #    projectSecretTemplate: ""
 #    projectSecretAllowedServiceAccountsKey: ""
+#    projectSecretForbiddenServiceAccountsKey: ""
 #    projectSecretDefaultServiceAccountKey: ""
+#    defaultForbiddenServiceAccounts: []
 #    defaultHTTPIngressAnnotations:
 #      ingressAnnotationKey: ingressAnnotationValue
 #    defaultHTTPIngressClassName: ""

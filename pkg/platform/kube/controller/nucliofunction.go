@@ -566,7 +566,7 @@ func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context,
 	}
 
 	if !fo.controller.platformConfiguration.Kube.IsConfiguredToEnrichServiceAccount() &&
-		!fo.controller.platformConfiguration.Kube.IsConfiguredToVerifyServiceAccountFromProject() {
+		!fo.controller.platformConfiguration.Kube.IsConfiguredToVerifyServiceAccount() {
 		// if platform is not configured to enrich and verify service account, just return
 		function.Status.EnrichedServiceAccount = function.Spec.ServiceAccount
 		fo.logger.DebugWithCtx(ctx, "Successfully enriched and validated service account",
@@ -586,6 +586,8 @@ func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context,
 		fo.controller.platformConfiguration.Kube.ProjectSecretTemplate,
 		fo.controller.platformConfiguration.Kube.ProjectSecretDefaultServiceAccountKey,
 		fo.controller.platformConfiguration.Kube.ProjectSecretAllowedServiceAccountsKey,
+		fo.controller.platformConfiguration.Kube.ProjectSecretForbiddenServiceAccountsKey,
+		fo.controller.platformConfiguration.Kube.DefaultForbiddenServiceAccounts,
 		function.Spec.ServiceAccount,
 		projectName,
 		function.Namespace,
