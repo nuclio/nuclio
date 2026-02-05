@@ -31,6 +31,32 @@ import (
 // CreateLogProxy connects to the given endpoint and resolves whether it is an OpenSearch or Elasticsearch instance
 // It returns a LogProxy implementation accordingly
 func CreateLogProxy(logger logger.Logger, config *platformconfig.ElasticSearchConfig) (logProxy.LogProxy, error) {
+
+	// If kind is explicitly set, use it directly without auto-detection
+	if config.Kind != "" {
+		return createLogProxyByKind(logger, config, config.Kind)
+	}
+
+	// Auto-detect the backend type by querying the search engine
+	return createLogProxyWithAutoDetection(logger, config)
+}
+
+// createLogProxyByKind creates a log proxy based on the explicitly configured kind
+func createLogProxyByKind(logger logger.Logger, config *platformconfig.ElasticSearchConfig, kind platformconfig.LogProxyKind) (logProxy.LogProxy, error) {
+	switch kind {
+	case platformconfig.LogProxyKindOpenSearch:
+		logger.InfoWith("Creating log proxy client with explicit kind",
+			"kind", platformconfig.LogProxyKindOpenSearch)
+		return NewOpenSearchLogProxy(config)
+	default:
+		logger.InfoWith("Creating log proxy client with explicit kind",
+			"kind", platformconfig.LogProxyKindElasticSearch)
+		return NewElasticSearchLogProxy(config)
+	}
+}
+
+// createLogProxyWithAutoDetection auto-detects the backend type by querying the search engine version endpoint
+func createLogProxyWithAutoDetection(logger logger.Logger, config *platformconfig.ElasticSearchConfig) (logProxy.LogProxy, error) {
 	versionInfoInstance, err := getVersionFromSearchEngineWithRetries(config, 3, 2*time.Second, 15*time.Second)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get version from search engine")

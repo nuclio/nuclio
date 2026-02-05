@@ -347,6 +347,16 @@ type ServiceAccountConfig struct {
 	TokenRefreshRatio      float64 `json:"tokenRefreshRatio,omitempty"`
 }
 
+// LogProxyKind represents the type of log proxy backend (elasticsearch or opensearch)
+type LogProxyKind string
+
+const (
+	// LogProxyKindElasticSearch indicates an Elasticsearch backend
+	LogProxyKindElasticSearch LogProxyKind = "elasticsearch"
+	// LogProxyKindOpenSearch indicates an OpenSearch backend
+	LogProxyKindOpenSearch LogProxyKind = "opensearch"
+)
+
 type ElasticSearchConfig struct {
 	URL                  string `json:"url,omitempty"`
 	SSLVerificationMode  string `json:"sslVerificationMode,omitempty"`
@@ -354,6 +364,11 @@ type ElasticSearchConfig struct {
 	Password             string `json:"password,omitempty"`
 	Index                string `json:"index,omitempty"`
 	CustomQueryParameter string `json:"customQueryParameter,omitempty"`
+
+	// Kind specifies the log proxy backend type explicitly.
+	// If not set, the backend type is auto-detected by querying the search engine.
+	// Valid values: "elasticsearch", "opensearch"
+	Kind LogProxyKind `json:"kind,omitempty"`
 }
 
 type CronTriggerCreationMode string
