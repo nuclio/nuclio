@@ -13,7 +13,6 @@
 # limitations under the License.
 import asyncio
 import os
-import aiofile
 
 file_path = "/tmp/stream_outputter_lines.txt"
 
@@ -25,6 +24,7 @@ def init_context(context):
 
 async def stream_file_lines_async(context, event):
     # Stream the file line by line asynchronously
+    import aiofile
     async with aiofile.AIOFile(file_path, "r") as afp:
         async for line in aiofile.LineReader(afp):
             yield line
