@@ -17,6 +17,26 @@ Streaming allows a function to send data to the client in chunks as it becomes a
 
 ---
 
+## Streaming flush period
+
+When a function returns a **streamed** response body (e.g. a generator or `io.ReadCloser`), the HTTP trigger copies data to the client through a buffer. By default, the trigger flushes this buffer to the client **at most every 1 second** so that the client receives data incrementally instead of only when the stream ends.
+
+You can configure this interval with the HTTP trigger attribute **`streamingFlushPeriod`** (a duration string, e.g. `"1s"`, `"500ms"`). It must be a positive duration. If omitted, the platform uses the default `"1s"`.
+
+Example (in function spec or nuctl):
+
+```yaml
+triggers:
+  default-http:
+    kind: "http"
+    attributes:
+      streamingFlushPeriod: "1s"
+```
+
+See [HTTP trigger reference](/reference/triggers/http.md#attributes) for the full attributes table.
+
+---
+
 ## Usage Examples
 
 ### Go Runtime

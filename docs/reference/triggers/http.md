@@ -32,6 +32,7 @@ available, a `503` error is returned.
 | cors.preflightMaxAgeSeconds                            | int             | The number of seconds in which the results of a preflight request can be cached in a preflight result cache (`Access-Control-Max-Age` response header); (default: `-1` to indicate no preflight results caching).                                                                                                     |
 | <a id="attributes-serviceType"></a>serviceType         | string          | (Kubernetes only) Kubernetes `ServiceType`, used by the Kubernetes service to expose the trigger. The default `ServiceType` is `ClusterIP`, which means that by default the trigger won't be exposed outside of the cluster unless you configure a proper ingress or manually change the `ServiceType` to `NodePort`. |
 | disablePortPublishing                                  | bool            | (Docker only) Allow disabling publishing the function container port on the host network                                                                                                                                                                                                                              |
+| streamingFlushPeriod                                   | string (duration) | When the response body is streamed, the trigger flushes the response buffer to the client at most every this period (e.g. `"1s"`, `"500ms"`). This allows clients to receive data incrementally instead of only when the stream ends. Must be a positive duration. Default: `"1s"` (set during platform enrichment if omitted). |
 
 <a id="examples"></a>
 ## Examples
@@ -109,4 +110,14 @@ triggers:
           - "PATCH"
         allowCredentials: false
         preflightMaxAgeSeconds: 3600
+```
+
+With streaming flush period (for streamed response bodies) -
+
+```yaml
+triggers:
+  myHttpTrigger:
+    kind: "http"
+    attributes:
+      streamingFlushPeriod: "1s"
 ```

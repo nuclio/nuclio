@@ -427,10 +427,10 @@ func (suite *TestSuite) TestStreamingFlushPeriod() {
 		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
 
 		request := &httpsuite.Request{
-			Name:           "streaming flush",
-			RequestBody:    "",
-			RequestMethod:  http.MethodPost,
-			RequestPath:    "/",
+			Name:          "streaming flush",
+			RequestBody:   "",
+			RequestMethod: http.MethodPost,
+			RequestPath:   "/",
 		}
 		request.Enrich(deployResults)
 
