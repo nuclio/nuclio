@@ -166,6 +166,9 @@ const (
 
 	DefaultBatchSize    = 10
 	DefaultBatchTimeout = "1s"
+
+	// DefaultStreamingFlushPeriod is the default period for flushing HTTP response stream to the client
+	DefaultStreamingFlushPeriod = "1s"
 )
 
 func BatchModeEnabled(batchConfiguration *BatchConfiguration) bool {

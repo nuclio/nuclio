@@ -633,6 +633,103 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateStreamingFlushPeriod() {
+	for _, testCase := range []struct {
+		name        string
+		triggerKey  string
+		trigger     functionconfig.Trigger
+		expectError bool
+	}{
+		{
+			name:       "no attributes",
+			triggerKey: "http0",
+			trigger:    functionconfig.Trigger{Kind: "http", Name: "http0"},
+		},
+		{
+			name:       "empty attributes",
+			triggerKey: "http0",
+			trigger:    functionconfig.Trigger{Kind: "http", Name: "http0", Attributes: map[string]interface{}{}},
+		},
+		{
+			name:       "streamingFlushPeriod missing",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"readBufferSize": 4096},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod empty string",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": ""},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod valid 1s",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "1s"},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod valid 500ms",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "500ms"},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod invalid duration",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "not-a-duration"},
+			},
+			expectError: true,
+		},
+		{
+			name:       "streamingFlushPeriod zero",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "0s"},
+			},
+			expectError: true,
+		},
+		{
+			name:       "streamingFlushPeriod negative",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "-1s"},
+			},
+			expectError: true,
+		},
+		{
+			name:       "streamingFlushPeriod wrong type",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": 123},
+			},
+			expectError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			err := suite.Platform.validateStreamingFlushPeriod(testCase.triggerKey, &testCase.trigger)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	for _, testCase := range []struct {
 		name                  string

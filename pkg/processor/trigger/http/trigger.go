@@ -631,11 +631,21 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			// The callback will release the worker after streaming completes.
 			// Mark streaming mode so the outer defer doesn't release early.
 			streamingMode = true
+			flushPeriod := h.configuration.streamingFlushPeriodDuration
 			ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 				// Ensure worker is released after streaming
 				defer releaseWorker()
 
-				_, copyErr := io.Copy(w, typedResponse)
+				// Copy stream from function (typedResponse) to the response writer (w).
+				// When flushPeriod <= 0 we pass w itself: data is written to the bufio.Writer and
+				// we only flush at the end below. When flushPeriod > 0 we wrap w in periodicFlushWriter
+				// so the buffer is flushed at most every flushPeriod during the copy, giving the client
+				// incremental data instead of only when the stream ends
+				var copyTarget io.Writer = w
+				if flushPeriod > 0 {
+					copyTarget = &periodicFlushWriter{writer: w, flushPeriod: flushPeriod}
+				}
+				_, copyErr := io.Copy(copyTarget, typedResponse)
 				if copyErr != nil {
 					h.Logger.WarnWith("Failed to copy stream to response", "error", copyErr)
 					// In sync mode, mark worker for restart to clean up connection resources
@@ -654,6 +664,10 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 				if streamingMode && copyErr == nil {
 					workerInstance.StreamProcessedSuccessfully()
+				}
+				// Flush any remaining buffered data
+				if err := w.Flush(); err != nil {
+					h.Logger.WarnWith("Failed to flush response stream", "error", err)
 				}
 			})
 		}

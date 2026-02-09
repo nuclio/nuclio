@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import os
 import aiofile
 
@@ -54,3 +55,20 @@ async def stream_single_yield_async(context, event):
 async def stream_single_yield_sync_as_async(context, event):
     """Sync generator defined as async def that yields only once"""
     yield "single_chunk"
+
+
+async def stream_flush_test(context, event):
+    """Yields chunks with delays to test periodic flush. With 1s flush period, client should see chunks incrementally."""
+    yield "flush1"
+    await asyncio.sleep(0.6)
+    yield "flush2"
+    await asyncio.sleep(0.6)
+    yield "flush3"
+
+
+async def stream_flush_test_as_response(context, event):
+    return context.Response(
+        body=stream_flush_test(context, event),
+        status_code=200,
+        content_type="text/plain",
+    )
