@@ -17,6 +17,9 @@ limitations under the License.
 package http
 
 import (
+	"bufio"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -45,6 +48,13 @@ type Configuration struct {
 	DisablePortPublishing bool `json:"disablePortPublishing,omitempty"`
 
 	Mode TriggerMode `json:"mode,omitempty"`
+
+	// StreamingFlushPeriod is the period for flushing the response stream to the client (e.g. "1s").
+	// Applied when the response body is streamed (io.ReadCloser). Enriched to 1s by default during platform enrichment.
+	StreamingFlushPeriod string `json:"streamingFlushPeriod,omitempty"`
+
+	// streamingFlushPeriodDuration is the parsed StreamingFlushPeriod (set in NewConfiguration).
+	streamingFlushPeriodDuration time.Duration
 }
 
 type TriggerMode string
@@ -92,6 +102,15 @@ func NewConfiguration(id string,
 	if newConfiguration.CORS != nil && newConfiguration.CORS.Enabled {
 		newConfiguration.CORS = createCORSConfiguration(newConfiguration.CORS)
 	}
+	if newConfiguration.StreamingFlushPeriod == "" {
+		newConfiguration.StreamingFlushPeriod = functionconfig.DefaultStreamingFlushPeriod
+	}
+	if d, err := time.ParseDuration(newConfiguration.StreamingFlushPeriod); err == nil && d > 0 {
+		newConfiguration.streamingFlushPeriodDuration = d
+	} else {
+		// fallback to default if unset or invalid
+		newConfiguration.streamingFlushPeriodDuration, _ = time.ParseDuration(functionconfig.DefaultStreamingFlushPeriod)
+	}
 	return &newConfiguration, nil
 }
 
@@ -131,4 +150,26 @@ func createCORSConfiguration(corsConfiguration *cors.CORS) *cors.CORS {
 
 func (c *Configuration) corsEnabled() bool {
 	return c.CORS != nil && c.CORS.Enabled
+}
+
+// periodicFlushWriter wraps a bufio.Writer and flushes it at most every flushPeriod.
+// All writes and flushes happen on the same goroutine (no concurrent use of bufio.Writer).
+type periodicFlushWriter struct {
+	writer      *bufio.Writer
+	flushPeriod time.Duration
+	lastFlush   time.Time
+}
+
+func (p *periodicFlushWriter) Write(b []byte) (numBytes int, err error) {
+	numBytes, err = p.writer.Write(b)
+	if err != nil {
+		return numBytes, err
+	}
+	if p.flushPeriod > 0 && time.Since(p.lastFlush) >= p.flushPeriod {
+		if flushErr := p.writer.Flush(); flushErr != nil {
+			return numBytes, flushErr
+		}
+		p.lastFlush = time.Now()
+	}
+	return numBytes, nil
 }

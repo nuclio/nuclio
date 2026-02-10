@@ -399,6 +399,86 @@ func (suite *TestSuite) TestStreamingSingleYield() {
 	}
 }
 
+// TestStreamingFlushPeriod is an e2e test for HTTP trigger streaming flush.
+//
+// The HTTP trigger can flush the response stream to the client at most every streamingFlushPeriod (e.g. 1s),
+// so the client sees data incrementally instead of only when the stream ends. This test verifies that behavior.
+//
+// Setup:
+//   - Deploys a function with trigger attribute streamingFlushPeriod: "1s".
+//   - Handler stream_outputter:stream_flush_test_as_response yields "flush1", sleeps 0.6s, "flush2", sleeps 0.6s, "flush3"
+//     (total ~1.2s of producer time).
+//
+// Assertions:
+//   - The client receives at least one byte within 2.5s. Without periodic flush, the first byte would only
+//     arrive after the producer finishes (~1.2s+) and the connection flushes; with 1s flush we expect data sooner.
+//   - The full response body equals "flush1flush2flush3".
+func (suite *TestSuite) TestStreamingFlushPeriod() {
+	createFunctionOptions := suite.GetDeployOptions("stream-flush-outputter", suite.GetFunctionPath("outputter"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "stream_outputter:stream_flush_test_as_response"
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.Attributes = map[string]interface{}{"streamingFlushPeriod": "1s"}
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		httpTrigger.Name: httpTrigger,
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResults)
+		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
+
+		request := &httpsuite.Request{
+			Name:          "streaming flush",
+			RequestBody:   "",
+			RequestMethod: http.MethodPost,
+			RequestPath:   "/",
+		}
+		request.Enrich(deployResults)
+
+		httpResponse, err := suite.SendRequest(request)
+		suite.Require().NoError(err)
+		defer httpResponse.Body.Close()
+
+		suite.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+
+		// Read body and verify we get first data within 2.5s (proves periodic flush is sending data before stream ends)
+		firstByteCh := make(chan struct{})
+		bodyDoneCh := make(chan struct{})
+		var fullBody []byte
+		var readErr error
+		go func() {
+			defer close(bodyDoneCh)
+			buf := make([]byte, 1)
+			n, err := httpResponse.Body.Read(buf)
+			if n > 0 {
+				fullBody = append(fullBody, buf[:n]...)
+				close(firstByteCh)
+			}
+			if err != nil && err != io.EOF {
+				readErr = err
+				return
+			}
+			rest, err := io.ReadAll(httpResponse.Body)
+			if err != nil {
+				readErr = err
+			} else {
+				fullBody = append(fullBody, rest...)
+			}
+		}()
+
+		select {
+		case <-firstByteCh:
+			// Good: we received at least one byte before timeout
+		case <-time.After(2500 * time.Millisecond):
+			suite.Require().Fail("Did not receive first byte within 2.5s; streaming flush may not be working")
+		}
+
+		<-bodyDoneCh
+		suite.Require().NoError(readErr)
+		suite.Require().Equal("flush1flush2flush3", string(fullBody))
+		return true
+	})
+}
+
 func (suite *TestSuite) TestStress() {
 	if os.Getenv("NUCLIO_CI_SKIP_STRESS_TEST") == "true" {
 		suite.T().Skip("Skipping stress test")
