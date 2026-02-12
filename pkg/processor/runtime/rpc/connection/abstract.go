@@ -427,6 +427,18 @@ func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) (er
 				return errors.Wrap(err, "Failed to send chunk to stream")
 			}
 			continue
+		case *result.SingleResult:
+			// During streaming, 'r' indicates an error response (e.g. handler raised after sending chunks).
+			// Consume it here so it does not orphan to the next request; stream is closed by return.
+			// TODO: add error type in the future (e.g. return or propagate stream error for observability).
+			be.Logger.WarnWith("ProcessStream: received SingleResult during stream — handler raised exception during streaming, closing stream",
+				"statusCode", typedChunk.StatusCode,
+				"LenExceptionBody", len(typedChunk.Body),
+				"receivedStatusCode", typedChunk.StatusCode)
+			if typedChunk.StatusCode != 0 {
+				stream.SetStatusCode(typedChunk.StatusCode)
+			}
+			return nil
 		default:
 			return errors.Errorf("Got unsupported message of type %T during stream processing", typedChunk)
 		}

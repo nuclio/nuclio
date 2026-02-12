@@ -479,6 +479,65 @@ func (suite *TestSuite) TestStreamingFlushPeriod() {
 	})
 }
 
+// TestStreamingHandlerRaisesAfterYield is an e2e test for streaming when the handler raises after yielding.
+//
+// When a streaming handler yields some chunks then raises, the wrapper must still send END_OF_STREAM
+// so the processor closes the response stream. Otherwise the worker blocks or times out.
+//
+// Runs in both sync and async trigger mode. Sends multiple requests to ensure workers are released
+// and can serve subsequent requests.
+func (suite *TestSuite) TestStreamingHandlerRaisesAfterYield() {
+	const numRequests = 5
+
+	for _, testCase := range []struct {
+		name string
+		mode functionconfig.TriggerWorkMode
+	}{
+		{"sync", functionconfig.SyncTriggerWorkMode},
+		{"async", functionconfig.AsyncTriggerWorkMode},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("stream-then-raise-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = "stream_outputter:stream_then_raise"
+			if testCase.mode == functionconfig.AsyncTriggerWorkMode {
+				httpTrigger := createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"]
+				httpTrigger.AsyncConfig = &functionconfig.AsyncConfig{
+					MinConnectionsNumber: 3,
+					MaxConnectionsNumber: 3,
+				}
+				createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"] = httpTrigger
+			}
+
+			suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResults)
+				suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
+
+				request := &httpsuite.Request{
+					Name:          "streaming handler raises after yield",
+					RequestBody:   "",
+					RequestMethod: http.MethodPost,
+					RequestPath:   "/",
+				}
+				request.Enrich(deployResults)
+
+				for i := 0; i < numRequests; i++ {
+					httpResponse, err := suite.SendRequest(request)
+					suite.Require().NoError(err)
+
+					suite.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+
+					fullBody, readErr := io.ReadAll(httpResponse.Body)
+					suite.Require().NoError(readErr)
+					suite.Require().Equal("chunk1chunk2", string(fullBody))
+					httpResponse.Body.Close()
+				}
+				return true
+			})
+		})
+	}
+}
+
 func (suite *TestSuite) TestStress() {
 	if os.Getenv("NUCLIO_CI_SKIP_STRESS_TEST") == "true" {
 		suite.T().Skip("Skipping stress test")
