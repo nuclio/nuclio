@@ -57,6 +57,18 @@ async def stream_single_yield_sync_as_async(context, event):
     yield "single_chunk"
 
 
+def stream_integers_sync(context, event):
+    """Stream handler that yields integers (not strings) - tests non-string type handling"""
+    for i in range(1, 6):
+        yield i
+
+
+async def stream_integers_async(context, event):
+    """Async stream handler that yields integers (not strings) - tests non-string type handling"""
+    for i in range(1, 6):
+        yield i
+
+
 async def stream_flush_test(context, event):
     """Yields chunks with delays to test periodic flush. With 1s flush period, client should see chunks incrementally."""
     yield "flush1"
