@@ -701,7 +701,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 				defaultHTTPTrigger.Attributes = map[string]interface{}{
 					"serviceType":          suite.platformKubeConfig.DefaultServiceType,
-					"streamingFlushPeriod": "1s",
+					"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
 				}
 				return map[string]functionconfig.Trigger{
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
