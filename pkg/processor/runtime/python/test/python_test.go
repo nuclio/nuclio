@@ -401,11 +401,10 @@ func (suite *TestSuite) TestStreamingSingleYield() {
 
 func (suite *TestSuite) TestStreamingIntegerYield() {
 	for _, testCase := range []struct {
-		name                string
-		mode                functionconfig.TriggerWorkMode
-		handler             string
-		expectedStatusCode  int
-		expectedContentType string
+		name               string
+		mode               functionconfig.TriggerWorkMode
+		handler            string
+		expectedStatusCode int
 	}{
 		{
 			name:               "sync_handler_as_sync_gen_integers",
