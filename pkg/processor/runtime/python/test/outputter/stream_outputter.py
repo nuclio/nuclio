@@ -57,6 +57,16 @@ async def stream_single_yield_sync_as_async(context, event):
     yield "single_chunk"
 
 
+async def stream_then_raise(context, event):
+    """
+    Stream handler that yields a few chunks then raises.
+    Used by E2E test to verify the wrapper sends END_OF_STREAM so the processor
+    closes the response stream and the worker does not hang or timeout.
+    """
+    yield "chunk1"
+    yield "chunk2"
+    raise Exception("Counter reaching zero!")
+
 async def stream_flush_test(context, event):
     """Yields chunks with delays to test periodic flush. With 1s flush period, client should see chunks incrementally."""
     yield "flush1"

@@ -241,8 +241,7 @@ func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, funct
 		}
 		if streamErr := connectionInstance.ProcessStream(stream); streamErr != nil {
 			r.Logger.ErrorWith("Failed to process stream",
-				"stream", stream,
-				"error", streamErr)
+				"error", streamErr.Error())
 		}
 	}()
 
