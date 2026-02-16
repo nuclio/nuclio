@@ -1321,6 +1321,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					NumWorkers: 1,
 					Name:       "some-trigger",
 					Mode:       functionconfig.SyncTriggerWorkMode,
+					Attributes: map[string]interface{}{
+						"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+					},
 				},
 			},
 		},
@@ -1331,6 +1334,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			triggers: nil,
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				defaultHTTPTrigger.Attributes = map[string]interface{}{
+					"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+				}
 				return map[string]functionconfig.Trigger{
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
 				}
@@ -1418,6 +1424,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					NumWorkers: 1,
 					Kind:       "http",
 					Mode:       functionconfig.SyncTriggerWorkMode,
+					Attributes: map[string]interface{}{
+						"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+					},
 				},
 				"kafka-trigger": {
 					Kind:                     "kafka-cluster",
@@ -1447,6 +1456,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					NumWorkers: 1,
 					Name:       "http-trigger",
 					Mode:       functionconfig.SyncTriggerWorkMode,
+					Attributes: map[string]interface{}{
+						"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+					},
 				},
 				"kafka-trigger": {
 					Kind:                     "kafka-cluster",
