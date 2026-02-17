@@ -861,6 +861,8 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 			suite.brokerPort: suite.brokerPort,
 		},
 		Env: map[string]string{
+			// Disable JVM container support to avoid NPE in CgroupV2Subsystem on GH runners (cgroup v2).
+			"JAVA_TOOL_OPTIONS":                    "-XX:-UseContainerSupport",
 			"KAFKA_ZOOKEEPER_CONNECT":              fmt.Sprintf("%s:2181", suite.zooKeeperContainerName),
 			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT",
 			"KAFKA_INTER_BROKER_LISTENER_NAME":     "INTERNAL",
@@ -883,6 +885,10 @@ func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclie
 		Remove:        false, // keep container on exit so we can capture logs on failure
 		Ports: map[int]int{
 			dockerclient.RunOptionsRandomPort: 2181,
+		},
+		Env: map[string]string{
+			// Disable JVM container support to avoid NPE in CgroupV2Subsystem on GH runners (cgroup v2).
+			"JAVA_TOOL_OPTIONS": "-XX:-UseContainerSupport",
 		},
 	}
 }
