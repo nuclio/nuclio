@@ -113,8 +113,33 @@ func (suite *testSuite) SetupSuite() {
 	// start zoo keeper container
 	suite.zooKeeperContainerID = suite.RunContainer(suite.getKafkaZooKeeperContainerRunInfo())
 
-	// start broker container
-	suite.StartBrokerContainer(suite.GetContainerRunInfo())
+	// start broker container; retry once on failure (e.g. transient GH runner issues)
+	imageName, runOptions := suite.GetContainerRunInfo()
+	var waitErr error
+	for attempt := 1; attempt <= 2; attempt++ {
+		if attempt > 1 {
+			if suite.BrokerContainerID != "" {
+				_ = suite.DockerClient.RemoveContainer(suite.BrokerContainerID)
+				suite.BrokerContainerID = ""
+			}
+			suite.Logger.InfoWith("Retrying Kafka broker startup after previous failure (e.g. runner glitch)")
+			time.Sleep(2 * time.Second)
+		}
+		suite.BrokerContainerID = suite.RunContainer(imageName, runOptions)
+		// DEBUG: temporary – helps diagnose GH runner flakiness
+		suite.Logger.InfoWith("Kafka broker start attempt",
+			"attempt", attempt,
+			"maxAttempts", 2,
+			"containerID", suite.BrokerContainerID,
+			"containerName", suite.brokerContainerName)
+		waitErr = suite.WaitForBroker()
+		if waitErr == nil {
+			break
+		}
+		if attempt == 2 {
+			suite.Require().NoError(waitErr, "Error waiting for broker to be ready")
+		}
+	}
 
 	suite.Logger.InfoWith("Creating broker resources",
 		"brokerHost", suite.BrokerHost)
@@ -164,12 +189,35 @@ func (suite *testSuite) WaitForBroker() error {
 	expectedLogSubstring := "started (kafka.server.KafkaServer)"
 	var containerLogs string
 	var containerLogsErr error
+	var brokerExitedErr error
 
 	err := common.RetryUntilSuccessful(120*time.Second, 3*time.Second, func() bool {
 		// fetch Kafka container logs
 		containerLogs, containerLogsErr = suite.DockerClient.GetContainerLogs(suite.brokerContainerName)
 		if containerLogsErr != nil {
 			suite.Logger.WarnWith("Failed to get Kafka container logs", "err", containerLogsErr)
+			return false
+		}
+
+		// check if container exited (broker crashed); capture error so caller can retry (e.g. on flaky GH runner)
+		containers, containersErr := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+			Name:    suite.brokerContainerName,
+			Stopped: true,
+		})
+		if containersErr == nil && len(containers) == 1 && containers[0].State != nil && containers[0].State.Status == "exited" {
+			state := containers[0].State
+			exitCode := 0
+			if state.ExitCode != 0 {
+				exitCode = state.ExitCode
+			}
+			// DEBUG: temporary – surface in CI to diagnose GH runner issues
+			suite.Logger.WarnWith("Kafka broker container exited (will retry if attempt 1)",
+				"exitCode", exitCode,
+				"oomKilled", state.OOMKilled,
+				"error", state.Error,
+				"containerLogs", containerLogs)
+			brokerExitedErr = errors.Errorf("Kafka broker container exited unexpectedly (exit code %d). Logs:\n%s",
+				exitCode, containerLogs)
 			return false
 		}
 
@@ -182,8 +230,10 @@ func (suite *testSuite) WaitForBroker() error {
 		return false
 	})
 
+	if brokerExitedErr != nil {
+		return brokerExitedErr
+	}
 	suite.Require().NoError(err, "Kafka broker did not start within the given timeframe")
-
 	return nil
 }
 
@@ -804,7 +854,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 	return "gcr.io/iguazio/kafka", &dockerclient.RunOptions{
 		ContainerName: suite.brokerContainerName,
 		Network:       suite.BrokerContainerNetworkName,
-		Remove:        true,
+		Remove:        false, // keep container on exit so we can capture logs on failure
 		Ports: map[int]int{
 
 			// broker
@@ -830,7 +880,7 @@ func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclie
 	return "gcr.io/iguazio/zookeeper", &dockerclient.RunOptions{
 		ContainerName: suite.zooKeeperContainerName,
 		Network:       suite.BrokerContainerNetworkName,
-		Remove:        true,
+		Remove:        false, // keep container on exit so we can capture logs on failure
 		Ports: map[int]int{
 			dockerclient.RunOptionsRandomPort: 2181,
 		},
