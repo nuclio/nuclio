@@ -136,8 +136,6 @@ app.kubernetes.io/name: {{ .component }}
 app.kubernetes.io/instance: {{ $instance | quote }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/component: {{ .component }}
-app.kubernetes.io/part-of: {{ .Chart.Name }}
-app.kubernetes.io/managed-by: Helm
 {{- end -}}
 
 {{/*
