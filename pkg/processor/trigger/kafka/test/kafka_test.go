@@ -113,6 +113,9 @@ func (suite *testSuite) SetupSuite() {
 	// start zoo keeper container
 	suite.zooKeeperContainerID = suite.RunContainer(suite.getKafkaZooKeeperContainerRunInfo())
 
+	// wait until Zookeeper is resolvable and accepting connections on the Docker network (no sleep)
+	suite.Require().NoError(suite.waitForZookeeperReachable(), "Zookeeper not reachable in time")
+
 	// start broker container; retry once on failure (e.g. transient GH runner issues)
 	imageName, runOptions := suite.GetContainerRunInfo()
 	var waitErr error
@@ -891,6 +894,62 @@ func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclie
 			"JAVA_TOOL_OPTIONS": "-XX:-UseContainerSupport",
 		},
 	}
+}
+
+// waitForZookeeperReachable runs a short-lived container on the same Docker network that probes
+// nuclio-kafka-zookeeper:2181 until it is resolvable and accepting connections, then returns.
+// This avoids relying on a fixed sleep for Docker DNS to be ready (e.g. on GH runners).
+func (suite *testSuite) waitForZookeeperReachable() error {
+	const (
+		waitContainerName = "nuclio-kafka-wait-zk"
+		probeTimeoutSec   = 60
+		pollTimeout       = (probeTimeoutSec + 5) * time.Second
+		pollInterval      = time.Second
+	)
+	// nc -z: zero-I/O mode, exit 0 if connection succeeds
+	probeCommand := fmt.Sprintf("sh -c 'for i in $(seq 1 %d); do nc -z %s 2181 && exit 0; sleep 1; done; exit 1'",
+		probeTimeoutSec, suite.zooKeeperContainerName)
+
+	probeContainerID, err := suite.DockerClient.RunContainer("gcr.io/iguazio/alpine:3.20", &dockerclient.RunOptions{
+		ContainerName:    waitContainerName,
+		Network:          suite.BrokerContainerNetworkName,
+		Remove:           false,
+		Command:          probeCommand,
+		ImageMayNotExist: true,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to start Zookeeper reachability probe container")
+	}
+
+	deadline := time.Now().Add(pollTimeout)
+	for time.Now().Before(deadline) {
+		containers, listErr := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+			Name:    waitContainerName,
+			Stopped: true,
+		})
+		if listErr != nil {
+			time.Sleep(pollInterval)
+			continue
+		}
+		if len(containers) != 1 {
+			time.Sleep(pollInterval)
+			continue
+		}
+		state := containers[0].State
+		if state == nil || state.Status != "exited" {
+			time.Sleep(pollInterval)
+			continue
+		}
+		_ = suite.DockerClient.RemoveContainer(containers[0].ID)
+		if state.ExitCode == 0 {
+			return nil
+		}
+		return errors.Errorf("Zookeeper not reachable within %ds (probe exit code %d)",
+			probeTimeoutSec, state.ExitCode)
+	}
+
+	_ = suite.DockerClient.RemoveContainer(probeContainerID)
+	return errors.Errorf("Zookeeper reachability probe did not finish within %v", pollTimeout)
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
