@@ -23,6 +23,7 @@ metadata:
     nuclio.io/app: dlx
     nuclio.io/name: {{ template "nuclio.dlxName" . }}
     nuclio.io/class: service
+    {{- include "nuclio.standardLabels.dlx" . | nindent 4 }}
 spec:
   selector:
     nuclio.io/name: {{ template "nuclio.dlxName" . }}
