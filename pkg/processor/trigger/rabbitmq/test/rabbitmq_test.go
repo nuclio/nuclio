@@ -210,6 +210,76 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 		nil)
 }
 
+// TestNonExistentQueueFailsToStart verifies that when a user provides a queue name that does not exist
+// (e.g. exchange exists but queue was never created), the trigger fails at startup with
+// a clear error instead of starting consumption and flooding logs with "delivery not initialized" ack errors.
+func (suite *testSuite) TestNonExistentQueueFailsToStart() {
+	exchangeName := "nuclio.rabbitmq_nonexistent_test"
+	nonExistentQueueName := "non-existent-queue-" + xid.New().String()
+
+	suite.initializeBrokerConnection()
+	defer suite.deleteBrokerResources(suite.brokerURL, exchangeName, nonExistentQueueName)
+
+	suite.createExchange(exchangeName, "fanout", true)
+
+	triggerConfig := functionconfig.Trigger{
+		Kind: "rabbit-mq",
+		URL:  suite.containerizedBrokerURL,
+		Attributes: map[string]interface{}{
+			"exchangeName": exchangeName,
+			"queueName":    nonExistentQueueName,
+			"topics":       []string{},
+		},
+	}
+
+	createFunctionOptions := suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig)
+	createFunctionOptions.FunctionConfig.Meta.Name = "rmq-nonexistent-queue-test"
+
+	_, deployErr := suite.DeployFunctionExpectError(createFunctionOptions, func(result *platform.CreateFunctionResult) bool {
+		containerID := suite.resolveContainerID(result, createFunctionOptions)
+		suite.Require().NotEmpty(containerID, "Expected a container to be created for the function")
+
+		err := common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+			containerLogs, getLogsErr := suite.DockerClient.GetContainerLogs(containerID)
+			if getLogsErr != nil {
+				return false
+			}
+			// Match exact chain: queue missing -> broker resources fail -> trigger fails to start
+			return strings.Contains(containerLogs, "Queue does not exist") &&
+				strings.Contains(containerLogs, "Failed to start trigger") &&
+				!strings.Contains(containerLogs, "delivery not initialized")
+		})
+		suite.Require().NoError(err,
+			"Expected logs: 'Queue does not exist', 'Failed to start trigger', and no 'delivery not initialized'")
+
+		// Processor exits when trigger fails to start; container should eventually stop
+		err = common.RetryUntilSuccessful(15*time.Second, 1*time.Second, func() bool {
+			containers, getContainersErr := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+				ID:      containerID,
+				Stopped: true,
+			})
+			if getContainersErr != nil || len(containers) == 0 {
+				return false
+			}
+			return containers[0].State != nil && containers[0].State.Status == "exited"
+		})
+		suite.Require().NoError(err, "Expected function container to exit after trigger failed to start")
+
+		containers, getContainersErr := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+			ID:      containerID,
+			Stopped: true,
+		})
+		suite.Require().NoError(getContainersErr)
+		suite.Require().Len(containers, 1)
+		suite.Require().NotNil(containers[0].State, "Container state should be available")
+		suite.Require().NotZero(containers[0].State.ExitCode,
+			"Expected non-zero exit code when trigger fails to start")
+
+		return true
+	})
+	suite.Require().Error(deployErr)
+}
+
 func (suite *testSuite) TestNackAndRequeue() {
 	expectedRequeued := []string{
 		"success-5",
@@ -337,6 +407,24 @@ func (suite *testSuite) TestNackAndRequeue() {
 	}
 }
 
+// resolveContainerID returns container ID from deploy result or by looking up the function container by name (e.g. when result is nil on failure).
+func (suite *testSuite) resolveContainerID(result *platform.CreateFunctionResult, createFunctionOptions *platform.CreateFunctionOptions) string {
+	if result != nil && result.ContainerID != "" {
+		return result.ContainerID
+	}
+	containerName := fmt.Sprintf("nuclio-%s-%s",
+		createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
+	containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		Name:    containerName,
+		Stopped: true,
+	})
+	if err != nil || len(containers) == 0 {
+		return ""
+	}
+	return containers[0].ID
+}
+
 func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
@@ -357,15 +445,7 @@ func (suite *testSuite) createBrokerResources(topics []string) {
 	// clear stuff before we create stuff
 	suite.deleteBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
 
-	// create the exchange
-	err = suite.brokerChannel.ExchangeDeclare(suite.brokerExchangeName,
-		"topic",
-		false,
-		false,
-		false,
-		false,
-		nil)
-	suite.Require().NoError(err)
+	suite.createExchange(suite.brokerExchangeName, "topic", false)
 
 	// declare a queue and bind it, if a queue set
 	if suite.brokerQueueName != "" {
@@ -391,6 +471,18 @@ func (suite *testSuite) createBrokerResources(topics []string) {
 			suite.Require().NoError(err, "Failed to bind queue")
 		}
 	}
+}
+
+// createExchange declares an exchange
+func (suite *testSuite) createExchange(exchangeName string, exchangeType string, durable bool) {
+	err := suite.brokerChannel.ExchangeDeclare(exchangeName,
+		exchangeType,
+		durable,
+		false,
+		false,
+		false,
+		nil)
+	suite.Require().NoError(err, "Failed to declare exchange %q", exchangeName)
 }
 
 func (suite *testSuite) deleteBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {
