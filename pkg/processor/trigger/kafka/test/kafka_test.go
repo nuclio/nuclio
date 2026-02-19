@@ -66,6 +66,7 @@ type testSuite struct {
 	brokerContainerName    string
 	zooKeeperContainerName string
 	zooKeeperConnect       string // "ip:2181" so Kafka does not rely on Docker DNS (flaky on GH runners)
+	brokerTriggerURL       string // Kafka broker URL for trigger (ip:9090), avoids Docker DNS for processor containers (flaky on GH runners)
 
 	// for cleanup
 	zooKeeperContainerID string
@@ -147,6 +148,12 @@ func (suite *testSuite) SetupSuite() {
 			suite.Require().NoError(waitErr, "Error waiting for broker to be ready")
 		}
 	}
+
+	// Use broker container IP for trigger URL so processor containers do not rely on Docker DNS (flaky on GH runners).
+	brokerIPs, err := suite.DockerClient.GetContainerIPAddresses(suite.BrokerContainerID)
+	suite.Require().NoError(err, "Failed to get broker container IP")
+	suite.Require().NotEmpty(brokerIPs, "Broker container has no IP")
+	suite.brokerTriggerURL = brokerIPs[0] + ":9090"
 
 	suite.Logger.InfoWith("Creating broker resources",
 		"brokerHost", suite.BrokerHost)
@@ -293,7 +300,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 				"my-kafka": {
 					Kind: "kafka-cluster",
-					URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+					URL:  suite.brokerTriggerURL,
 					Attributes: map[string]interface{}{
 						"topics":        []string{suite.topic},
 						"consumerGroup": functionName,
@@ -377,7 +384,7 @@ func (suite *testSuite) TestExplicitAck() {
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 				"my-kafka": {
 					Kind: "kafka-cluster",
-					URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+					URL:  suite.brokerTriggerURL,
 					Attributes: map[string]interface{}{
 						"topics":               []string{topic},
 						"consumerGroup":        functionName,
@@ -809,7 +816,7 @@ func (suite *testSuite) getBasePlatformSpec() functionconfig.Platform {
 func (suite *testSuite) getKafkaTriggerSpec(config *kafkaDeployOptionsConfig) map[string]functionconfig.Trigger {
 	kafkaTrigger := functionconfig.Trigger{
 		Kind: "kafka-cluster",
-		URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+		URL:  suite.brokerTriggerURL,
 		Attributes: map[string]interface{}{
 			"topics":        []string{config.topic},
 			"consumerGroup": config.consumerGroup,
