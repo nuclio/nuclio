@@ -213,14 +213,15 @@ func (suite *testSuite) WaitForBroker() error {
 			if state.ExitCode != 0 {
 				exitCode = state.ExitCode
 			}
-			// DEBUG: temporary – surface in CI to diagnose GH runner issues
+			zkLogs := suite.getZookeeperContainerLogs()
 			suite.Logger.WarnWith("Kafka broker container exited (will retry if attempt 1)",
 				"exitCode", exitCode,
 				"oomKilled", state.OOMKilled,
 				"error", state.Error,
-				"containerLogs", containerLogs)
-			brokerExitedErr = errors.Errorf("Kafka broker container exited unexpectedly (exit code %d). Logs:\n%s",
-				exitCode, containerLogs)
+				"containerLogs", containerLogs,
+				"zookeeperLogs", zkLogs)
+			brokerExitedErr = errors.Errorf("Kafka broker container exited unexpectedly (exit code %d). Kafka logs:\n%s\nZookeeper logs:\n%s",
+				exitCode, containerLogs, zkLogs)
 			return false
 		}
 
@@ -236,7 +237,10 @@ func (suite *testSuite) WaitForBroker() error {
 	if brokerExitedErr != nil {
 		return brokerExitedErr
 	}
-	suite.Require().NoError(err, "Kafka broker did not start within the given timeframe")
+	if err != nil {
+		zkLogs := suite.getZookeeperContainerLogs()
+		suite.Require().NoError(err, fmt.Sprintf("Kafka broker did not start within the given timeframe. Zookeeper logs:\n%s", zkLogs))
+	}
 	return nil
 }
 
@@ -850,6 +854,19 @@ func (suite *testSuite) getLenRecodedEventsAndEnsureNoDuplicates(filePath string
 
 	suite.Require().Len(duplicates, 0, fmt.Sprintf("Found duplicate messages: %v", duplicates))
 	return len(matches)
+}
+
+// getZookeeperContainerLogs returns Zookeeper container logs for debugging when the broker fails.
+// Returns a placeholder string if logs cannot be fetched (e.g. container already removed).
+func (suite *testSuite) getZookeeperContainerLogs() string {
+	logs, err := suite.DockerClient.GetContainerLogs(suite.zooKeeperContainerName)
+	if err != nil {
+		return fmt.Sprintf("(failed to get Zookeeper logs: %v)", err)
+	}
+	if logs == "" {
+		return "(Zookeeper container had no logs)"
+	}
+	return logs
 }
 
 // GetContainerRunInfo returns information about the broker container
