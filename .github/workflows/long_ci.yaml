@@ -120,9 +120,9 @@ jobs:
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-      # Nuctl is not built on push to development; build only nuctl when using registry (no full build).
+      # Nuctl is not built on push to development; build only nuctl for nuctl-tests when using registry.
       - name: Build nuctl
-        if: steps.nuclio_tag.outputs.build_images == 'false'
+        if: steps.nuclio_tag.outputs.build_images == 'false' && matrix.command == 'nuctl-tests'
         run: make nuctl
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
