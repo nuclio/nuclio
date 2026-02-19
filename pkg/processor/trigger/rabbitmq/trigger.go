@@ -142,8 +142,8 @@ func (rmq *rabbitMq) createBrokerResources() error {
 	}
 
 	// ensure the queue exists before consuming to avoid "delivery not initialized" ack errors
-	if err := rmq.ensureQueueExists(); err != nil {
-		return errors.Wrap(err, "Queue does not exist")
+	if err := rmq.validateQueueExists(); err != nil {
+		return errors.Wrap(err, "Failed to validate queue existence")
 	}
 
 	// consume from queue
@@ -304,9 +304,9 @@ func (rmq *rabbitMq) createTopics() error {
 	return nil
 }
 
-// ensureQueueExists verifies that the configured queue exists before starting consumption.
+// validateQueueExists verifies that the configured queue exists before starting consumption.
 // This prevents "delivery not initialized" ack errors when the queue does not exist.
-func (rmq *rabbitMq) ensureQueueExists() error {
+func (rmq *rabbitMq) validateQueueExists() error {
 	checkChannel, err := rmq.brokerConn.Channel()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create channel for queue check")
@@ -322,7 +322,7 @@ func (rmq *rabbitMq) ensureQueueExists() error {
 		nil,   // args
 	)
 	if err != nil {
-		return errors.Wrapf(err, "Queue %q does not exist", rmq.configuration.QueueName)
+		return errors.Wrapf(err, "Queue does not exist, name: %s", rmq.configuration.QueueName)
 	}
 	return nil
 }
