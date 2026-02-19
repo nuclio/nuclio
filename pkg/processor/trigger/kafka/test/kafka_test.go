@@ -548,7 +548,7 @@ func (suite *testSuite) TestDrainHook() {
 		suite.Logger.Debug("Creating second function, to trigger rebalance")
 
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
-			suite.Require().NotNil(deployResult, "Unexpected empty second deploy results")
+			suite.Require().NotNil(newDeployResult, "Unexpected empty second deploy results")
 			rebalanceStartedTime = time.Now()
 
 			suite.Logger.DebugWith("Created second function, producing messages to topic",
