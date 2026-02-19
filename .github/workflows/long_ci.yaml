@@ -22,7 +22,7 @@ on:
         required: false
         default: ''
       nuclio_tag:
-        description: 'Nuclio image tag to use (e.g. unstable or a specific version). When set, tests use pre-built images from the registry instead of building. Leave empty to use default (unstable).'
+        description: 'Nuclio image tag to use from registry (e.g. unstable or a specific version). When set, tests use pre-built images. Leave empty to build images locally (default).'
         required: false
         default: ''
   schedule:
