@@ -181,6 +181,32 @@ func (suite *TestSuite) TestCORS() {
 	}
 }
 
+func (suite *TestSuite) TestGetFieldsRepeatedQueryParameters() {
+	// Repeated query params should be exposed as []string; single-value as string
+	requestCtx := &fasthttp.RequestCtx{}
+	requestCtx.Request.SetRequestURI("http://localhost/test?tags=new&tags=featured&tags=sale&limit=10")
+	event := &Event{ctx: requestCtx}
+	fields := event.GetFields()
+
+	suite.Require().Len(fields, 2)
+
+	tags, ok := fields["tags"].([]string)
+	suite.Require().True(ok, "tags should be []string")
+	suite.Require().Equal([]string{"new", "featured", "sale"}, tags)
+
+	limit, ok := fields["limit"].(string)
+	suite.Require().True(ok, "limit should be string")
+	suite.Require().Equal("10", limit)
+
+	// Single-value param must remain string
+	singleCtx := &fasthttp.RequestCtx{}
+	singleCtx.Request.SetRequestURI("http://localhost/?limit=10")
+	singleEvent := &Event{ctx: singleCtx}
+	singleFields := singleEvent.GetFields()
+	suite.Require().Len(singleFields, 1)
+	suite.Require().Equal("10", singleFields["limit"])
+}
+
 func (suite *TestSuite) TestInternalHealthiness() {
 	client := suite.getClient()
 	for _, testCase := range []struct {
