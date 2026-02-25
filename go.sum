@@ -485,8 +485,8 @@ github.com/tsenart/vegeta/v12 v12.12.0/go.mod h1:gpdfR++WHV9/RZh4oux0f6lNPhsOH8p
 github.com/ulikunitz/xz v0.5.8/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
 github.com/ulikunitz/xz v0.5.14 h1:uv/0Bq533iFdnMHZdRBTOlaNMdb1+ZxXIlHDZHIHcvg=
 github.com/ulikunitz/xz v0.5.14/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
-github.com/v3io/scaler v0.10.3 h1:tWUg3M02wIldVkIZzhIRBgp31blwTWPqTLK+f3K+1/w=
-github.com/v3io/scaler v0.10.3/go.mod h1:6Qzf9LC/C+xp3jDo6tnHLihAUvAKmPcFMXGLnyP/KSg=
+github.com/v3io/scaler v0.10.4 h1:3NkB/9vIwVkOy4O/uN/BYexpgVg0WnUeuwxhnlsMuD8=
+github.com/v3io/scaler v0.10.4/go.mod h1:6Qzf9LC/C+xp3jDo6tnHLihAUvAKmPcFMXGLnyP/KSg=
 github.com/v3io/v3io-go v0.3.14 h1:uKljOj7Th47Ux4TeU0BMGiMrxUFj4caccuZ6JQ2mG5E=
 github.com/v3io/v3io-go v0.3.14/go.mod h1:2yxhXiw3dI+tufu5Kk09TS82q/jyJKASEFqfmi5dQHU=
 github.com/v3io/v3io-go-http v0.0.1 h1:uE+PmPkVfGi6vIMpoFgrSot4yIow5Id48Gj9ZPt02pU=
