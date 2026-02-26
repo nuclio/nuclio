@@ -23,10 +23,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/testutils/mocks"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -171,8 +171,8 @@ func (suite *AbstractRuntimeTestSuite) TestGetOverrideImageRegistryFromMapWithMo
 			expectedImageRegistry: "custom-registry.io",
 		},
 		{
-			name: "Override image registry not found - no warning logged",
-			imageRegistries: map[string]string{},
+			name:                  "Override image registry not found - no warning logged",
+			imageRegistries:       map[string]string{},
 			runtime:               "python:3.12",
 			expectedImageRegistry: "",
 		},
