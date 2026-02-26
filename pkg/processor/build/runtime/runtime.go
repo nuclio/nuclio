@@ -162,7 +162,8 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 }
 
 func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imageRegistriesMap map[string]string) string {
-	return ar.getImageFromMap(imageRegistriesMap)
+	image, _, _ := ar.getImageFromMap(imageRegistriesMap)
+	return image
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
@@ -173,30 +174,36 @@ func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Conf
 }
 
 func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string) string {
-	return ar.getImageFromMap(baseImagesMap)
+	image, runtimeName, runtimeVersion := ar.getImageFromMap(baseImagesMap)
+	// empty base image after enrichment should be logged as a warning.
+	if image == "" {
+		ar.Logger.WarnWith("Failed to find base image for runtime",
+			"runtime name", runtimeName,
+			"runtime version", runtimeVersion,
+			"base images map", baseImagesMap,
+		)
+	}
+	return image
 }
 
-// getImageFromMap returns an image from the provided map based on the runtime name and version
-// if no image is found, returns the provided default value
-func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string) string {
+// getImageFromMap returns an image from the provided map based on the runtime name and version,
+// along with the runtime name and version used for the lookup.
+// If no image is found, returns empty string with the runtime lookup info.
+func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string) (string, string, string) {
 	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
 
 	// supports both values per runtimeName and per runtimeName + runtimeVersion
 	if runtimeVersion != "" {
 		key := runtimeName + ":" + runtimeVersion
 		if image, ok := imagesMap[key]; ok {
-			return image
+			return image, runtimeName, runtimeVersion
 		}
 	}
 
 	// no version-specific value, or no known version for our runtime, try for runtimeName only
 	if image, ok := imagesMap[runtimeName]; ok {
-		return image
+		return image, runtimeName, runtimeVersion
 	}
 
-	ar.Logger.WarnWith("Failed to find image for runtime",
-		"runtime name", runtimeName,
-		"runtime version", runtimeVersion,
-	)
-	return ""
+	return "", runtimeName, runtimeVersion
 }
