@@ -42,7 +42,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/config"
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
@@ -56,7 +56,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -1236,6 +1236,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 					PriorityClassName:  function.Spec.PriorityClassName,
 					PreemptionPolicy:   function.Spec.PreemptionPolicy,
 					HostIPC:            function.Spec.HostIPC,
+					RuntimeClassName:   function.Spec.RuntimeClassName,
 				},
 			},
 		}
@@ -1316,6 +1317,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
 		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
+		deployment.Spec.Template.Spec.RuntimeClassName = function.Spec.RuntimeClassName
 
 		// apply when provided
 		if imagePullSecrets != "" {
