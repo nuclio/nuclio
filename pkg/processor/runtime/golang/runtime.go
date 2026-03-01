@@ -176,7 +176,9 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelEventHandlingChan <- cancel
-	responseChan := make(chan *processingResponse)
+	// buffered so that panic recovery's non-blocking send always succeeds
+	// even if waitForResponse hasn't entered its select yet
+	responseChan := make(chan *processingResponse, 1)
 
 	// Run the function in a goroutine
 	go func() {
@@ -213,6 +215,12 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		callDuration := time.Since(startTime)
 		responseChan <- processingResult
 
+		// only record statistics if the event wasn't cancelled (e.g., by runtime restart)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		g.AddStatistics(callDuration)
 	}()
 
