@@ -162,8 +162,7 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 }
 
 func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imageRegistriesMap map[string]string) string {
-	image, _, _ := ar.getImageFromMap(imageRegistriesMap)
-	return image
+	return ar.getImageFromMap(imageRegistriesMap, false)
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
@@ -174,36 +173,35 @@ func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Conf
 }
 
 func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string) string {
-	image, runtimeName, runtimeVersion := ar.getImageFromMap(baseImagesMap)
-	// empty base image after enrichment should be logged as a warning.
-	if image == "" {
-		ar.Logger.WarnWith("Failed to find base image for runtime",
-			"runtime name", runtimeName,
-			"runtime version", runtimeVersion,
-			"base images map", baseImagesMap,
-		)
-	}
-	return image
+	return ar.getImageFromMap(baseImagesMap, true)
 }
 
-// getImageFromMap returns an image from the provided map based on the runtime name and version,
-// along with the runtime name and version used for the lookup.
-// If no image is found, returns empty string with the runtime lookup info.
-func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string) (string, string, string) {
+// getImageFromMap returns an image from the provided map based on the runtime name and version.
+// If no image is found and isEnriched is true, a warning is logged before returning an empty string.
+func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string, isEnriched bool) string {
 	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
 
 	// supports both values per runtimeName and per runtimeName + runtimeVersion
 	if runtimeVersion != "" {
 		key := runtimeName + ":" + runtimeVersion
 		if image, ok := imagesMap[key]; ok {
-			return image, runtimeName, runtimeVersion
+			return image
 		}
 	}
 
 	// no version-specific value, or no known version for our runtime, try for runtimeName only
 	if image, ok := imagesMap[runtimeName]; ok {
-		return image, runtimeName, runtimeVersion
+		return image
 	}
 
-	return "", runtimeName, runtimeVersion
+	// if the map was enriched before, we expected to find a matching image for this runtime
+	if isEnriched {
+		ar.Logger.WarnWith("Failed to find base image for runtime",
+			"runtime name", runtimeName,
+			"runtime version", runtimeVersion,
+			"base images map", imagesMap,
+		)
+	}
+
+	return ""
 }
