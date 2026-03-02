@@ -115,48 +115,8 @@ func (suite *testSuite) SetupSuite() {
 	// start zoo keeper container
 	suite.zooKeeperContainerID = suite.RunContainer(suite.getKafkaZooKeeperContainerRunInfo())
 
-	// Use Zookeeper container IP for Kafka connection so we don't rely on Docker DNS (flaky on GH runners).
-	zooKeeperIPs, err := suite.DockerClient.GetContainerIPAddresses(suite.zooKeeperContainerID)
-	suite.Require().NoError(err, "Failed to get Zookeeper container IP")
-	suite.Require().NotEmpty(zooKeeperIPs, "Zookeeper container has no IP")
-	suite.zooKeeperConnect = zooKeeperIPs[0] + ":2181"
-
-	// start broker container; retry once on failure (e.g. transient GH runner issues)
-	imageName, runOptions := suite.GetContainerRunInfo()
-	var waitErr error
-	for attempt := 1; attempt <= 2; attempt++ {
-		if attempt > 1 {
-			if suite.BrokerContainerID != "" {
-				_ = suite.DockerClient.RemoveContainer(suite.BrokerContainerID)
-				suite.BrokerContainerID = ""
-			}
-			suite.Logger.InfoWith("Retrying Kafka broker startup after previous failure (e.g. runner glitch)")
-			time.Sleep(2 * time.Second)
-		}
-		suite.BrokerContainerID = suite.RunContainer(imageName, runOptions)
-		// DEBUG: temporary – helps diagnose GH runner flakiness
-		suite.Logger.InfoWith("Kafka broker start attempt",
-			"attempt", attempt,
-			"maxAttempts", 2,
-			"containerID", suite.BrokerContainerID,
-			"containerName", suite.brokerContainerName)
-		waitErr = suite.WaitForBroker()
-		if waitErr == nil {
-			break
-		}
-		if attempt == 2 {
-			suite.Require().NoError(waitErr, "Error waiting for broker to be ready")
-		}
-	}
-
-	// Use broker container IP for trigger URL so processor containers do not rely on Docker DNS (flaky on GH runners).
-	brokerIPs, err := suite.DockerClient.GetContainerIPAddresses(suite.BrokerContainerID)
-	suite.Require().NoError(err, "Failed to get broker container IP")
-	suite.Require().NotEmpty(brokerIPs, "Broker container has no IP")
-	suite.brokerTriggerURL = brokerIPs[0] + ":9090"
-
-	suite.Logger.InfoWith("Creating broker resources",
-		"brokerHost", suite.BrokerHost)
+	// start kafka broker container
+	suite.startContainers()
 
 	// create broker
 	suite.broker = sarama.NewBroker(suite.brokerURL)
@@ -224,15 +184,15 @@ func (suite *testSuite) WaitForBroker() error {
 			if state.ExitCode != 0 {
 				exitCode = state.ExitCode
 			}
-			zkLogs := suite.getZookeeperContainerLogs()
+			zookeeperContainerLogs := suite.getZookeeperContainerLogs()
 			suite.Logger.WarnWith("Kafka broker container exited (will retry if attempt 1)",
 				"exitCode", exitCode,
 				"oomKilled", state.OOMKilled,
 				"error", state.Error,
 				"containerLogs", containerLogs,
-				"zookeeperLogs", zkLogs)
+				"zookeeperLogs", zookeeperContainerLogs)
 			brokerExitedErr = errors.Errorf("Kafka broker container exited unexpectedly (exit code %d). Kafka logs:\n%s\nZookeeper logs:\n%s",
-				exitCode, containerLogs, zkLogs)
+				exitCode, containerLogs, zookeeperContainerLogs)
 			return false
 		}
 
@@ -249,8 +209,8 @@ func (suite *testSuite) WaitForBroker() error {
 		return brokerExitedErr
 	}
 	if err != nil {
-		zkLogs := suite.getZookeeperContainerLogs()
-		suite.Require().NoError(err, fmt.Sprintf("Kafka broker did not start within the given timeframe. Zookeeper logs:\n%s", zkLogs))
+		zookeeperContainerLogs := suite.getZookeeperContainerLogs()
+		suite.Require().NoError(err, fmt.Sprintf("Kafka broker did not start within the given timeframe. Zookeeper logs:\n%s", zookeeperContainerLogs))
 	}
 	return nil
 }
@@ -803,6 +763,51 @@ func (suite *testSuite) getDeployOptionsWithKafka(config *kafkaDeployOptionsConf
 	createFunctionOptions.FunctionConfig.Spec.Platform = suite.getBasePlatformSpec()
 	createFunctionOptions.FunctionConfig.Spec.Triggers = suite.getKafkaTriggerSpec(config)
 	return createFunctionOptions
+}
+
+func (suite *testSuite) startContainers() {
+	// Use Zookeeper container IP for Kafka connection so we don't rely on Docker DNS (flaky on GH runners).
+	zooKeeperIPs, err := suite.DockerClient.GetContainerIPAddresses(suite.zooKeeperContainerID)
+	suite.Require().NoError(err, "Failed to get Zookeeper container IP")
+	suite.Require().NotEmpty(zooKeeperIPs, "Zookeeper container has no IP")
+	suite.zooKeeperConnect = zooKeeperIPs[0] + ":2181"
+
+	// start broker container; retry once on failure (e.g. transient GH runner issues)
+	imageName, runOptions := suite.GetContainerRunInfo()
+	var waitErr error
+	for attempt := 1; attempt <= 2; attempt++ {
+		if attempt > 1 {
+			if suite.BrokerContainerID != "" {
+				_ = suite.DockerClient.RemoveContainer(suite.BrokerContainerID)
+				suite.BrokerContainerID = ""
+			}
+			suite.Logger.InfoWith("Retrying Kafka broker startup after previous failure (e.g. runner glitch)")
+			time.Sleep(2 * time.Second)
+		}
+		suite.BrokerContainerID = suite.RunContainer(imageName, runOptions)
+		// DEBUG: temporary – helps diagnose GH runner flakiness
+		suite.Logger.InfoWith("Kafka broker start attempt",
+			"attempt", attempt,
+			"maxAttempts", 2,
+			"containerID", suite.BrokerContainerID,
+			"containerName", suite.brokerContainerName)
+		waitErr = suite.WaitForBroker()
+		if waitErr == nil {
+			break
+		}
+		if attempt == 2 {
+			suite.Require().NoError(waitErr, "Error waiting for broker to be ready")
+		}
+	}
+
+	// Use broker container IP for trigger URL so processor containers do not rely on Docker DNS (flaky on GH runners).
+	brokerIPs, err := suite.DockerClient.GetContainerIPAddresses(suite.BrokerContainerID)
+	suite.Require().NoError(err, "Failed to get broker container IP")
+	suite.Require().NotEmpty(brokerIPs, "Broker container has no IP")
+	suite.brokerTriggerURL = brokerIPs[0] + ":9090"
+
+	suite.Logger.InfoWith("Creating broker resources",
+		"brokerHost", suite.BrokerHost)
 }
 
 func (suite *testSuite) getBasePlatformSpec() functionconfig.Platform {
