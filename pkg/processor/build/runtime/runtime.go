@@ -173,12 +173,13 @@ func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Conf
 }
 
 func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string) string {
+	// base images map is pre-enriched, so a missing entry is unexpected and worth warning about
 	return ar.getImageFromMap(baseImagesMap, true)
 }
 
 // getImageFromMap returns an image from the provided map based on the runtime name and version.
-// If no image is found and isEnriched is true, a warning is logged before returning an empty string.
-func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string, isEnriched bool) string {
+// If no image is found and warnOnFail is true, a warning is logged before returning an empty string.
+func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string, warnOnFail bool) string {
 	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
 
 	// supports both values per runtimeName and per runtimeName + runtimeVersion
@@ -194,8 +195,7 @@ func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string, isEnrich
 		return image
 	}
 
-	// if the map was enriched before, we expected to find a matching image for this runtime
-	if isEnriched {
+	if warnOnFail {
 		ar.Logger.WarnWith("Failed to find base image for runtime",
 			"runtime name", runtimeName,
 			"runtime version", runtimeVersion,
