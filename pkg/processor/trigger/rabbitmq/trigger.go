@@ -141,6 +141,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to create topics")
 	}
 
+	// ensure the queue exists before consuming to avoid "delivery not initialized" ack errors
+	if err := rmq.validateQueueExists(); err != nil {
+		return errors.Wrap(err, "Failed to validate queue existence")
+	}
+
 	// consume from queue
 	if err := rmq.consume(); err != nil {
 		return errors.Wrap(err, "Failed to consume messages")
@@ -295,6 +300,29 @@ func (rmq *rabbitMq) createTopics() error {
 			"topic", topic,
 			"exchangeName", rmq.configuration.ExchangeName)
 
+	}
+	return nil
+}
+
+// validateQueueExists verifies that the configured queue exists before starting consumption.
+// This prevents "delivery not initialized" ack errors when the queue does not exist.
+func (rmq *rabbitMq) validateQueueExists() error {
+	checkChannel, err := rmq.brokerConn.Channel()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create channel for queue check")
+	}
+	defer checkChannel.Close()
+	// Passive declare only checks that the queue exists; it does not create or redeclare the queue with these params.
+	_, err = checkChannel.QueueDeclarePassive(
+		rmq.configuration.QueueName,
+		false, // durable
+		false, // autoDelete
+		false, // exclusive
+		false, // noWait
+		nil,   // args
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Queue does not exist, name: %s", rmq.configuration.QueueName)
 	}
 	return nil
 }

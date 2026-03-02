@@ -172,6 +172,39 @@ def handler(context, event):
 		})
 }
 
+func (suite *HTTPTestSuite) TestRepeatedQueryParametersInEventFields() {
+	// event.fields must expose repeated query params as arrays (e.g. ?tags=new&tags=featured&tags=sale)
+	functionSourceCode := `import json
+import nuclio_sdk
+
+def handler(context, event):
+    return nuclio_sdk.Response(
+        body=json.dumps(dict(event.fields)),
+        headers={"Content-Type": "application/json"},
+        content_type="application/json",
+        status_code=200,
+    )
+`
+	createFunctionOptions := suite.getHTTPDeployOptions()
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+
+	statusOK := http.StatusOK
+	suite.DeployFunctionAndRequests(createFunctionOptions,
+		[]*Request{
+			{
+				RequestMethod:              "GET",
+				RequestPath:                "/test?tags=new&tags=featured&tags=sale&limit=10",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedResponseBody: map[string]interface{}{
+					"tags":  []interface{}{"new", "featured", "sale"},
+					"limit": "10",
+				},
+			},
+		})
+}
+
 func (suite *HTTPTestSuite) TestBatchedProcessing() {
 	functionName := "batch-function"
 	functionPath := path.Join(suite.GetTestFunctionsDir(),

@@ -399,6 +399,55 @@ func (suite *TestSuite) TestStreamingSingleYield() {
 	}
 }
 
+func (suite *TestSuite) TestStreamingIntegerYield() {
+	for _, testCase := range []struct {
+		name               string
+		mode               functionconfig.TriggerWorkMode
+		handler            string
+		expectedStatusCode int
+	}{
+		{
+			name:               "sync_handler_as_sync_gen_integers",
+			mode:               functionconfig.SyncTriggerWorkMode,
+			handler:            "stream_outputter:stream_integers_sync",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name:               "sync_handler_as_async_gen_integers",
+			mode:               functionconfig.SyncTriggerWorkMode,
+			handler:            "stream_outputter:stream_integers_async",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name:               "async_handler_as_async_gen_integers",
+			mode:               functionconfig.AsyncTriggerWorkMode,
+			handler:            "stream_outputter:stream_integers_async",
+			expectedStatusCode: http.StatusOK,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("stream-int-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
+
+			// Expected body: integers 1-5 concatenated as their string representations
+			expectedBody := "12345"
+
+			requests := make([]*httpsuite.Request, 3)
+			for i := range requests {
+				requests[i] = &httpsuite.Request{
+					Name:                       "streaming integer yield handler",
+					RequestBody:                "",
+					ExpectedResponseBody:       expectedBody,
+					ExpectedResponseStatusCode: &testCase.expectedStatusCode,
+				}
+			}
+
+			suite.DeployFunctionAndRequests(createFunctionOptions, requests)
+		})
+	}
+}
+
 // TestStreamingFlushPeriod is an e2e test for HTTP trigger streaming flush.
 //
 // The HTTP trigger can flush the response stream to the client at most every streamingFlushPeriod (e.g. 1s),

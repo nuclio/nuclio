@@ -21,6 +21,10 @@ on:
         description: 'PR number'
         required: false
         default: ''
+      nuclio_tag:
+        description: 'Nuclio image tag to use from registry (e.g. unstable or a specific version). When set, tests use pre-built images. Leave empty to build images locally (default).'
+        required: false
+        default: ''
   schedule:
     - cron: '0 */12 * * *'
 
@@ -84,13 +88,42 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
+      - name: Set Nuclio image tag
+        id: nuclio_tag
+        run: |
+          # Use pre-built images from registry (quay.io/nuclio; unstable pushed on each push to development) when:
+          # - scheduled run → tag "unstable"
+          # - workflow_dispatch with nuclio_tag provided (including "latest") → that tag
+          # Otherwise (workflow_dispatch, no tag) → build images locally, NUCLIO_LABEL=latest.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "NUCLIO_LABEL=unstable" >> $GITHUB_OUTPUT
+            echo "build_images=false" >> $GITHUB_OUTPUT
+            echo "NUCLIO_LABEL=unstable (registry; no build)."
+          elif [ -n "${{ github.event.inputs.nuclio_tag }}" ]; then
+            echo "NUCLIO_LABEL=${{ github.event.inputs.nuclio_tag }}" >> $GITHUB_OUTPUT
+            echo "build_images=false" >> $GITHUB_OUTPUT
+            echo "NUCLIO_LABEL=${{ github.event.inputs.nuclio_tag }} (registry; no build)."
+          else
+            echo "NUCLIO_LABEL=latest" >> $GITHUB_OUTPUT
+            echo "build_images=true" >> $GITHUB_OUTPUT
+            echo "NUCLIO_LABEL=latest (build images and nuctl)."
+          fi
+
       - uses: actions/setup-go@v6
         with:
           cache: true
           go-version-file: go.mod
 
       - name: Build
+        if: steps.nuclio_tag.outputs.build_images == 'true'
         run: make build
+        env:
+          NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+      # Nuctl is not built on push to development; build only nuctl for nuctl-tests when using registry.
+      - name: Build nuctl
+        if: steps.nuclio_tag.outputs.build_images == 'false' && matrix.command == 'nuctl-tests'
+        run: make nuctl
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
@@ -98,11 +131,14 @@ jobs:
         if: github.event_name == 'schedule'
         run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
         env:
+          NUCLIO_LABEL: ${{ steps.nuclio_tag.outputs.NUCLIO_LABEL }}
           NUCLIO_CI_SKIP_STRESS_TEST: true
 
       - name: Test (Non-Scheduled)
         if: github.event_name != 'schedule'
         run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
+        env:
+          NUCLIO_LABEL: ${{ steps.nuclio_tag.outputs.NUCLIO_LABEL }}
 
       - name: System stats on failure
         if: ${{ failure() }}
