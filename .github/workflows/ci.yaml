@@ -206,7 +206,7 @@ jobs:
         run: make save-docker-images
 
       - name: Upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nuclio-docker-images
           path: nuclio-docker-images-*.tar.gz
