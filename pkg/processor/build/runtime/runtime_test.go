@@ -21,10 +21,12 @@ package runtime
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/testutils/mocks"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -94,6 +96,105 @@ func (suite *AbstractRuntimeTestSuite) TestGetBaseImageFromMap() {
 			result := testAbstractRuntime.GetBaseImageFromMap(testCase.baseImages)
 
 			suite.Require().Equal(testCase.expectedBaseImage, result)
+		})
+	}
+}
+
+func (suite *AbstractRuntimeTestSuite) TestGetBaseImageFromMapWithMockLogger() {
+	testCases := []struct {
+		name               string
+		baseImages         map[string]string
+		runtime            string
+		expectedBaseImage  string
+		expectWarnWithCall bool
+	}{
+		{
+			name: "Base image found - no warning logged",
+			baseImages: map[string]string{
+				"python:3.12": "custom-python:3.12",
+			},
+			runtime:            "python:3.12",
+			expectedBaseImage:  "custom-python:3.12",
+			expectWarnWithCall: false,
+		},
+		{
+			name: "Base image not found - warning logged",
+			baseImages: map[string]string{
+				"golang": "custom-golang:latest",
+			},
+			runtime:            "python:3.12",
+			expectedBaseImage:  "",
+			expectWarnWithCall: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			mockLogger := new(mocks.MockLogger)
+
+			if testCase.expectWarnWithCall {
+				mockLogger.On("WarnWith", "Failed to find base image for runtime", mock.Anything).Once()
+			}
+
+			functionConfig := &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: testCase.runtime,
+				},
+			}
+
+			testAbstractRuntime := &AbstractRuntime{
+				Logger:         mockLogger,
+				FunctionConfig: functionConfig,
+			}
+
+			result := testAbstractRuntime.GetBaseImageFromMap(testCase.baseImages)
+
+			suite.Require().Equal(testCase.expectedBaseImage, result)
+			mockLogger.AssertExpectations(suite.T())
+		})
+	}
+}
+
+func (suite *AbstractRuntimeTestSuite) TestGetOverrideImageRegistryFromMapWithMockLogger() {
+	testCases := []struct {
+		name                  string
+		imageRegistries       map[string]string
+		runtime               string
+		expectedImageRegistry string
+	}{
+		{
+			name: "Override image registry found - no warning logged",
+			imageRegistries: map[string]string{
+				"python:3.12": "custom-registry.io",
+			},
+			runtime:               "python:3.12",
+			expectedImageRegistry: "custom-registry.io",
+		},
+		{
+			name:                  "Override image registry not found - no warning logged",
+			imageRegistries:       map[string]string{},
+			runtime:               "python:3.12",
+			expectedImageRegistry: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			mockLogger := new(mocks.MockLogger)
+			functionConfig := &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: testCase.runtime,
+				},
+			}
+			testAbstractRuntime := &AbstractRuntime{
+				Logger:         mockLogger,
+				FunctionConfig: functionConfig,
+			}
+
+			result := testAbstractRuntime.GetOverrideImageRegistryFromMap(testCase.imageRegistries)
+
+			suite.Require().Equal(testCase.expectedImageRegistry, result)
+			mockLogger.AssertExpectations(suite.T())
 		})
 	}
 }
