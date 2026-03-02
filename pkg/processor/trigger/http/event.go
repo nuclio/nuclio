@@ -90,13 +90,23 @@ func (e *Event) GetFieldInt(key string) (int, error) {
 	return e.ctx.QueryArgs().GetUint(key)
 }
 
-// GetFields loads all fields into a map of string / interface{}
+// GetFields loads all query parameters into a map of string / interface{}.
+// Repeated query parameters (e.g. ?tags=new&tags=featured) are exposed as
+// []string; single-value parameters are exposed as string for backward compatibility.
 func (e *Event) GetFields() map[string]interface{} {
-	fields := make(map[string]interface{})
+	valuesByKey := make(map[string][]string)
 	for key, value := range e.ctx.QueryArgs().All() {
-		fields[string(key)] = string(value)
+		keyStr := string(key)
+		valuesByKey[keyStr] = append(valuesByKey[keyStr], string(value))
 	}
-
+	fields := make(map[string]interface{}, len(valuesByKey))
+	for key, values := range valuesByKey {
+		if len(values) == 1 {
+			fields[key] = values[0]
+		} else {
+			fields[key] = values
+		}
+	}
 	return fields
 }
 
