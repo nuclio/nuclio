@@ -176,7 +176,9 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelEventHandlingChan <- cancel
-	responseChan := make(chan *processingResponse)
+	// buffered so that panic recovery's non-blocking send always succeeds
+	// even if waitForResponse hasn't entered its select yet
+	responseChan := make(chan *processingResponse, 1)
 
 	// Run the function in a goroutine
 	go func() {
@@ -195,12 +197,9 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 					"stack", string(callStack))
 
 				processingResult.responseErr = errors.Errorf("Caught panic: %s", err)
-				// try to write response to the channel if it wasn't yet
-				select {
-				// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
-				case responseChan <- processingResult:
-				default:
-				}
+
+				// pass the result to the channel using a non-blocking send since the channel is buffered
+				responseChan <- processingResult
 			}
 		}()
 		// before we call, save timestamp
