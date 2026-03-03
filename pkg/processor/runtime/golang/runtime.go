@@ -212,12 +212,6 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		callDuration := time.Since(startTime)
 		responseChan <- processingResult
 
-		// only record statistics if the event wasn't cancelled (e.g., by runtime restart)
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 		g.AddStatistics(callDuration)
 	}()
 
