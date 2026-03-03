@@ -206,7 +206,7 @@ jobs:
         run: make save-docker-images
 
       - name: Upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nuclio-docker-images
           path: nuclio-docker-images-*.tar.gz
@@ -263,7 +263,7 @@ jobs:
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: nuclio-docker-images
 
@@ -345,7 +345,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: nuclio-docker-images
 
@@ -414,7 +414,7 @@ jobs:
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: nuclio-docker-images
 
