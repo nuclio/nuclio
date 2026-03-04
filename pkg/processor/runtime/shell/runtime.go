@@ -295,6 +295,10 @@ func (s *shell) getCommandArguments(event nuclio.Event) []string {
 		arguments = s.configuration.Arguments
 	}
 
+	if arguments == "" {
+		return nil
+	}
+
 	return strings.Split(arguments, " ")
 }
 
