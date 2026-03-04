@@ -123,6 +123,88 @@ func (suite *TestSuite) TestStress() {
 	suite.BlastHTTP(blastConfiguration)
 }
 
+// TestCommandInjectionIsBlocked verifies that shell metacharacters in the
+// X-Nuclio-Arguments header are not interpreted when the handler is a PATH
+// command (commandInPath=true). Uses 'true' which produces no output and
+// ignores all arguments, so any injected command output can only appear if
+// shell metacharacters were actually interpreted (CVE-2026-29042).
+func (suite *TestSuite) TestCommandInjectionIsBlocked() {
+	statusOK := http.StatusOK
+
+	// Deploy 'true' as a PATH-based handler (no source code needed).
+	createFunctionOptions := suite.GetDeployOptions("cmd-injection-test", "/dev/null")
+	createFunctionOptions.FunctionConfig.Spec.Handler = "true"
+
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			Name:        "semicolon must not break out of command",
+			RequestBody: "test",
+			RequestHeaders: map[string]interface{}{
+				headers.Arguments: "; echo INJECTED ;",
+			},
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody: func(body []byte) {
+				suite.Require().NotContains(string(body), "INJECTED")
+			},
+		},
+		{
+			Name:        "backticks must not perform command substitution",
+			RequestBody: "test",
+			RequestHeaders: map[string]interface{}{
+				headers.Arguments: "`echo INJECTED`",
+			},
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody: func(body []byte) {
+				suite.Require().NotContains(string(body), "INJECTED")
+			},
+		},
+		{
+			Name:        "dollar-paren must not perform command substitution",
+			RequestBody: "test",
+			RequestHeaders: map[string]interface{}{
+				headers.Arguments: "$(echo INJECTED)",
+			},
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody: func(body []byte) {
+				suite.Require().NotContains(string(body), "INJECTED")
+			},
+		},
+		{
+			Name:        "pipe must not redirect to another command",
+			RequestBody: "test",
+			RequestHeaders: map[string]interface{}{
+				headers.Arguments: "| echo INJECTED",
+			},
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody: func(body []byte) {
+				suite.Require().NotContains(string(body), "INJECTED")
+			},
+		},
+		{
+			Name:        "double-ampersand must not chain commands",
+			RequestBody: "test",
+			RequestHeaders: map[string]interface{}{
+				headers.Arguments: "&& echo INJECTED",
+			},
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody: func(body []byte) {
+				suite.Require().NotContains(string(body), "INJECTED")
+			},
+		},
+		{
+			Name:        "semicolon must not allow reading sensitive files",
+			RequestBody: "test",
+			RequestHeaders: map[string]interface{}{
+				headers.Arguments: "; cat /etc/passwd ;",
+			},
+			ExpectedResponseStatusCode: &statusOK,
+			ExpectedResponseBody: func(body []byte) {
+				suite.Require().NotContains(string(body), "root:")
+			},
+		},
+	})
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return
