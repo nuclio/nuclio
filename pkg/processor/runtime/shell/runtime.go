@@ -203,8 +203,10 @@ func (s *shell) processEvent(context context.Context,
 
 	if s.commandInPath {
 
-		// if the command is an executable, run it as a command with sh -c.
-		cmd = exec.CommandContext(context, "sh", "-c", strings.Join(command, " "))
+		// Run the command directly without sh -c to prevent shell metacharacter
+		// interpretation in user-supplied arguments (CVE-2026-29042).
+		// Go's exec resolves the command via LookPath internally.
+		cmd = exec.CommandContext(context, command[0], command[1:]...)
 	} else {
 
 		// if the command is a shell script run it with sh(without -c). this will make sh
