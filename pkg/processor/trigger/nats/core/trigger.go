@@ -23,15 +23,15 @@ import (
 	"text/template"
 	"time"
 
+	natsio "github.com/nats-io/nats.go"
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-
-	natsio "github.com/nats-io/nats.go"
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 )
 
 type nats struct {
