@@ -20,6 +20,7 @@ The queue name may be a Go template, which may include any of the following fiel
 | :--- | :--- | :--- |
 | topic | string | The topic on which to listen. |
 | queueName | string | The name of a shared worker queue to join; (default: an auto-generated name per trigger). |
+| reply | bool | When set to true, publish the handler response body to the incoming message reply subject (`msg.Reply`) if present. |
 
 ### Example
 
@@ -31,4 +32,5 @@ triggers:
     attributes:
       "topic": "my.topic"
       "queueName": "{{ .Namespace }}.{{ .Name }}.{{ .Id }}"
+      "reply": true
 ```
