@@ -420,11 +420,13 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	// fail silently in order to ignore "repository already exists" errors
 	// if any other error occurs - kaniko will fail similarly
 	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
-	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s || true"
-	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region)
+	registryID := strings.Split(buildOptions.RegistryURL, ".")[0]
+	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s --registry-id %s || true"
+	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region, registryID)
 	createCacheRepo := fmt.Sprintf(createRepoTemplate,
 		fmt.Sprintf("%s/cache", buildOptions.RepoName),
-		region)
+		region,
+		registryID)
 	createReposCommand := fmt.Sprintf("%s && %s",
 		createMainRepo,
 		createCacheRepo)
