@@ -20,7 +20,20 @@ The queue name may be a Go template, which may include any of the following fiel
 | :--- | :--- | :--- |
 | topic | string | The topic on which to listen. |
 | queueName | string | The name of a shared worker queue to join; (default: an auto-generated name per trigger). |
-| reply | bool | When set to true, publish the handler response body to the incoming message reply subject (`msg.Reply`) if present. |
+| reply | bool | When set to true, publish the handler response body to the incoming message reply subject (`msg.Reply`) if present. See [Reply encoding](#reply-encoding) for details. |
+
+### Reply encoding
+
+When `reply` is enabled, the trigger publishes the handler's return value to the
+NATS reply subject using the following rules:
+
+| **Response body type** | **Behavior** |
+| :--- | :--- |
+| `[]byte` | Published as-is. |
+| `string` | Converted to bytes and published. |
+| Any other type | JSON-serialized before publishing. |
+| `nil` | An empty message (no payload) is published. |
+| *(no reply subject)* | If the incoming NATS message has no reply subject (i.e. it was sent with `Publish` rather than `Request`), no reply is published regardless of this setting. |
 
 ### Example
 
