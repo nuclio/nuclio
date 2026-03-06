@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	triggertest "github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/suite"
@@ -88,6 +89,73 @@ func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
 			"topic": suite.topicName,
 		},
 		NumWorkers: 3,
+	}
+
+	return createFunctionOptions
+}
+
+func (suite *testSuite) TestReply() {
+	err := suite.createNatsConnection()
+	suite.Require().NoError(err, "Failed to create NATS connection")
+
+	createFunctionOptions := suite.getDeployOptionsForEcho(true)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		messageBody := "echo-this-back"
+
+		// retry — the NATS subscription in the processor may take a moment
+		// to become active after the function container starts
+		var replyMessage *nats.Msg
+		err := common.RetryUntilSuccessful(30*time.Second, 2*time.Second, func() bool {
+			var reqErr error
+			replyMessage, reqErr = suite.natsConn.Request(suite.topicName, []byte(messageBody), 5*time.Second)
+			return reqErr == nil
+		})
+		suite.Require().NoError(err, "Failed to receive NATS reply")
+		suite.Require().Equal(messageBody, string(replyMessage.Data))
+
+		return true
+	})
+}
+
+func (suite *testSuite) TestReplyDisabled() {
+	err := suite.createNatsConnection()
+	suite.Require().NoError(err, "Failed to create NATS connection")
+
+	createFunctionOptions := suite.getDeployOptionsForEcho(false)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		// with reply disabled the function should NOT publish a response,
+		// so nats.Request will time out
+		_, err := suite.natsConn.Request(suite.topicName, []byte("no-reply-body"), 3*time.Second)
+		suite.Require().ErrorIs(err, nats.ErrTimeout, "Expected timeout but got a reply")
+
+		return true
+	})
+}
+
+func (suite *testSuite) getDeployOptionsForEcho(reply bool) *platform.CreateFunctionOptions {
+	echoHandlerSourceCode := base64.StdEncoding.EncodeToString([]byte(`def handler(context, event):
+    return event.body
+`))
+
+	createFunctionOptions := suite.GetDeployOptions("echo_handler", "")
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Meta.Name = fmt.Sprintf("nats-reply-test-%v", reply)
+	createFunctionOptions.FunctionConfig.Spec.Handler = "echo_handler:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = echoHandlerSourceCode
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	createFunctionOptions.FunctionConfig.Spec.Triggers["nats"] = functionconfig.Trigger{
+		Kind: "nats",
+		URL:  fmt.Sprintf("nats://172.17.0.1:%d", suite.natsPort),
+		Attributes: map[string]interface{}{
+			"topic": suite.topicName,
+			"reply": reply,
+		},
+		NumWorkers: 1,
 	}
 
 	return createFunctionOptions

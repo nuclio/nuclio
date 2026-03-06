@@ -18,6 +18,7 @@ package nats
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/url"
 	"text/template"
 	"time"
@@ -30,12 +31,14 @@ import (
 	natsio "github.com/nats-io/nats.go"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type nats struct {
 	trigger.AbstractTrigger
 	configuration    *Configuration
 	stop             chan bool
+	natsConnection   *natsio.Conn
 	natsSubscription *natsio.Subscription
 }
 
@@ -114,6 +117,13 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 	if err != nil {
 		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
 	}
+	n.natsConnection = natsConnection
+	defer func() {
+		if err != nil {
+			natsConnection.Close()
+			n.natsConnection = nil
+		}
+	}()
 
 	messageChan := make(chan *natsio.Msg, 64)
 	n.natsSubscription, err = natsConnection.ChanQueueSubscribe(n.configuration.Topic, n.configuration.QueueName, messageChan)
@@ -126,7 +136,19 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 
 func (n *nats) Stop(force bool) (functionconfig.Checkpoint, error) {
 	n.stop <- true
-	return nil, n.natsSubscription.Unsubscribe()
+
+	if err := n.natsSubscription.Unsubscribe(); err != nil {
+		return nil, err
+	}
+
+	// Close the connection but don't nil the pointer — concurrent goroutines in
+	// publishReply may still hold a reference. After Close(), any Publish call
+	// will safely return nats.ErrConnectionClosed.
+	if n.natsConnection != nil {
+		n.natsConnection.Close()
+	}
+
+	return nil, nil
 }
 
 func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
@@ -149,10 +171,14 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 					return
 				}
 
-				// submit the event to the worker, don't really do anything with response
-				_, processErr := n.SubmitEventToWorker(nil, workerInstance, event)
+				// submit the event to the worker and optionally publish the response as a NATS reply
+				response, processErr := n.SubmitEventToWorker(nil, workerInstance, event)
 				if processErr != nil {
 					n.Logger.ErrorWith("Can't process event", "error", processErr)
+				} else if n.configuration.Reply {
+					if err := n.publishReply(natsMessage, response); err != nil {
+						n.Logger.WarnWith("Failed to publish NATS reply", "error", err)
+					}
 				}
 
 				// release the worker
@@ -167,4 +193,36 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 
 func (n *nats) GetConfig() map[string]interface{} {
 	return common.StructureToMap(n.configuration)
+}
+
+func (n *nats) publishReply(natsMessage *natsio.Msg, response nuclio.ProcessingResult) error {
+	if natsMessage.Reply == "" {
+		return nil
+	}
+
+	if n.natsConnection == nil {
+		return errors.New("NATS connection is not initialized")
+	}
+
+	responseBody := response.GetBody()
+	if responseBody == nil {
+		return n.natsConnection.Publish(natsMessage.Reply, nil)
+	}
+
+	var payload []byte
+
+	switch typedResponseBody := responseBody.(type) {
+	case []byte:
+		payload = typedResponseBody
+	case string:
+		payload = []byte(typedResponseBody)
+	default:
+		payloadJSON, err := json.Marshal(typedResponseBody)
+		if err != nil {
+			return errors.Wrap(err, "Failed to marshal response body")
+		}
+		payload = payloadJSON
+	}
+
+	return n.natsConnection.Publish(natsMessage.Reply, payload)
 }

@@ -29,6 +29,7 @@ type Configuration struct {
 	trigger.Configuration
 	Topic     string
 	QueueName string
+	Reply     bool
 }
 
 func NewConfiguration(id string,
