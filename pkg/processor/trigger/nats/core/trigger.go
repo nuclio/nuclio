@@ -118,6 +118,12 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
 	}
 	n.natsConnection = natsConnection
+	defer func() {
+		if err != nil {
+			natsConnection.Close()
+			n.natsConnection = nil
+		}
+	}()
 
 	messageChan := make(chan *natsio.Msg, 64)
 	n.natsSubscription, err = natsConnection.ChanQueueSubscribe(n.configuration.Topic, n.configuration.QueueName, messageChan)
@@ -135,9 +141,11 @@ func (n *nats) Stop(force bool) (functionconfig.Checkpoint, error) {
 		return nil, err
 	}
 
+	// Close the connection but don't nil the pointer — concurrent goroutines in
+	// publishReply may still hold a reference. After Close(), any Publish call
+	// will safely return nats.ErrConnectionClosed.
 	if n.natsConnection != nil {
 		n.natsConnection.Close()
-		n.natsConnection = nil
 	}
 
 	return nil, nil
