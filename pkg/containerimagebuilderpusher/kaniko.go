@@ -420,7 +420,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	// fail silently in order to ignore "repository already exists" errors
 	// if any other error occurs - kaniko will fail similarly
 	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
-	registryID := strings.Split(buildOptions.RegistryURL, ".")[0]
+	registryID := k.resolveAWSRegistryId(buildOptions.RegistryURL)
 	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s --registry-id %s || true"
 	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region, registryID)
 	createCacheRepo := fmt.Sprintf(createRepoTemplate,
@@ -809,6 +809,12 @@ func (k *Kaniko) matchECRUrl(registryURL string) bool {
 
 func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 	return strings.Split(registryURL, ".")[3]
+}
+
+// resolveAWSRegistryId extracts the AWS account ID (registry ID) from an ECR registry URL
+// Example: "123456789012.dkr.ecr.us-east-1.amazonaws.com" -> "123456789012"
+func (k *Kaniko) resolveAWSRegistryId(registryURL string) string {
+	return strings.Split(registryURL, ".")[0]
 }
 
 func (k *Kaniko) enrichAndValidateServiceAccount(ctx context.Context, buildOptions *BuildOptions, namespace string) (string, error) {
