@@ -383,35 +383,38 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 }
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
-	if k.matchECRUrl(buildOptions.RegistryURL) {
+	switch {
+	case k.matchECRUrl(buildOptions.RegistryURL):
 		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
+	case k.matchACRUrl(buildOptions.RegistryURL):
+		k.configureACRCredentialsMount(buildOptions, kanikoJobSpec)
+	case len(buildOptions.SecretName) > 0:
+		k.configureDockerRegistrySecretMount(buildOptions, kanikoJobSpec)
+	}
+}
 
-		// if SecretName is defined - configure mount with docker credentials
-	} else if len(buildOptions.SecretName) > 0 {
+func (k *Kaniko) configureDockerRegistrySecretMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+	kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
+		append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
+			Name:      "docker-config",
+			MountPath: "/kaniko/.docker",
+			ReadOnly:  true,
+		})
 
-		// configure mount with docker credentials
-		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
-				Name:      "docker-config",
-				MountPath: "/kaniko/.docker",
-				ReadOnly:  true,
-			})
-
-		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
-			Name: "docker-config",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: buildOptions.SecretName,
-					Items: []v1.KeyToPath{
-						{
-							Key:  ".dockerconfigjson",
-							Path: "config.json",
-						},
+	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
+		Name: "docker-config",
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: buildOptions.SecretName,
+				Items: []v1.KeyToPath{
+					{
+						Key:  ".dockerconfigjson",
+						Path: "config.json",
 					},
 				},
 			},
-		})
-	}
+		},
+	})
 }
 
 func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
@@ -815,6 +818,72 @@ func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 // Example: "123456789012.dkr.ecr.us-east-1.amazonaws.com" -> "123456789012"
 func (k *Kaniko) resolveAWSRegistryId(registryURL string) string {
 	return strings.Split(registryURL, ".")[0]
+}
+
+func (k *Kaniko) matchACRUrl(registryURL string) bool {
+	return strings.Contains(registryURL, ".azurecr.io")
+}
+
+// configureACRCredentialsMount sets up Azure Container Registry authentication for kaniko.
+// It uses the kaniko-native "acr-env" credential helper, which requires:
+// 1. A docker config.json with credHelpers mapping the ACR hostname to "acr-env"
+// 2. Azure credentials (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID) as environment variables
+//
+// The docker config is written by an init container to a shared emptyDir volume mounted at /kaniko/.docker,
+// rather than using a separate ConfigMap resource. This keeps the configuration self-contained within the pod
+// and avoids lifecycle management (creation before the job, cleanup after) and orphaned resources.
+// This follows the same init container pattern used by fetch-bundle and extract-bundle.
+// When RegistryProviderSecretName is set, the secret is mounted via envFrom to provide Azure credentials.
+// When no secret is provided, managed identity (e.g., Azure Workload Identity) is assumed.
+func (k *Kaniko) configureACRCredentialsMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+	dockerConfigVolumeName := "docker-config"
+	dockerConfigMountPath := "/kaniko/.docker"
+	dockerConfigJSON := fmt.Sprintf(`{"credHelpers":{"%s":"acr-env"}}`, buildOptions.RegistryURL)
+
+	dockerConfigVolumeMount := v1.VolumeMount{
+		Name:      dockerConfigVolumeName,
+		MountPath: dockerConfigMountPath,
+	}
+
+	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
+		Name: dockerConfigVolumeName,
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	})
+
+	kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
+		dockerConfigVolumeMount,
+	)
+
+	writeConfigInitContainer := v1.Container{
+		Name:            "setup-acr-config",
+		Image:           k.builderConfiguration.BusyBoxImage,
+		ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
+		Command:         []string{"/bin/sh"},
+		Args: []string{
+			"-c",
+			fmt.Sprintf("echo '%s' > %s/config.json", dockerConfigJSON, dockerConfigMountPath),
+		},
+		VolumeMounts: []v1.VolumeMount{dockerConfigVolumeMount},
+		Resources:    buildOptions.Resources,
+	}
+	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(
+		kanikoJobSpec.Spec.Template.Spec.InitContainers, writeConfigInitContainer)
+
+	if k.builderConfiguration.RegistryProviderSecretName != "" {
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].EnvFrom = append(
+			kanikoJobSpec.Spec.Template.Spec.Containers[0].EnvFrom,
+			v1.EnvFromSource{
+				SecretRef: &v1.SecretEnvSource{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: k.builderConfiguration.RegistryProviderSecretName,
+					},
+				},
+			},
+		)
+	}
 }
 
 func (k *Kaniko) enrichAndValidateServiceAccount(ctx context.Context, buildOptions *BuildOptions, namespace string) (string, error) {

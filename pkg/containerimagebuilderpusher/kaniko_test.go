@@ -22,6 +22,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type KanikoTestSuite struct {
@@ -30,7 +33,12 @@ type KanikoTestSuite struct {
 }
 
 func (suite *KanikoTestSuite) SetupTest() {
-	suite.kaniko = &Kaniko{}
+	suite.kaniko = &Kaniko{
+		builderConfiguration: &ContainerBuilderConfiguration{
+			BusyBoxImage:          "busybox:stable",
+			KanikoImagePullPolicy: "IfNotPresent",
+		},
+	}
 }
 
 func (suite *KanikoTestSuite) TestResolveAWSRegistryId() {
@@ -88,6 +96,147 @@ func (suite *KanikoTestSuite) TestResolveAWSRegionFromECR() {
 			result := suite.kaniko.resolveAWSRegionFromECR(testCase.registryURL)
 			suite.Require().Equal(testCase.expected, result)
 		})
+	}
+}
+
+func (suite *KanikoTestSuite) TestConfigureSecretVolumeMount() {
+	for _, testCase := range []struct {
+		name                       string
+		registryURL                string
+		secretName                 string
+		registryProviderSecretName string
+		expectedInitContainerCount int
+		expectedVolumeCount        int
+		expectedVolumeMountCount   int
+		verifyFunc                 func(podSpec v1.PodSpec)
+	}{
+		{
+			name:                       "ACRWithSecret",
+			registryURL:                "myregistry.azurecr.io",
+			registryProviderSecretName: "acr-credentials",
+			expectedInitContainerCount: 3,
+			expectedVolumeCount:        2,
+			expectedVolumeMountCount:   2,
+			verifyFunc: func(podSpec v1.PodSpec) {
+				// Verify emptyDir volume for docker config
+				suite.Require().Equal("docker-config", podSpec.Volumes[1].Name)
+				suite.Require().NotNil(podSpec.Volumes[1].EmptyDir)
+
+				// Verify setup-acr-config init container with credHelpers
+				acrInitContainer := podSpec.InitContainers[2]
+				suite.Require().Equal("setup-acr-config", acrInitContainer.Name)
+				suite.Require().Contains(acrInitContainer.Args[1], `{"credHelpers":{"myregistry.azurecr.io":"acr-env"}}`)
+				suite.Require().Equal("/kaniko/.docker", acrInitContainer.VolumeMounts[0].MountPath)
+
+				// Verify docker config mount on kaniko executor
+				suite.Require().Equal("/kaniko/.docker", podSpec.Containers[0].VolumeMounts[1].MountPath)
+
+				// Verify envFrom with secret reference
+				suite.Require().Len(podSpec.Containers[0].EnvFrom, 1)
+				suite.Require().Equal("acr-credentials", podSpec.Containers[0].EnvFrom[0].SecretRef.Name)
+			},
+		},
+		{
+			name:                       "ACRWithoutSecret",
+			registryURL:                "myregistry.azurecr.io",
+			registryProviderSecretName: "",
+			expectedInitContainerCount: 3,
+			expectedVolumeCount:        2,
+			expectedVolumeMountCount:   2,
+			verifyFunc: func(podSpec v1.PodSpec) {
+				// Verify init container and volume are still created
+				suite.Require().Equal("setup-acr-config", podSpec.InitContainers[2].Name)
+				suite.Require().Contains(podSpec.InitContainers[2].Args[1], `"acr-env"`)
+
+				// Verify no envFrom (managed identity fallback)
+				suite.Require().Empty(podSpec.Containers[0].EnvFrom)
+			},
+		},
+		{
+			name:                       "DockerRegistrySecret",
+			registryURL:                "docker.io",
+			secretName:                 "my-docker-creds",
+			registryProviderSecretName: "",
+			expectedInitContainerCount: 2,
+			expectedVolumeCount:        2,
+			expectedVolumeMountCount:   2,
+			verifyFunc: func(podSpec v1.PodSpec) {
+				// Verify secret volume with dockerconfigjson mapping
+				suite.Require().NotNil(podSpec.Volumes[1].Secret)
+				suite.Require().Equal("my-docker-creds", podSpec.Volumes[1].Secret.SecretName)
+				suite.Require().Equal(".dockerconfigjson", podSpec.Volumes[1].VolumeSource.Secret.Items[0].Key)
+				suite.Require().Equal("config.json", podSpec.Volumes[1].VolumeSource.Secret.Items[0].Path)
+
+				// Verify read-only mount
+				suite.Require().True(podSpec.Containers[0].VolumeMounts[1].ReadOnly)
+			},
+		},
+		{
+			name:                       "NoRegistrySecret",
+			registryURL:                "docker.io",
+			secretName:                 "",
+			registryProviderSecretName: "",
+			expectedInitContainerCount: 2,
+			expectedVolumeCount:        1,
+			expectedVolumeMountCount:   1,
+			verifyFunc:                 nil,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.kaniko.builderConfiguration.RegistryProviderSecretName = testCase.registryProviderSecretName
+			buildOptions := &BuildOptions{
+				RegistryURL: testCase.registryURL,
+				SecretName:  testCase.secretName,
+			}
+			jobSpec := suite.createBaseJobSpec()
+
+			suite.kaniko.configureSecretVolumeMount(buildOptions, jobSpec)
+
+			podSpec := jobSpec.Spec.Template.Spec
+			suite.Require().Len(podSpec.InitContainers, testCase.expectedInitContainerCount)
+			suite.Require().Len(podSpec.Volumes, testCase.expectedVolumeCount)
+			suite.Require().Len(podSpec.Containers[0].VolumeMounts, testCase.expectedVolumeMountCount)
+
+			if testCase.verifyFunc != nil {
+				testCase.verifyFunc(podSpec)
+			}
+		})
+	}
+}
+
+func (suite *KanikoTestSuite) createBaseJobSpec() *batchv1.Job {
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-job",
+			Namespace: "test-ns",
+		},
+		Spec: batchv1.JobSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "kaniko-executor",
+							Image: "gcr.io/kaniko-project/executor:latest",
+							VolumeMounts: []v1.VolumeMount{
+								{Name: "tmp", MountPath: "/tmp"},
+							},
+						},
+					},
+					InitContainers: []v1.Container{
+						{Name: "fetch-bundle", Image: "busybox:stable"},
+						{Name: "extract-bundle", Image: "busybox:stable"},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "tmp",
+							VolumeSource: v1.VolumeSource{
+								EmptyDir: &v1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
