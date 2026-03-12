@@ -91,8 +91,18 @@ func (g *golang) GetProcessorDockerfileInfo(
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/handler.so": "/opt/nuclio/handler.so",
 		},
+		StageCommands: g.getHandlerBuildStageCommands(),
 	}
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
+}
+
+func (g *golang) getHandlerBuildStageCommands() string {
+	return `ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+WORKDIR /handler
+COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} ./
+ARG NUCLIO_BUILD_OFFLINE
+RUN mv /moduler.sh . && sync && ./moduler.sh
+RUN go build -mod=mod -buildmode=plugin -o /home/nuclio/bin/handler.so .`
 }

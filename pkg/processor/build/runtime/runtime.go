@@ -47,6 +47,11 @@ type Artifact struct {
 	Image         string
 	Paths         map[string]string
 	ExternalImage bool
+
+	// StageCommands contains explicit Dockerfile instructions to build user code within the onbuild stage.
+	// For compiled runtimes (Go, Java, .NET Core), these commands copy handler source and compile it.
+	// This replaces the former ONBUILD trigger mechanism with explicit, visible build steps.
+	StageCommands string
 }
 
 type Runtime interface {

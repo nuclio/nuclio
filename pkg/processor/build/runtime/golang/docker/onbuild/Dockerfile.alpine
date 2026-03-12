@@ -64,21 +64,3 @@ WORKDIR /handler
 # Set go proxy env
 ARG NUCLIO_GO_PROXY=${NUCLIO_GO_PROXY}
 ENV GOPROXY $NUCLIO_GO_PROXY
-
-# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
-ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
-
-# Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} ./
-
-# Specify an onbuild arg to specify offline
-ONBUILD ARG NUCLIO_BUILD_OFFLINE
-
-# Run moduler to ensure go modules exists and downloaded
-ONBUILD RUN mv /moduler.sh . && sync && ./moduler.sh
-
-# Compile handler as plugin
-ONBUILD RUN go build \
-    -mod=mod \
-    -buildmode=plugin \
-    -o /home/nuclio/bin/handler.so .

@@ -214,7 +214,8 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(ctx context.Context,
 			onbuildArtifact.Image,
 			buildOptions.ContextDir,
 			onbuildArtifactPaths,
-			buildOptions.BuildArgs); err != nil {
+			buildOptions.BuildArgs,
+			onbuildArtifact.StageCommands); err != nil {
 			return errors.Wrap(err, "Failed to copy objects from onbuild")
 		}
 	}
@@ -226,14 +227,16 @@ func (d *Docker) buildFromAndCopyObjectsFromContainer(ctx context.Context,
 	onbuildImage string,
 	contextDir string,
 	artifactPaths map[string]string,
-	buildArgs map[string]string) error {
+	buildArgs map[string]string,
+	stageCommands string) error {
 
 	dockerfilePath := path.Join(contextDir, "Dockerfile.onbuild")
 
 	onbuildDockerfileContents := fmt.Sprintf(`FROM %s
 ARG NUCLIO_LABEL
 ARG NUCLIO_ARCH
-`, onbuildImage)
+%s
+`, onbuildImage, stageCommands)
 
 	// generate a simple Dockerfile from the onbuild image
 	if err := os.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644); err != nil {
