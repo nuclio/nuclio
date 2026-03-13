@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # 3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # 4.0.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -233,7 +233,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@8234275e0386fe1cdaf519d28c90f4f03fad89e4 # 2.15.0
+      - uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d # 2.16.1
         with:
           minikube version: "v1.38.0"
           kubernetes version: "v1.35.0"
@@ -384,7 +384,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@8234275e0386fe1cdaf519d28c90f4f03fad89e4 # 2.15.0
+      - uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d # 2.16.1
         with:
           minikube version: "v1.38.0"
           kubernetes version: "v1.35.0"

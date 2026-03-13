@@ -275,19 +275,19 @@ jobs:
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # 3.7.0
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # 4.0.0
         with:
           platforms: ${{ matrix.arch }}
 
       - name: Login to registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # 3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # 4.0.0
         with:
           registry: ${{ env.REPO }}
           username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
           password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
       - name: Login to cache registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # 3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # 4.0.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -365,7 +365,7 @@ jobs:
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # 3.7.0
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # 4.0.0
         with:
           platforms: ${{ matrix.arch }}
 
