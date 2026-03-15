@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -209,12 +210,13 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(ctx context.Context,
 			}
 		}
 
-		// build an image to trigger the onbuild stuff. then extract the artifacts
+		// build a temporary image to run stage commands and extract the compiled artifacts
 		if err := d.buildFromAndCopyObjectsFromContainer(ctx,
 			onbuildArtifact.Image,
 			buildOptions.ContextDir,
 			onbuildArtifactPaths,
-			buildOptions.BuildArgs); err != nil {
+			buildOptions.BuildArgs,
+			onbuildArtifact.StageCommands); err != nil {
 			return errors.Wrap(err, "Failed to copy objects from onbuild")
 		}
 	}
@@ -226,14 +228,15 @@ func (d *Docker) buildFromAndCopyObjectsFromContainer(ctx context.Context,
 	onbuildImage string,
 	contextDir string,
 	artifactPaths map[string]string,
-	buildArgs map[string]string) error {
+	buildArgs map[string]string,
+	stageCommands string) error {
 
 	dockerfilePath := path.Join(contextDir, "Dockerfile.onbuild")
 
-	onbuildDockerfileContents := fmt.Sprintf(`FROM %s
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-`, onbuildImage)
+	onbuildDockerfileContents := fmt.Sprintf("FROM %s\nARG NUCLIO_LABEL\nARG NUCLIO_ARCH\n", onbuildImage)
+	if strings.TrimSpace(stageCommands) != "" {
+		onbuildDockerfileContents += stageCommands + "\n"
+	}
 
 	// generate a simple Dockerfile from the onbuild image
 	if err := os.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644); err != nil {

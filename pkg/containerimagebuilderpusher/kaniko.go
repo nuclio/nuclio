@@ -148,10 +148,10 @@ func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string
 		}
 
 		baseImage := fmt.Sprintf("FROM %s AS %s", artifact.Image, artifact.Name)
-		onbuildDockerfileContents := fmt.Sprintf(`%s
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-`, baseImage)
+		onbuildDockerfileContents := fmt.Sprintf("%s\nARG NUCLIO_LABEL\nARG NUCLIO_ARCH\n", baseImage)
+		if strings.TrimSpace(artifact.StageCommands) != "" {
+			onbuildDockerfileContents += artifact.StageCommands + "\n"
+		}
 
 		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
 	}

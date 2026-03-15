@@ -54,19 +54,3 @@ RUN cd /home/nuclio/src/wrapper \
 
 # Copy the proj
 COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj /home/nuclio/src/handler/handler.csproj
-
-# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
-ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
-
-# copy the user code files
-ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/nuclio/src/handler
-
-ONBUILD RUN dotnet add /home/nuclio/src/handler package Microsoft.CSharp && \
-            dotnet add /home/nuclio/src/handler package System.Dynamic.Runtime && \
-            dotnet add /home/nuclio/src/handler package Newtonsoft.Json && \
-            dotnet add /home/nuclio/src/handler package Microsoft.Azure.EventHubs -v 2.2.1 && \
-            dotnet add /home/nuclio/src/handler reference /home/nuclio/src/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
-
-ONBUILD RUN cd /home/nuclio/src/handler \
-    && dotnet restore \
-    && dotnet publish -c Release -o /home/nuclio/bin/handler

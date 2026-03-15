@@ -68,10 +68,20 @@ func (j *java) GetProcessorDockerfileInfo(
 			"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
 			"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
 		},
+		StageCommands: j.getHandlerBuildStageCommands(),
 	}
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	return &processorDockerfileInfo, nil
+}
+
+func (j *java) getHandlerBuildStageCommands() string {
+	return `COPY handler/build.gradle /home/gradle/src/userHandler
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler
+RUN cd /home/gradle/src/userHandler && ./build-user-handler.sh
+RUN mv /home/gradle/src/userHandler/build/libs/user-handler.jar /home/gradle/src/wrapper/user-handler.jar
+RUN /home/gradle/src/wrapper/build-wrapped-handler.sh`
 }
 
 func (j *java) createGradleBuildScript(stagingBuildDir string) error {
