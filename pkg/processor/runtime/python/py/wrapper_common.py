@@ -104,6 +104,7 @@ class AbstractWrapper(object):
         self._platform = nuclio_sdk.Platform(platform_kind,
                                              namespace=namespace,
                                              on_control_callback=self._send_data_on_control_socket)
+        self._worker_id = worker_id
         self._decode_event_strings = decode_event_strings
 
         # 1gb
@@ -468,6 +469,13 @@ class AbstractWrapper(object):
         # set the flag to False so the drain handler will not be called more than once
         self._is_drain_needed = False
         return self._platform._on_signal(callback_type="drain")
+
+    async def _send_drain_complete_control_message(self):
+        self._logger.debug_with('Sending drain complete control message', worker_id=self._worker_id)
+        await self._send_data_on_control_socket({
+            'kind': 'drain',
+            'attributes': {'workerId': self._worker_id}
+        })
 
     def _call_termination_handler(self):
         self._logger.debug('Calling platform termination handler')

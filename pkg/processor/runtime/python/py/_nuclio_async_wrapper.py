@@ -196,6 +196,7 @@ class AsyncWrapper(AbstractWrapper):
                 result = self._call_drain_handler()
                 if asyncio.iscoroutine(result):
                     await result
+                await self._send_drain_complete_control_message()
 
             if self._is_termination_needed:
                 result = self._call_termination_handler()
