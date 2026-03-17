@@ -145,10 +145,6 @@ func (py *python) Drain() error {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
 	}
 
-	// wait for process to finish event handling or timeout
-	// TODO: replace the following function with one that waits for a control communication message or timeout
-	py.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
-
 	return nil
 }
 

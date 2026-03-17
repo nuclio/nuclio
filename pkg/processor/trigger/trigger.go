@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
@@ -82,8 +83,8 @@ type Trigger interface {
 	// GetProjectName returns project name
 	GetProjectName() string
 
-	// SignalWorkersToDrain drains all workers
-	SignalWorkersToDrain() error
+	// Drain drains all workers
+	Drain(ctx context.Context) error
 
 	// SignalWorkersToContinue signal all workers to continue processing
 	SignalWorkersToContinue() error
@@ -385,13 +386,40 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	return nil
 }
 
-// SignalWorkersToDrain sends a signal to all workers, telling them to drop or ack events
-// that are currently being processed
-func (at *AbstractTrigger) SignalWorkersToDrain() error {
+// Drain sends a signal to all workers and waits for them to finish draining their events
+func (at *AbstractTrigger) Drain(ctx context.Context) error {
+	DrainingDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
+
+	//subscribe to worker draining complete control messages to know when workers are done draining and we can proceed with rebalance
+	if err := at.SubscribeToControlMessageKind(controlcommunication.DrainMessageKind, DrainingDoneControlMessageChan); err != nil {
+		return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
+	}
+
+	workers := at.WorkerAllocator.GetObjects()
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
 		return errors.Wrap(err, "Failed to signal all workers to drain events")
 	}
-	return nil
+
+	uniqueWorkerIds := make(map[string]struct{})
+
+	for {
+		select {
+		case controlMessage := <-DrainingDoneControlMessageChan:
+			drainAttributes := &controlcommunication.ControlMessageAttributesDrain{}
+			if err := mapstructure.Decode(controlMessage.Attributes, drainAttributes); err != nil {
+				at.Logger.WarnWith("Failed decoding control message attributes", "err", err.Error())
+				continue
+			}
+			uniqueWorkerIds[drainAttributes.WorkerId] = struct{}{}
+			if len(uniqueWorkerIds) == len(workers) {
+				at.Logger.DebugWith("All workers finished draining",
+					"numWorkers", len(workers))
+				return nil
+			}
+		case <-ctx.Done():
+			return errors.New("Context cancelled while waiting for workers to drain")
+		}
+	}
 }
 
 // SignalWorkersToContinue sends a signal to all workers, telling them to continue event processing
