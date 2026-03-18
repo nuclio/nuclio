@@ -505,6 +505,11 @@ func (suite *testSuite) TestDrainHook() {
 
 		suite.Logger.Debug("Creating second function, to trigger rebalance")
 
+		// measure how long deploying the second function takes (triggers rebalance + drain on the first function).
+		// if drain-complete control message works, this should finish well under the 40s workerTerminationTimeout.
+		maxSecondFunctionDeployDuration := 25 * time.Second
+		secondFunctionDeployStart := time.Now()
+
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
 			suite.Require().NotNil(newDeployResult, "Unexpected empty second deploy results")
 
@@ -539,6 +544,11 @@ func (suite *testSuite) TestDrainHook() {
 
 			return true
 		})
+
+		secondFunctionDeployDuration := time.Since(secondFunctionDeployStart)
+		suite.Require().Less(secondFunctionDeployDuration, maxSecondFunctionDeployDuration,
+			"Second function deploy took %s, expected less than %s - drain-complete may not be shortcutting the workerTerminationTimeout",
+			secondFunctionDeployDuration, maxSecondFunctionDeployDuration)
 
 		return true
 	})
