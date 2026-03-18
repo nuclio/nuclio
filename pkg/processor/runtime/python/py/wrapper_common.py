@@ -434,6 +434,7 @@ class AbstractWrapper(object):
         # do not perform draining if discarding events
         if self._discard_events:
             self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
+            self._send_drain_complete_control_message()
             return
 
         self._logger.debug_with('Received signal', signal=signal_name)

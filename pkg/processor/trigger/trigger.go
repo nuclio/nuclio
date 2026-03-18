@@ -388,12 +388,20 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 
 // Drain sends a signal to all workers and waits for them to finish draining their events
 func (at *AbstractTrigger) Drain(ctx context.Context) error {
-	DrainingDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
+	drainingDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
 
 	//subscribe to worker draining complete control messages to know when workers are done draining and we can proceed with rebalance
-	if err := at.SubscribeToControlMessageKind(controlcommunication.DrainMessageKind, DrainingDoneControlMessageChan); err != nil {
+	if err := at.SubscribeToControlMessageKind(controlcommunication.DrainMessageKind, drainingDoneControlMessageChan); err != nil {
 		return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 	}
+
+	// make sure to unsubscribe and close channel
+	defer func() {
+		if err := at.UnsubscribeFromControlMessageKind(controlcommunication.DrainMessageKind, drainingDoneControlMessageChan); err != nil {
+			at.Logger.WarnWith("Failed to unsubscribe from explicit ack control messages", "err", err.Error())
+		}
+		close(drainingDoneControlMessageChan)
+	}()
 
 	workers := at.WorkerAllocator.GetObjects()
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
@@ -404,7 +412,7 @@ func (at *AbstractTrigger) Drain(ctx context.Context) error {
 
 	for {
 		select {
-		case controlMessage := <-DrainingDoneControlMessageChan:
+		case controlMessage := <-drainingDoneControlMessageChan:
 			drainAttributes := &controlcommunication.ControlMessageAttributesDrain{}
 			if err := mapstructure.Decode(controlMessage.Attributes, drainAttributes); err != nil {
 				at.Logger.WarnWith("Failed decoding control message attributes", "err", err.Error())
