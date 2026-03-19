@@ -390,15 +390,15 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 func (at *AbstractTrigger) Drain(ctx context.Context) error {
 	drainingDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
 
-	//subscribe to worker draining complete control messages to know when workers are done draining and we can proceed with rebalance
+	// subscribe to worker draining complete control messages to know when workers are done draining and we can proceed with rebalance
 	if err := at.SubscribeToControlMessageKind(controlcommunication.DrainMessageKind, drainingDoneControlMessageChan); err != nil {
-		return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
+		return errors.Wrap(err, "Failed to subscribe to drain control messages")
 	}
 
 	// make sure to unsubscribe and close channel
 	defer func() {
 		if err := at.UnsubscribeFromControlMessageKind(controlcommunication.DrainMessageKind, drainingDoneControlMessageChan); err != nil {
-			at.Logger.WarnWith("Failed to unsubscribe from explicit ack control messages", "err", err.Error())
+			at.Logger.WarnWith("Failed to unsubscribe from drain control messages", "err", err.Error())
 		}
 		close(drainingDoneControlMessageChan)
 	}()

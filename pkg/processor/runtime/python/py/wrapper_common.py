@@ -148,10 +148,26 @@ class AbstractWrapper(object):
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name),
                                            logger_per_async_task=logger_per_async_task)
 
-        # initialize flags
+        # Signal-driven lifecycle flags.
+        #
+        # _is_drain_needed / _is_termination_needed: set True by the respective signal handler,
+        # consumed (set back to False) in the finally block of the serving loop after
+        # executing the drain/termination handler.
+        #
+        # _discard_events: guards against processing events that arrive between a drain/termination
+        # signal and the completion of the handler. In the async wrapper, multiple coroutines may
+        # be serving connections concurrently; one coroutine could receive a new event while another
+        # is still executing the drain handler. This flag ensures those in-flight events are dropped.
+        # It is cleared by the SIGCONT (continue) signal when the processor is ready to resume.
+        #
+        # _drained: tracks whether the drain handler has already been called for the current
+        # drain cycle. When a second SIGUSR2 arrives while already drained (before SIGCONT),
+        # we skip the drain handler and immediately send the drain-complete control message.
         self._is_drain_needed = False
         self._is_termination_needed = False
         self._discard_events = False
+
+        self._drained = False
 
         self._event_message_length_task = None
 
@@ -433,8 +449,10 @@ class AbstractWrapper(object):
     def _on_drain_signal(self, signal_name):
         # do not perform draining if discarding events
         if self._discard_events:
-            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
-            self._send_drain_complete_control_message()
+            if self._drained:
+                self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
+                self._send_drain_complete_control_message()
+            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already being drained')
             return
 
         self._logger.debug_with('Received signal', signal=signal_name)
@@ -464,12 +482,20 @@ class AbstractWrapper(object):
         # set this flag to False, so continue normal event processing flow
         self._discard_events = False
 
-    def _call_drain_handler(self):
+        # reset drained flag to allow future drain signals to be handled properly
+        self._drained = True
+
+    async def _call_drain_handler(self):
         self._logger.debug('Calling platform drain handler')
 
         # set the flag to False so the drain handler will not be called more than once
         self._is_drain_needed = False
-        return self._platform._on_signal(callback_type="drain")
+        draining_result = self._platform._on_signal(callback_type="drain")
+        if asyncio.iscoroutine(draining_result):
+            await draining_result
+        self._drained = True
+
+        await self._send_drain_complete_control_message()
 
     async def _send_drain_complete_control_message(self):
         self._logger.debug_with('Sending drain complete control message', worker_id=self._worker_id)
@@ -478,16 +504,17 @@ class AbstractWrapper(object):
             'attributes': {'workerId': self._worker_id}
         })
 
-    def _call_termination_handler(self):
+    async def _call_termination_handler(self):
         self._logger.debug('Calling platform termination handler')
 
         # set the flag to False so the termination handler will not be called more than once
         self._is_termination_needed = False
 
-        # call termination handler
         # TODO: send a control message to the processor after this line,
         # to indicate that the termination handler has finished, and the processor can exit early
-        return self._platform._on_signal(callback_type="termination")
+        termination_result = self._platform._on_signal(callback_type="termination")
+        if asyncio.iscoroutine(termination_result):
+            await termination_result
 
     def _shutdown(self, error_code=0):
         self._logger.info("Shutting down...")
