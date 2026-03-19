@@ -193,14 +193,10 @@ class AsyncWrapper(AbstractWrapper):
             await self._on_serving_error(exc, sock)
         finally:
             if self._is_drain_needed:
-                result = self._call_drain_handler()
-                if asyncio.iscoroutine(result):
-                    await result
+                await self._call_drain_handler()
 
             if self._is_termination_needed:
-                result = self._call_termination_handler()
-                if asyncio.iscoroutine(result):
-                    await result
+                await self._call_termination_handler()
             self._cleanup_connection(sock, cancel_task=False)
 
     def _cleanup_connection(self, sock, cancel_task=True):

@@ -486,8 +486,6 @@ func (suite *testSuite) TestDrainHook() {
 		},
 	}
 
-	var rebalanceStartedTime time.Time
-
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
@@ -507,9 +505,13 @@ func (suite *testSuite) TestDrainHook() {
 
 		suite.Logger.Debug("Creating second function, to trigger rebalance")
 
+		// measure how long deploying the second function takes (triggers rebalance + drain on the first function).
+		// if drain-complete control message works, this should finish well under the 40s workerTerminationTimeout.
+		maxSecondFunctionDeployDuration := 25 * time.Second
+		secondFunctionDeployStart := time.Now()
+
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
 			suite.Require().NotNil(newDeployResult, "Unexpected empty second deploy results")
-			rebalanceStartedTime = time.Now()
 
 			suite.Logger.DebugWith("Created second function, producing messages to topic",
 				"topic", topic)
@@ -523,28 +525,33 @@ func (suite *testSuite) TestDrainHook() {
 				suite.Require().NoError(err, "Failed to publish message")
 			}
 
-			// wait for at least the kafka trigger's WorkerTerminationTimeout to pass from first invocation,
-			// to allow the function to run its termination hook before we delete the function
-			<-time.After(time.Until(rebalanceStartedTime.Add(40 * time.Second)))
+			// verify drain hook files are written promptly after rebalance (via drain-complete control message),
+			// rather than waiting the full workerTerminationTimeout (40s).
+			// the drain callback only writes a file, so it should complete well within this window.
+			maxDrainWait := 8 * time.Second
+			err := common.RetryUntilSuccessful(maxDrainWait, 1*time.Second, func() bool {
+				for workerID := 0; workerID < 4; workerID++ {
+					filePath := path.Join(tempDir, fmt.Sprintf("drain-hook-%d.txt", workerID))
+					fileBytes, readErr := os.ReadFile(filePath)
+					if readErr != nil || len(fileBytes) == 0 {
+						return false
+					}
+				}
+				return true
+			})
+			suite.Require().NoError(err,
+				"Drain hook files were not written within %s - drain-complete control message may not be working", maxDrainWait)
 
 			return true
 		})
 
+		secondFunctionDeployDuration := time.Since(secondFunctionDeployStart)
+		suite.Require().Less(secondFunctionDeployDuration, maxSecondFunctionDeployDuration,
+			"Second function deploy took %s, expected less than %s - drain-complete may not be shortcutting the workerTerminationTimeout",
+			secondFunctionDeployDuration, maxSecondFunctionDeployDuration)
+
 		return true
 	})
-
-	// check that the function's drain hook was called by reading the file it should have written to
-	// 1 file per worker -> 4 files
-	for workerID := 0; workerID < 4; workerID++ {
-		filePath := path.Join(tempDir, fmt.Sprintf("drain-hook-%d.txt", workerID))
-		suite.Logger.DebugWith("Reading drain hook file", "filePath", filePath)
-		fileBytes, err := os.ReadFile(filePath)
-		suite.Require().NoError(err, "Failed to read drain hook file")
-
-		// check that the file is not empty
-		suite.Logger.DebugWith("Checking drain hook file is not empty", "fileContent", string(fileBytes))
-		suite.Require().NotEmpty(fileBytes, "Drain hook file is empty")
-	}
 }
 
 // TestFeatureCombinations tests different combinations of the following features:
