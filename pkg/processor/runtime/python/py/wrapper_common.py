@@ -166,7 +166,6 @@ class AbstractWrapper(object):
         self._is_drain_needed = False
         self._is_termination_needed = False
         self._discard_events = False
-
         self._drained = False
 
         self._event_message_length_task = None
