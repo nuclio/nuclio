@@ -29,6 +29,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type PlatformConfigurationProvider interface {
@@ -55,7 +56,7 @@ type Client interface {
 	WaitAvailable(context.Context, *nuclioio.NuclioFunction, time.Time) (functionconfig.FunctionState, error)
 
 	// Delete deletes resources
-	Delete(context.Context, string, string) error
+	Delete(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error
 
 	// SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
 	SetPlatformConfigurationProvider(PlatformConfigurationProvider)

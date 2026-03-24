@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
@@ -35,6 +36,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -344,7 +346,59 @@ func (fo *functionOperator) Delete(ctx context.Context, namespace string, name s
 		"name", name,
 		"namespace", namespace)
 
-	return fo.functionresClient.Delete(ctx, namespace, name)
+	deleteOptions := fo.resolveDeleteOptions(ctx, namespace, name)
+
+	return fo.functionresClient.Delete(ctx, namespace, name, deleteOptions)
+}
+
+// resolveDeleteOptions builds delete options for function resource cleanup.
+// If the function's project no longer exists (project deletion scenario), sets a shorter grace
+// period to speed up resource cleanup while still honoring the draining/termination callback contract.
+// If the project exists (normal deletion or project was recreated), returns empty options to use defaults.
+func (fo *functionOperator) resolveDeleteOptions(ctx context.Context, namespace string, functionName string) metav1.DeleteOptions {
+	propagationPolicy := metav1.DeletePropagationForeground
+	deleteOptions := metav1.DeleteOptions{
+		PropagationPolicy: &propagationPolicy,
+	}
+
+	deploymentName := kube.DeploymentNameFromFunctionName(functionName)
+	deployment, err := fo.controller.kubeClientSet.GetDeployment(ctx, namespace, deploymentName)
+	if err != nil {
+		fo.logger.DebugWithCtx(ctx, "Could not get deployment to resolve project, using default delete options",
+			"functionName", functionName,
+			"err", err)
+		return deleteOptions
+	}
+
+	projectName, exists := deployment.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !exists || projectName == "" {
+		fo.logger.DebugWithCtx(ctx, "Deployment has no project label, using default delete options",
+			"functionName", functionName)
+		return deleteOptions
+	}
+
+	_, err = fo.controller.nuclioClientSet.NuclioV1beta1().
+		NuclioProjects(namespace).
+		Get(ctx, projectName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			gracePeriod := int64(fo.controller.functionDeletionGracePeriodOnProjectRemoval.Seconds())
+			fo.logger.InfoWithCtx(ctx,
+				"Project not found, using reduced grace period for function deletion",
+				"functionName", functionName,
+				"projectName", projectName,
+				"gracePeriodSeconds", gracePeriod)
+			deleteOptions.GracePeriodSeconds = &gracePeriod
+			return deleteOptions
+		}
+		fo.logger.WarnWithCtx(ctx, "Failed to check project existence, using default delete options",
+			"functionName", functionName,
+			"projectName", projectName,
+			"err", err.Error())
+		return deleteOptions
+	}
+
+	return deleteOptions
 }
 
 func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
