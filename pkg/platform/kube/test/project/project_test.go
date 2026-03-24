@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube"
 	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -34,8 +33,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ProjectTestSuite struct {
@@ -411,7 +408,7 @@ def init_context(context):
 		suite.Require().NotEmpty(pods, "Function pods should exist")
 		firstPod := pods[0]
 
-		err := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name,
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name,
 			"Processor started", &v1.PodLogOptions{}, 30*time.Second)
 		suite.Require().NoError(err, "Processor did not start in time")
 
@@ -427,22 +424,20 @@ def init_context(context):
 
 		deletionStart := time.Now()
 
-		deploymentName := kube.DeploymentNameFromFunctionName(functionName)
 		err = common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
-			_, getErr := suite.KubeClientSet.AppsV1().Deployments(suite.Namespace).Get(
-				suite.Ctx, deploymentName, metav1.GetOptions{})
-			return apierrors.IsNotFound(getErr)
+			pods := suite.GetFunctionPods(functionName)
+			suite.Logger.DebugWith("Waiting for function pods to be removed",
+				"remainingPods", len(pods))
+			return len(pods) == 0
 		})
-		suite.Require().NoError(err, "Function deployment was not removed in time")
+		suite.Require().NoError(err, "Function pods were not removed in time")
 
 		deletionDuration := time.Since(deletionStart)
-		suite.Logger.InfoWith("Function deployment removed after project deletion",
+		suite.Logger.InfoWith("Function pods removed after project deletion",
 			"duration", deletionDuration.String())
 
-		// usually it takes a bit more than 10s for the function to be removed after project deletion
-		// but it should be much less than the 30s sleep in the termination callback, which means the grace period override is working.
 		suite.Require().Less(deletionDuration.Seconds(), float64(20),
-			"Function removal took longer than 15s; grace period override may not be working")
+			"Function pod removal took longer than 15s; grace period override may not be working")
 
 		return true
 	})
