@@ -394,7 +394,7 @@ func (fo *functionOperator) resolveDeleteOptions(ctx context.Context, namespace 
 		fo.logger.WarnWithCtx(ctx, "Failed to check project existence, using default delete options",
 			"functionName", functionName,
 			"projectName", projectName,
-			"err", err)
+			"err", err.Error())
 		return deleteOptions
 	}
 
