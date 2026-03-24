@@ -100,7 +100,8 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 		defaultNumWorkers,
 		defaultNumWorkers,
 		defaultNumWorkers,
-		defaultNumWorkers)
+		defaultNumWorkers,
+		10*time.Second)
 	suite.Require().NoError(err)
 }
 
