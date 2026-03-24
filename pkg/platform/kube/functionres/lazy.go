@@ -533,6 +533,15 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string,
 			"deploymentName", deploymentName)
 	}
 
+	// When a custom grace period is set (e.g. project deletion), delete pods explicitly
+	// so the overridden GracePeriodSeconds applies to actual pod termination.
+	// Deployment cascade does not propagate GracePeriodSeconds to pods.
+	if deleteOptions.GracePeriodSeconds != nil {
+		if err := lc.deleteFunctionPods(ctx, name, namespace, deleteOptions); err != nil {
+			return errors.Wrap(err, "Failed to delete function pods")
+		}
+	}
+
 	// Delete configMap if exists
 	configMapName := kube.ConfigMapNameFromFunctionName(name)
 	err = lc.kubeClientSet.DeleteConfigMap(ctx, namespace, configMapName, deleteOptions)
@@ -2782,6 +2791,21 @@ func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio
 }
 
 // deleteFunctionSecrets deletes the function's secrets
+func (lc *lazyClient) deleteFunctionPods(ctx context.Context, functionName, namespace string, deleteOptions metav1.DeleteOptions) error {
+	lc.logger.DebugWithCtx(ctx, "Deleting function pods",
+		"functionName", functionName,
+		"gracePeriodSeconds", deleteOptions.GracePeriodSeconds)
+	if err := lc.kubeClientSet.DeleteCollectionPods(ctx,
+		namespace,
+		deleteOptions,
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		}); err != nil {
+		return errors.Wrapf(err, "Failed to delete pods for function %s", functionName)
+	}
+	return nil
+}
+
 func (lc *lazyClient) deleteFunctionSecrets(ctx context.Context, functionName, namespace string) error {
 
 	// function can have multiple secrets, in case a flex volume exists
