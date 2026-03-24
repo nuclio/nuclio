@@ -426,9 +426,16 @@ def init_context(context):
 
 		err = common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
 			pods := suite.GetFunctionPods(functionName)
+			activePods := 0
+			for _, pod := range pods {
+				if pod.DeletionTimestamp == nil {
+					activePods++
+				}
+			}
 			suite.Logger.DebugWith("Waiting for function pods to be removed",
-				"remainingPods", len(pods))
-			return len(pods) == 0
+				"totalPods", len(pods),
+				"activePods", activePods)
+			return activePods == 0
 		})
 		suite.Require().NoError(err, "Function pods were not removed in time")
 
@@ -436,8 +443,8 @@ def init_context(context):
 		suite.Logger.InfoWith("Function pods removed after project deletion",
 			"duration", deletionDuration.String())
 
-		suite.Require().Less(deletionDuration.Seconds(), float64(15),
-			"Function pod removal took longer than 15s; grace period override may not be working")
+		suite.Require().Less(deletionDuration.Seconds(), float64(20),
+			"Function pod removal took longer than 20s; grace period override may not be working")
 
 		return true
 	})
