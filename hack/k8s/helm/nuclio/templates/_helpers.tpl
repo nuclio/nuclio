@@ -108,6 +108,20 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- end -}}
 {{- end -}}
 
+{{/*
+Resolve image pull secrets for Nuclio service deployments.
+Priority:
+1. .Values.global.imagePullSecrets (subchart-friendly)
+2. .Values.imagePullSecrets (chart-local convenience)
+*/}}
+{{- define "nuclio.imagePullSecrets" -}}
+{{- $imagePullSecrets := .Values.global.imagePullSecrets | default .Values.imagePullSecrets | default list -}}
+{{- if gt (len $imagePullSecrets) 0 -}}
+imagePullSecrets:
+{{- toYaml $imagePullSecrets | nindent 2 }}
+{{- end }}
+{{- end -}}
+
 
 {{- define "nuclio.externalIPAddresses" -}}
 {{- if .Values.global.externalHostAddress -}}
