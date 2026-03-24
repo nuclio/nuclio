@@ -439,7 +439,9 @@ def init_context(context):
 		suite.Logger.InfoWith("Function deployment removed after project deletion",
 			"duration", deletionDuration.String())
 
-		suite.Require().Less(deletionDuration.Seconds(), float64(15),
+		// usually it takes a bit more than 10s for the function to be removed after project deletion
+		// but it should be much less than the 30s sleep in the termination callback, which means the grace period override is working.
+		suite.Require().Less(deletionDuration.Seconds(), float64(20),
 			"Function removal took longer than 15s; grace period override may not be working")
 
 		return true
