@@ -436,7 +436,7 @@ def init_context(context):
 		suite.Logger.InfoWith("Function pods removed after project deletion",
 			"duration", deletionDuration.String())
 
-		suite.Require().Less(deletionDuration.Seconds(), float64(20),
+		suite.Require().Less(deletionDuration.Seconds(), float64(15),
 			"Function pod removal took longer than 15s; grace period override may not be working")
 
 		return true
