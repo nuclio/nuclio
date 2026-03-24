@@ -19,6 +19,12 @@
 # if true, all components assume no internet connectivity
 offline: false
 
+# shared image pull secrets for Nuclio service deployments (dashboard/controller/dlx/autoscaler)
+# chart-local fallback (prefer global.imagePullSecrets, especially when used as a subchart)
+# imagePullSecrets:
+#   - name: my-registry-secret
+imagePullSecrets: []
+
 # Controller settings
 controller:
   enabled: true
@@ -550,6 +556,10 @@ platform: {}
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
   externalHostAddress:
+  # image pull secrets shared by Nuclio service deployments (dashboard/controller/dlx/autoscaler)
+  # imagePullSecrets:
+  #   - name: my-registry-secret
+  imagePullSecrets: []
   registry:
     url:
     secretName:
