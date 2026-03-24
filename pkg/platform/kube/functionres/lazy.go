@@ -479,11 +479,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	}
 }
 
-func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) error {
-	propagationPolicy := metav1.DeletePropagationForeground
-	deleteOptions := metav1.DeleteOptions{
-		PropagationPolicy: &propagationPolicy,
-	}
+func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error {
 
 	// Delete ingress
 	ingressName := kube.IngressNameFromFunctionName(name)

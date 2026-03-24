@@ -53,6 +53,9 @@ type Controller struct {
 	apiGatewayOperator    *apiGatewayOperator
 	resyncInterval        time.Duration
 
+	// grace period for pod termination when deleting functions as part of project removal
+	functionDeletionGracePeriodOnProjectRemoval time.Duration
+
 	// monitors
 	cronJobMonitoring          *CronJobMonitoring
 	evictedPodsMonitoring      *EvictedPodsMonitoring
@@ -77,7 +80,8 @@ func NewController(parentLogger logger.Logger,
 	functionOperatorNumWorkers int,
 	functionEventOperatorNumWorkers int,
 	projectOperatorNumWorkers int,
-	apiGatewayOperatorNumWorkers int) (*Controller, error) {
+	apiGatewayOperatorNumWorkers int,
+	functionDeletionGracePeriodOnProjectRemoval time.Duration) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -99,6 +103,7 @@ func NewController(parentLogger logger.Logger,
 		platformConfigurationName:  platformConfigurationName,
 		resyncInterval:             resyncInterval,
 		functionMonitoringInterval: functionMonitoringInterval,
+		functionDeletionGracePeriodOnProjectRemoval: functionDeletionGracePeriodOnProjectRemoval,
 	}
 
 	newController.logger.DebugWithCtx(ctx, "Read configuration",

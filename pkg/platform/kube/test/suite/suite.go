@@ -704,7 +704,8 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		1,
 		1,
 		1,
-		1)
+		1,
+		time.Second*10) // function deletion grace period on project removal
 	suite.Require().NoError(err)
 	return controllerInstance
 }
