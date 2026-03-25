@@ -230,6 +230,15 @@ func (r *clientWithRetry) DeleteDeployment(ctx context.Context, namespace string
 	return
 }
 
+func (r *clientWithRetry) DeleteCollectionReplicaSets(ctx context.Context, namespace string, deleteOptions metav1.DeleteOptions, listOptions metav1.ListOptions) (err error) {
+	_, err = clients.RequestWithRetry(func() (any, error) {
+		return nil, r.AppsV1().
+			ReplicaSets(namespace).
+			DeleteCollection(ctx, deleteOptions, listOptions)
+	}, r.retries, r.delay)
+	return
+}
+
 func (r *clientWithRetry) ListPods(ctx context.Context, namespace string, listOptions metav1.ListOptions) (*corev1.PodList, error) {
 	return clients.RequestWithRetry[*corev1.PodList](func() (*corev1.PodList, error) {
 		return r.CoreV1().Pods(namespace).List(ctx, listOptions)
