@@ -533,10 +533,14 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string,
 			"deploymentName", deploymentName)
 	}
 
-	// When a custom grace period is set (e.g. project deletion), delete pods explicitly
-	// so the overridden GracePeriodSeconds applies to actual pod termination.
-	// Deployment cascade does not propagate GracePeriodSeconds to pods.
+	// When a custom grace period is set (e.g. project deletion), delete ReplicaSets and pods
+	// explicitly so the overridden GracePeriodSeconds applies to actual pod termination.
+	// Deployment cascade does not propagate GracePeriodSeconds to pods, and the ReplicaSet
+	// must be removed first to prevent it from recreating pods we delete.
 	if deleteOptions.GracePeriodSeconds != nil {
+		if err := lc.deleteFunctionReplicaSets(ctx, name, namespace); err != nil {
+			return errors.Wrap(err, "Failed to delete function replica sets")
+		}
 		if err := lc.deleteFunctionPods(ctx, name, namespace, deleteOptions); err != nil {
 			return errors.Wrap(err, "Failed to delete function pods")
 		}
@@ -2791,6 +2795,19 @@ func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio
 }
 
 // deleteFunctionSecrets deletes the function's secrets
+func (lc *lazyClient) deleteFunctionReplicaSets(ctx context.Context, functionName, namespace string) error {
+	lc.logger.DebugWithCtx(ctx, "Deleting function replica sets", "functionName", functionName)
+	if err := lc.kubeClientSet.DeleteCollectionReplicaSets(ctx,
+		namespace,
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		}); err != nil {
+		return errors.Wrapf(err, "Failed to delete replica sets for function %s", functionName)
+	}
+	return nil
+}
+
 func (lc *lazyClient) deleteFunctionPods(ctx context.Context, functionName, namespace string, deleteOptions metav1.DeleteOptions) error {
 	lc.logger.DebugWithCtx(ctx, "Deleting function pods",
 		"functionName", functionName,

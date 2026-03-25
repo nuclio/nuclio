@@ -103,6 +103,11 @@ type Client interface {
 	// DeleteDeployment deletes a Deployment.
 	DeleteDeployment(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error
 
+	// --- ReplicaSets ---
+
+	// DeleteCollectionReplicaSets deletes a collection of ReplicaSets in a namespace.
+	DeleteCollectionReplicaSets(ctx context.Context, namespace string, deleteOptions metav1.DeleteOptions, listOptions metav1.ListOptions) error
+
 	// --- Pods ---
 
 	// ListPods lists Pods in a namespace.
