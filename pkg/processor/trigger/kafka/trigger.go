@@ -210,36 +210,21 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 		k.Logger.WarnWith("Workers were marked for restart during cleanup, " +
 			"restarting workers to prevent potential zombie state")
 
-		var successfullyDrained map[string]struct{}
-		var err error
-
-		// we set a timeout for the drain operation during cleanup to prevent potential hanging during shutdown in case the workers are taking too long to drain
-		// this is a safety mechanism to prevent the function from hanging indefinitely during shutdown, which would lead to a zombie state
+		// we set a timeout for the drain operation during cleanup to prevent potential hanging
+		// in case the workers are taking too long to drain, which would lead to a zombie state
 		ctx, cancel := context.WithTimeout(k.ctx, 1*time.Second)
 		defer cancel()
 
-		// we attempt to drain them again just to avoid unnecessary restarts - if the drain is successful, we will get draining done immediately
-		// if not - we proceed with the restart
-		if successfullyDrained, err = k.Drain(ctx); err != nil {
-			k.Logger.WarnWith("Failed to drain workers during cleanup",
-				"err", err.Error())
+		// attempt to drain again to avoid unnecessary restarts — if workers already drained,
+		// they will respond immediately and won't appear in the not-drained list
+		notDrainedWorkerIds, err := k.Drain(ctx)
+		if err != nil {
+			k.Logger.WarnWith("Failed to drain all workers during cleanup",
+				"err", err.Error(),
+				"notDrainedWorkerIds", notDrainedWorkerIds)
 		}
-		for _, worker := range k.WorkerAllocator.GetObjects() {
-			workerID := strconv.Itoa(worker.GetIndex())
-			if _, ok := successfullyDrained[workerID]; ok {
-				k.Logger.DebugWith("Worker successfully drained, no need to restart",
-					"workerIndex", worker.GetIndex())
-				continue
-			}
 
-			k.Logger.DebugWith("Worker was not drained, restarting",
-				"workerIndex", worker.GetIndex())
-			if err := worker.Restart(); err != nil {
-				k.Logger.WarnWith("Failed to restart worker during cleanup",
-					"workerIndex", worker.GetIndex(),
-					"err", err.Error())
-			}
-		}
+		k.restartWorkersByIds(notDrainedWorkerIds)
 	}
 	// reset the flag to prevent unnecessary worker restarts during normal rebalances
 	k.restartWorkersOnCleanup.Store(false)
@@ -416,9 +401,11 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
 			// runs in parallel for each partition, and we want to make sure that we only
 			// drain the workers once.
-			if _, err := k.Drain(drainingContext); err != nil {
-				k.Logger.DebugWith("Failed to signal worker draining",
+			notDrainedWorkers, err := k.Drain(drainingContext)
+			if err != nil {
+				k.Logger.DebugWith("Failed to drain all workers during rebalance",
 					"err", err.Error(),
+					"notDrainedWorkers", len(notDrainedWorkers),
 					"partition", claim.Partition())
 			}
 		})
@@ -508,6 +495,23 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 	k.Logger.InfoWith("Event submitter stopped",
 		"topic", claim.Topic(),
 		"partition", claim.Partition())
+}
+
+func (k *kafka) restartWorkersByIds(workerIds map[string]struct{}) {
+	for _, worker := range k.WorkerAllocator.GetObjects() {
+		workerID := strconv.Itoa(worker.GetIndex())
+		if _, shouldRestart := workerIds[workerID]; !shouldRestart {
+			continue
+		}
+
+		k.Logger.WarnWith("Restarting worker that was not drained",
+			"workerIndex", worker.GetIndex())
+		if err := worker.Restart(); err != nil {
+			k.Logger.WarnWith("Failed to restart worker during cleanup",
+				"workerIndex", worker.GetIndex(),
+				"err", err.Error())
+		}
+	}
 }
 
 func (k *kafka) newKafkaConfig() (*sarama.Config, error) {

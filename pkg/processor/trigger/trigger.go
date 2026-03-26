@@ -19,6 +19,7 @@ package trigger
 import (
 	"context"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -83,8 +84,9 @@ type Trigger interface {
 	// GetProjectName returns project name
 	GetProjectName() string
 
-	// Drain drains all workers and returns the unique IDs of workers that completed draining.
-	// On context cancellation/timeout, still returns the IDs of workers that drained so far alongside the error.
+	// Drain signals all workers to drain and waits for completion.
+	// Returns the IDs of workers that did NOT complete draining within the context deadline.
+	// On success (all drained), returns nil, nil.
 	Drain(ctx context.Context) (map[string]struct{}, error)
 
 	// SignalWorkersToContinue signal all workers to continue processing
@@ -388,7 +390,8 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 }
 
 // Drain sends a signal to all workers and waits for them to finish draining their events.
-// Returns the unique IDs of workers that completed draining.
+// Returns the IDs of workers that did NOT complete draining within the context deadline.
+// On success (all drained), returns nil, nil.
 func (at *AbstractTrigger) Drain(ctx context.Context) (map[string]struct{}, error) {
 	drainingDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
 
@@ -407,10 +410,10 @@ func (at *AbstractTrigger) Drain(ctx context.Context) (map[string]struct{}, erro
 
 	workers := at.WorkerAllocator.GetObjects()
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
-		return nil, errors.Wrap(err, "Failed to signal all workers to drain events")
+		return at.resolveAllWorkerIds(workers), errors.Wrap(err, "Failed to signal all workers to drain events")
 	}
 
-	uniqueWorkerIds := make(map[string]struct{})
+	drainedWorkerIds := make(map[string]struct{})
 
 	for {
 		select {
@@ -420,15 +423,20 @@ func (at *AbstractTrigger) Drain(ctx context.Context) (map[string]struct{}, erro
 				at.Logger.WarnWith("Failed decoding control message attributes", "err", err.Error())
 				continue
 			}
-			uniqueWorkerIds[drainAttributes.WorkerId] = struct{}{}
-			if len(uniqueWorkerIds) == len(workers) {
+			drainedWorkerIds[drainAttributes.WorkerId] = struct{}{}
+			if len(drainedWorkerIds) == len(workers) {
 				at.Logger.DebugWith("All workers finished draining",
 					"numWorkers", len(workers))
-				return uniqueWorkerIds, nil
+				return nil, nil
 			}
 		case <-ctx.Done():
+			notDrainedWorkerIds := at.resolveNotDrainedWorkerIds(workers, drainedWorkerIds)
+			at.Logger.WarnWith("Drain timed out, not all workers finished draining",
+				"drainedWorkers", len(drainedWorkerIds),
+				"notDrainedWorkerIds", notDrainedWorkerIds,
+				"totalWorkers", len(workers))
 
-			return uniqueWorkerIds, errors.Wrap(ctx.Err(), "Failed waiting for all workers to drain")
+			return notDrainedWorkerIds, errors.Wrap(ctx.Err(), "Failed waiting for all workers to drain")
 		}
 	}
 }
@@ -475,6 +483,27 @@ func (at *AbstractTrigger) IsBusy() bool {
 	}
 
 	return false
+}
+
+func (at *AbstractTrigger) resolveAllWorkerIds(workers []eventprocessor.EventProcessor) map[string]struct{} {
+	workerIds := make(map[string]struct{}, len(workers))
+	for _, worker := range workers {
+		workerIds[strconv.Itoa(worker.GetIndex())] = struct{}{}
+	}
+	return workerIds
+}
+
+func (at *AbstractTrigger) resolveNotDrainedWorkerIds(workers []eventprocessor.EventProcessor,
+	drainedWorkerIds map[string]struct{}) map[string]struct{} {
+
+	notDrainedWorkerIds := make(map[string]struct{})
+	for _, worker := range workers {
+		workerID := strconv.Itoa(worker.GetIndex())
+		if _, drained := drainedWorkerIds[workerID]; !drained {
+			notDrainedWorkerIds[workerID] = struct{}{}
+		}
+	}
+	return notDrainedWorkerIds
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance eventprocessor.EventProcessor) (nuclio.Event, error) {
