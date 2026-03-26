@@ -401,11 +401,11 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
 			// runs in parallel for each partition, and we want to make sure that we only
 			// drain the workers once.
-			notDrainedWorkers, err := k.Drain(drainingContext)
+			notDrainedWorkerIds, err := k.Drain(drainingContext)
 			if err != nil {
 				k.Logger.DebugWith("Failed to drain all workers during rebalance",
 					"err", err.Error(),
-					"notDrainedWorkers", len(notDrainedWorkers),
+					"notDrainedWorkerIds", notDrainedWorkerIds,
 					"partition", claim.Partition())
 			}
 		})
