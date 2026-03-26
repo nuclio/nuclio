@@ -20,7 +20,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -57,6 +59,7 @@ type kafka struct {
 	stopConsumptionChan      chan struct{}
 	partitionWorkerAllocator partitionworker.Allocator
 	ctx                      context.Context
+	restartWorkersOnCleanup  atomic.Bool
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -124,6 +127,9 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 	}
 
 	k.shutdownSignal = make(chan struct{}, 1)
+
+	// set restartWorkersOnCleanup to false at the start of each session, to prevent unnecessary worker restarts during normal rebalances
+	k.restartWorkersOnCleanup.Store(false)
 
 	// sendSignalCounter is a counter to track how many times a processor attempted to send a SIGCONT to the wrapper
 	// If the counter exceeds 3, we panic and restart the function to prevent entering a zombie state
@@ -199,6 +205,44 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 	if err := k.partitionWorkerAllocator.Stop(); err != nil {
 		return errors.Wrap(err, "Failed to stop partition worker allocator")
 	}
+
+	if k.restartWorkersOnCleanup.Load() {
+		k.Logger.WarnWith("Workers were marked for restart during cleanup, " +
+			"restarting workers to prevent potential zombie state")
+
+		var successfullyDrained map[string]struct{}
+		var err error
+
+		// we set a timeout for the drain operation during cleanup to prevent potential hanging during shutdown in case the workers are taking too long to drain
+		// this is a safety mechanism to prevent the function from hanging indefinitely during shutdown, which would lead to a zombie state
+		ctx, cancel := context.WithTimeout(k.ctx, 1*time.Second)
+		defer cancel()
+
+		// we attempt to drain them again just to avoid unnecessary restarts - if the drain is successful, we will get draining done immediately
+		// if not - we proceed with the restart
+		if successfullyDrained, err = k.Drain(ctx); err != nil {
+			k.Logger.WarnWith("Failed to drain workers during cleanup",
+				"err", err.Error())
+		}
+		for _, worker := range k.WorkerAllocator.GetObjects() {
+			workerID := strconv.Itoa(worker.GetIndex())
+			if _, ok := successfullyDrained[workerID]; ok {
+				k.Logger.DebugWith("Worker successfully drained, no need to restart",
+					"workerIndex", worker.GetIndex())
+				continue
+			}
+
+			k.Logger.DebugWith("Worker was not drained, restarting",
+				"workerIndex", worker.GetIndex())
+			if err := worker.Restart(); err != nil {
+				k.Logger.WarnWith("Failed to restart worker during cleanup",
+					"workerIndex", worker.GetIndex(),
+					"err", err.Error())
+			}
+		}
+	}
+	// reset the flag to prevent unnecessary worker restarts during normal rebalances
+	k.restartWorkersOnCleanup.Store(false)
 
 	k.Logger.InfoWith("Ending consumer session",
 		"claims", session.Claims(),
@@ -372,7 +416,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
 			// runs in parallel for each partition, and we want to make sure that we only
 			// drain the workers once.
-			if err := k.Drain(drainingContext); err != nil {
+			if _, err := k.Drain(drainingContext); err != nil {
 				k.Logger.DebugWith("Failed to signal worker draining",
 					"err", err.Error(),
 					"partition", claim.Partition())
@@ -413,13 +457,8 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 		// the rebalance timeout occurred while we waited for the handler,
 		// which means that the handler is taking too long to process events or to drain
 		// we want to cancel event handling to unblock the rebalance and prevent a potential zombie state
-		if err := k.cancelEventHandling(workerInstance, claim); err != nil {
-			k.Logger.DebugWith("Failed to cancel event handling",
-				"err", err.Error(),
-				"partition", claim.Partition())
-
-			panic("Failed to cancel event handling")
-		}
+		// in order to do that, we mark the worker for restart
+		k.restartWorkersOnCleanup.Store(true)
 	}
 }
 
@@ -469,18 +508,6 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 	k.Logger.InfoWith("Event submitter stopped",
 		"topic", claim.Topic(),
 		"partition", claim.Partition())
-}
-
-func (k *kafka) cancelEventHandling(workerInstance eventprocessor.EventProcessor,
-	claim sarama.ConsumerGroupClaim) error {
-	if workerInstance.SupportsRestart() {
-		k.Logger.WarnWith("Cancelling event handling",
-			"topic", claim.Topic(),
-			"partition", claim.Partition())
-		return workerInstance.Restart()
-	}
-
-	return errors.New("Worker doesn't support restart")
 }
 
 func (k *kafka) newKafkaConfig() (*sarama.Config, error) {

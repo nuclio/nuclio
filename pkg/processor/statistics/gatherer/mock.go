@@ -83,8 +83,8 @@ func (mt *mockTrigger) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
-func (mt *mockTrigger) Drain(ctx context.Context) error {
-	return nil
+func (mt *mockTrigger) Drain(ctx context.Context) (map[string]struct{}, error) {
+	return nil, nil
 }
 
 func (mt *mockTrigger) SignalWorkersToContinue() error {

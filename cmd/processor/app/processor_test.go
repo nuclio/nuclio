@@ -233,9 +233,9 @@ func (t *testTrigger) GetProjectName() string {
 	return ""
 }
 
-func (t *testTrigger) Drain(ctx context.Context) error {
+func (t *testTrigger) Drain(ctx context.Context) (map[string]struct{}, error) {
 	t.Called(ctx)
-	return nil
+	return nil, nil
 }
 
 func (t *testTrigger) SignalWorkersToTerminate() error {

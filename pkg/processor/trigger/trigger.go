@@ -83,8 +83,9 @@ type Trigger interface {
 	// GetProjectName returns project name
 	GetProjectName() string
 
-	// Drain drains all workers
-	Drain(ctx context.Context) error
+	// Drain drains all workers and returns the unique IDs of workers that completed draining.
+	// On context cancellation/timeout, still returns the IDs of workers that drained so far alongside the error.
+	Drain(ctx context.Context) (map[string]struct{}, error)
 
 	// SignalWorkersToContinue signal all workers to continue processing
 	SignalWorkersToContinue() error
@@ -386,13 +387,14 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	return nil
 }
 
-// Drain sends a signal to all workers and waits for them to finish draining their events
-func (at *AbstractTrigger) Drain(ctx context.Context) error {
+// Drain sends a signal to all workers and waits for them to finish draining their events.
+// Returns the unique IDs of workers that completed draining.
+func (at *AbstractTrigger) Drain(ctx context.Context) (map[string]struct{}, error) {
 	drainingDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
 
 	// subscribe to worker draining complete control messages to know when workers are done draining and we can proceed with rebalance
 	if err := at.SubscribeToControlMessageKind(controlcommunication.DrainMessageKind, drainingDoneControlMessageChan); err != nil {
-		return errors.Wrap(err, "Failed to subscribe to drain control messages")
+		return nil, errors.Wrap(err, "Failed to subscribe to drain control messages")
 	}
 
 	// make sure to unsubscribe and close channel
@@ -405,7 +407,7 @@ func (at *AbstractTrigger) Drain(ctx context.Context) error {
 
 	workers := at.WorkerAllocator.GetObjects()
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
-		return errors.Wrap(err, "Failed to signal all workers to drain events")
+		return nil, errors.Wrap(err, "Failed to signal all workers to drain events")
 	}
 
 	uniqueWorkerIds := make(map[string]struct{})
@@ -422,10 +424,11 @@ func (at *AbstractTrigger) Drain(ctx context.Context) error {
 			if len(uniqueWorkerIds) == len(workers) {
 				at.Logger.DebugWith("All workers finished draining",
 					"numWorkers", len(workers))
-				return nil
+				return uniqueWorkerIds, nil
 			}
 		case <-ctx.Done():
-			return errors.New("Context cancelled while waiting for workers to drain")
+
+			return uniqueWorkerIds, errors.Wrap(ctx.Err(), "Failed waiting for all workers to drain")
 		}
 	}
 }
