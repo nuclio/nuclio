@@ -21,6 +21,7 @@ _term() {
 
 trap _term TERM
 trap _term INT
+trap _term QUIT
 
 echo "Running in parallel"
 
