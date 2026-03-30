@@ -1717,10 +1717,36 @@ func (p *Platform) enrichContainerSpec(container *v1.Container, functionConfig *
 	}
 	container.Env = common.MergeEnvSlices(container.Env, functionConfig.Spec.Env)
 
+	// enrich envFrom - propagate function-level bulk secret/configmap mounts to the container,
+	// skipping entries already present to avoid duplicates.
+	// This ensures init containers and sidecars receive the same envFrom sources as the main processor container
+	existingEnvFrom := make(map[string]bool)
+	for _, e := range container.EnvFrom {
+		existingEnvFrom[envFromKey(e)] = true
+	}
+	for _, e := range functionConfig.Spec.EnvFrom {
+		if !existingEnvFrom[envFromKey(e)] {
+			container.EnvFrom = append(container.EnvFrom, e)
+		}
+	}
+
 	// image pull policy
 	if container.ImagePullPolicy == "" {
 		container.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
 	}
+}
+
+// envFromKey returns a unique string key for an EnvFromSource based on its source type (secret or configmap),
+// name, and optional prefix.
+func envFromKey(e v1.EnvFromSource) string {
+	prefix := e.Prefix
+	if e.SecretRef != nil {
+		return "secret:" + prefix + ":" + e.SecretRef.Name
+	}
+	if e.ConfigMapRef != nil {
+		return "configmap:" + prefix + ":" + e.ConfigMapRef.Name
+	}
+	return ""
 }
 
 func (p *Platform) clearCallStack(message string) string {
