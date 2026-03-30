@@ -1,0 +1,37 @@
+{{- if .Values.gateway.enabled }}
+{{- include "nuclio.requireGatewayAPICRDs" . }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "nuclio.gatewayName" . }}
+  labels:
+    app: {{ template "nuclio.name" . }}
+    release: {{ .Release.Name }}
+    nuclio.io/app: dashboard
+    nuclio.io/class: gateway
+spec:
+  gatewayClassName: {{ .Values.gateway.gatewayClassName | quote }}
+  listeners:
+    - name: http
+      port: {{ .Values.gateway.listenerPort }}
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- range .Values.gateway.tls }}
+    - name: https-{{ .secretName }}
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: {{ .secretName }}
+      {{- with .hosts }}
+      hostname: {{ first . | quote }}
+      {{- end }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- end }}
+{{- end }}

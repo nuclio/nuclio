@@ -25,6 +25,17 @@ offline: false
 #   - name: my-registry-secret
 imagePullSecrets: []
 
+# Gateway API: creates a Gateway resource for standalone installations.
+# Requires Gateway API CRDs and a GatewayClass in the cluster (e.g. Traefik).
+gateway:
+  enabled: false
+  gatewayClassName: traefik
+  listenerPort: 80
+  tls: []
+  #  - secretName: nuclio-tls
+  #    hosts:
+  #      - nuclio.local
+
 # Controller settings
 controller:
   enabled: true
@@ -101,6 +112,7 @@ controller:
 dashboard:
   enabled: true
   replicas: 1
+  servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
     tag: 1.15.23-amd64
@@ -208,6 +220,15 @@ dashboard:
     #    hosts:
     #      - nuclio.local
     ingressClassName: ""
+
+  # Gateway API HTTPRoute
+  httpRoute:
+    enabled: false
+    hosts:
+      - nuclio.local
+    # When gateway.enabled is false, parentRefs must be set to an existing Gateway
+    parentRefs: []
+    #   - name: my-gateway
 
   authConfig:
 
@@ -543,15 +564,15 @@ platform: {}
 #    tokenExpirationSeconds: 600
 #    tokenRefreshRatio: 0.75
 #
-#  scaleToZero:
-#      scalerInterval: 1m
-#      metricsClient:
-#        kind: prometheusClient
-#        url: http://monitoring-prometheus-server
-#        templates:
-#          - name: "nuclio_processor_handled_events_total"
-#            template: |-
-#              add_here_your_prometheus_query
+# scaleToZero:
+#     scalerInterval: 1m
+#     metricsClient:
+#       kind: prometheusClient
+#       url: http://monitoring-prometheus-server
+#       templates:
+#         - name: "nuclio_processor_handled_events_total"
+#           template: |-
+#             add_here_your_prometheus_query
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
