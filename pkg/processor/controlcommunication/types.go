@@ -28,7 +28,6 @@ type ControlMessageKind string
 const (
 	StreamMessageAckKind ControlMessageKind = "streamMessageAck"
 	LogMessageKind       ControlMessageKind = "log"
-	DrainMessageKind     ControlMessageKind = "drain"
 )
 
 // TODO: move to nuclio-sdk-go
@@ -41,10 +40,6 @@ type ControlMessageAttributesExplicitAck struct {
 	Topic     string `json:"topic"`
 	Partition int32  `json:"partition"`
 	Offset    int64  `json:"offset"`
-}
-
-type ControlMessageAttributesDrain struct {
-	WorkerId string `json:"workerId"`
 }
 
 type ControlConsumer struct {

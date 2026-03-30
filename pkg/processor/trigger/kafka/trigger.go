@@ -339,9 +339,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	readyForRebalanceChan := make(chan bool)
 	defer close(readyForRebalanceChan)
 
-	drainingContext, cancel := context.WithTimeout(k.ctx, k.configuration.maxWaitHandlerDuringRebalance)
-	defer cancel()
-
 	go func() {
 		defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
 			k.Logger,
@@ -352,7 +349,8 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			})
 		var wg sync.WaitGroup
 		if waitForHandler {
-			wg.Go(func() {
+			wg.Add(2)
+			go func() {
 				err := <-submittedEventInstance.done
 
 				// we successfully submitted the message to the handler. mark it
@@ -365,19 +363,23 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 					)
 				}
 				k.Logger.DebugWith("Handler done", "partition", claim.Partition())
-			})
+				wg.Done()
+			}()
+		} else {
+			wg.Add(1)
 		}
 
-		wg.Go(func() {
+		go func() {
 			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
 			// runs in parallel for each partition, and we want to make sure that we only
 			// drain the workers once.
-			if err := k.Drain(drainingContext); err != nil {
+			if err := k.SignalWorkersToDrain(); err != nil {
 				k.Logger.DebugWith("Failed to signal worker draining",
 					"err", err.Error(),
 					"partition", claim.Partition())
 			}
-		})
+			wg.Done()
+		}()
 
 		wg.Wait()
 		readyForRebalanceChan <- true
@@ -386,9 +388,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	// wait a for rebalance readiness or max timeout
 	select {
 	case <-readyForRebalanceChan:
-		if waitForHandler {
-			k.UpdateStatistics(true, 1)
-		}
 		if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
 			// if we are in explicitAck it means that runtime code sends control messages to processor
 			// sometimes draining happens too fast, so we don't have enough time to process ack control message
@@ -402,23 +401,22 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 		k.Logger.DebugWith("Handler done, rebalancing will commence",
 			"partition", claim.Partition())
 
-	case <-drainingContext.Done():
+	case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 		k.Logger.WarnWith("Timed out waiting for handler to complete",
 			"partition", claim.Partition())
 
-		if waitForHandler {
-			// mark this as a failure, metric-wise
-			k.UpdateStatistics(false, 1)
-		}
-		// the rebalance timeout occurred while we waited for the handler,
-		// which means that the handler is taking too long to process events or to drain
-		// we want to cancel event handling to unblock the rebalance and prevent a potential zombie state
-		if err := k.cancelEventHandling(workerInstance, claim); err != nil {
-			k.Logger.DebugWith("Failed to cancel event handling",
-				"err", err.Error(),
-				"partition", claim.Partition())
+		// mark this as a failure, metric-wise
+		k.UpdateStatistics(false, 1)
 
-			panic("Failed to cancel event handling")
+		if waitForHandler {
+			// the rebalance timeout occurred while we waited for the handler, cancel it and restart the worker
+			if err := k.cancelEventHandling(workerInstance, claim); err != nil {
+				k.Logger.DebugWith("Failed to cancel event handling",
+					"err", err.Error(),
+					"partition", claim.Partition())
+
+				panic("Failed to cancel event handling")
+			}
 		}
 	}
 }

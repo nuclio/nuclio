@@ -127,10 +127,14 @@ class Wrapper(AbstractWrapper):
 
             finally:
                 if self._is_drain_needed:
-                    await self._call_drain_handler()
+                    result = self._call_drain_handler()
+                    if asyncio.iscoroutine(result):
+                        await result
 
                 if self._is_termination_needed:
-                    await self._call_termination_handler()
+                    result = self._call_termination_handler()
+                    if asyncio.iscoroutine(result):
+                        await result
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:

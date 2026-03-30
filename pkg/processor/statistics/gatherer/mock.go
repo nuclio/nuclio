@@ -19,8 +19,6 @@ limitations under the License.
 package gatherer
 
 import (
-	"context"
-
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -83,7 +81,7 @@ func (mt *mockTrigger) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
-func (mt *mockTrigger) Drain(ctx context.Context) error {
+func (mt *mockTrigger) SignalWorkersToDrain() error {
 	return nil
 }
 
