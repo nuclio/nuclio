@@ -510,7 +510,11 @@ func (m *Manager) compileIguazioAuthAnnotations() (map[string]string, error) {
 	// login. The _oauth2_proxy cookie has Secure set, so the browser omits it on HTTP
 	// requests, causing the auth check to fail and the OAuth2 flow to loop indefinitely.
 	// This matches the pattern already used by compileDexAuthAnnotations.
-	signinURL = fmt.Sprintf("%s?rd=https://$host$escaped_request_uri", signinURL)
+	separator := "?"
+	if strings.Contains(signinURL, "?") {
+		separator = "&"
+	}
+	signinURL = fmt.Sprintf("%s%srd=https://$host$escaped_request_uri", signinURL, separator)
 
 	iguazioAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
 	iguazioAnnotations[annotations.NginxAuthSignIn] = signinURL
