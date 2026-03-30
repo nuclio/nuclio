@@ -627,6 +627,94 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 	}
 }
 
+func (suite *FunctionKubePlatformTestSuite) TestEnrichContainerSpecEnvFrom() {
+	s3Secret := v1.EnvFromSource{
+		SecretRef: &v1.SecretEnvSource{
+			LocalObjectReference: v1.LocalObjectReference{Name: "s3-credentials"},
+		},
+	}
+	otherSecret := v1.EnvFromSource{
+		SecretRef: &v1.SecretEnvSource{
+			LocalObjectReference: v1.LocalObjectReference{Name: "other-secret"},
+		},
+	}
+
+	for _, testCase := range []struct {
+		name             string
+		containerEnvFrom []v1.EnvFromSource
+		functionEnvFrom  []v1.EnvFromSource
+		expectedEnvFrom  []v1.EnvFromSource
+	}{
+		{
+			name:             "function-envFrom-propagated-to-empty-container",
+			containerEnvFrom: nil,
+			functionEnvFrom:  []v1.EnvFromSource{s3Secret},
+			expectedEnvFrom:  []v1.EnvFromSource{s3Secret},
+		},
+		{
+			name:             "function-envFrom-appended-to-existing-container-envFrom",
+			containerEnvFrom: []v1.EnvFromSource{otherSecret},
+			functionEnvFrom:  []v1.EnvFromSource{s3Secret},
+			expectedEnvFrom:  []v1.EnvFromSource{otherSecret, s3Secret},
+		},
+		{
+			name:             "duplicate-envFrom-not-added",
+			containerEnvFrom: []v1.EnvFromSource{s3Secret},
+			functionEnvFrom:  []v1.EnvFromSource{s3Secret},
+			expectedEnvFrom:  []v1.EnvFromSource{s3Secret},
+		},
+		{
+			name:             "no-function-envFrom-container-unchanged",
+			containerEnvFrom: []v1.EnvFromSource{otherSecret},
+			functionEnvFrom:  nil,
+			expectedEnvFrom:  []v1.EnvFromSource{otherSecret},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					EnvFrom: testCase.functionEnvFrom,
+				},
+			}
+			container := &v1.Container{
+				EnvFrom: testCase.containerEnvFrom,
+			}
+
+			suite.platform.enrichContainerSpec(container, functionConfig)
+
+			suite.Require().Equal(testCase.expectedEnvFrom, container.EnvFrom)
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestEnrichInitContainersAndSidecarsEnvFrom() {
+	s3Secret := v1.EnvFromSource{
+		SecretRef: &v1.SecretEnvSource{
+			LocalObjectReference: v1.LocalObjectReference{Name: "s3-credentials"},
+		},
+	}
+
+	functionConfig := &functionconfig.Config{
+		Spec: functionconfig.Spec{
+			EnvFrom: []v1.EnvFromSource{s3Secret},
+			InitContainers: []*v1.Container{
+				{Name: "mlrun-source-loader"},
+			},
+			Sidecars: []*v1.Container{
+				{Name: "app-sidecar"},
+			},
+		},
+	}
+
+	suite.platform.enrichInitContainersSpec(functionConfig)
+	suite.platform.enrichSidecarsSpec(functionConfig)
+
+	suite.Require().Equal([]v1.EnvFromSource{s3Secret}, functionConfig.Spec.InitContainers[0].EnvFrom,
+		"init container should receive envFrom from function spec")
+	suite.Require().Equal([]v1.EnvFromSource{s3Secret}, functionConfig.Spec.Sidecars[0].EnvFrom,
+		"sidecar should receive envFrom from function spec")
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestValidateProbesSpec() {
 	for _, testCase := range []struct {
 		name                 string

@@ -1717,6 +1717,11 @@ func (p *Platform) enrichContainerSpec(container *v1.Container, functionConfig *
 	}
 	container.Env = common.MergeEnvSlices(container.Env, functionConfig.Spec.Env)
 
+	// enrich envFrom - propagate function-level bulk secret/configmap mounts to the container,
+	// skipping entries already present to avoid duplicates.
+	// This ensures init containers and sidecars receive the same envFrom sources as the main processor container
+	container.EnvFrom = common.MergeEnvFromSlices(container.EnvFrom, functionConfig.Spec.EnvFrom)
+
 	// image pull policy
 	if container.ImagePullPolicy == "" {
 		container.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
