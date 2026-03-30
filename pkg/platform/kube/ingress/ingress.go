@@ -504,6 +504,14 @@ func (m *Manager) compileIguazioAuthAnnotations() (map[string]string, error) {
 		return nil, errors.New("Iguazio login URL is not configured")
 	}
 
+	// Append the rd parameter to force an HTTPS post-callback redirect.
+	// Without this, nginx uses the original request scheme in the rd URL. If the
+	// browser navigated over HTTP, oauth2-proxy redirects back to http://$host after
+	// login. The _oauth2_proxy cookie has Secure set, so the browser omits it on HTTP
+	// requests, causing the auth check to fail and the OAuth2 flow to loop indefinitely.
+	// This matches the pattern already used by compileDexAuthAnnotations.
+	signinURL = fmt.Sprintf("%s?rd=https://$host$escaped_request_uri", signinURL)
+
 	iguazioAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()
 	iguazioAnnotations[annotations.NginxAuthSignIn] = signinURL
 	iguazioAnnotations[annotations.NginxAuthURL] = authURL

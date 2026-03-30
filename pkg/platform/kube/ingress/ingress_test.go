@@ -57,7 +57,7 @@ func (suite *IngressTestSuite) TestCompileIguazioAuthAnnotations() {
 			},
 			expectedAnnotations: map[string]string{
 				annotations.NginxAuthURL:    "test-auth-url",
-				annotations.NginxAuthSignIn: "test-sign-in-url",
+				annotations.NginxAuthSignIn: "test-sign-in-url?rd=https://$host$escaped_request_uri",
 			},
 		},
 		{
