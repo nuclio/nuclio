@@ -100,4 +100,7 @@ RUN apk --update --no-cache add \
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
+# Override nginx base image's STOPSIGNAL (SIGQUIT) with SIGTERM for faster container shutdown
+STOPSIGNAL SIGTERM
+
 CMD ["sh",  "-c", "./runner.sh"]
