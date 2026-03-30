@@ -151,18 +151,21 @@ def handler(context, event):
 	})
 }
 
+// compareAnnotations verifies that the ingress annotations contain the expected Iguazio auth values.
+// The sign-in annotation is expected to have ?rd=https://$host$escaped_request_uri appended.
 func (suite *DeployAPIGatewayTestSuite) compareAnnotations(
 	ingressAnnotations, iguazioAuthAnnotations map[string]string,
 	testSignInUrl, testAuthUrl string,
 ) {
+	expectedSignInAnnotation := testSignInUrl + "?rd=https://$host$escaped_request_uri"
 	for key, value := range iguazioAuthAnnotations {
 		switch key {
 		case annotations.NginxAuthSignIn:
-			suite.Require().Equal(ingressAnnotations[key], testSignInUrl)
+			suite.Require().Equal(expectedSignInAnnotation, ingressAnnotations[key])
 		case annotations.NginxAuthURL:
-			suite.Require().Equal(ingressAnnotations[key], testAuthUrl)
+			suite.Require().Equal(testAuthUrl, ingressAnnotations[key])
 		default:
-			suite.Require().Equal(ingressAnnotations[key], value)
+			suite.Require().Equal(value, ingressAnnotations[key])
 		}
 	}
 }
