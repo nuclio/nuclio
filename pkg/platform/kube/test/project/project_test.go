@@ -20,6 +20,7 @@ package project
 
 import (
 	"encoding/base64"
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ProjectTestSuite struct {
@@ -360,27 +362,59 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 }
 
 func (suite *ProjectTestSuite) TestDeleteCascadingWithTerminationCallback() {
-	projectName := "project-with-termination-callback"
-	functionName := "func-with-long-termination"
-
-	projectConfig := platform.ProjectConfig{
-		Meta: platform.ProjectMeta{
-			Name:      projectName,
-			Namespace: suite.Namespace,
+	for _, testCase := range []struct {
+		name           string
+		triggers       map[string]functionconfig.Trigger
+		hasCronTrigger bool
+	}{
+		{
+			name: "HTTPOnly",
+			triggers: map[string]functionconfig.Trigger{
+				"http": {
+					Kind:                     "http",
+					WorkerTerminationTimeout: "60s",
+				},
+			},
 		},
-	}
-	err := suite.Platform.CreateProject(suite.Ctx, &platform.CreateProjectOptions{
-		ProjectConfig: &projectConfig,
-	})
-	suite.Require().NoError(err, "Failed to create project")
+		{
+			name: "WithCronTrigger",
+			triggers: map[string]functionconfig.Trigger{
+				"http": {
+					Kind:                     "http",
+					WorkerTerminationTimeout: "60s",
+				},
+				"cronTrigger": {
+					Kind: "cron",
+					Attributes: map[string]interface{}{
+						"interval": "10s",
+					},
+				},
+			},
+			hasCronTrigger: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			projectName := "project-with-termination-callback"
+			functionName := "func-with-long-termination"
 
-	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
+			projectConfig := platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Name:      projectName,
+					Namespace: suite.Namespace,
+				},
+			}
+			err := suite.Platform.CreateProject(suite.Ctx, &platform.CreateProjectOptions{
+				ProjectConfig: &projectConfig,
+			})
+			suite.Require().NoError(err, "Failed to create project")
 
-	// the termination callback sleeps for 30s, simulating a long-running drain;
-	// with the default 30s pod terminationGracePeriodSeconds, this would take the full 30s.
-	// our reduced grace period on project removal should cut this short.
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+			createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+			createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
+
+			// the termination callback sleeps for 30s, simulating a long-running drain;
+			// with the default 30s pod terminationGracePeriodSeconds, this would take the full 30s.
+			// our reduced grace period on project removal should cut this short.
+			createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
 def handler(context, event):
     return "hello world"
 
@@ -392,74 +426,89 @@ def init_context(context):
     context.platform.set_termination_callback(termination_callback)
 `))
 
-	// raise workerTerminationTimeout so the processor doesn't kill the wrapper before
-	// the 30s sleep; the pod-level grace period is what should terminate it early.
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"http": {
-			Kind:                     "http",
-			WorkerTerminationTimeout: "60s",
-		},
-	}
+			// raise workerTerminationTimeout so the processor doesn't kill the wrapper before
+			// the 30s sleep; the pod-level grace period is what should terminate it early.
+			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		suite.Require().NotEmpty(deployResult)
+			suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+				suite.Require().NotEmpty(deployResult)
 
-		pods := suite.GetFunctionPods(functionName)
-		suite.Require().NotEmpty(pods, "Function pods should exist")
-		firstPod := pods[0]
+				pods := suite.GetFunctionPods(functionName)
+				suite.Require().NotEmpty(pods, "Function pods should exist")
+				firstPod := pods[0]
 
-		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name,
-			"Processor started", &v1.PodLogOptions{}, 30*time.Second)
-		suite.Require().NoError(err, "Processor did not start in time")
+				err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name,
+					"Processor started", &v1.PodLogOptions{}, 30*time.Second)
+				suite.Require().NoError(err, "Processor did not start in time")
 
-		// delete the project CR; this returns immediately
-		err = suite.Platform.DeleteProject(suite.Ctx, &platform.DeleteProjectOptions{
-			Meta: platform.ProjectMeta{
-				Name:      projectName,
-				Namespace: suite.Namespace,
-			},
-			Strategy: platform.DeleteProjectStrategyCascading,
-		})
-		suite.Require().NoError(err, "Failed to delete project")
-
-		deletionStart := time.Now()
-
-		err = common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
-			pods := suite.GetFunctionPods(functionName)
-			activePods := 0
-			for _, pod := range pods {
-				if pod.DeletionTimestamp == nil {
-					activePods++
+				// for cron trigger cases, verify CronJobs were created
+				if testCase.hasCronTrigger {
+					cronJobs, cronErr := suite.KubeClientSet.BatchV1().CronJobs(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+						LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+					})
+					suite.Require().NoError(cronErr, "Failed to list CronJobs")
+					suite.Require().NotEmpty(cronJobs.Items, "CronJobs should exist before project deletion")
 				}
-			}
-			suite.Logger.DebugWith("Waiting for function pods to be removed",
-				"totalPods", len(pods),
-				"activePods", activePods)
-			return activePods == 0
+
+				// delete the project CR; this returns immediately
+				err = suite.Platform.DeleteProject(suite.Ctx, &platform.DeleteProjectOptions{
+					Meta: platform.ProjectMeta{
+						Name:      projectName,
+						Namespace: suite.Namespace,
+					},
+					Strategy: platform.DeleteProjectStrategyCascading,
+				})
+				suite.Require().NoError(err, "Failed to delete project")
+
+				deletionStart := time.Now()
+
+				err = common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+					pods := suite.GetFunctionPods(functionName)
+					activePods := 0
+					for _, pod := range pods {
+						if pod.DeletionTimestamp == nil {
+							activePods++
+						}
+					}
+					suite.Logger.DebugWith("Waiting for function pods to be removed",
+						"totalPods", len(pods),
+						"activePods", activePods)
+					return activePods == 0
+				})
+				suite.Require().NoError(err, "Function pods were not removed in time")
+
+				deletionDuration := time.Since(deletionStart)
+				suite.Logger.InfoWith("Function pods removed after project deletion",
+					"duration", deletionDuration.String())
+
+				suite.Require().Less(deletionDuration.Seconds(), float64(20),
+					"Function pod removal took longer than 20s; grace period override may not be working")
+
+				// verify CronJobs are cleaned up after project deletion
+				if testCase.hasCronTrigger {
+					cronJobs, cronErr := suite.KubeClientSet.BatchV1().CronJobs(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+						LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+					})
+					suite.Require().NoError(cronErr, "Failed to list CronJobs after project deletion")
+					suite.Require().Empty(cronJobs.Items, "CronJobs should be removed after project deletion")
+				}
+
+				return true
+			})
+
+			// cleanup: ensure project and function are gone (in case test fails mid-way)
+			defer suite.Platform.DeleteProject(suite.Ctx, &platform.DeleteProjectOptions{ // nolint: errcheck
+				Meta: platform.ProjectMeta{
+					Name:      projectName,
+					Namespace: suite.Namespace,
+				},
+				Strategy: platform.DeleteProjectStrategyCascading,
+			})
+			defer suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
+				FunctionConfig: createFunctionOptions.FunctionConfig,
+			})
 		})
-		suite.Require().NoError(err, "Function pods were not removed in time")
-
-		deletionDuration := time.Since(deletionStart)
-		suite.Logger.InfoWith("Function pods removed after project deletion",
-			"duration", deletionDuration.String())
-
-		suite.Require().Less(deletionDuration.Seconds(), float64(20),
-			"Function pod removal took longer than 20s; grace period override may not be working")
-
-		return true
-	})
-
-	// cleanup: ensure project and function are gone (in case test fails mid-way)
-	defer suite.Platform.DeleteProject(suite.Ctx, &platform.DeleteProjectOptions{ // nolint: errcheck
-		Meta: platform.ProjectMeta{
-			Name:      projectName,
-			Namespace: suite.Namespace,
-		},
-		Strategy: platform.DeleteProjectStrategyCascading,
-	})
-	defer suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
+	}
 }
 
 func TestProjectTestSuite(t *testing.T) {
