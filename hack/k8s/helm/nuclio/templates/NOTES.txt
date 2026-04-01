@@ -6,7 +6,7 @@
 {{- end }}
 {{- if and .Values.dashboard.enabled .Values.dashboard.httpRoute.enabled }}
 {{- range .Values.dashboard.httpRoute.hosts }}
-  (Gateway API HTTPRoute) http://{{ . }}{{ $.Values.dashboard.httpRoute.path }}
+  (Gateway API HTTPRoute) http://{{ . }}
 {{- end }}
 {{- end }}
 {{- if and (not .Values.dashboard.ingress.enabled) (or (not .Values.dashboard.httpRoute.enabled) (empty .Values.dashboard.httpRoute.hosts)) }}

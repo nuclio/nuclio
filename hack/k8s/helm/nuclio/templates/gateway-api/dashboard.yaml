@@ -30,6 +30,7 @@ metadata:
     release: {{ .Release.Name }}
     nuclio.io/app: dashboard
     nuclio.io/class: httproute
+    {{- include "nuclio.standardLabels.dashboard" . | nindent 4 }}
 spec:
   parentRefs:
     {{- if .Values.dashboard.httpRoute.parentRefs }}
