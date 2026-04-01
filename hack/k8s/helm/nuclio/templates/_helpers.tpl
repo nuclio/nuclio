@@ -51,7 +51,7 @@
 
 {{- define "nuclio.requireGatewayAPICRDs" -}}
 {{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") -}}
-{{- fail "Gateway API CRDs are not installed. Install them first: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml" -}}
+{{- fail "Gateway API CRDs are not installed. See https://gateway-api.sigs.k8s.io/guides/getting-started" -}}
 {{- end -}}
 {{- end -}}
 
