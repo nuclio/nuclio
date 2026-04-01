@@ -519,6 +519,16 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string,
 		return errors.Wrap(err, "Failed to delete function secrets")
 	}
 
+	// Delete function k8s CronJobs before the Deployment so they cannot spawn new
+	// Jobs/Pods while we are tearing down the function's workload resources.
+	// CronJobs are not owned by the Deployment, so cascade does not remove them.
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().
+		CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		if err := lc.deleteCronJobs(ctx, name, namespace); err != nil && !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to delete function cron jobs")
+		}
+	}
+
 	// Delete Deployment if exists
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	err = lc.kubeClientSet.DeleteDeployment(ctx, namespace, deploymentName, deleteOptions)
@@ -538,11 +548,13 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string,
 	// Deployment cascade does not propagate GracePeriodSeconds to pods, and the ReplicaSet
 	// must be removed first to prevent it from recreating pods we delete.
 	if deleteOptions.GracePeriodSeconds != nil {
-		if err := lc.deleteFunctionReplicaSets(ctx, name, namespace); err != nil {
-			return errors.Wrap(err, "Failed to delete function replica sets")
+		if err = lc.deleteFunctionReplicaSets(ctx, name, namespace); err != nil && !apierrors.IsNotFound(err) {
+			lc.logger.WarnWith("Failed to delete function replica sets",
+				"namespace", namespace, "name", name, "err", err.Error())
 		}
-		if err := lc.deleteFunctionPods(ctx, name, namespace, deleteOptions); err != nil {
-			return errors.Wrap(err, "Failed to delete function pods")
+		if err = lc.deleteFunctionPods(ctx, name, namespace, deleteOptions); err != nil && !apierrors.IsNotFound(err) {
+			lc.logger.WarnWith("Failed to delete function pods",
+				"namespace", namespace, "name", name, "err", err.Error())
 		}
 	}
 
@@ -563,14 +575,6 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string,
 	// Delete function events
 	if err = lc.deleteFunctionEvents(ctx, name, namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function events")
-	}
-
-	// Delete function k8s cronJobs
-	if lc.platformConfigurationProvider.GetPlatformConfiguration().
-		CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		if err := lc.deleteCronJobs(ctx, name, namespace); err != nil {
-			return errors.Wrap(err, "Failed to delete function cron jobs")
-		}
 	}
 
 	lc.logger.DebugWithCtx(ctx, "Deleted deployed function", "namespace", namespace, "name", name)
