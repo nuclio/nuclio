@@ -20,7 +20,7 @@ spec:
           from: Same
     {{- range .Values.gateway.tls }}
     - name: https-{{ .secretName }}
-      port: 443
+      port: {{ .port }}
       protocol: HTTPS
       tls:
         mode: Terminate

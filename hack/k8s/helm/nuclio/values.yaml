@@ -25,16 +25,6 @@ offline: false
 #   - name: my-registry-secret
 imagePullSecrets: []
 
-# Gateway API: creates a Gateway resource for standalone installations.
-# Requires Gateway API CRDs and a GatewayClass in the cluster (e.g. Traefik).
-gateway:
-  enabled: false
-  gatewayClassName: traefik
-  listenerPort: 80
-  tls: []
-  #  - secretName: nuclio-tls
-  #    hosts:
-  #      - nuclio.local
 
 # Controller settings
 controller:
@@ -221,12 +211,12 @@ dashboard:
     #      - nuclio.local
     ingressClassName: ""
 
-  # Gateway API HTTPRoute
+  # if enabled, create an HTTPRoute to route traffic from a Gateway to the dashboard service
   httpRoute:
     enabled: false
     hosts:
       - nuclio.local
-    # When gateway.enabled is false, parentRefs must be set to an existing Gateway
+    # When gateway.enabled is false, reference here an existing Gateway
     parentRefs: []
     #   - name: my-gateway
 
@@ -587,3 +577,15 @@ global:
   nuclio:
     dashboard:
       nodePort:
+
+
+gateway:
+  # if enabled, this creates a Gateway to be used by the Dashboard HTTPRoute
+  enabled: false
+  gatewayClassName: traefik
+  listenerPort: 80
+  tls: []
+  #  - secretName: nuclio-tls
+  #    port: 443
+  #    hosts:
+  #      - nuclio.local
