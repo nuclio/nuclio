@@ -33,6 +33,7 @@ spec:
   ports:
   - name: admin
     port: {{ .Values.dashboard.servicePort }}
+    targetPort: 8070
     protocol: TCP
 {{- if (include "nuclio.dashboard.nodePort" .) }}
     nodePort: {{ template "nuclio.dashboard.nodePort" . }}
