@@ -1297,13 +1297,13 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 
 func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
-		name                     string
-		triggers                 map[string]functionconfig.Trigger
-		functionMetaAnnotations  map[string]string
-		supportAutoScale         bool
-		expectedEnrichedTriggers map[string]functionconfig.Trigger
-		shouldFailValidation     bool
-		runtime                  string
+		name                      string
+		triggers                  map[string]functionconfig.Trigger
+		functionMetaAnnotations   map[string]string
+		supportAutoScale          bool
+		expectedEnrichedTriggers  map[string]functionconfig.Trigger
+		shouldFailValidation      bool
+		runtime                   string
 		disableDefaultHTTPTrigger bool
 	}{
 
@@ -1346,9 +1346,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 
 		// do not allow empty triggers
 		{
-			name: "no-triggers",
-			triggers: nil,
-			shouldFailValidation: true,
+			name:                      "no-triggers",
+			triggers:                  nil,
+			shouldFailValidation:      true,
 			disableDefaultHTTPTrigger: true,
 		},
 
