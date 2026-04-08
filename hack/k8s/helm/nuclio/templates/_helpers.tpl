@@ -45,6 +45,16 @@
 {{- printf "%s-dashboard" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- end -}}
 
+{{- define "nuclio.gatewayName" -}}
+{{- printf "%s-gateway" (include "nuclio.fullName" .) | trunc 63 -}}
+{{- end -}}
+
+{{- define "nuclio.requireGatewayAPICRDs" -}}
+{{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") -}}
+{{- fail "Gateway API CRDs are not installed. See https://gateway-api.sigs.k8s.io/guides/getting-started" -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "nuclio.serviceAccountName" -}}
 {{- if .Values.rbac.serviceAccountName -}}
 {{- .Values.rbac.serviceAccountName -}}

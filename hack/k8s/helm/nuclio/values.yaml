@@ -25,6 +25,7 @@ offline: false
 #   - name: my-registry-secret
 imagePullSecrets: []
 
+
 # Controller settings
 controller:
   enabled: true
@@ -101,6 +102,7 @@ controller:
 dashboard:
   enabled: true
   replicas: 1
+  servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
     tag: 1.15.24-amd64
@@ -208,6 +210,15 @@ dashboard:
     #    hosts:
     #      - nuclio.local
     ingressClassName: ""
+
+  # if enabled, create an HTTPRoute to route traffic from a Gateway to the dashboard service
+  httpRoute:
+    enabled: false
+    hosts:
+      - nuclio.local
+    # When gateway.enabled is false, reference here an existing Gateway
+    parentRefs: []
+    #   - name: my-gateway
 
   authConfig:
 
@@ -543,15 +554,15 @@ platform: {}
 #    tokenExpirationSeconds: 600
 #    tokenRefreshRatio: 0.75
 #
-#  scaleToZero:
-#      scalerInterval: 1m
-#      metricsClient:
-#        kind: prometheusClient
-#        url: http://monitoring-prometheus-server
-#        templates:
-#          - name: "nuclio_processor_handled_events_total"
-#            template: |-
-#              add_here_your_prometheus_query
+# scaleToZero:
+#     scalerInterval: 1m
+#     metricsClient:
+#       kind: prometheusClient
+#       url: http://monitoring-prometheus-server
+#       templates:
+#         - name: "nuclio_processor_handled_events_total"
+#           template: |-
+#             add_here_your_prometheus_query
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
@@ -566,3 +577,15 @@ global:
   nuclio:
     dashboard:
       nodePort:
+
+
+gateway:
+  # if enabled, this creates a Gateway to be used by the Dashboard HTTPRoute
+  enabled: false
+  gatewayClassName: traefik
+  listenerPort: 80
+  tls: []
+  #  - secretName: nuclio-tls
+  #    port: 443
+  #    hosts:
+  #      - nuclio.local
