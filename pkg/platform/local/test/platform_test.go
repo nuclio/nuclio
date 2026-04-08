@@ -313,9 +313,14 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 	trueValue := true
 	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
 
-	// add a cron trigger to ensure function creation validation passes
-	localPlatform := suite.Platform.(*local.Platform)
-	localPlatform.Config.CronTriggerCreationMode = platformconfig.ProcessorCronTriggerCreationMode
+	// set cron trigger mode to Processor temporarily
+	prevCronMode := suite.PlatformConfiguration.CronTriggerCreationMode
+	suite.PlatformConfiguration.CronTriggerCreationMode = platformconfig.ProcessorCronTriggerCreationMode
+	defer func() {
+		suite.PlatformConfiguration.CronTriggerCreationMode = prevCronMode
+	}()
+
+	// add a cron trigger to ensure function deployment succeeds
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"cron": {
 			Kind: "cron",
@@ -325,6 +330,7 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 		},
 	}
 
+	localPlatform := suite.Platform.(*local.Platform)
 	suite.DeployFunction(createFunctionOptions,
 
 		// sanity
