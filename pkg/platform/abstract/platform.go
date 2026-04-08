@@ -1607,12 +1607,18 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 }
 
 func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) error {
-	var httpTriggerExists bool
+
+	// do not allow empty triggers
+	if len(functionConfig.Spec.Triggers) == 0 {
+		return nuclio.NewErrBadRequest("Function must have at least one trigger")
+	}
 
 	// validate ingresses structure correctness
 	if err := ap.validateIngresses(functionConfig.Spec.Triggers); err != nil {
 		return errors.Wrap(err, "Ingresses validation failed")
 	}
+
+	var httpTriggerExists bool
 
 	for triggerKey, triggerInstance := range functionConfig.Spec.Triggers {
 

@@ -1304,6 +1304,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
 		shouldFailValidation     bool
 		runtime                  string
+		disableDefaultHTTPTrigger bool
 	}{
 
 		// enrich NumWorkers to 1
@@ -1341,6 +1342,14 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
 				}
 			}(),
+		},
+
+		// do not allow empty triggers
+		{
+			name: "no-triggers",
+			triggers: nil,
+			shouldFailValidation: true,
+			disableDefaultHTTPTrigger: true,
 		},
 
 		// do not allow more than 1 http trigger
@@ -1518,6 +1527,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 				one, five := 1, 5
 				createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
 				createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &five
+			}
+
+			if testCase.disableDefaultHTTPTrigger {
+				createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &testCase.disableDefaultHTTPTrigger
 			}
 
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
