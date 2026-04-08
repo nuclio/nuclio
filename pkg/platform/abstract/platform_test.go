@@ -1344,6 +1344,23 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			}(),
 		},
 
+		// enrich default http trigger explicitly enabled
+		{
+			name:                      "enrich-default-trigger-explicitly-enabled",
+			triggers:                  nil,
+			shouldFailValidation:      false,
+			disableDefaultHTTPTrigger: false,
+			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
+				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				defaultHTTPTrigger.Attributes = map[string]interface{}{
+					"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+				}
+				return map[string]functionconfig.Trigger{
+					defaultHTTPTrigger.Name: defaultHTTPTrigger,
+				}
+			}(),
+		},
+
 		// do not allow empty triggers
 		{
 			name:                      "no-triggers",
@@ -1699,7 +1716,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
 
-		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &functionConfig)
+		suite.Require().NoError(err, "Failed to enrich function")
+
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
