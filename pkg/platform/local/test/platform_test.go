@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/local"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -311,7 +312,19 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 	trueValue := true
 	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
+
+	// add a cron trigger to ensure function creation validation passes
 	localPlatform := suite.Platform.(*local.Platform)
+	localPlatform.Config.CronTriggerCreationMode = platformconfig.ProcessorCronTriggerCreationMode
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"cron": {
+			Kind: "cron",
+			Attributes: map[string]interface{}{
+				"interval": "1h",
+			},
+		},
+	}
+
 	suite.DeployFunction(createFunctionOptions,
 
 		// sanity
