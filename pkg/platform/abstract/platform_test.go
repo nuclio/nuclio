@@ -1297,13 +1297,14 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 
 func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
-		name                     string
-		triggers                 map[string]functionconfig.Trigger
-		functionMetaAnnotations  map[string]string
-		supportAutoScale         bool
-		expectedEnrichedTriggers map[string]functionconfig.Trigger
-		shouldFailValidation     bool
-		runtime                  string
+		name                      string
+		triggers                  map[string]functionconfig.Trigger
+		functionMetaAnnotations   map[string]string
+		supportAutoScale          bool
+		expectedEnrichedTriggers  map[string]functionconfig.Trigger
+		shouldFailValidation      bool
+		runtime                   string
+		disableDefaultHTTPTrigger bool
 	}{
 
 		// enrich NumWorkers to 1
@@ -1341,6 +1342,31 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
 				}
 			}(),
+		},
+
+		// enrich default http trigger explicitly enabled
+		{
+			name:                      "enrich-default-trigger-explicitly-enabled",
+			triggers:                  nil,
+			shouldFailValidation:      false,
+			disableDefaultHTTPTrigger: false,
+			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
+				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				defaultHTTPTrigger.Attributes = map[string]interface{}{
+					"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+				}
+				return map[string]functionconfig.Trigger{
+					defaultHTTPTrigger.Name: defaultHTTPTrigger,
+				}
+			}(),
+		},
+
+		// do not allow empty triggers
+		{
+			name:                      "no-triggers",
+			triggers:                  nil,
+			shouldFailValidation:      true,
+			disableDefaultHTTPTrigger: true,
 		},
 
 		// do not allow more than 1 http trigger
@@ -1520,6 +1546,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 				createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &five
 			}
 
+			if testCase.disableDefaultHTTPTrigger {
+				createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &testCase.disableDefaultHTTPTrigger
+			}
+
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
@@ -1686,7 +1716,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
 
-		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &functionConfig)
+		suite.Require().NoError(err, "Failed to enrich function")
+
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
