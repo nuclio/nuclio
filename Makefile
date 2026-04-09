@@ -110,7 +110,7 @@ else
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:20
 endif
 
-NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
+NUCLIO_PYTHON_BASE_IMAGE_NAME ?= python
 
 NUCLIO_BASE_IMAGE_TAG ?= 1.25
 NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.25-alpine
@@ -471,6 +471,7 @@ PIP_REQUIRE_VIRTUALENV=false
 .PHONY: handler-builder-python-onbuild
 handler-builder-python-onbuild: processor
 	docker build \
+		--platform $(NUCLIO_OS)/$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg NUCLIO_PYTHON_BASE_IMAGE_NAME=$(NUCLIO_PYTHON_BASE_IMAGE_NAME) \
