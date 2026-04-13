@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set 'long-ci-started' Label
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:
@@ -166,7 +166,7 @@ jobs:
 
       - name: Set labels
         if: github.event.inputs.pr_number != ''  && github.repository == 'nuclio/nuclio'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:
