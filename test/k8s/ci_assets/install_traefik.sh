@@ -14,9 +14,6 @@
 # limitations under the License.
 #
 
-# uninstall nginx controller
-helm uninstall ingress-nginx -n ingress-nginx --ignore-not-found
-
 # install Gateway API CRDs
 kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
 
