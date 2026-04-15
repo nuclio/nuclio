@@ -770,6 +770,45 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 	return permittedFunctionEvents, nil
 }
 
+// FilterAPIGatewaysByPermissions will filter out some API gateways
+func (ap *Platform) FilterAPIGatewaysByPermissions(ctx context.Context,
+	permissionOptions *opaclient.PermissionOptions,
+	apiGateways []platform.APIGateway) ([]platform.APIGateway, error) {
+
+	if len(permissionOptions.MemberIds) == 0 || len(apiGateways) == 0 {
+		return apiGateways, nil
+	}
+
+	resources := make([]string, len(apiGateways))
+	for idx, apiGateway := range apiGateways {
+		projectName := apiGateway.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+		apiGatewayName := apiGateway.GetConfig().Meta.Name
+		resources[idx] = opa.GenerateAPIGatewayResourceString(projectName, apiGatewayName, ap.getOPAResourcesPrefix())
+	}
+
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed querying OPA for API gateway permissions")
+	}
+
+	var permittedAPIGateways []platform.APIGateway
+	var filteredAPIGatewayNames []string
+	for idx, allowed := range allowedList {
+		if allowed {
+			permittedAPIGateways = append(permittedAPIGateways, apiGateways[idx])
+		} else {
+			filteredAPIGatewayNames = append(filteredAPIGatewayNames, apiGateways[idx].GetConfig().Meta.Name)
+		}
+	}
+
+	if len(filteredAPIGatewayNames) > 0 {
+		ap.Logger.DebugWithCtx(ctx,
+			"Some API gateways were filtered out",
+			"apiGatewayNames", filteredAPIGatewayNames)
+	}
+	return permittedAPIGateways, nil
+}
+
 // CreateFunctionInvocation will invoke a previously deployed function
 func (ap *Platform) CreateFunctionInvocation(ctx context.Context,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
@@ -1313,6 +1352,23 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(ctx context.Context,
 	}
 	return ap.queryOPAPermissions(ctx,
 		opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName, ap.getOPAResourcesPrefix()),
+		action,
+		permissionOptions)
+}
+
+func (ap *Platform) QueryOPAAPIGatewayPermissions(ctx context.Context,
+	projectName,
+	apiGatewayName string,
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if apiGatewayName == "" {
+		apiGatewayName = "*"
+	}
+	return ap.queryOPAPermissions(ctx,
+		opa.GenerateAPIGatewayResourceString(projectName, apiGatewayName, ap.getOPAResourcesPrefix()),
 		action,
 		permissionOptions)
 }

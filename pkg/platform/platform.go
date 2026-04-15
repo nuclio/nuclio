@@ -157,6 +157,9 @@ type Platform interface {
 	// GetAPIGateways will list existing api gateways
 	GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
 
+	// FilterAPIGatewaysByPermissions will filter out some API gateways
+	FilterAPIGatewaysByPermissions(context.Context, *opaclient.PermissionOptions, []APIGateway) ([]APIGateway, error)
+
 	//
 	// Misc
 	//

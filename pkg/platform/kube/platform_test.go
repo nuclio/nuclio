@@ -3118,6 +3118,15 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 				}, nil).
 				Once()
 
+			// mock OPA permissions check (allow)
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					mock.AnythingOfType("string"),
+					opaclient.ActionUpdate,
+					mock.AnythingOfType("*opaclient.PermissionOptions")).
+				Return(true, nil).
+				Once()
+
 			verifyAPIGatewayToUpdate := func(apiGatewayToUpdate *v1beta1.NuclioAPIGateway) bool {
 				suite.Require().Empty(cmp.Diff(updateAPIGatewayOptions.APIGatewayConfig.Spec, apiGatewayToUpdate.Spec))
 				suite.Require().Empty(cmp.Diff(updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations, apiGatewayToUpdate.Annotations))
@@ -3148,6 +3157,361 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 			// update
 			err := suite.platform.UpdateAPIGateway(suite.ctx, updateAPIGatewayOptions)
 			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *APIGatewayKubePlatformTestSuite) TestGetAPIGatewaysPermissions() {
+	for _, testCase := range []struct {
+		name           string
+		opaResponse    bool
+		givenMemberIds bool
+		raiseForbidden bool
+	}{
+		{
+			name:           "Allowed",
+			opaResponse:    true,
+			givenMemberIds: true,
+			raiseForbidden: true,
+		},
+		{
+			name:           "Forbidden with Error",
+			opaResponse:    false,
+			givenMemberIds: true,
+			raiseForbidden: true,
+		},
+		{
+			name:           "Forbidden no Error",
+			opaResponse:    false,
+			givenMemberIds: true,
+			raiseForbidden: false,
+		},
+		{
+			name:           "No OPA",
+			opaResponse:    false,
+			givenMemberIds: false,
+			raiseForbidden: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
+			var memberIds []string
+
+			apiGatewayName := "test-agw"
+			projectName := "proj"
+
+			getAPIGatewayResponse := &v1beta1.NuclioAPIGateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: suite.Namespace,
+					Name:      apiGatewayName,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: projectName,
+					},
+				},
+			}
+
+			suite.nuclioAPIGatewayInterfaceMock.
+				On("Get", suite.ctx, apiGatewayName, metav1.GetOptions{}).
+				Return(getAPIGatewayResponse, nil).
+				Once()
+			defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+
+			if testCase.givenMemberIds {
+				memberIds = []string{"id1", "id2"}
+				suite.mockedOpaClient.
+					On("QueryPermissionsMultiResources",
+						suite.ctx,
+						[]string{fmt.Sprintf("/projects/%s/api-gateways/%s",
+							projectName,
+							apiGatewayName)},
+						opaclient.ActionRead,
+						&opaclient.PermissionOptions{
+							MemberIds:           memberIds,
+							RaiseForbidden:      testCase.raiseForbidden,
+							OverrideHeaderValue: suite.opaOverrideHeaderValue,
+						}).
+					Return([]bool{testCase.opaResponse}, nil).
+					Once()
+				defer suite.mockedOpaClient.AssertExpectations(suite.T())
+			}
+
+			apiGateways, err := suite.platform.GetAPIGateways(suite.ctx, &platform.GetAPIGatewaysOptions{
+				Name:      apiGatewayName,
+				Namespace: suite.Namespace,
+				PermissionOptions: opaclient.PermissionOptions{
+					MemberIds:           memberIds,
+					RaiseForbidden:      testCase.raiseForbidden,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
+				},
+			})
+
+			if !testCase.opaResponse && testCase.givenMemberIds {
+				if testCase.raiseForbidden {
+					suite.Require().Error(err)
+				} else {
+					suite.Require().NoError(err)
+					suite.Require().Equal(0, len(apiGateways))
+				}
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(1, len(apiGateways))
+				suite.Require().Equal(apiGatewayName, apiGateways[0].GetConfig().Meta.Name)
+			}
+		})
+	}
+}
+
+func (suite *APIGatewayKubePlatformTestSuite) TestCreateAPIGatewayPermissions() {
+	for _, testCase := range []struct {
+		name        string
+		opaResponse bool
+	}{
+		{
+			name:        "Allowed",
+			opaResponse: true,
+		},
+		{
+			name:        "Forbidden",
+			opaResponse: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
+
+			apiGatewayConfig := suite.compileAPIGatewayConfig()
+			projectName := "proj"
+			memberIds := []string{"id1", "id2"}
+
+			apiGatewayConfig.Meta.Labels = map[string]string{
+				common.NuclioResourceLabelKeyProjectName: projectName,
+			}
+
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					fmt.Sprintf("/projects/%s/api-gateways/%s",
+						projectName,
+						apiGatewayConfig.Meta.Name),
+					opaclient.ActionCreate,
+					&opaclient.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
+				Return(testCase.opaResponse, nil).
+				Once()
+			defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+			if testCase.opaResponse {
+
+				// mock upstream function Get (for validation)
+				suite.nuclioFunctionInterfaceMock.
+					On("Get",
+						suite.ctx,
+						apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name,
+						metav1.GetOptions{}).
+					Return(nil,
+						&apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}).
+					Once()
+
+				// mock kubernetes create
+				suite.nuclioAPIGatewayInterfaceMock.
+					On("Create",
+						suite.ctx,
+						mock.AnythingOfType("*v1beta1.NuclioAPIGateway"),
+						metav1.CreateOptions{}).
+					Return(&v1beta1.NuclioAPIGateway{}, nil).
+					Once()
+				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+			}
+
+			err := suite.platform.CreateAPIGateway(suite.ctx, &platform.CreateAPIGatewayOptions{
+				APIGatewayConfig: &apiGatewayConfig,
+				PermissionOptions: opaclient.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
+				},
+			})
+
+			if !testCase.opaResponse {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *APIGatewayKubePlatformTestSuite) TestUpdateAPIGatewayPermissions() {
+	for _, testCase := range []struct {
+		name        string
+		opaResponse bool
+	}{
+		{
+			name:        "Allowed",
+			opaResponse: true,
+		},
+		{
+			name:        "Forbidden",
+			opaResponse: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
+
+			apiGatewayConfig := suite.compileAPIGatewayConfig()
+			projectName := "proj"
+			memberIds := []string{"id1", "id2"}
+
+			apiGatewayConfig.Meta.Labels = map[string]string{
+				common.NuclioResourceLabelKeyProjectName: projectName,
+			}
+
+			// mock get existing api gateway
+			suite.nuclioAPIGatewayInterfaceMock.
+				On("Get", suite.ctx, apiGatewayConfig.Meta.Name, metav1.GetOptions{}).
+				Return(&v1beta1.NuclioAPIGateway{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      apiGatewayConfig.Meta.Name,
+						Namespace: apiGatewayConfig.Meta.Namespace,
+						Labels: map[string]string{
+							common.NuclioResourceLabelKeyProjectName: projectName,
+						},
+					},
+					Spec:   apiGatewayConfig.Spec,
+					Status: apiGatewayConfig.Status,
+				}, nil).
+				Once()
+
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					fmt.Sprintf("/projects/%s/api-gateways/%s",
+						projectName,
+						apiGatewayConfig.Meta.Name),
+					opaclient.ActionUpdate,
+					&opaclient.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
+				Return(testCase.opaResponse, nil).
+				Once()
+			defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+			if testCase.opaResponse {
+
+				// mock upstream function Get (for validation)
+				suite.nuclioFunctionInterfaceMock.
+					On("Get",
+						suite.ctx,
+						apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name,
+						metav1.GetOptions{}).
+					Return(nil,
+						&apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}).
+					Once()
+
+				// mock kubernetes update
+				suite.nuclioAPIGatewayInterfaceMock.
+					On("Update",
+						suite.ctx,
+						mock.AnythingOfType("*v1beta1.NuclioAPIGateway"),
+						mock.Anything).
+					Return(&v1beta1.NuclioAPIGateway{}, nil).
+					Once()
+				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+			}
+
+			err := suite.platform.UpdateAPIGateway(suite.ctx, &platform.UpdateAPIGatewayOptions{
+				APIGatewayConfig: &apiGatewayConfig,
+				PermissionOptions: opaclient.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
+				},
+			})
+
+			if !testCase.opaResponse {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *APIGatewayKubePlatformTestSuite) TestDeleteAPIGatewayPermissions() {
+	for _, testCase := range []struct {
+		name        string
+		opaResponse bool
+	}{
+		{
+			name:        "Allowed",
+			opaResponse: true,
+		},
+		{
+			name:        "Forbidden",
+			opaResponse: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
+
+			apiGatewayName := "test-agw"
+			projectName := "proj"
+			memberIds := []string{"id1", "id2"}
+
+			// mock get existing api gateway (for OPA project name resolution)
+			suite.nuclioAPIGatewayInterfaceMock.
+				On("Get", suite.ctx, apiGatewayName, metav1.GetOptions{}).
+				Return(&v1beta1.NuclioAPIGateway{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: suite.Namespace,
+						Name:      apiGatewayName,
+						Labels: map[string]string{
+							common.NuclioResourceLabelKeyProjectName: projectName,
+						},
+					},
+				}, nil).
+				Once()
+
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					fmt.Sprintf("/projects/%s/api-gateways/%s",
+						projectName,
+						apiGatewayName),
+					opaclient.ActionDelete,
+					&opaclient.PermissionOptions{
+						MemberIds:           memberIds,
+						RaiseForbidden:      true,
+						OverrideHeaderValue: suite.opaOverrideHeaderValue,
+					}).
+				Return(testCase.opaResponse, nil).
+				Once()
+			defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+			if testCase.opaResponse {
+
+				suite.nuclioAPIGatewayInterfaceMock.
+					On("Delete", suite.ctx, apiGatewayName, metav1.DeleteOptions{}).
+					Return(nil).
+					Once()
+				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+			}
+
+			err := suite.platform.DeleteAPIGateway(suite.ctx, &platform.DeleteAPIGatewayOptions{
+				Meta: platform.APIGatewayMeta{
+					Name:      apiGatewayName,
+					Namespace: suite.Namespace,
+				},
+				PermissionOptions: opaclient.PermissionOptions{
+					MemberIds:           memberIds,
+					OverrideHeaderValue: suite.opaOverrideHeaderValue,
+				},
+			})
+
+			if !testCase.opaResponse {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
 		})
 	}
 }

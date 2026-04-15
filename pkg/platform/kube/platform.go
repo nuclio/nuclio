@@ -899,6 +899,17 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
 
+	// Check OPA permissions
+	permissionOptions := createAPIGatewayOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAAPIGatewayPermissions(ctx,
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
+		opaclient.ActionCreate,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	// validate
 	if err := p.validateAPIGatewayConfig(ctx,
 		createAPIGatewayOptions.APIGatewayConfig,
@@ -939,6 +950,19 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		Get(ctx, updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway to update")
+	}
+
+	projectName := apiGateway.Labels[common.NuclioResourceLabelKeyProjectName]
+
+	// Check OPA permissions
+	permissionOptions := updateAPIGatewayOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAAPIGatewayPermissions(ctx,
+		projectName,
+		apiGateway.Name,
+		opaclient.ActionUpdate,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	// restore existing config
@@ -1005,6 +1029,27 @@ func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions
 	// validate
 	if err := p.validateAPIGatewayMeta(&deleteAPIGatewayOptions.Meta); err != nil {
 		return errors.Wrap(err, "Failed to validate an API gateway's metadata")
+	}
+
+	// get existing api gateway to resolve project name for OPA check
+	apiGatewayToDelete, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
+		Get(ctx, deleteAPIGatewayOptions.Meta.Name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get API gateway to delete")
+	}
+
+	projectName := apiGatewayToDelete.Labels[common.NuclioResourceLabelKeyProjectName]
+
+	// Check OPA permissions
+	permissionOptions := deleteAPIGatewayOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAAPIGatewayPermissions(ctx,
+		projectName,
+		apiGatewayToDelete.Name,
+		opaclient.ActionDelete,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	p.Logger.DebugWithCtx(ctx, "Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
@@ -1079,8 +1124,9 @@ func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *pl
 		platformAPIGateways = append(platformAPIGateways, newAPIGateway)
 	}
 
-	// render it
-	return platformAPIGateways, nil
+	return p.FilterAPIGatewaysByPermissions(ctx,
+		&getAPIGatewaysOptions.PermissionOptions,
+		platformAPIGateways)
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
