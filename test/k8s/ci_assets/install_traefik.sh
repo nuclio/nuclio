@@ -28,6 +28,7 @@ helm install traefik traefik/traefik \
   --set deployment.kind=DaemonSet \
   --set service.type=ClusterIP \
   --set providers.kubernetesIngressNGINX.enabled=true \
+  --set providers.kubernetesIngressNGINX.publishStatusAddress="ingress.ready.local" \
   --set providers.kubernetesGateway.enabled=true \
   --set gateway.enabled=false \
   --set gatewayClass.enabled=true \
