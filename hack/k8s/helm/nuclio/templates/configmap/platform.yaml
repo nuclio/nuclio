@@ -20,6 +20,7 @@ metadata:
   labels:
     app: {{ template "nuclio.name" . }}
     release: {{ .Release.Name }}
+    {{- include "nuclio.commonLabels" . | nindent 4 }}
 data:
   platform.yaml: |
 {{ toYaml .Values.platform | indent 4 }}

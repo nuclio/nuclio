@@ -19,6 +19,14 @@
 # if true, all components assume no internet connectivity
 offline: false
 
+# Extra labels to apply to all resources created by this chart.
+# If a key collides with a chart-generated label, the user-supplied value wins.
+# Example:
+#   commonLabels:
+#     app.kubernetes.io/instance: nuclio
+#     my-org/team: platform
+commonLabels: {}
+
 # shared image pull secrets for Nuclio service deployments (dashboard/controller/dlx/autoscaler)
 # chart-local fallback (prefer global.imagePullSecrets, especially when used as a subchart)
 # imagePullSecrets:
