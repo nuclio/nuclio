@@ -146,9 +146,20 @@ imagePullSecrets:
 {{- end -}}
 
 {{/*
+  User-supplied common labels from .Values.commonLabels.
+  Safe to include even when commonLabels is empty.
+*/}}
+{{- define "nuclio.commonLabels" -}}
+{{- if .Values.commonLabels }}
+{{- toYaml .Values.commonLabels }}
+{{- end -}}
+{{- end -}}
+
+{{/*
   Kubernetes recommended labels (https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
   Usage: include "nuclio.standardLabels.dashboard" .  (or .controller, .dlx, .autoscaler)
   Expects . with .component set (via merge in the wrapper); has access to .Chart, .Release, etc.
+  When .Values.commonLabels contains a key that collides with a generated label, the user value wins.
 */}}
 {{- define "nuclio.standardLabels" -}}
 {{- $instance := "" -}}
@@ -156,12 +167,16 @@ imagePullSecrets:
 {{- if eq .component "controller" -}}{{- $instance = include "nuclio.controllerName" . -}}{{- end -}}
 {{- if eq .component "dlx" -}}{{- $instance = include "nuclio.dlxName" . -}}{{- end -}}
 {{- if eq .component "autoscaler" -}}{{- $instance = include "nuclio.scalerName" . -}}{{- end -}}
-app.kubernetes.io/name: {{ .component }}
-app.kubernetes.io/instance: {{ $instance | quote }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-app.kubernetes.io/component: {{ .component }}
-app.kubernetes.io/part-of: {{ .Chart.Name }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- $generated := dict
+  "app.kubernetes.io/name" .component
+  "app.kubernetes.io/instance" $instance
+  "app.kubernetes.io/version" (.Chart.AppVersion | toString)
+  "app.kubernetes.io/component" .component
+  "app.kubernetes.io/part-of" .Chart.Name
+  "app.kubernetes.io/managed-by" .Release.Service
+-}}
+{{- $userLabels := .Values.commonLabels | default dict -}}
+{{- toYaml (merge (deepCopy $userLabels) $generated) }}
 {{- end -}}
 
 {{/*
