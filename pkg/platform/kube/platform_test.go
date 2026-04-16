@@ -3303,7 +3303,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestCreateAPIGatewayPermissions() 
 
 			if testCase.opaResponse {
 
-				// mock upstream function Get (for validation)
 				suite.nuclioFunctionInterfaceMock.
 					On("Get",
 						suite.ctx,
@@ -3313,7 +3312,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestCreateAPIGatewayPermissions() 
 						&apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}).
 					Once()
 
-				// mock kubernetes create
 				suite.nuclioAPIGatewayInterfaceMock.
 					On("Create",
 						suite.ctx,
@@ -3328,6 +3326,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestCreateAPIGatewayPermissions() 
 				APIGatewayConfig: &apiGatewayConfig,
 				PermissionOptions: opaclient.PermissionOptions{
 					MemberIds:           memberIds,
+					RaiseForbidden:      true,
 					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
@@ -3366,7 +3365,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestUpdateAPIGatewayPermissions() 
 				common.NuclioResourceLabelKeyProjectName: projectName,
 			}
 
-			// mock get existing api gateway
 			suite.nuclioAPIGatewayInterfaceMock.
 				On("Get", suite.ctx, apiGatewayConfig.Meta.Name, metav1.GetOptions{}).
 				Return(&v1beta1.NuclioAPIGateway{
@@ -3399,7 +3397,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestUpdateAPIGatewayPermissions() 
 
 			if testCase.opaResponse {
 
-				// mock upstream function Get (for validation)
 				suite.nuclioFunctionInterfaceMock.
 					On("Get",
 						suite.ctx,
@@ -3409,7 +3406,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestUpdateAPIGatewayPermissions() 
 						&apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}).
 					Once()
 
-				// mock kubernetes update
 				suite.nuclioAPIGatewayInterfaceMock.
 					On("Update",
 						suite.ctx,
@@ -3424,6 +3420,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestUpdateAPIGatewayPermissions() 
 				APIGatewayConfig: &apiGatewayConfig,
 				PermissionOptions: opaclient.PermissionOptions{
 					MemberIds:           memberIds,
+					RaiseForbidden:      true,
 					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
@@ -3503,6 +3500,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestDeleteAPIGatewayPermissions() 
 				},
 				PermissionOptions: opaclient.PermissionOptions{
 					MemberIds:           memberIds,
+					RaiseForbidden:      true,
 					OverrideHeaderValue: suite.opaOverrideHeaderValue,
 				},
 			})
