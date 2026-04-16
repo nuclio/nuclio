@@ -187,7 +187,7 @@ func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful
 		APIGatewayConfig:           apiGatewayConfig,
 		AuthSession:                agr.getCtxSession(ctx),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, headers.ApiGatewayValidateFunctionExistence),
-		PermissionOptions:          agr.newPermissionOptions(request, false),
+		PermissionOptions:          agr.newPermissionOptions(request, true),
 	}); err != nil {
 		agr.Logger.WarnWithCtx(ctx, "Failed to update api gateway", "err", err)
 		return nil, errors.Wrap(err, "Failed to update api gateway")
@@ -259,7 +259,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 		AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 		APIGatewayConfig:           newAPIGateway.GetConfig(),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, headers.ApiGatewayValidateFunctionExistence),
-		PermissionOptions:          agr.newPermissionOptions(request, false),
+		PermissionOptions:          agr.newPermissionOptions(request, true),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			err = nuclio.WrapErrConflict(err)
@@ -291,7 +291,7 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 
 	deleteAPIGatewayOptions := platform.DeleteAPIGatewayOptions{
 		AuthSession:       agr.getCtxSession(ctx),
-		PermissionOptions: agr.newPermissionOptions(request, false),
+		PermissionOptions: agr.newPermissionOptions(request, true),
 	}
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 

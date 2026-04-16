@@ -899,15 +899,14 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
 
-	// Check OPA permissions
+	// check OPA permissions
 	permissionOptions := createAPIGatewayOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAAPIGatewayPermissions(ctx,
 		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
 		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		return errors.Wrap(err, "Failed to authorize API gateway creation")
 	}
 
 	// validate
@@ -954,15 +953,14 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 
 	projectName := apiGateway.Labels[common.NuclioResourceLabelKeyProjectName]
 
-	// Check OPA permissions
+	// check OPA permissions
 	permissionOptions := updateAPIGatewayOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAAPIGatewayPermissions(ctx,
 		projectName,
 		apiGateway.Name,
 		opaclient.ActionUpdate,
 		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		return errors.Wrap(err, "Failed to authorize API gateway update")
 	}
 
 	// restore existing config
@@ -1041,15 +1039,14 @@ func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions
 
 	projectName := apiGatewayToDelete.Labels[common.NuclioResourceLabelKeyProjectName]
 
-	// Check OPA permissions
+	// check OPA permissions
 	permissionOptions := deleteAPIGatewayOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAAPIGatewayPermissions(ctx,
 		projectName,
-		apiGatewayToDelete.Name,
+		deleteAPIGatewayOptions.Meta.Name,
 		opaclient.ActionDelete,
 		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		return errors.Wrap(err, "Failed to authorize API gateway deletion")
 	}
 
 	p.Logger.DebugWithCtx(ctx, "Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
