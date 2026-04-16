@@ -66,9 +66,10 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 
 	// filter by project name (when it's specified)
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{
-		AuthSession:  agr.getCtxSession(ctx),
-		FunctionName: functionName,
-		Namespace:    namespace,
+		AuthSession:       agr.getCtxSession(ctx),
+		FunctionName:      functionName,
+		Namespace:         namespace,
+		PermissionOptions: agr.newPermissionOptions(request, false),
 	}
 	if projectName != "" {
 		getAPIGatewaysOptions.Labels = fmt.Sprintf("%s=%s",
@@ -114,9 +115,10 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 	}
 
 	apiGateways, err := agr.getPlatform().GetAPIGateways(ctx, &platform.GetAPIGatewaysOptions{
-		Name:        id,
-		Namespace:   namespace,
-		AuthSession: agr.getCtxSession(ctx),
+		Name:              id,
+		Namespace:         namespace,
+		AuthSession:       agr.getCtxSession(ctx),
+		PermissionOptions: agr.newPermissionOptions(request, true),
 	})
 
 	if err != nil {
@@ -185,6 +187,7 @@ func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful
 		APIGatewayConfig:           apiGatewayConfig,
 		AuthSession:                agr.getCtxSession(ctx),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, headers.ApiGatewayValidateFunctionExistence),
+		PermissionOptions:          agr.newPermissionOptions(request, true),
 	}); err != nil {
 		agr.Logger.WarnWithCtx(ctx, "Failed to update api gateway", "err", err)
 		return nil, errors.Wrap(err, "Failed to update api gateway")
@@ -256,6 +259,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 		AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 		APIGatewayConfig:           newAPIGateway.GetConfig(),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, headers.ApiGatewayValidateFunctionExistence),
+		PermissionOptions:          agr.newPermissionOptions(request, true),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			err = nuclio.WrapErrConflict(err)
@@ -286,7 +290,8 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	}
 
 	deleteAPIGatewayOptions := platform.DeleteAPIGatewayOptions{
-		AuthSession: agr.getCtxSession(ctx),
+		AuthSession:       agr.getCtxSession(ctx),
+		PermissionOptions: agr.newPermissionOptions(request, true),
 	}
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 
