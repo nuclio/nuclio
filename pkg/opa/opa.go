@@ -76,3 +76,7 @@ func GenerateFunctionRedeployResourceString(projectName, functionName, prefix st
 func GenerateFunctionEventResourceString(projectName, functionName, functionEventName, prefix string) string {
 	return fmt.Sprintf("%s/projects/%s/functions/%s/function-events/%s", prefix, projectName, functionName, functionEventName)
 }
+
+func GenerateAPIGatewayResourceString(projectName, apiGatewayName, prefix string) string {
+	return fmt.Sprintf("%s/projects/%s/api-gateways/%s", prefix, projectName, apiGatewayName)
+}

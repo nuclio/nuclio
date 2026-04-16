@@ -557,26 +557,30 @@ type APIGatewayStatus struct {
 type CreateAPIGatewayOptions struct {
 	APIGatewayConfig           *APIGatewayConfig
 	AuthSession                auth.Session
+	PermissionOptions          opaclient.PermissionOptions
 	ValidateFunctionsExistence bool
 }
 
 type UpdateAPIGatewayOptions struct {
 	APIGatewayConfig           *APIGatewayConfig
 	AuthSession                auth.Session
+	PermissionOptions          opaclient.PermissionOptions
 	ValidateFunctionsExistence bool
 }
 
 type DeleteAPIGatewayOptions struct {
-	Meta        APIGatewayMeta
-	AuthSession auth.Session
+	Meta              APIGatewayMeta
+	AuthSession       auth.Session
+	PermissionOptions opaclient.PermissionOptions
 }
 
 type GetAPIGatewaysOptions struct {
-	Name         string
-	Namespace    string
-	Labels       string
-	FunctionName string
-	AuthSession  auth.Session
+	Name              string
+	Namespace         string
+	Labels            string
+	FunctionName      string
+	AuthSession       auth.Session
+	PermissionOptions opaclient.PermissionOptions
 }
 
 // DeepCopyInto to appease k8s

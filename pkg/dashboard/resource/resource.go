@@ -25,11 +25,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 )
 
 type resource struct {
@@ -110,4 +112,13 @@ func (r *resource) getCtxSession(ctx context.Context) auth.Session {
 		return nil
 	}
 	return value
+}
+
+func (r *resource) newPermissionOptions(request *http.Request, raiseForbidden bool) opaclient.PermissionOptions {
+	ctx := request.Context()
+	return opaclient.PermissionOptions{
+		MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(r.getCtxSession(ctx)),
+		RaiseForbidden:      raiseForbidden,
+		OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+	}
 }
