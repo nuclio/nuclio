@@ -21,8 +21,10 @@ package rabbitmq
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -83,6 +85,40 @@ func (suite *TestSuite) TestSetEmptyParametersMakesNoChange() {
 	suite.trigger.setEmptyParameters()
 
 	suite.EqualValues(suite.trigger.configuration.Topics, []string{})
+}
+
+func (suite *TestSuite) TestIsAsyncModeReturnsFalseByDefault() {
+	suite.trigger.configuration = &Configuration{
+		Configuration: trigger.Configuration{
+			Trigger: &functionconfig.Trigger{},
+		},
+	}
+
+	suite.Require().False(suite.trigger.isAsyncMode())
+}
+
+func (suite *TestSuite) TestIsAsyncModeReturnsFalseForSyncMode() {
+	suite.trigger.configuration = &Configuration{
+		Configuration: trigger.Configuration{
+			Trigger: &functionconfig.Trigger{
+				Mode: functionconfig.SyncTriggerWorkMode,
+			},
+		},
+	}
+
+	suite.Require().False(suite.trigger.isAsyncMode())
+}
+
+func (suite *TestSuite) TestIsAsyncModeReturnsTrueForAsyncMode() {
+	suite.trigger.configuration = &Configuration{
+		Configuration: trigger.Configuration{
+			Trigger: &functionconfig.Trigger{
+				Mode: functionconfig.AsyncTriggerWorkMode,
+			},
+		},
+	}
+
+	suite.Require().True(suite.trigger.isAsyncMode())
 }
 
 func TestRabbitMQSuite(t *testing.T) {

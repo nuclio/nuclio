@@ -2588,6 +2588,26 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 			},
 			expectedError: "failed to parse connection availability timeout",
 		},
+		{
+			name: "rabbit-mq async trigger with valid config -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Name: "test-trigger",
+							Kind: "rabbit-mq",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+								MinConnectionsNumber: 5,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
 	}
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
