@@ -275,7 +275,7 @@ func (rmq *rabbitMq) createTopics() error {
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
 		rmq.configuration.QueueName,    // queue name (account  + function name)
-		rmq.configuration.DurableQueue, // durable  TBD: change to true if/when we bind to persistent storage
+		rmq.configuration.DurableQueue, // durable
 		false,                          // delete when unused
 		false,                          // exclusive
 		false,                          // no-wait

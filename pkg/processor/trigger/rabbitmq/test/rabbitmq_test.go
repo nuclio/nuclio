@@ -452,7 +452,7 @@ func (suite *testSuite) createBrokerResources(topics []string) {
 
 		suite.brokerQueue, err = suite.brokerChannel.QueueDeclare(
 			suite.brokerQueueName,
-			false,
+			true, // durable — required by RabbitMQ 4+ (transient non-exclusive queues removed)
 			false,
 			false,
 			false,
