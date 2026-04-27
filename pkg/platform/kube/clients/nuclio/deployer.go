@@ -116,13 +116,9 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 
 	// if function didn't exist, create. otherwise update
 	if !functionExists {
-		functionInstance, err = nuclioClientSet.NuclioV1beta1().
-			NuclioFunctions(functionInstance.Namespace).
-			Create(ctx, functionInstance, metav1.CreateOptions{})
+		functionInstance, err = nuclioClientSet.CreateNuclioFunction(ctx, functionInstance.Namespace, functionInstance)
 	} else {
-		functionInstance, err = nuclioClientSet.NuclioV1beta1().
-			NuclioFunctions(functionInstance.Namespace).
-			Update(ctx, functionInstance, metav1.UpdateOptions{})
+		functionInstance, err = nuclioClientSet.UpdateNuclioFunction(ctx, functionInstance.Namespace, functionInstance)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update function")
@@ -317,9 +313,7 @@ func waitForFunctionReadiness(ctx context.Context,
 	conditionFunc := func(conditionCtx context.Context) (bool, error) {
 
 		// get the appropriate function CR
-		function, err = consumer.NuclioClientSet.NuclioV1beta1().
-			NuclioFunctions(namespace).
-			Get(conditionCtx, name, metav1.GetOptions{})
+		function, err = consumer.NuclioClientSet.GetNuclioFunction(conditionCtx, namespace, name)
 		if err != nil {
 			return true, err
 		}
