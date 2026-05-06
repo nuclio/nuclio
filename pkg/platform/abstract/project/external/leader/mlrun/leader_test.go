@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -305,6 +306,393 @@ func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
 
 func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {
 	suite.Require().False(suite.leaderOps.ShouldWaitForCreateCompletion())
+}
+
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_Provision() {
+	// Lexicographic ordering: opOld < opStored < opNew
+	const opOld = "018d-op"
+	const opStored = "018e-op"
+	const opNew = "018f-op"
+
+	testCases := []struct {
+		name            string
+		requestLabels   map[string]string
+		existingProject platform.Project
+		wantApply       bool
+		wantStatusCode  int
+	}{
+		{
+			name:            "NoCRDShouldCreate",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			existingProject: nil,
+			wantApply:       true,
+		},
+		{
+			name:            "SameOpIDIdempotent",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+		},
+		{
+			name:            "OlderOpIDReplayProtection",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opOld, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "NewerOpIDButWrongStatus",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opNew, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "NewerOpIDConcurrentProvision",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opNew, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:           "MissingOpIDLabel",
+			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusCreating, "", ""),
+			wantApply:      false,
+			wantStatusCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), testCase.requestLabels, testCase.existingProject)
+			suite.Require().Equal(testCase.wantApply, shouldApply)
+			if testCase.wantStatusCode != 0 {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.wantStatusCode, statusCodeOf(err))
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_Commit() {
+	const opStored = "018e-op"
+	const opOther = "018f-op"
+
+	testCases := []struct {
+		name            string
+		requestLabels   map[string]string
+		existingProject platform.Project
+		wantApply       bool
+		wantStatusCode  int
+	}{
+		{
+			name:            "ValidCommit",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       true,
+		},
+		{
+			name:           "NoCRD",
+			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:      false,
+			wantStatusCode: http.StatusPreconditionFailed,
+		},
+		{
+			name:            "WrongStatus",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "OpIDMismatch",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opOther, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:           "MissingOpIDLabel",
+			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusOnline, "", ""),
+			wantApply:      false,
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:            "BackwardsCompatNoCRDLabel",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			existingProject: stubProject("", opStored, ""), // no sync-status → defaults to online
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed, // online != creating
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), testCase.requestLabels, testCase.existingProject)
+			suite.Require().Equal(testCase.wantApply, shouldApply)
+			if testCase.wantStatusCode != 0 {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.wantStatusCode, statusCodeOf(err))
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_MarkDelete() {
+	const opOld = "018d-op"
+	const opStored = "018e-op"
+	const opNew = "018f-op"
+
+	testCases := []struct {
+		name            string
+		requestLabels   map[string]string
+		existingProject platform.Project
+		wantApply       bool
+		wantStatusCode  int
+	}{
+		{
+			name:            "ValidMarkDelete",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       true,
+		},
+		{
+			name:            "NoCRD",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
+			existingProject: nil,
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "WrongStatus",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "CASKeyMismatch",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opOld),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "NewOpIDOlderThanStored",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opOld, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "NoNewOpIDAllowed",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, "", opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       true, // no new op_id means no ordering check required
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), testCase.requestLabels, testCase.existingProject)
+			suite.Require().Equal(testCase.wantApply, shouldApply)
+			if testCase.wantStatusCode != 0 {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.wantStatusCode, statusCodeOf(err))
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_SpecUpdate() {
+	const opOld = "018d-op"
+	const opStored = "018e-op"
+	const opNew = "018f-op"
+
+	testCases := []struct {
+		name            string
+		requestLabels   map[string]string
+		existingProject platform.Project
+		wantApply       bool
+		wantStatusCode  int
+	}{
+		{
+			name:            "ValidSpecUpdate",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       true,
+		},
+		{
+			name:            "NoCRD",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
+			existingProject: nil,
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "WrongStatus",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "CASKeyMismatch",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opOld),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "NewOpIDOlderThanStored",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opOld, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), testCase.requestLabels, testCase.existingProject)
+			suite.Require().Equal(testCase.wantApply, shouldApply)
+			if testCase.wantStatusCode != 0 {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.wantStatusCode, statusCodeOf(err))
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_FinalDelete() {
+	const opStored = "018e-op"
+	const opOther = "018f-op"
+
+	testCases := []struct {
+		name            string
+		requestLabels   map[string]string
+		existingProject platform.Project
+		wantApply       bool
+		wantStatusCode  int
+	}{
+		{
+			name:            "NoCRDIdempotent",
+			requestLabels:   requestLabels("", opStored, ""),
+			existingProject: nil,
+			wantApply:       false,
+		},
+		{
+			name:            "ValidFinalDelete",
+			requestLabels:   requestLabels("", opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
+			wantApply:       true,
+		},
+		{
+			name:            "WrongStatus",
+			requestLabels:   requestLabels("", opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "OpIDMismatch",
+			requestLabels:   requestLabels("", opOther, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:           "MissingOpIDLabel",
+			requestLabels:  requestLabels("", "", ""),
+			wantApply:      false,
+			wantStatusCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), testCase.requestLabels, testCase.existingProject)
+			suite.Require().Equal(testCase.wantApply, shouldApply)
+			if testCase.wantStatusCode != 0 {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.wantStatusCode, statusCodeOf(err))
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_InvalidLabels() {
+	testCases := []struct {
+		name           string
+		requestLabels  map[string]string
+		wantStatusCode int
+	}{
+		{
+			name:           "DeletingWithoutCurrentOpID",
+			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusDeleting, "018e-op", ""),
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:           "UnknownSyncStatus",
+			requestLabels:  requestLabels("unknown-status", "018e-op", ""),
+			wantStatusCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), testCase.requestLabels, nil)
+			suite.Require().False(shouldApply)
+			suite.Require().Error(err)
+			suite.Require().Equal(testCase.wantStatusCode, statusCodeOf(err))
+		})
+	}
+}
+
+// statusCodeOf extracts the HTTP status code from a nuclio ErrorWithStatusCode.
+// Returns 0 when the error does not carry a status code.
+func statusCodeOf(err error) int {
+	type statusCoder interface{ StatusCode() int }
+	var statusErr statusCoder
+	if errors.As(err, &statusErr) {
+		return statusErr.StatusCode()
+	}
+	return 0
+}
+
+// stubProject builds a platform.AbstractProject carrying the given 2PC label
+// values on its meta. Pass empty strings to omit a label.
+func stubProject(syncStatus, opID, currentOpID string) *platform.AbstractProject {
+	return &platform.AbstractProject{
+		ProjectConfig: platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Labels: requestLabels(syncStatus, opID, currentOpID)},
+		},
+	}
+}
+
+// requestLabels builds the inbound 2PC label map for a test request.
+func requestLabels(syncStatus, opID, currentOpID string) map[string]string {
+	labels := map[string]string{}
+	if syncStatus != "" {
+		labels[leaderCommon.MLRunLabelKeySyncStatus] = syncStatus
+	}
+	if opID != "" {
+		labels[leaderCommon.MLRunLabelKeyOpID] = opID
+	}
+	if currentOpID != "" {
+		labels[leaderCommon.MLRunLabelKeyCurrentOpID] = currentOpID
+	}
+	return labels
 }
 
 func TestLeaderTestSuite(t *testing.T) {

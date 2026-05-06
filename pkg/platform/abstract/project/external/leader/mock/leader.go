@@ -40,6 +40,11 @@ func NewLeaderOps() *LeaderOps {
 
 // LeaderOps methods
 
+func (l *LeaderOps) EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error) {
+	args := l.Called(ctx, labels, existingProject)
+	return args.Bool(0), args.Error(1)
+}
+
 func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	args := l.Called(projectConfig)
 	return args.Get(0).([]byte), args.Error(1)

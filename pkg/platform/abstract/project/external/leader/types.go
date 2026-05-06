@@ -42,9 +42,24 @@ type Client interface {
 
 	// GetUpdatedAfter gets all projects from the leader that updated after the given time (to get all, pass nil time)
 	GetUpdatedAfter(context.Context, *time.Time) ([]platform.Project, error)
+
+	// EvaluateLeaderRequest determines the 2PC phase from labels, validates it against
+	// the current CRD state, and signals whether the caller should apply the change.
+	// existingProject is nil when no CRD exists.
+	// Returns (true, nil)  – validation passed, caller should write the CRD.
+	// Returns (false, nil) – idempotent replay, caller should skip the write and return existing.
+	// Returns (false, err) – validation failed (400 / 409 / 412).
+	EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error)
 }
 
 type LeaderOps interface {
+	// EvaluateLeaderRequest determines the 2PC phase purely from labels, validates it
+	// against the current CRD state, and signals whether the caller should apply the change.
+	// existingProject is nil when no CRD exists.
+	// Returns (true, nil)  – validation passed, caller should write the CRD.
+	// Returns (false, nil) – idempotent replay, caller should skip the write.
+	// Returns (false, err) – validation failed (400 / 409 / 412).
+	EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error)
 
 	// Create operations
 
@@ -140,6 +155,20 @@ const (
 const (
 	ProjectTimeLayout   = "2006-01-02T15:04:05.000000+00:00"
 	ProjectOnlineStatus = "online"
+)
+
+// 2PC sync label keys written on NuclioProject CRDs by the external client.
+const (
+	MLRunLabelKeySyncStatus  = "mlrun/sync-status"
+	MLRunLabelKeyOpID        = "mlrun/op_id"
+	MLRunLabelKeyCurrentOpID = "mlrun/current-op-id"
+)
+
+// 2PC sync status values stored under MLRunLabelKeySyncStatus.
+const (
+	MLRunSyncStatusCreating = "creating"
+	MLRunSyncStatusOnline   = "online"
+	MLRunSyncStatusDeleting = "deleting"
 )
 
 func ParseTimeFromTimestamp(timestamp string) time.Time {

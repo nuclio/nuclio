@@ -91,54 +91,94 @@ func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjec
 	return c.internalClient.Get(ctx, getProjectsOptions)
 }
 
+// Create routes the request through 2PC evaluation when the request originates
+// from the leader, or forwards it to the external leader HTTP client when it
+// comes from a user. The X-Projects-Role header is retained for IG3 compatibility.
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
-	switch createProjectOptions.RequestOrigin {
-
-	// if request came from leader, create it internally
-	case c.platformConfiguration.ProjectsLeader.Kind:
+	if createProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
+		existingProject, err := c.getExistingProject(ctx, createProjectOptions.ProjectConfig.Meta.Name, createProjectOptions.ProjectConfig.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to fetch existing project for leader create")
+		}
+		shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, createProjectOptions.ProjectConfig.Meta.Labels, existingProject)
+		if err != nil {
+			return nil, err
+		}
+		if !shouldApply {
+			return existingProject, nil // idempotent: same op_id already stored
+		}
 		return c.internalClient.Create(ctx, createProjectOptions)
-
-	// request came from user / non-leader client
-	// ask leader to create
-	default:
-		if err := c.leaderClient.Create(ctx, createProjectOptions); err != nil {
-			return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")
-		}
-
-		return nil, platform.ErrSuccessfulCreateProjectLeader
 	}
+
+	if err := c.leaderClient.Create(ctx, createProjectOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")
+	}
+
+	return nil, platform.ErrSuccessfulCreateProjectLeader
 }
 
+// Update routes the request through 2PC evaluation when the request originates
+// from the leader, or forwards it to the external leader HTTP client.
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
-	switch updateProjectOptions.RequestOrigin {
-	case c.platformConfiguration.ProjectsLeader.Kind:
+	if updateProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
+		existingProject, err := c.getExistingProject(ctx, updateProjectOptions.ProjectConfig.Meta.Name, updateProjectOptions.ProjectConfig.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to fetch existing project for leader update")
+		}
+		shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, updateProjectOptions.ProjectConfig.Meta.Labels, existingProject)
+		if err != nil {
+			return nil, err
+		}
+		if !shouldApply {
+			return existingProject, nil // idempotent
+		}
 		return c.internalClient.Update(ctx, updateProjectOptions)
-	default:
-		if err := c.leaderClient.Update(ctx, updateProjectOptions); err != nil {
-			return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
-		}
-
-		return nil, platform.ErrSuccessfulUpdateProjectLeader
 	}
+
+	if err := c.leaderClient.Update(ctx, updateProjectOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
+	}
+
+	return nil, platform.ErrSuccessfulUpdateProjectLeader
 }
 
+// Delete routes the request through 2PC evaluation when the request originates
+// from the leader, or forwards it to the external leader HTTP client.
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	switch deleteProjectOptions.RequestOrigin {
-	case c.platformConfiguration.ProjectsLeader.Kind:
-
-		// request came from leader, delete it internally
-		return c.internalClient.Delete(ctx, deleteProjectOptions)
-	default:
-
-		// request came from user / non-leader client. ask leader to delete
-		if err := c.leaderClient.Delete(ctx, deleteProjectOptions); err != nil {
-			return errors.Wrap(err, "Failed while requesting from the leader to delete the project")
+	if deleteProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
+		existingProject, err := c.getExistingProject(ctx, deleteProjectOptions.Meta.Name, deleteProjectOptions.Meta.Namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch existing project for leader delete")
 		}
-
-		return platform.ErrSuccessfulDeleteProjectLeader
+		shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, deleteProjectOptions.Meta.Labels, existingProject)
+		if err != nil {
+			return err
+		}
+		if !shouldApply {
+			return nil // idempotent: CRD already gone
+		}
+		return c.internalClient.Delete(ctx, deleteProjectOptions)
 	}
+
+	if err := c.leaderClient.Delete(ctx, deleteProjectOptions); err != nil {
+		return errors.Wrap(err, "Failed while requesting from the leader to delete the project")
+	}
+
+	return platform.ErrSuccessfulDeleteProjectLeader
 }
 
+func (c *Client) getExistingProject(ctx context.Context, name, namespace string) (platform.Project, error) {
+	existingProjects, err := c.internalClient.Get(ctx, &platform.GetProjectsOptions{Meta: platform.ProjectMeta{Name: name, Namespace: namespace}})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to fetch existing project")
+	}
+	if len(existingProjects) == 0 {
+		return nil, nil
+	}
+	return existingProjects[0], nil
+}
+
+// newLeaderClient constructs the concrete leader HTTP client for the configured leader kind.
 func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config, namespace string) (leader.Client, error) {
 	var skipTLSVerification bool
 	var leaderOps leader.LeaderOps
@@ -160,6 +200,5 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 		return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 	}
 
-	leaderClient, err := client.NewClient(parentLogger, skipTLSVerification, platformConfiguration, leaderOps)
-	return leaderClient, err
+	return client.NewClient(parentLogger, skipTLSVerification, platformConfiguration, leaderOps)
 }

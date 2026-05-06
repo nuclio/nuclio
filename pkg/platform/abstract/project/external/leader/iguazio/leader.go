@@ -212,6 +212,10 @@ func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress string, _ string)
 	return l.projectRequestURL(apiAddress)
 }
 
+func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, _ map[string]string, _ platform.Project) (bool, error) {
+	return true, nil
+}
+
 func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return true }
 
 func (l *LeaderOps) GetJobStatusRequestCookies(config *platformconfig.Config) []*http.Cookie {

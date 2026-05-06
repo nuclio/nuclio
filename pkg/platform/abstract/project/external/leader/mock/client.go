@@ -99,3 +99,8 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 	args := c.Called(ctx, updatedAfterTime)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
+
+func (c *Client) EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error) {
+	args := c.Called(ctx, labels, existingProject)
+	return args.Bool(0), args.Error(1)
+}

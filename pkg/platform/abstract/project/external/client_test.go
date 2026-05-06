@@ -29,7 +29,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,7 +44,7 @@ type ExternalProjectClientTestSuite struct {
 	ctx                        context.Context
 }
 
-func (suite *ExternalProjectClientTestSuite) SetupSuite() {
+func (suite *ExternalProjectClientTestSuite) SetupTest() {
 	var err error
 
 	// create logger
@@ -72,7 +73,6 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 		internalClient:        suite.mockInternalProjectsClient,
 		leaderClient:          suite.mockLeaderProjectsClient,
 	}
-	suite.Require().NoError(err)
 }
 
 func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
@@ -85,6 +85,8 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 		},
 	}
 
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
 	suite.mockInternalProjectsClient.
 		On("Create", suite.ctx, &createProjectOptions).
 		Return(&platform.AbstractProject{}, nil).
@@ -98,12 +100,12 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 	updateProjectOptions := platform.UpdateProjectOptions{
 		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
 		ProjectConfig: platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: "test-func",
-			},
+			Meta: platform.ProjectMeta{Name: "test-func"},
 		},
 	}
 
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
 	suite.mockInternalProjectsClient.
 		On("Update", suite.ctx, &updateProjectOptions).
 		Return(&platform.AbstractProject{}, nil).
@@ -116,11 +118,11 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 	deleteProjectOptions := platform.DeleteProjectOptions{
 		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
-		Meta: platform.ProjectMeta{
-			Name: "test-func",
-		},
+		Meta:          platform.ProjectMeta{Name: "test-func"},
 	}
 
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
 	suite.mockInternalProjectsClient.
 		On("Delete", suite.ctx, &deleteProjectOptions).
 		Return(nil).
@@ -134,9 +136,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 	createProjectOptions := platform.CreateProjectOptions{
 		RequestOrigin: "not-leader",
 		ProjectConfig: &platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: "test-func",
-			},
+			Meta: platform.ProjectMeta{Name: "test-func"},
 		},
 	}
 
@@ -154,9 +154,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 	updateProjectOptions := platform.UpdateProjectOptions{
 		RequestOrigin: "not-leader",
 		ProjectConfig: platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: "test-func",
-			},
+			Meta: platform.ProjectMeta{Name: "test-func"},
 		},
 	}
 
@@ -173,9 +171,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 	deleteProjectOptions := platform.DeleteProjectOptions{
 		RequestOrigin: "not-leader",
-		Meta: platform.ProjectMeta{
-			Name: "test-func",
-		},
+		Meta:          platform.ProjectMeta{Name: "test-func"},
 	}
 
 	suite.mockLeaderProjectsClient.
@@ -190,9 +186,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 
 func (suite *ExternalProjectClientTestSuite) TestGet() {
 	getProjectOptions := platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name: "test-func",
-		},
+		Meta: platform.ProjectMeta{Name: "test-func"},
 	}
 
 	suite.mockInternalProjectsClient.
@@ -202,6 +196,26 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 
 	_, err := suite.Get(suite.ctx, &getProjectOptions)
 	suite.Require().NoError(err)
+}
+
+// expectGetExistingProject stubs the internal Get used by getExistingProject
+// to return no existing project (the simplest valid 2PC pre-state).
+func (suite *ExternalProjectClientTestSuite) expectGetExistingProject(name string) {
+	suite.mockInternalProjectsClient.
+		On("Get", suite.ctx, mock.MatchedBy(func(opts *platform.GetProjectsOptions) bool {
+			return opts != nil && opts.Meta.Name == name
+		})).
+		Return([]platform.Project{}, nil).
+		Once()
+}
+
+// expectEvaluateLeaderRequest stubs the leader's 2PC evaluation to return
+// shouldApply=true so the test exercises the apply branch.
+func (suite *ExternalProjectClientTestSuite) expectEvaluateLeaderRequest(shouldApply bool) {
+	suite.mockLeaderProjectsClient.
+		On("EvaluateLeaderRequest", suite.ctx, mock.Anything, mock.Anything).
+		Return(shouldApply, nil).
+		Once()
 }
 
 func TestExternalProjectClientTestSuite(t *testing.T) {
