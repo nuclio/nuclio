@@ -153,7 +153,7 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 		Platform: suite.abstractPlatform,
 		getter:   getter,
 		consumer: &nuclio.Consumer{
-			NuclioClientSet: suite.nuclioioInterfaceMock,
+			NuclioClientSet: nuclio.NewClientWithRetryFromClient(suite.nuclioioInterfaceMock),
 			KubeClientSet:   kube.NewClientWithRetryFromClient(&suite.kubeClientSet),
 		},
 		projectsCache: cache.NewExpiring(),
