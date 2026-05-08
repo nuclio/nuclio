@@ -52,10 +52,7 @@ func (g *Getter) Get(ctx context.Context,
 	if getFunctionsOptions.Name != "" {
 
 		// Get specific function CR
-		function, err := consumer.NuclioClientSet.
-			NuclioV1beta1().
-			NuclioFunctions(getFunctionsOptions.Namespace).
-			Get(ctx, getFunctionsOptions.Name, metav1.GetOptions{})
+		function, err := consumer.NuclioClientSet.GetNuclioFunction(ctx, getFunctionsOptions.Namespace, getFunctionsOptions.Name)
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -71,9 +68,11 @@ func (g *Getter) Get(ctx context.Context,
 	} else {
 
 		functionInstanceList, err := consumer.NuclioClientSet.
-			NuclioV1beta1().
-			NuclioFunctions(getFunctionsOptions.Namespace).
-			List(ctx, metav1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
+			ListNuclioFunctions(ctx,
+				getFunctionsOptions.Namespace,
+				metav1.ListOptions{
+					LabelSelector: getFunctionsOptions.Labels,
+				})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")
