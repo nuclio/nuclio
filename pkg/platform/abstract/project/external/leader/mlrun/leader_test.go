@@ -45,7 +45,7 @@ func (suite *LeaderTestSuite) SetupSuite() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test-mlrun-leader")
 	suite.Require().NoError(err)
 	suite.namespace = "test-namespace"
-	suite.leaderOps = NewLeaderOps(suite.logger, suite.namespace)
+	suite.leaderOps = NewLeaderOps(suite.logger, suite.namespace, true)
 }
 
 func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
@@ -341,18 +341,55 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_Provision() {
 			wantStatusCode:  http.StatusConflict,
 		},
 		{
-			name:            "NewerOpIDButWrongStatus",
+			name:            "NewerOpIDProjectAlreadyOnline",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opNew, ""),
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
 			wantApply:       false,
-			wantStatusCode:  http.StatusPreconditionFailed,
+			// project exists and is live; a new Provision cannot overwrite it
+			wantStatusCode: http.StatusConflict,
 		},
 		{
-			name:            "NewerOpIDConcurrentProvision",
+			name:            "NewerOpIDRecoverStaleCRD",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opNew, ""),
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       true,
+			// MLRun abandoned the old provision and is starting fresh; allow the overwrite
+		},
+		{
+			name:            "OnlineSameOpIDIdempotent",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			// op_id already stored — idempotency guard fires before the status check
+		},
+		{
+			name:            "OnlineOlderOpIDReplayProtection",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opOld, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
 			wantApply:       false,
 			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "DeletingSameOpIDIdempotent",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
+			wantApply:       false,
+			// op_id already stored — idempotency guard fires before the status check
+		},
+		{
+			name:            "DeletingOlderOpIDReplayProtection",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opOld, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "DeletingNewerOpIDAlreadyExists",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusCreating, opNew, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
+			wantApply:       false,
+			// project is in deleting state; cannot re-provision
+			wantStatusCode: http.StatusConflict,
 		},
 		{
 			name:           "MissingOpIDLabel",
@@ -400,11 +437,20 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_Commit() {
 			wantStatusCode: http.StatusPreconditionFailed,
 		},
 		{
-			name:            "WrongStatus",
+			name:            "WrongStatusDeleting",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed, // deleting != creating
+		},
+		{
+			name:            "WrongStatusOnlineDifferentOpID",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opOther, ""),
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
 			wantApply:       false,
-			wantStatusCode:  http.StatusPreconditionFailed,
+			// status is already online but op_id differs — idempotency guard does not fire,
+			// then requireSyncStatus(online, creating) → 412
+			wantStatusCode: http.StatusPreconditionFailed,
 		},
 		{
 			name:            "OpIDMismatch",
@@ -420,11 +466,18 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_Commit() {
 			wantStatusCode: http.StatusBadRequest,
 		},
 		{
+			name:            "AlreadyCommittedIdempotent",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       false,
+			// no error: CRD is already online with the same op_id, commit is a no-op
+		},
+		{
 			name:            "BackwardsCompatNoCRDLabel",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
 			existingProject: stubProject("", opStored, ""), // no sync-status → defaults to online
 			wantApply:       false,
-			wantStatusCode:  http.StatusPreconditionFailed, // online != creating
+			// idempotency guard fires first: status defaults to online and op_id matches
 		},
 	}
 
@@ -489,10 +542,26 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_MarkDelete() {
 			wantStatusCode:  http.StatusConflict,
 		},
 		{
-			name:            "NoNewOpIDAllowed",
-			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, "", opStored),
-			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
-			wantApply:       true, // no new op_id means no ordering check required
+			name:           "MissingOpIDLabel",
+			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusDeleting, "", opStored),
+			wantApply:      false,
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:            "AlreadyMarkDeletedIdempotent",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opNew, ""),
+			wantApply:       false,
+			// no error: CRD is already deleting with opNew stored, mark-delete is a no-op
+		},
+		{
+			name:            "AlreadyDeletingDifferentOpID",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opOld, ""),
+			wantApply:       false,
+			// CRD is deleting but with a different op_id — idempotency guard does not fire,
+			// then requireSyncStatus(deleting, online) → 412
+			wantStatusCode: http.StatusPreconditionFailed,
 		},
 	}
 
@@ -536,18 +605,26 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_SpecUpdate() {
 			wantStatusCode:  http.StatusPreconditionFailed,
 		},
 		{
-			name:            "WrongStatus",
+			name:            "WrongStatusCreating",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
 			wantApply:       false,
 			wantStatusCode:  http.StatusPreconditionFailed,
 		},
 		{
-			name:            "CASKeyMismatch",
-			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opOld),
-			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			name:            "WrongStatusDeleting",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opStored, ""),
 			wantApply:       false,
-			wantStatusCode:  http.StatusConflict,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:          "NewerOpIDStaleCASKey",
+			requestLabels: requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opOld),
+			// current-op-id (opOld) does not match stored (opStored), but op_id (opNew) is newer —
+			// spec-update uses last-writer-wins by op_id alone, so this is allowed.
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
+			wantApply:       true,
 		},
 		{
 			name:            "NewOpIDOlderThanStored",
@@ -555,6 +632,19 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_SpecUpdate() {
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
 			wantApply:       false,
 			wantStatusCode:  http.StatusConflict,
+		},
+		{
+			name:            "AlreadyAppliedIdempotent",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opNew, ""),
+			wantApply:       false,
+			// no error: CRD is already online with opNew stored, spec update is a no-op
+		},
+		{
+			name:           "MissingOpIDLabel",
+			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusOnline, "", opStored),
+			wantApply:      false,
+			wantStatusCode: http.StatusBadRequest,
 		},
 	}
 
@@ -596,7 +686,14 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_FinalDelete() {
 			wantApply:       true,
 		},
 		{
-			name:            "WrongStatus",
+			name:            "WrongStatusCreating",
+			requestLabels:   requestLabels("", opStored, ""),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusCreating, opStored, ""),
+			wantApply:       false,
+			wantStatusCode:  http.StatusPreconditionFailed,
+		},
+		{
+			name:            "WrongStatusOnline",
 			requestLabels:   requestLabels("", opStored, ""),
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
 			wantApply:       false,

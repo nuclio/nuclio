@@ -187,7 +187,7 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 	// mlrun projects leader
 	case platformconfig.ProjectsLeaderKindMlrun:
 		skipTLSVerification = true
-		leaderOps = mlrun.NewLeaderOps(parentLogger, namespace)
+		leaderOps = mlrun.NewLeaderOps(parentLogger, namespace, platformConfiguration.ProjectsLeader.ProjectSync2PCEnabled)
 
 	// iguazio projects leader
 	case platformconfig.ProjectsLeaderKindIguazio:

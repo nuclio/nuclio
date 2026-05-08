@@ -43,13 +43,15 @@ const (
 type LeaderOps struct {
 	logger logger.Logger
 	// namespace is used to enrich the MLRun responses, which omit the namespace
-	namespace string
+	namespace             string
+	projectSync2PCEnabled bool
 }
 
-func NewLeaderOps(parentLogger logger.Logger, namespace string) *LeaderOps {
+func NewLeaderOps(parentLogger logger.Logger, namespace string, projectSync2PCEnabled bool) *LeaderOps {
 	return &LeaderOps{
-		logger:    parentLogger.GetChild("mlrun"),
-		namespace: namespace,
+		logger:                parentLogger.GetChild("mlrun"),
+		namespace:             namespace,
+		projectSync2PCEnabled: projectSync2PCEnabled,
 	}
 }
 
@@ -156,30 +158,57 @@ func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName stri
 	return l.projectRequestURL(apiAddress, projectName, APIVersionV2)
 }
 
-// EvaluateLeaderRequest determines the 2PC phase purely from the request labels and
-// validates it against the current CRD state.
-// Phase detection rules (labels on the incoming request):
-//   - sync-status=creating                         → Provision
-//   - sync-status=online,   no current-op-id       → Commit
-//   - sync-status=deleting, current-op-id present  → Mark-delete
-//   - sync-status=online,   current-op-id present  → Spec update
-//   - no sync-status (only op_id)                  → Final-delete
+// EvaluateLeaderRequest is the entry point for every project write that originates from MLRun.
+// It decides whether Nuclio should actually apply the incoming change and, if so, whether the
+// operation is valid given the current state of the Kubernetes CRD.
+//
+// When ProjectSync2PCEnabled is false (the default) the function immediately returns
+// (true, nil) — meaning "go ahead and apply". This preserves backwards compatibility
+// with MLRun deployments that do not send 2PC labels at all.
+//
+// When 2PC is enabled the function detects which phase of the two-phase commit protocol
+// the request belongs to, purely by reading the labels that MLRun attaches:
+//
+//   - sync-status=creating                         → Provision  (start of creation)
+//   - sync-status=online,   no current-op-id       → Commit     (creation succeeded)
+//   - sync-status=deleting, current-op-id present  → Mark-delete (start of deletion)
+//   - sync-status=online,   current-op-id present  → Spec-update (in-place change)
+//   - no sync-status (only op_id)                  → Final-delete (deletion complete)
+//
+// Return values:
+//
+//	(true,  nil)  → validation passed; the caller should apply the change to the CRD.
+//	(false, nil)  → idempotent replay; the change was already applied; caller skips the write.
+//	(false, err)  → validation failed; the caller should return the error to MLRun.
 func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, labels map[string]string, existing platform.Project) (bool, error) {
+	// Feature flag: when 2PC is disabled, every leader request is applied unconditionally.
+	// This allows rolling out the 2PC protocol without requiring a simultaneous MLRun upgrade.
+	if !l.projectSync2PCEnabled {
+		return true, nil
+	}
+
+	// Determine the 2PC phase from the labels MLRun put on this request.
 	syncStatus := labels[leaderCommon.MLRunLabelKeySyncStatus]
 	currentOpID := labels[leaderCommon.MLRunLabelKeyCurrentOpID]
 
 	switch {
 	case syncStatus == leaderCommon.MLRunSyncStatusCreating:
+		// Phase 0 of creation: MLRun wants to begin creating a project.
 		return l.validateProvision(labels, existing)
 	case syncStatus == leaderCommon.MLRunSyncStatusOnline && currentOpID == "":
+		// Phase 1 of creation: MLRun says the project is ready; flip status to "online".
 		return l.validateCommit(labels, existing)
 	case syncStatus == leaderCommon.MLRunSyncStatusDeleting && currentOpID != "":
+		// Phase 0 of deletion: MLRun wants to begin deleting a project; flip status to "deleting".
 		return l.validateMarkDelete(labels, existing)
 	case syncStatus == leaderCommon.MLRunSyncStatusOnline && currentOpID != "":
+		// In-place update: project stays "online" but its spec changes.
 		return l.validateSpecUpdate(labels, existing)
 	case syncStatus == "":
+		// Phase 1 of deletion: MLRun has finished its cleanup; permanently delete the CRD.
 		return l.validateFinalDelete(labels, existing)
 	default:
+		// Unknown label combination — reject with a clear diagnostic.
 		return false, nuclio.GetByStatusCode(http.StatusBadRequest)(
 			fmt.Sprintf("Unrecognised 2PC labels: sync-status=%q current-op-id=%q",
 				syncStatus, currentOpID))
@@ -203,42 +232,61 @@ func (l *LeaderOps) projectRequestURL(apiAddress, projectName string, version AP
 }
 
 // validateProvision validates the Provision step (sync-status=creating in request labels).
-// Returns (true, nil)  – no CRD yet, caller should create.
+// MLRun calls this first when creating a new project. Nuclio should write the CRD
+// with status=creating so that both sides know creation is in progress.
+//
+// Returns (true, nil)  – no CRD yet, or a stale "creating" CRD is being recovered; caller should write.
 // Returns (false, nil) – same op_id already stored, idempotent replay.
 func (l *LeaderOps) validateProvision(labels map[string]string, existing platform.Project) (bool, error) {
+	// Every provision must carry an op_id that uniquely identifies this operation.
 	requestedOpID, err := l.requireLabel(labels, leaderCommon.MLRunLabelKeyOpID, "provision")
 	if err != nil {
 		return false, err
 	}
 
+	// Happy path: no CRD exists yet — this is the first time we see this project.
+	// Tell the caller to go ahead and create it.
 	if existing == nil {
-		// no CRD yet — caller should create
 		return true, nil
 	}
 
+	// A CRD already exists; read what is currently stored on it.
 	storedOpID, effectiveStatus := l.extractCRDState(existing)
 
+	// Idempotency: the exact same provision request arrived twice (e.g. MLRun retried after a
+	// timeout). The CRD is already in the correct state — skip the write and return success.
 	if storedOpID == requestedOpID {
-		// idempotent: caller returns the existing project without re-creating
 		return false, nil
 	}
 
+	// Replay protection: the incoming op_id is older than what is already stored.
+	// This means an out-of-order or stale request arrived. Reject it.
 	if !l.isOpIDOrdered(requestedOpID, storedOpID) {
 		return false, nuclio.GetByStatusCode(http.StatusConflict)(
 			fmt.Sprintf("Provision rejected: op_id %q is older than stored op_id %q (replay protection)",
 				requestedOpID, storedOpID))
 	}
 
-	if err := l.requireSyncStatus(effectiveStatus, leaderCommon.MLRunSyncStatusCreating, "Provision"); err != nil {
-		return false, err
+	// The incoming op_id is newer. If the CRD is still in "creating" state this is a
+	// recovery scenario: MLRun abandoned the previous provision (e.g. it crashed) and
+	// is starting fresh with a new op_id. It will never send a Commit for the old op_id,
+	// so there is no orphan risk. Allow the overwrite so the project is not stuck.
+	if effectiveStatus == leaderCommon.MLRunSyncStatusCreating {
+		return true, nil
 	}
 
+	// Reaching here means the op_id is newer but the CRD is already "online" or "deleting" —
+	// the project is established and cannot be re-provisioned. Use SpecUpdate or MarkDelete.
+	// (The "creating" case was handled and returned early above.)
 	return false, nuclio.GetByStatusCode(http.StatusConflict)(
-		fmt.Sprintf("Provision rejected: op_id mismatch (requested %q, stored %q)",
-			requestedOpID, storedOpID))
+		fmt.Sprintf("Provision rejected: project already exists in %q state (requested op_id %q)",
+			effectiveStatus, requestedOpID))
 }
 
 // validateCommit validates the Commit step: creating → online.
+// MLRun calls this after the project has been fully initialised on its side.
+// Nuclio should flip the CRD status from "creating" to "online".
+//
 // Returns (true, nil) on success; caller should update the CRD.
 func (l *LeaderOps) validateCommit(labels map[string]string, existing platform.Project) (bool, error) {
 	requestedOpID, err := l.requireLabel(labels, leaderCommon.MLRunLabelKeyOpID, "commit")
@@ -246,16 +294,29 @@ func (l *LeaderOps) validateCommit(labels map[string]string, existing platform.P
 		return false, err
 	}
 
+	// Commit cannot happen if there is no CRD — Provision must have succeeded first.
 	if err := l.requireExistingProject(existing, "Commit"); err != nil {
 		return false, err
 	}
 
+	// Read the current state of the CRD.
 	storedOpID, effectiveStatus := l.extractCRDState(existing)
 
+	// Idempotency: the CRD is already online with the same op_id, meaning Nuclio already applied
+	// this commit (perhaps the response timed out and MLRun is retrying). Return success without
+	// writing again. This check must come before requireSyncStatus because after a successful
+	// commit the status is "online", not "creating".
+	if effectiveStatus == leaderCommon.MLRunSyncStatusOnline && storedOpID == requestedOpID {
+		return false, nil
+	}
+
+	// The CRD must be in "creating" state — Provision must have run before Commit.
 	if err := l.requireSyncStatus(effectiveStatus, leaderCommon.MLRunSyncStatusCreating, "Commit"); err != nil {
 		return false, err
 	}
 
+	// The op_id on the CRD must match the one in the request to confirm we are committing
+	// exactly the operation that was provisioned, not a stale or mismatched one.
 	if err := l.requireOpIDMatch(requestedOpID, storedOpID, "Commit"); err != nil {
 		return false, err
 	}
@@ -263,79 +324,152 @@ func (l *LeaderOps) validateCommit(labels map[string]string, existing platform.P
 }
 
 // validateMarkDelete validates the Mark-delete step: online → deleting.
-// The current-op-id label acts as a CAS key against the stored op_id.
+// MLRun calls this to signal that a project is about to be deleted. Nuclio should flip
+// the CRD status to "deleting" and record the new op_id so that the subsequent
+// FinalDelete step can confirm it is operating on the same deletion operation.
+//
+// The current-op-id label acts as a CAS (compare-and-swap) key: it must match the op_id
+// currently stored on the CRD so that concurrent or out-of-order requests are rejected.
+// op_id is required: it becomes the new stored op_id on the CRD.
+//
 // Returns (true, nil) on success; caller should update the CRD.
 func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platform.Project) (bool, error) {
+	// The new op_id is required — it will be written to the CRD and must be present
+	// so that the FinalDelete step can verify it is completing the right operation.
+	newOpID, err := l.requireLabel(labels, leaderCommon.MLRunLabelKeyOpID, "mark-delete")
+	if err != nil {
+		return false, err
+	}
+
+	// Mark-delete cannot happen if there is no CRD — the project must exist.
 	if err := l.requireExistingProject(existing, "Mark-delete"); err != nil {
 		return false, err
 	}
 
+	// Read the current state of the CRD.
 	storedOpID, effectiveStatus := l.extractCRDState(existing)
 
+	// Idempotency: the CRD is already in "deleting" state with the new op_id already stored,
+	// meaning Nuclio already applied this mark (perhaps the response timed out). Return success
+	// without writing again. This check must come before requireSyncStatus because after a
+	// successful mark-delete the status is "deleting", not "online".
+	if effectiveStatus == leaderCommon.MLRunSyncStatusDeleting && storedOpID == newOpID {
+		return false, nil
+	}
+
+	// The CRD must be in "online" state before it can be marked for deletion.
 	if err := l.requireSyncStatus(effectiveStatus, leaderCommon.MLRunSyncStatusOnline, "Mark-delete"); err != nil {
 		return false, err
 	}
 
+	// CAS check: the current-op-id in the request must equal the op_id stored on the CRD.
+	// This ensures the caller is operating on the exact version it last read, preventing
+	// a concurrent update from being silently overwritten.
 	if err := l.requireOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Mark-delete"); err != nil {
 		return false, err
 	}
 
-	if err := l.requireNewerOpID(labels[leaderCommon.MLRunLabelKeyOpID], storedOpID, "Mark-delete"); err != nil {
+	// The new op_id must be strictly newer than the stored one, preventing replayed or
+	// out-of-order requests from overwriting a more recent operation.
+	if err := l.requireNewerOpID(newOpID, storedOpID, "Mark-delete"); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // validateSpecUpdate validates an in-place spec update: advances op_id while staying online.
-// The current-op-id label acts as a CAS key; op_id carries the replacement value.
+// MLRun calls this when a project's configuration changes (e.g. labels, description).
+// The status stays "online" — only the op_id advances to record that the update happened.
+//
+// Ordering is enforced by op_id alone: the incoming op_id must be strictly newer than the
+// stored one (UUIDv7 lexicographic order = chronological order). The current-op-id label
+// is ignored here — unlike MarkDelete, a spec update is non-destructive and reversible,
+// so last-writer-wins by timestamp is the right trade-off between safety and recoverability.
+// op_id is required: it must be written to the CRD so subsequent operations can match against it.
+//
 // Returns (true, nil) on success; caller should update the CRD.
 func (l *LeaderOps) validateSpecUpdate(labels map[string]string, existing platform.Project) (bool, error) {
+	// The new op_id is required — it will replace the stored op_id on the CRD so that
+	// future operations (e.g. a subsequent update or mark-delete) can use it as a CAS key.
+	newOpID, err := l.requireLabel(labels, leaderCommon.MLRunLabelKeyOpID, "spec-update")
+	if err != nil {
+		return false, err
+	}
+
+	// SpecUpdate cannot happen if there is no CRD — the project must exist.
 	if err := l.requireExistingProject(existing, "Update"); err != nil {
 		return false, err
 	}
 
+	// Read the current state of the CRD.
 	storedOpID, effectiveStatus := l.extractCRDState(existing)
 
+	// The project must be in "online" state to accept a spec update.
+	// A project in "creating" or "deleting" state is not ready for user-driven changes.
 	if err := l.requireSyncStatus(effectiveStatus, leaderCommon.MLRunSyncStatusOnline, "Update"); err != nil {
 		return false, err
 	}
 
-	if err := l.requireOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Update"); err != nil {
-		return false, err
+	// Idempotency: the CRD is already online and the new op_id is already stored, meaning
+	// Nuclio already applied this update (perhaps the response timed out). Both the status
+	// check above and this op_id check together confirm the post-apply state is fully reached.
+	// Return success without writing again.
+	if storedOpID == newOpID {
+		return false, nil
 	}
 
-	if err := l.requireNewerOpID(labels[leaderCommon.MLRunLabelKeyOpID], storedOpID, "Update"); err != nil {
+	// The new op_id must be strictly newer than the stored one.
+	// This is the only ordering guard for spec-updates: any newer op always wins,
+	// including recovery cases where MLRun's tracked current-op-id is stale.
+	if err := l.requireNewerOpID(newOpID, storedOpID, "Update"); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // validateFinalDelete validates the Final-delete step.
+// MLRun calls this after all internal cleanup has completed on its side.
+// Nuclio should permanently remove the CRD from Kubernetes.
+//
+// The op_id in the request must match the one stored during Mark-delete, confirming
+// that this FinalDelete is completing the exact deletion operation that was marked.
+//
 // Returns (false, nil) when the CRD is already gone (idempotent).
 // Returns (true, nil)  on success; caller should delete the CRD.
 func (l *LeaderOps) validateFinalDelete(labels map[string]string, existing platform.Project) (bool, error) {
+	// The op_id must match the one written during Mark-delete — this is the handshake
+	// that binds the two steps together and ensures we are deleting the right project.
 	requestedOpID, err := l.requireLabel(labels, leaderCommon.MLRunLabelKeyOpID, "final-delete")
 	if err != nil {
 		return false, err
 	}
 
+	// Idempotency: the CRD is already gone. Nuclio previously deleted it and MLRun is
+	// retrying (e.g. after a timeout). Treat this as a success.
 	if existing == nil {
-		return false, nil // idempotent: CRD already gone
+		return false, nil
 	}
 
+	// Read the current state of the CRD.
 	storedOpID, effectiveStatus := l.extractCRDState(existing)
 
+	// The CRD must be in "deleting" state — Mark-delete must have run before FinalDelete.
 	if err := l.requireSyncStatus(effectiveStatus, leaderCommon.MLRunSyncStatusDeleting, "Final-delete"); err != nil {
 		return false, err
 	}
 
+	// The op_id on the CRD must match the one in the request to confirm this FinalDelete
+	// is completing the deletion that was started by the matching Mark-delete, and not
+	// a stale request for a different operation.
 	if err := l.requireOpIDMatch(requestedOpID, storedOpID, "Final-delete"); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// requireLabel returns the value of key from labels, or a 400 error if it is absent.
+// requireLabel returns the value of key from labels, or a 400 Bad Request error when the
+// label is absent or empty. Every 2PC phase must carry its required labels; a missing label
+// means the request is malformed and MLRun should not retry it as-is.
 func (l *LeaderOps) requireLabel(labels map[string]string, key, operation string) (string, error) {
 	value := labels[key]
 	if value == "" {
@@ -345,7 +479,10 @@ func (l *LeaderOps) requireLabel(labels map[string]string, key, operation string
 	return value, nil
 }
 
-// requireExistingProject returns a 412 error when no CRD is present.
+// requireExistingProject returns a 412 Precondition Failed when the Kubernetes CRD is nil.
+// Used by phases that must operate on an existing project (Commit, MarkDelete, SpecUpdate,
+// FinalDelete). Provision and FinalDelete handle the nil case themselves because for them
+// a missing CRD is either expected (Provision) or idempotent (FinalDelete).
 func (l *LeaderOps) requireExistingProject(existing platform.Project, operation string) error {
 	if existing == nil {
 		return nuclio.GetByStatusCode(http.StatusPreconditionFailed)(
@@ -354,13 +491,17 @@ func (l *LeaderOps) requireExistingProject(existing platform.Project, operation 
 	return nil
 }
 
-// extractCRDState returns the stored op_id and the effective sync-status from an existing CRD.
+// extractCRDState reads two pieces of information from the existing CRD that are needed
+// by every validation: the op_id currently stored on the CRD (used for CAS checks and
+// idempotency comparisons) and the effective sync-status (used to enforce phase ordering).
 func (l *LeaderOps) extractCRDState(existing platform.Project) (storedOpID, syncStatus string) {
 	labels := existing.GetConfig().Meta.Labels
 	return labels[leaderCommon.MLRunLabelKeyOpID], l.resolveSyncStatus(labels)
 }
 
-// requireSyncStatus returns a 412 error when the CRD's effective status does not match expected.
+// requireSyncStatus returns a 412 Precondition Failed when the CRD is not in the expected
+// phase. This enforces the phase ordering of the 2PC protocol — for example, Commit must
+// only run after Provision, meaning the CRD must already be in "creating" state.
 func (l *LeaderOps) requireSyncStatus(effectiveStatus, expectedStatus, operation string) error {
 	if effectiveStatus != expectedStatus {
 		return nuclio.GetByStatusCode(http.StatusPreconditionFailed)(
@@ -370,7 +511,12 @@ func (l *LeaderOps) requireSyncStatus(effectiveStatus, expectedStatus, operation
 	return nil
 }
 
-// requireOpIDMatch returns a 409 error when the stored op_id does not equal the requested one.
+// requireOpIDMatch returns a 409 Conflict when the two op_id values do not match.
+// Used in two ways:
+//  1. To implement a CAS check: the current-op-id in the request must equal the op_id
+//     stored on the CRD (MarkDelete, SpecUpdate).
+//  2. To bind two phases together: the op_id in FinalDelete must equal the one that was
+//     written during MarkDelete, confirming both steps are part of the same operation.
 func (l *LeaderOps) requireOpIDMatch(requestedOpID, storedOpID, operation string) error {
 	if storedOpID != requestedOpID {
 		return nuclio.GetByStatusCode(http.StatusConflict)(
@@ -380,7 +526,10 @@ func (l *LeaderOps) requireOpIDMatch(requestedOpID, storedOpID, operation string
 	return nil
 }
 
-// requireNewerOpID returns a 409 error when newOpID is present but not strictly newer than storedOpID.
+// requireNewerOpID returns a 409 Conflict when the incoming op_id is not strictly newer
+// than the one already stored on the CRD. This is the replay-protection guard: because
+// UUIDv7 embeds a millisecond timestamp in its most-significant bits, a lexicographically
+// smaller value means the request is older and must be rejected to prevent stale writes.
 func (l *LeaderOps) requireNewerOpID(newOpID, storedOpID, operation string) error {
 	if newOpID != "" && !l.isOpIDOrdered(newOpID, storedOpID) {
 		return nuclio.GetByStatusCode(http.StatusConflict)(
@@ -390,8 +539,9 @@ func (l *LeaderOps) requireNewerOpID(newOpID, storedOpID, operation string) erro
 	return nil
 }
 
-// resolveSyncStatus returns the effective sync-status label value, defaulting to
-// MLRunSyncStatusOnline for CRDs that pre-date 2PC introduction (backwards compatibility).
+// resolveSyncStatus returns the sync-status label value from the CRD's labels.
+// If the label is absent the CRD pre-dates the 2PC introduction, so we treat it as
+// "online" — the last known good state before 2PC was added.
 func (l *LeaderOps) resolveSyncStatus(labels map[string]string) string {
 	if status, exists := labels[leaderCommon.MLRunLabelKeySyncStatus]; exists {
 		return status
