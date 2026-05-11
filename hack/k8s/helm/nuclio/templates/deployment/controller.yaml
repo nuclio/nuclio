@@ -17,6 +17,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.controllerName" . }}
+  labels:
+    {{- include "nuclio.standardLabels.controller" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
@@ -34,11 +36,13 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.controllerName" . }}
+        {{- include "nuclio.standardLabels.controller" . | nindent 8 }}
       annotations:
         nuclio.io/version: {{ .Values.controller.image.tag }}
         checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      {{- include "nuclio.imagePullSecrets" . | nindent 6 }}
       securityContext:
         {{- toYaml .Values.controller.securityContext | nindent 8 }}
       containers:

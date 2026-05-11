@@ -1,8 +1,6 @@
 markdown
-myst-parser
-python_docs_theme
-sphinx_book_theme
-sphinx-copybutton
-sphinx
-linkify
 myst-parser[linkify]
+python-docs-theme
+sphinx-book-theme
+sphinx-copybutton
+sphinx==8.2.3

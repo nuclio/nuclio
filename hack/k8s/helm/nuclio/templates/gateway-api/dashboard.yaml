@@ -1,0 +1,55 @@
+# Copyright 2026 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if and .Values.dashboard.enabled .Values.dashboard.httpRoute.enabled }}
+{{- include "nuclio.requireGatewayAPICRDs" . }}
+{{- $fullName := include "nuclio.dashboardName" . -}}
+
+# ensure parentRefs is set when gateway.enabled is false
+{{- if and (empty .Values.dashboard.httpRoute.parentRefs) (not .Values.gateway.enabled) }}
+{{- fail "dashboard.httpRoute.parentRefs must be set when gateway.enabled is false" }}
+{{- end }}
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app: {{ template "nuclio.name" . }}
+    release: {{ .Release.Name }}
+    nuclio.io/app: dashboard
+    nuclio.io/class: httproute
+    {{- include "nuclio.standardLabels.dashboard" . | nindent 4 }}
+spec:
+  parentRefs:
+    {{- if .Values.dashboard.httpRoute.parentRefs }}
+    {{- toYaml .Values.dashboard.httpRoute.parentRefs | nindent 4 }}
+    {{- else }}
+    - name: {{ include "nuclio.gatewayName" . }}
+    {{- end }}
+  {{- with .Values.dashboard.httpRoute.hosts }}
+  hostnames:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ $fullName }}
+          port: {{ .Values.dashboard.servicePort }}
+{{- end }}

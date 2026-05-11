@@ -141,6 +141,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to create topics")
 	}
 
+	// ensure the queue exists before consuming to avoid "delivery not initialized" ack errors
+	if err := rmq.validateQueueExists(); err != nil {
+		return errors.Wrap(err, "Failed to validate queue existence")
+	}
+
 	// apply prefetch QoS regardless of whether topics were provided
 	if err := rmq.applyPrefetchCount(); err != nil {
 		return errors.Wrap(err, "Failed to apply prefetch count")
@@ -269,7 +274,7 @@ func (rmq *rabbitMq) createTopics() error {
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
 		rmq.configuration.QueueName,    // queue name (account  + function name)
-		rmq.configuration.DurableQueue, // durable  TBD: change to true if/when we bind to persistent storage
+		rmq.configuration.DurableQueue, // durable
 		false,                          // delete when unused
 		false,                          // exclusive
 		false,                          // no-wait
@@ -294,6 +299,29 @@ func (rmq *rabbitMq) createTopics() error {
 			"topic", topic,
 			"exchangeName", rmq.configuration.ExchangeName)
 
+	}
+	return nil
+}
+
+// validateQueueExists verifies that the configured queue exists before starting consumption.
+// This prevents "delivery not initialized" ack errors when the queue does not exist.
+func (rmq *rabbitMq) validateQueueExists() error {
+	checkChannel, err := rmq.brokerConn.Channel()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create channel for queue check")
+	}
+	defer checkChannel.Close()
+	// Passive declare only checks that the queue exists; it does not create or redeclare the queue with these params.
+	_, err = checkChannel.QueueDeclarePassive(
+		rmq.configuration.QueueName,
+		false, // durable
+		false, // autoDelete
+		false, // exclusive
+		false, // noWait
+		nil,   // args
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Queue does not exist, name: %s", rmq.configuration.QueueName)
 	}
 	return nil
 }

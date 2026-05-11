@@ -148,10 +148,10 @@ func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string
 		}
 
 		baseImage := fmt.Sprintf("FROM %s AS %s", artifact.Image, artifact.Name)
-		onbuildDockerfileContents := fmt.Sprintf(`%s
-ARG NUCLIO_LABEL
-ARG NUCLIO_ARCH
-`, baseImage)
+		onbuildDockerfileContents := fmt.Sprintf("%s\nARG NUCLIO_LABEL\nARG NUCLIO_ARCH\n", baseImage)
+		if strings.TrimSpace(artifact.StageCommands) != "" {
+			onbuildDockerfileContents += artifact.StageCommands + "\n"
+		}
 
 		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
 	}
@@ -420,11 +420,13 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	// fail silently in order to ignore "repository already exists" errors
 	// if any other error occurs - kaniko will fail similarly
 	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
-	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s || true"
-	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region)
+	registryID := k.resolveAWSRegistryId(buildOptions.RegistryURL)
+	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s --registry-id %s || true"
+	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region, registryID)
 	createCacheRepo := fmt.Sprintf(createRepoTemplate,
 		fmt.Sprintf("%s/cache", buildOptions.RepoName),
-		region)
+		region,
+		registryID)
 	createReposCommand := fmt.Sprintf("%s && %s",
 		createMainRepo,
 		createCacheRepo)
@@ -809,6 +811,12 @@ func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 	return strings.Split(registryURL, ".")[3]
 }
 
+// resolveAWSRegistryId extracts the AWS account ID (registry ID) from an ECR registry URL
+// Example: "123456789012.dkr.ecr.us-east-1.amazonaws.com" -> "123456789012"
+func (k *Kaniko) resolveAWSRegistryId(registryURL string) string {
+	return strings.Split(registryURL, ".")[0]
+}
+
 func (k *Kaniko) enrichAndValidateServiceAccount(ctx context.Context, buildOptions *BuildOptions, namespace string) (string, error) {
 	// try to enrich service account from builder configuration
 	enrichedServiceAccount := k.enrichServiceAccountFromBuilderConfiguration(buildOptions)
@@ -820,6 +828,8 @@ func (k *Kaniko) enrichAndValidateServiceAccount(ctx context.Context, buildOptio
 		buildOptions.ProjectSecretTemplate,
 		buildOptions.ProjectSecretDefaultServiceAccountKey,
 		buildOptions.ProjectSecretAllowedServiceAccountsKey,
+		buildOptions.ProjectSecretForbiddenServiceAccountsKey,
+		buildOptions.DefaultForbiddenServiceAccounts,
 		enrichedServiceAccount,
 		buildOptions.ProjectName,
 		namespace,

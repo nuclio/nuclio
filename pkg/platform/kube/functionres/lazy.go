@@ -42,7 +42,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/config"
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
@@ -56,7 +56,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -479,11 +479,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	}
 }
 
-func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) error {
-	propagationPolicy := metav1.DeletePropagationForeground
-	deleteOptions := metav1.DeleteOptions{
-		PropagationPolicy: &propagationPolicy,
-	}
+func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error {
 
 	// Delete ingress
 	ingressName := kube.IngressNameFromFunctionName(name)
@@ -523,6 +519,16 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		return errors.Wrap(err, "Failed to delete function secrets")
 	}
 
+	// Delete function k8s CronJobs before the Deployment so they cannot spawn new
+	// Jobs/Pods while we are tearing down the function's workload resources.
+	// CronJobs are not owned by the Deployment, so cascade does not remove them.
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().
+		CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		if err := lc.deleteCronJobs(ctx, name, namespace); err != nil && !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to delete function cron jobs")
+		}
+	}
+
 	// Delete Deployment if exists
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	err = lc.kubeClientSet.DeleteDeployment(ctx, namespace, deploymentName, deleteOptions)
@@ -535,6 +541,21 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			"Deleted deployment",
 			"namespace", namespace,
 			"deploymentName", deploymentName)
+	}
+
+	// When a custom grace period is set (e.g. project deletion), delete ReplicaSets and pods
+	// explicitly so the overridden GracePeriodSeconds applies to actual pod termination.
+	// Deployment cascade does not propagate GracePeriodSeconds to pods, and the ReplicaSet
+	// must be removed first to prevent it from recreating pods we delete.
+	if deleteOptions.GracePeriodSeconds != nil {
+		if err = lc.deleteFunctionReplicaSets(ctx, name, namespace); err != nil && !apierrors.IsNotFound(err) {
+			lc.logger.WarnWith("Failed to delete function replica sets",
+				"namespace", namespace, "name", name, "err", err.Error())
+		}
+		if err = lc.deleteFunctionPods(ctx, name, namespace, deleteOptions); err != nil && !apierrors.IsNotFound(err) {
+			lc.logger.WarnWith("Failed to delete function pods",
+				"namespace", namespace, "name", name, "err", err.Error())
+		}
 	}
 
 	// Delete configMap if exists
@@ -554,14 +575,6 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	// Delete function events
 	if err = lc.deleteFunctionEvents(ctx, name, namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function events")
-	}
-
-	// Delete function k8s cronJobs
-	if lc.platformConfigurationProvider.GetPlatformConfiguration().
-		CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		if err := lc.deleteCronJobs(ctx, name, namespace); err != nil {
-			return errors.Wrap(err, "Failed to delete function cron jobs")
-		}
 	}
 
 	lc.logger.DebugWithCtx(ctx, "Deleted deployed function", "namespace", namespace, "name", name)
@@ -1236,6 +1249,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 					PriorityClassName:  function.Spec.PriorityClassName,
 					PreemptionPolicy:   function.Spec.PreemptionPolicy,
 					HostIPC:            function.Spec.HostIPC,
+					RuntimeClassName:   function.Spec.RuntimeClassName,
 				},
 			},
 		}
@@ -1316,6 +1330,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
 		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
+		deployment.Spec.Template.Spec.RuntimeClassName = function.Spec.RuntimeClassName
 
 		// apply when provided
 		if imagePullSecrets != "" {
@@ -2784,6 +2799,34 @@ func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio
 }
 
 // deleteFunctionSecrets deletes the function's secrets
+func (lc *lazyClient) deleteFunctionReplicaSets(ctx context.Context, functionName, namespace string) error {
+	lc.logger.DebugWithCtx(ctx, "Deleting function replica sets", "functionName", functionName)
+	if err := lc.kubeClientSet.DeleteCollectionReplicaSets(ctx,
+		namespace,
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		}); err != nil {
+		return errors.Wrapf(err, "Failed to delete replica sets for function %s", functionName)
+	}
+	return nil
+}
+
+func (lc *lazyClient) deleteFunctionPods(ctx context.Context, functionName, namespace string, deleteOptions metav1.DeleteOptions) error {
+	lc.logger.DebugWithCtx(ctx, "Deleting function pods",
+		"functionName", functionName,
+		"gracePeriodSeconds", deleteOptions.GracePeriodSeconds)
+	if err := lc.kubeClientSet.DeleteCollectionPods(ctx,
+		namespace,
+		deleteOptions,
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		}); err != nil {
+		return errors.Wrapf(err, "Failed to delete pods for function %s", functionName)
+	}
+	return nil
+}
+
 func (lc *lazyClient) deleteFunctionSecrets(ctx context.Context, functionName, namespace string) error {
 
 	// function can have multiple secrets, in case a flex volume exists

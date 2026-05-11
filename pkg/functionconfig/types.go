@@ -29,7 +29,7 @@ import (
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -166,6 +166,9 @@ const (
 
 	DefaultBatchSize    = 10
 	DefaultBatchTimeout = "1s"
+
+	// DefaultStreamingFlushPeriod is the default period for flushing HTTP response stream to the client
+	DefaultStreamingFlushPeriod = "1s"
 )
 
 func BatchModeEnabled(batchConfiguration *BatchConfiguration) bool {
@@ -572,6 +575,10 @@ type Spec struct {
 	// Ensures that when an image is redeployed, the deployment/pod template is updated
 	// so the image is pulled again.
 	LastDeployTimestamp string `json:"lastDeployTimestamp,omitempty"`
+
+	// RuntimeClassName is the name of the RuntimeClass to use for the function's pods
+	// This is used to select a specific container runtime configuration in the cluster, and is typically used to enable features like GPU support or running on a specific type of node
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string

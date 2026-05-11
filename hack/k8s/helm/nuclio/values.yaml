@@ -19,12 +19,27 @@
 # if true, all components assume no internet connectivity
 offline: false
 
+# Extra labels to apply to all resources created by this chart.
+# If a key collides with a chart-generated label, the user-supplied value wins.
+# Example:
+#   commonLabels:
+#     app.kubernetes.io/instance: nuclio
+#     my-org/team: platform
+commonLabels: {}
+
+# shared image pull secrets for Nuclio service deployments (dashboard/controller/dlx/autoscaler)
+# chart-local fallback (prefer global.imagePullSecrets, especially when used as a subchart)
+# imagePullSecrets:
+#   - name: my-registry-secret
+imagePullSecrets: []
+
+
 # Controller settings
 controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.15.14-amd64
+    tag: 1.15.25-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -95,9 +110,10 @@ controller:
 dashboard:
   enabled: true
   replicas: 1
+  servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.15.14-amd64
+    tag: 1.15.25-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -203,6 +219,15 @@ dashboard:
     #      - nuclio.local
     ingressClassName: ""
 
+  # if enabled, create an HTTPRoute to route traffic from a Gateway to the dashboard service
+  httpRoute:
+    enabled: false
+    hosts:
+      - nuclio.local
+    # When gateway.enabled is false, reference here an existing Gateway
+    parentRefs: []
+    #   - name: my-gateway
+
   authConfig:
 
     # "nop", "iguazio" or "iguazio-v4"
@@ -304,7 +329,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.15.14-amd64
+    tag: 1.15.25-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -338,7 +363,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.15.14-amd64
+    tag: 1.15.25-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -493,7 +518,9 @@ platform: {}
 #    defaultHTTPIngressHostTemplate: ""
 #    projectSecretTemplate: ""
 #    projectSecretAllowedServiceAccountsKey: ""
+#    projectSecretForbiddenServiceAccountsKey: ""
 #    projectSecretDefaultServiceAccountKey: ""
+#    defaultForbiddenServiceAccounts: []
 #    defaultHTTPIngressAnnotations:
 #      ingressAnnotationKey: ingressAnnotationValue
 #    defaultHTTPIngressClassName: ""
@@ -535,22 +562,38 @@ platform: {}
 #    tokenExpirationSeconds: 600
 #    tokenRefreshRatio: 0.75
 #
-#  scaleToZero:
-#      scalerInterval: 1m
-#      metricsClient:
-#        kind: prometheusClient
-#        url: http://monitoring-prometheus-server
-#        templates:
-#          - name: "nuclio_processor_handled_events_total"
-#            template: |-
-#              add_here_your_prometheus_query
+# scaleToZero:
+#     scalerInterval: 1m
+#     metricsClient:
+#       kind: prometheusClient
+#       url: http://monitoring-prometheus-server
+#       templates:
+#         - name: "nuclio_processor_handled_events_total"
+#           template: |-
+#             add_here_your_prometheus_query
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
   externalHostAddress:
+  # image pull secrets shared by Nuclio service deployments (dashboard/controller/dlx/autoscaler)
+  # imagePullSecrets:
+  #   - name: my-registry-secret
+  imagePullSecrets: []
   registry:
     url:
     secretName:
   nuclio:
     dashboard:
       nodePort:
+
+
+gateway:
+  # if enabled, this creates a Gateway to be used by the Dashboard HTTPRoute
+  enabled: false
+  gatewayClassName: traefik
+  listenerPort: 80
+  tls: []
+  #  - secretName: nuclio-tls
+  #    port: 443
+  #    hosts:
+  #      - nuclio.local

@@ -11,6 +11,9 @@
   "license": "MIT",
   "homepage": "https://github.com/nuclio/nuclio#readme",
   "dependencies": {},
+  "overrides": {
+    "serialize-javascript": ">=7.0.3"
+  },
   "devDependencies": {
     "eslint": "^7.12.1",
     "eslint-config-standard": "^16.0.1",

@@ -25,6 +25,7 @@ metadata:
     nuclio.io/app: dashboard
     nuclio.io/name: {{ $fullName }}
     nuclio.io/class: ingress
+    {{- include "nuclio.standardLabels.dashboard" . | nindent 4 }}
 {{- with .Values.dashboard.ingress.annotations }}
   annotations:
 {{ toYaml . | indent 4 }}

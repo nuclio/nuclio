@@ -633,6 +633,103 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateStreamingFlushPeriod() {
+	for _, testCase := range []struct {
+		name        string
+		triggerKey  string
+		trigger     functionconfig.Trigger
+		expectError bool
+	}{
+		{
+			name:       "no attributes",
+			triggerKey: "http0",
+			trigger:    functionconfig.Trigger{Kind: "http", Name: "http0"},
+		},
+		{
+			name:       "empty attributes",
+			triggerKey: "http0",
+			trigger:    functionconfig.Trigger{Kind: "http", Name: "http0", Attributes: map[string]interface{}{}},
+		},
+		{
+			name:       "streamingFlushPeriod missing",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"readBufferSize": 4096},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod empty string",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": ""},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod valid 1s",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "1s"},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod valid 500ms",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "500ms"},
+			},
+		},
+		{
+			name:       "streamingFlushPeriod invalid duration",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "not-a-duration"},
+			},
+			expectError: true,
+		},
+		{
+			name:       "streamingFlushPeriod zero",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "0s"},
+			},
+			expectError: true,
+		},
+		{
+			name:       "streamingFlushPeriod negative",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": "-1s"},
+			},
+			expectError: true,
+		},
+		{
+			name:       "streamingFlushPeriod wrong type",
+			triggerKey: "http0",
+			trigger: functionconfig.Trigger{
+				Kind: "http", Name: "http0",
+				Attributes: map[string]interface{}{"streamingFlushPeriod": 123},
+			},
+			expectError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			err := suite.Platform.validateStreamingFlushPeriod(testCase.triggerKey, &testCase.trigger)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	for _, testCase := range []struct {
 		name                  string
@@ -1200,13 +1297,14 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 
 func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
-		name                     string
-		triggers                 map[string]functionconfig.Trigger
-		functionMetaAnnotations  map[string]string
-		supportAutoScale         bool
-		expectedEnrichedTriggers map[string]functionconfig.Trigger
-		shouldFailValidation     bool
-		runtime                  string
+		name                      string
+		triggers                  map[string]functionconfig.Trigger
+		functionMetaAnnotations   map[string]string
+		supportAutoScale          bool
+		expectedEnrichedTriggers  map[string]functionconfig.Trigger
+		shouldFailValidation      bool
+		runtime                   string
+		disableDefaultHTTPTrigger bool
 	}{
 
 		// enrich NumWorkers to 1
@@ -1224,6 +1322,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					NumWorkers: 1,
 					Name:       "some-trigger",
 					Mode:       functionconfig.SyncTriggerWorkMode,
+					Attributes: map[string]interface{}{
+						"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+					},
 				},
 			},
 		},
@@ -1234,10 +1335,38 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			triggers: nil,
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				defaultHTTPTrigger.Attributes = map[string]interface{}{
+					"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+				}
 				return map[string]functionconfig.Trigger{
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
 				}
 			}(),
+		},
+
+		// enrich default http trigger explicitly enabled
+		{
+			name:                      "enrich-default-trigger-explicitly-enabled",
+			triggers:                  nil,
+			shouldFailValidation:      false,
+			disableDefaultHTTPTrigger: false,
+			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
+				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+				defaultHTTPTrigger.Attributes = map[string]interface{}{
+					"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+				}
+				return map[string]functionconfig.Trigger{
+					defaultHTTPTrigger.Name: defaultHTTPTrigger,
+				}
+			}(),
+		},
+
+		// do not allow empty triggers
+		{
+			name:                      "no-triggers",
+			triggers:                  nil,
+			shouldFailValidation:      true,
+			disableDefaultHTTPTrigger: true,
 		},
 
 		// do not allow more than 1 http trigger
@@ -1321,6 +1450,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					NumWorkers: 1,
 					Kind:       "http",
 					Mode:       functionconfig.SyncTriggerWorkMode,
+					Attributes: map[string]interface{}{
+						"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+					},
 				},
 				"kafka-trigger": {
 					Kind:                     "kafka-cluster",
@@ -1350,6 +1482,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					NumWorkers: 1,
 					Name:       "http-trigger",
 					Mode:       functionconfig.SyncTriggerWorkMode,
+					Attributes: map[string]interface{}{
+						"streamingFlushPeriod": functionconfig.DefaultStreamingFlushPeriod,
+					},
 				},
 				"kafka-trigger": {
 					Kind:                     "kafka-cluster",
@@ -1409,6 +1544,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 				one, five := 1, 5
 				createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
 				createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &five
+			}
+
+			if testCase.disableDefaultHTTPTrigger {
+				createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &testCase.disableDefaultHTTPTrigger
 			}
 
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -1577,7 +1716,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
 
-		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &functionConfig)
+		suite.Require().NoError(err, "Failed to enrich function")
+
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)

@@ -45,6 +45,16 @@
 {{- printf "%s-dashboard" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- end -}}
 
+{{- define "nuclio.gatewayName" -}}
+{{- printf "%s-gateway" (include "nuclio.fullName" .) | trunc 63 -}}
+{{- end -}}
+
+{{- define "nuclio.requireGatewayAPICRDs" -}}
+{{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") -}}
+{{- fail "Gateway API CRDs are not installed. See https://gateway-api.sigs.k8s.io/guides/getting-started" -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "nuclio.serviceAccountName" -}}
 {{- if .Values.rbac.serviceAccountName -}}
 {{- .Values.rbac.serviceAccountName -}}
@@ -108,6 +118,20 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- end -}}
 {{- end -}}
 
+{{/*
+Resolve image pull secrets for Nuclio service deployments.
+Priority:
+1. .Values.global.imagePullSecrets (subchart-friendly)
+2. .Values.imagePullSecrets (chart-local convenience)
+*/}}
+{{- define "nuclio.imagePullSecrets" -}}
+{{- $imagePullSecrets := .Values.global.imagePullSecrets | default .Values.imagePullSecrets | default list -}}
+{{- if gt (len $imagePullSecrets) 0 -}}
+imagePullSecrets:
+{{- toYaml $imagePullSecrets | nindent 2 }}
+{{- end }}
+{{- end -}}
+
 
 {{- define "nuclio.externalIPAddresses" -}}
 {{- if .Values.global.externalHostAddress -}}
@@ -120,3 +144,46 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- "" -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+  User-supplied common labels from .Values.commonLabels.
+  Safe to include even when commonLabels is empty.
+*/}}
+{{- define "nuclio.commonLabels" -}}
+{{- if .Values.commonLabels }}
+{{- toYaml .Values.commonLabels }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+  Kubernetes recommended labels (https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
+  Usage: include "nuclio.standardLabels.dashboard" .  (or .controller, .dlx, .autoscaler)
+  Expects . with .component set (via merge in the wrapper); has access to .Chart, .Release, etc.
+  When .Values.commonLabels contains a key that collides with a generated label, the user value wins.
+*/}}
+{{- define "nuclio.standardLabels" -}}
+{{- $instance := "" -}}
+{{- if eq .component "dashboard" -}}{{- $instance = include "nuclio.dashboardName" . -}}{{- end -}}
+{{- if eq .component "controller" -}}{{- $instance = include "nuclio.controllerName" . -}}{{- end -}}
+{{- if eq .component "dlx" -}}{{- $instance = include "nuclio.dlxName" . -}}{{- end -}}
+{{- if eq .component "autoscaler" -}}{{- $instance = include "nuclio.scalerName" . -}}{{- end -}}
+{{- $generated := dict
+  "app.kubernetes.io/name" .component
+  "app.kubernetes.io/instance" $instance
+  "app.kubernetes.io/version" (.Chart.AppVersion | toString)
+  "app.kubernetes.io/component" .component
+  "app.kubernetes.io/part-of" .Chart.Name
+  "app.kubernetes.io/managed-by" .Release.Service
+-}}
+{{- $userLabels := .Values.commonLabels | default dict -}}
+{{- toYaml (merge (deepCopy $userLabels) $generated) }}
+{{- end -}}
+
+{{/*
+  Shortcuts: use include "nuclio.standardLabels.dashboard" . (and .controller, .dlx, .autoscaler).
+  Each one adds the component name and calls the main standardLabels helper.
+*/}}
+{{- define "nuclio.standardLabels.dashboard" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "dashboard") .) -}}{{- end -}}
+{{- define "nuclio.standardLabels.controller" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "controller") .) -}}{{- end -}}
+{{- define "nuclio.standardLabels.dlx" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "dlx") .) -}}{{- end -}}
+{{- define "nuclio.standardLabels.autoscaler" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "autoscaler") .) -}}{{- end -}}

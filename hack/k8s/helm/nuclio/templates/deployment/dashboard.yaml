@@ -17,6 +17,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "nuclio.dashboardName" . }}
+  labels:
+    {{- include "nuclio.standardLabels.dashboard" . | nindent 4 }}
 spec:
   replicas: {{ .Values.dashboard.replicas }}
   selector:
@@ -34,6 +36,7 @@ spec:
         nuclio.io/app: dashboard
         nuclio.io/name: {{ template "nuclio.dashboardName" . }}
         nuclio.io/class: service
+        {{- include "nuclio.standardLabels.dashboard" . | nindent 8 }}
       annotations:
         nuclio.io/version: {{ .Values.dashboard.image.tag }}
         checksum/secret-registry-credentials: {{ include (print $.Template.BasePath "/secret/registry-credentials.yaml") . | sha256sum }}
@@ -41,6 +44,7 @@ spec:
         checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      {{- include "nuclio.imagePullSecrets" . | nindent 6 }}
       securityContext:
         {{- toYaml .Values.dashboard.securityContext | nindent 8 }}
       containers:

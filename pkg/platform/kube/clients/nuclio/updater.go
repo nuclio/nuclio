@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/opa-client"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Updater struct {
@@ -51,11 +50,9 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	u.logger.InfoWithCtx(ctx, "Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.
-		NuclioClientSet.
-		NuclioV1beta1().
-		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
-		Get(ctx, updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
+	function, err := u.consumer.NuclioClientSet.GetNuclioFunction(ctx,
+		updateFunctionOptions.FunctionMeta.Namespace,
+		updateFunctionOptions.FunctionMeta.Name)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -97,10 +94,9 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	}
 
 	// trigger an update
-	updatedFunction, err := nuclioClientSet.
-		NuclioV1beta1().
-		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
-		Update(ctx, function, metav1.UpdateOptions{})
+	updatedFunction, err := nuclioClientSet.UpdateNuclioFunction(ctx,
+		updateFunctionOptions.FunctionMeta.Namespace,
+		function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
@@ -132,10 +128,7 @@ func (u *Updater) UpdateState(ctx context.Context, functionName, namespace strin
 	}
 
 	// get specific function CR
-	function, err := nuclioClientSet.
-		NuclioV1beta1().
-		NuclioFunctions(namespace).
-		Get(ctx, functionName, metav1.GetOptions{})
+	function, err := nuclioClientSet.GetNuclioFunction(ctx, namespace, functionName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -156,10 +149,7 @@ func (u *Updater) UpdateState(ctx context.Context, functionName, namespace strin
 	delete(function.Annotations, functionconfig.FunctionAnnotationSkipBuild)
 
 	// trigger an update
-	updatedFunction, err := nuclioClientSet.
-		NuclioV1beta1().
-		NuclioFunctions(namespace).
-		Update(ctx, function, metav1.UpdateOptions{})
+	updatedFunction, err := nuclioClientSet.UpdateNuclioFunction(ctx, namespace, function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}

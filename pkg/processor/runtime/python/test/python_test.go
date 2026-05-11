@@ -399,6 +399,194 @@ func (suite *TestSuite) TestStreamingSingleYield() {
 	}
 }
 
+func (suite *TestSuite) TestStreamingIntegerYield() {
+	for _, testCase := range []struct {
+		name               string
+		mode               functionconfig.TriggerWorkMode
+		handler            string
+		expectedStatusCode int
+	}{
+		{
+			name:               "sync_handler_as_sync_gen_integers",
+			mode:               functionconfig.SyncTriggerWorkMode,
+			handler:            "stream_outputter:stream_integers_sync",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name:               "sync_handler_as_async_gen_integers",
+			mode:               functionconfig.SyncTriggerWorkMode,
+			handler:            "stream_outputter:stream_integers_async",
+			expectedStatusCode: http.StatusOK,
+		},
+		{
+			name:               "async_handler_as_async_gen_integers",
+			mode:               functionconfig.AsyncTriggerWorkMode,
+			handler:            "stream_outputter:stream_integers_async",
+			expectedStatusCode: http.StatusOK,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("stream-int-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
+
+			// Expected body: integers 1-5 concatenated as their string representations
+			expectedBody := "12345"
+
+			requests := make([]*httpsuite.Request, 3)
+			for i := range requests {
+				requests[i] = &httpsuite.Request{
+					Name:                       "streaming integer yield handler",
+					RequestBody:                "",
+					ExpectedResponseBody:       expectedBody,
+					ExpectedResponseStatusCode: &testCase.expectedStatusCode,
+				}
+			}
+
+			suite.DeployFunctionAndRequests(createFunctionOptions, requests)
+		})
+	}
+}
+
+// TestStreamingFlushPeriod is an e2e test for HTTP trigger streaming flush.
+//
+// The HTTP trigger can flush the response stream to the client at most every streamingFlushPeriod (e.g. 1s),
+// so the client sees data incrementally instead of only when the stream ends. This test verifies that behavior.
+//
+// Setup:
+//   - Deploys a function with trigger attribute streamingFlushPeriod: "1s".
+//   - Handler stream_outputter:stream_flush_test_as_response yields "flush1", sleeps 0.6s, "flush2", sleeps 0.6s, "flush3"
+//     (total ~1.2s of producer time).
+//
+// Assertions:
+//   - The client receives at least one byte within 2.5s. Without periodic flush, the first byte would only
+//     arrive after the producer finishes (~1.2s+) and the connection flushes; with 1s flush we expect data sooner.
+//   - The full response body equals "flush1flush2flush3".
+func (suite *TestSuite) TestStreamingFlushPeriod() {
+	createFunctionOptions := suite.GetDeployOptions("stream-flush-outputter", suite.GetFunctionPath("outputter"))
+	createFunctionOptions.FunctionConfig.Spec.Handler = "stream_outputter:stream_flush_test_as_response"
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.Attributes = map[string]interface{}{"streamingFlushPeriod": "1s"}
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		httpTrigger.Name: httpTrigger,
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResults)
+		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
+
+		request := &httpsuite.Request{
+			Name:          "streaming flush",
+			RequestBody:   "",
+			RequestMethod: http.MethodPost,
+			RequestPath:   "/",
+		}
+		request.Enrich(deployResults)
+
+		httpResponse, err := suite.SendRequest(request)
+		suite.Require().NoError(err)
+		defer httpResponse.Body.Close()
+
+		suite.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+
+		// Read body and verify we get first data within 2.5s (proves periodic flush is sending data before stream ends)
+		firstByteCh := make(chan struct{})
+		bodyDoneCh := make(chan struct{})
+		var fullBody []byte
+		var readErr error
+		go func() {
+			defer close(bodyDoneCh)
+			buf := make([]byte, 1)
+			n, err := httpResponse.Body.Read(buf)
+			if n > 0 {
+				fullBody = append(fullBody, buf[:n]...)
+				close(firstByteCh)
+			}
+			if err != nil && err != io.EOF {
+				readErr = err
+				return
+			}
+			rest, err := io.ReadAll(httpResponse.Body)
+			if err != nil {
+				readErr = err
+			} else {
+				fullBody = append(fullBody, rest...)
+			}
+		}()
+
+		select {
+		case <-firstByteCh:
+			// Good: we received at least one byte before timeout
+		case <-time.After(2500 * time.Millisecond):
+			suite.Require().Fail("Did not receive first byte within 2.5s; streaming flush may not be working")
+		}
+
+		<-bodyDoneCh
+		suite.Require().NoError(readErr)
+		suite.Require().Equal("flush1flush2flush3", string(fullBody))
+		return true
+	})
+}
+
+// TestStreamingHandlerRaisesAfterYield is an e2e test for streaming when the handler raises after yielding.
+//
+// When a streaming handler yields some chunks then raises, the wrapper must still send END_OF_STREAM
+// so the processor closes the response stream. Otherwise the worker blocks or times out.
+//
+// Runs in both sync and async trigger mode. Sends multiple requests to ensure workers are released
+// and can serve subsequent requests.
+func (suite *TestSuite) TestStreamingHandlerRaisesAfterYield() {
+	const numRequests = 5
+
+	for _, testCase := range []struct {
+		name string
+		mode functionconfig.TriggerWorkMode
+	}{
+		{"sync", functionconfig.SyncTriggerWorkMode},
+		{"async", functionconfig.AsyncTriggerWorkMode},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("stream-then-raise-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = "stream_outputter:stream_then_raise"
+			if testCase.mode == functionconfig.AsyncTriggerWorkMode {
+				httpTrigger := createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"]
+				httpTrigger.AsyncConfig = &functionconfig.AsyncConfig{
+					MinConnectionsNumber: 3,
+					MaxConnectionsNumber: 3,
+				}
+				createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"] = httpTrigger
+			}
+
+			suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResults)
+				suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
+
+				request := &httpsuite.Request{
+					Name:          "streaming handler raises after yield",
+					RequestBody:   "",
+					RequestMethod: http.MethodPost,
+					RequestPath:   "/",
+				}
+				request.Enrich(deployResults)
+
+				for i := 0; i < numRequests; i++ {
+					httpResponse, err := suite.SendRequest(request)
+					suite.Require().NoError(err)
+
+					suite.Require().Equal(http.StatusOK, httpResponse.StatusCode)
+
+					fullBody, readErr := io.ReadAll(httpResponse.Body)
+					suite.Require().NoError(readErr)
+					suite.Require().Equal("chunk1chunk2", string(fullBody))
+					httpResponse.Body.Close()
+				}
+				return true
+			})
+		})
+	}
+}
+
 func (suite *TestSuite) TestStress() {
 	if os.Getenv("NUCLIO_CI_SKIP_STRESS_TEST") == "true" {
 		suite.T().Skip("Skipping stress test")

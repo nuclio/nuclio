@@ -770,6 +770,45 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 	return permittedFunctionEvents, nil
 }
 
+// FilterAPIGatewaysByPermissions will filter out some API gateways
+func (ap *Platform) FilterAPIGatewaysByPermissions(ctx context.Context,
+	permissionOptions *opaclient.PermissionOptions,
+	apiGateways []platform.APIGateway) ([]platform.APIGateway, error) {
+
+	if len(permissionOptions.MemberIds) == 0 || len(apiGateways) == 0 {
+		return apiGateways, nil
+	}
+
+	resources := make([]string, len(apiGateways))
+	for idx, apiGateway := range apiGateways {
+		projectName := apiGateway.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+		apiGatewayName := apiGateway.GetConfig().Meta.Name
+		resources[idx] = opa.GenerateAPIGatewayResourceString(projectName, apiGatewayName, ap.getOPAResourcesPrefix())
+	}
+
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed querying OPA for API gateway permissions")
+	}
+
+	var permittedAPIGateways []platform.APIGateway
+	var filteredAPIGatewayNames []string
+	for idx, allowed := range allowedList {
+		if allowed {
+			permittedAPIGateways = append(permittedAPIGateways, apiGateways[idx])
+		} else {
+			filteredAPIGatewayNames = append(filteredAPIGatewayNames, apiGateways[idx].GetConfig().Meta.Name)
+		}
+	}
+
+	if len(filteredAPIGatewayNames) > 0 {
+		ap.Logger.DebugWithCtx(ctx,
+			"Some API gateways were filtered out",
+			"apiGatewayNames", filteredAPIGatewayNames)
+	}
+	return permittedAPIGateways, nil
+}
+
 // CreateFunctionInvocation will invoke a previously deployed function
 func (ap *Platform) CreateFunctionInvocation(ctx context.Context,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
@@ -1317,6 +1356,23 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(ctx context.Context,
 		permissionOptions)
 }
 
+func (ap *Platform) QueryOPAAPIGatewayPermissions(ctx context.Context,
+	projectName,
+	apiGatewayName string,
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if apiGatewayName == "" {
+		apiGatewayName = "*"
+	}
+	return ap.queryOPAPermissions(ctx,
+		opa.GenerateAPIGatewayResourceString(projectName, apiGatewayName, ap.getOPAResourcesPrefix()),
+		action,
+		permissionOptions)
+}
+
 func (ap *Platform) QueryOPAMultipleResources(ctx context.Context,
 	resources []string,
 	action opaclient.Action,
@@ -1607,12 +1663,18 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 }
 
 func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) error {
-	var httpTriggerExists bool
+
+	// do not allow empty triggers
+	if len(functionConfig.Spec.Triggers) == 0 {
+		return nuclio.NewErrBadRequest("Function must have at least one trigger")
+	}
 
 	// validate ingresses structure correctness
 	if err := ap.validateIngresses(functionConfig.Spec.Triggers); err != nil {
 		return errors.Wrap(err, "Ingresses validation failed")
 	}
+
+	var httpTriggerExists bool
 
 	for triggerKey, triggerInstance := range functionConfig.Spec.Triggers {
 
@@ -1641,6 +1703,9 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				return nuclio.NewErrBadRequest("There's more than one http trigger (unsupported)")
 			}
 			httpTriggerExists = true
+			if err := ap.validateStreamingFlushPeriod(triggerKey, &triggerInstance); err != nil {
+				return nuclio.WrapErrBadRequest(err)
+			}
 		}
 
 		// explicit ack is only allowed for Static Allocation mode
@@ -1691,6 +1756,34 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		}
 	}
 
+	return nil
+}
+
+// validateStreamingFlushPeriod validates the HTTP trigger's streamingFlushPeriod attribute.
+// When set, it must be a non-empty string that parses as a positive Go duration (e.g. "1s", "500ms").
+// Invalid or non-positive values cause validation to fail so deploy fails early instead of at stream time.
+func (ap *Platform) validateStreamingFlushPeriod(triggerKey string, triggerInstance *functionconfig.Trigger) error {
+	if triggerInstance.Attributes == nil {
+		return nil
+	}
+	attrValue, exists := triggerInstance.Attributes["streamingFlushPeriod"]
+	if !exists || attrValue == nil {
+		return nil
+	}
+	periodStr, ok := attrValue.(string)
+	if !ok {
+		return errors.Errorf("Invalid streamingFlushPeriod. Must be a string, got %T", attrValue)
+	}
+	if periodStr == "" {
+		return nil
+	}
+	flushPeriod, err := time.ParseDuration(periodStr)
+	if err != nil {
+		return errors.Wrapf(err, "Invalid streamingFlushPeriod %q", periodStr)
+	}
+	if flushPeriod <= 0 {
+		return errors.Errorf("Invalid streamingFlushPeriod. Must be positive, got %q", periodStr)
+	}
 	return nil
 }
 
@@ -1837,6 +1930,9 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 		if err := ap.enrichProcessingMode(ctx, triggerName, &triggerInstance, functionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich processing mode")
 		}
+		if triggerInstance.Kind == "http" {
+			ap.enrichHTTPTriggerStreamingFlushPeriod(ctx, triggerName, &triggerInstance, functionConfig)
+		}
 		if triggerInstance.Kind == "rabbit-mq" {
 			if err := ap.enrichRabbitMQTrigger(ctx, triggerName, &triggerInstance); err != nil {
 				return errors.Wrap(err, "Failed to enrich RabbitMQ trigger")
@@ -1847,6 +1943,20 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 	}
 
 	return nil
+}
+
+func (ap *Platform) enrichHTTPTriggerStreamingFlushPeriod(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger, functionConfig *functionconfig.Config) {
+	if triggerInstance.Attributes == nil {
+		triggerInstance.Attributes = make(map[string]interface{})
+	}
+	if _, ok := triggerInstance.Attributes["streamingFlushPeriod"]; !ok || triggerInstance.Attributes["streamingFlushPeriod"] == "" {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching streaming flush period for HTTP trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+			"streamingFlushPeriod", functionconfig.DefaultStreamingFlushPeriod)
+		triggerInstance.Attributes["streamingFlushPeriod"] = functionconfig.DefaultStreamingFlushPeriod
+	}
 }
 
 func (ap *Platform) enrichRabbitMQTrigger(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger) error {

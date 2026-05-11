@@ -57,7 +57,20 @@ func (suite *IngressTestSuite) TestCompileIguazioAuthAnnotations() {
 			},
 			expectedAnnotations: map[string]string{
 				annotations.NginxAuthURL:    "test-auth-url",
-				annotations.NginxAuthSignIn: "test-sign-in-url",
+				annotations.NginxAuthSignIn: "test-sign-in-url?rd=https://$host$escaped_request_uri",
+			},
+		},
+		{
+			name: "Sign-in URL already has a query param",
+			platformConfiguration: &platformconfig.Config{
+				IngressConfig: platformconfig.IngressConfig{
+					IguazioAuthURL:   "test-auth-url",
+					IguazioSignInURL: "test-sign-in-url?foo=bar",
+				},
+			},
+			expectedAnnotations: map[string]string{
+				annotations.NginxAuthURL:    "test-auth-url",
+				annotations.NginxAuthSignIn: "test-sign-in-url?foo=bar&rd=https://$host$escaped_request_uri",
 			},
 		},
 		{

@@ -146,7 +146,7 @@ jobs:
           fetch-depth: 0
 
       - name: Generate Changelog with git-cliff
-        uses: orhun/git-cliff-action@e16f179f0be49ecdfe63753837f20b9531642772 # 4.7.0
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # 4.8.0
         id: git-cliff
         with:
           config: cliff.toml
@@ -196,7 +196,7 @@ jobs:
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
       - name: Create pull request with bumped charts
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
@@ -275,19 +275,19 @@ jobs:
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # 3.7.0
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # 4.0.0
         with:
           platforms: ${{ matrix.arch }}
 
       - name: Login to registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # 3.6.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4.1.0
         with:
           registry: ${{ env.REPO }}
           username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
           password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
       - name: Login to cache registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # 3.6.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4.1.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -365,7 +365,7 @@ jobs:
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # 3.7.0
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # 4.0.0
         with:
           platforms: ${{ matrix.arch }}
 
@@ -406,7 +406,7 @@ jobs:
           path: nuclio-helm
 
       - name: Set up Helm
-        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # 4.3.1
+        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # 5.0.0
 
       - name: Set up yq
         run: |
@@ -427,7 +427,7 @@ jobs:
           helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
 
       - name: Create PR to gh-pages
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "${{ env.HELM_PUBLISH_COMMIT_MESSAGE }}"

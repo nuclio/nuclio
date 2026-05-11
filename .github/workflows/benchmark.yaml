@@ -124,7 +124,7 @@ jobs:
 
       - name: Set labels
         if: always() && github.event.inputs.pr_number != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:
@@ -137,7 +137,7 @@ jobs:
             await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
 
       - name: Upload benchmarking results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmarking
           path: ./.benchmarking

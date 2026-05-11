@@ -47,6 +47,11 @@ type Artifact struct {
 	Image         string
 	Paths         map[string]string
 	ExternalImage bool
+
+	// StageCommands contains explicit Dockerfile instructions to build user code within the onbuild stage.
+	// For compiled runtimes (Go, Java, .NET Core), these commands copy handler source and compile it.
+	// This replaces the former ONBUILD trigger mechanism with explicit, visible build steps.
+	StageCommands string
 }
 
 type Runtime interface {
@@ -162,7 +167,7 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 }
 
 func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imageRegistriesMap map[string]string) string {
-	return ar.getImageFromMap(imageRegistriesMap)
+	return ar.getImageFromMap(imageRegistriesMap, false)
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
@@ -173,12 +178,13 @@ func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Conf
 }
 
 func (ar *AbstractRuntime) GetBaseImageFromMap(baseImagesMap map[string]string) string {
-	return ar.getImageFromMap(baseImagesMap)
+	// base images map is pre-enriched, so a missing entry is unexpected and worth warning about
+	return ar.getImageFromMap(baseImagesMap, true)
 }
 
-// getImageFromMap returns an image from the provided map based on the runtime name and version
-// if no image is found, returns the provided default value
-func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string) string {
+// getImageFromMap returns an image from the provided map based on the runtime name and version.
+// If no image is found and warnOnFail is true, a warning is logged before returning an empty string.
+func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string, warnOnFail bool) string {
 	runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(ar.FunctionConfig.Spec.Runtime)
 
 	// supports both values per runtimeName and per runtimeName + runtimeVersion
@@ -194,9 +200,13 @@ func (ar *AbstractRuntime) getImageFromMap(imagesMap map[string]string) string {
 		return image
 	}
 
-	ar.Logger.WarnWith("Failed to find image for runtime",
-		"runtime name", runtimeName,
-		"runtime version", runtimeVersion,
-	)
+	if warnOnFail {
+		ar.Logger.WarnWith("Failed to find base image for runtime",
+			"runtime name", runtimeName,
+			"runtime version", runtimeVersion,
+			"base images map", imagesMap,
+		)
+	}
+
 	return ""
 }

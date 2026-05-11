@@ -36,6 +36,36 @@ func RemoveEnvFromSlice(env v1.EnvVar, slice []v1.EnvVar) []v1.EnvVar {
 	return slice
 }
 
+// MergeEnvFromSlices merges two lists of EnvFromSource, giving priority to entries from the primary list.
+// Deduplication is based on source type, name, and prefix.
+func MergeEnvFromSlices(primaryEnvFrom []v1.EnvFromSource, secondaryEnvFrom []v1.EnvFromSource) []v1.EnvFromSource {
+	existing := make(map[string]bool)
+	for _, envSource := range primaryEnvFrom {
+		existing[envFromSourceKey(envSource)] = true
+	}
+	merged := append([]v1.EnvFromSource{}, primaryEnvFrom...)
+	for _, envSource := range secondaryEnvFrom {
+		if !existing[envFromSourceKey(envSource)] {
+			merged = append(merged, envSource)
+		}
+	}
+	return merged
+}
+
+// envFromSourceKey returns a unique string key for an EnvFromSource based on its source type (secret or configmap),
+// name, and optional prefix. Two entries with the same secret/configmap name but different prefixes are
+// considered distinct, as they inject different env var names into the container.
+func envFromSourceKey(envSource v1.EnvFromSource) string {
+	prefix := envSource.Prefix
+	if envSource.SecretRef != nil {
+		return "secret:" + prefix + ":" + envSource.SecretRef.Name
+	}
+	if envSource.ConfigMapRef != nil {
+		return "configmap:" + prefix + ":" + envSource.ConfigMapRef.Name
+	}
+	return ""
+}
+
 // MergeEnvSlices merges two lists of environment variables, giving priority to variables from the primary list
 func MergeEnvSlices(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v1.EnvVar {
 	envMap := make(map[string]v1.EnvVar)

@@ -23,6 +23,7 @@ metadata:
     nuclio.io/app: dashboard
     nuclio.io/name: {{ template "nuclio.dashboardName" . }}
     nuclio.io/class: service
+    {{- include "nuclio.standardLabels.dashboard" . | nindent 4 }}
 spec:
   selector:
     nuclio.io/name: {{ template "nuclio.dashboardName" . }}
@@ -31,7 +32,8 @@ spec:
 {{- end }}
   ports:
   - name: admin
-    port: 8070
+    port: {{ .Values.dashboard.servicePort }}
+    targetPort: 8070
     protocol: TCP
 {{- if (include "nuclio.dashboard.nodePort" .) }}
     nodePort: {{ template "nuclio.dashboard.nodePort" . }}

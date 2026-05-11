@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import os
-import aiofile
 
 file_path = "/tmp/stream_outputter_lines.txt"
 
@@ -24,6 +24,7 @@ def init_context(context):
 
 async def stream_file_lines_async(context, event):
     # Stream the file line by line asynchronously
+    import aiofile
     async with aiofile.AIOFile(file_path, "r") as afp:
         async for line in aiofile.LineReader(afp):
             yield line
@@ -54,3 +55,42 @@ async def stream_single_yield_async(context, event):
 async def stream_single_yield_sync_as_async(context, event):
     """Sync generator defined as async def that yields only once"""
     yield "single_chunk"
+
+
+async def stream_then_raise(context, event):
+    """
+    Stream handler that yields a few chunks then raises.
+    Used by E2E test to verify the wrapper sends END_OF_STREAM so the processor
+    closes the response stream and the worker does not hang or timeout.
+    """
+    yield "chunk1"
+    yield "chunk2"
+    raise Exception("Counter reaching zero!")
+
+def stream_integers_sync(context, event):
+    """Stream handler that yields integers (not strings) - tests non-string type handling"""
+    for i in range(1, 6):
+        yield i
+
+
+async def stream_integers_async(context, event):
+    """Async stream handler that yields integers (not strings) - tests non-string type handling"""
+    for i in range(1, 6):
+        yield i
+
+
+async def stream_flush_test(context, event):
+    """Yields chunks with delays to test periodic flush. With 1s flush period, client should see chunks incrementally."""
+    yield "flush1"
+    await asyncio.sleep(0.6)
+    yield "flush2"
+    await asyncio.sleep(0.6)
+    yield "flush3"
+
+
+async def stream_flush_test_as_response(context, event):
+    return context.Response(
+        body=stream_flush_test(context, event),
+        status_code=200,
+        content_type="text/plain",
+    )

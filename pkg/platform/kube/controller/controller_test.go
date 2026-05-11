@@ -90,7 +90,8 @@ func (suite *ControllerTestSuite) SetupTest() {
 		defaultNumWorkers,
 		defaultNumWorkers,
 		defaultNumWorkers,
-		defaultNumWorkers)
+		defaultNumWorkers,
+		10*time.Second)
 	suite.Require().NoError(err)
 
 	suite.logger.Info("Starting test")

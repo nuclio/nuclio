@@ -52,7 +52,8 @@ func Run(kubeconfigPath string,
 	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
-	apiGatewayOperatorNumWorkersStr string) error {
+	apiGatewayOperatorNumWorkersStr string,
+	functionDeletionGracePeriodOnProjectRemovalStr string) error {
 
 	newController, err := createController(kubeconfigPath,
 		namespace,
@@ -67,7 +68,8 @@ func Run(kubeconfigPath string,
 		evictedPodsCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
-		apiGatewayOperatorNumWorkersStr)
+		apiGatewayOperatorNumWorkersStr,
+		functionDeletionGracePeriodOnProjectRemovalStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -94,7 +96,8 @@ func createController(kubeconfigPath string,
 	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
-	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
+	apiGatewayOperatorNumWorkersStr string,
+	functionDeletionGracePeriodOnProjectRemovalStr string) (*controller.Controller, error) {
 
 	functionOperatorNumWorkers, err := strconv.Atoi(functionOperatorNumWorkersStr)
 	if err != nil {
@@ -139,6 +142,11 @@ func createController(kubeconfigPath string,
 	apiGatewayOperatorNumWorkers, err := strconv.Atoi(apiGatewayOperatorNumWorkersStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of workers for api gateway operator")
+	}
+
+	functionDeletionGracePeriodOnProjectRemoval, err := time.ParseDuration(functionDeletionGracePeriodOnProjectRemovalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function deletion grace period on project removal")
 	}
 
 	// get platform configuration
@@ -211,7 +219,8 @@ func createController(kubeconfigPath string,
 		functionOperatorNumWorkers,
 		functionEventOperatorNumWorkers,
 		projectOperatorNumWorkers,
-		apiGatewayOperatorNumWorkers)
+		apiGatewayOperatorNumWorkers,
+		functionDeletionGracePeriodOnProjectRemoval)
 
 	if err != nil {
 		return nil, err

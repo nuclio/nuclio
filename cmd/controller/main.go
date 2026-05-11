@@ -51,6 +51,7 @@ func main() {
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
 	projectOperatorNumWorkersStr := flag.String("project-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PROJECT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the project operator (optional)")
 	apiGatewayOperatorNumWorkersStr := flag.String("api-gateway-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_API_GATEWAY_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the api gateway operator (optional)")
+	functionDeletionGracePeriodOnProjectRemovalStr := flag.String("function-deletion-grace-period-on-project-removal", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_DELETION_GRACE_PERIOD_ON_PROJECT_REMOVAL", "10s"), "Set pod termination grace period for function deletion during project removal (optional)")
 
 	flag.Parse()
 
@@ -70,7 +71,8 @@ func main() {
 		*evictedPodsCleanupIntervalStr,
 		*functionEventOperatorNumWorkersStr,
 		*projectOperatorNumWorkersStr,
-		*apiGatewayOperatorNumWorkersStr); err != nil {
+		*apiGatewayOperatorNumWorkersStr,
+		*functionDeletionGracePeriodOnProjectRemovalStr); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
