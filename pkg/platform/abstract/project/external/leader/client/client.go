@@ -280,6 +280,12 @@ func (c *Client) EvaluateLeaderRequest(ctx context.Context, labels map[string]st
 	return c.leaderOps.EvaluateLeaderRequest(ctx, labels, existingProject)
 }
 
+// ProjectSync2PCEnabled delegates to the configured LeaderOps so callers can decide
+// whether to fetch the existing CRD before invoking EvaluateLeaderRequest.
+func (c *Client) ProjectSync2PCEnabled() bool {
+	return c.leaderOps.ProjectSync2PCEnabled()
+}
+
 func (c *Client) logLeaderResponseError(ctx context.Context,
 	response *http.Response,
 	errMessage string) {

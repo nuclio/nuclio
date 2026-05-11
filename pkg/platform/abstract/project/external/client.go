@@ -96,11 +96,10 @@ func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjec
 // comes from a user. The X-Projects-Role header is retained for IG3 compatibility.
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	if createProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
-		existingProject, err := c.getExistingProject(ctx, createProjectOptions.ProjectConfig.Meta.Name, createProjectOptions.ProjectConfig.Meta.Namespace)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to fetch existing project for leader create")
-		}
-		shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, createProjectOptions.ProjectConfig.Meta.Labels, existingProject)
+		shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
+			createProjectOptions.ProjectConfig.Meta.Name,
+			createProjectOptions.ProjectConfig.Meta.Namespace,
+			createProjectOptions.ProjectConfig.Meta.Labels)
 		if err != nil {
 			return nil, err
 		}
@@ -121,11 +120,10 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 // from the leader, or forwards it to the external leader HTTP client.
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	if updateProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
-		existingProject, err := c.getExistingProject(ctx, updateProjectOptions.ProjectConfig.Meta.Name, updateProjectOptions.ProjectConfig.Meta.Namespace)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to fetch existing project for leader update")
-		}
-		shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, updateProjectOptions.ProjectConfig.Meta.Labels, existingProject)
+		shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
+			updateProjectOptions.ProjectConfig.Meta.Name,
+			updateProjectOptions.ProjectConfig.Meta.Namespace,
+			updateProjectOptions.ProjectConfig.Meta.Labels)
 		if err != nil {
 			return nil, err
 		}
@@ -146,11 +144,10 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 // from the leader, or forwards it to the external leader HTTP client.
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if deleteProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
-		existingProject, err := c.getExistingProject(ctx, deleteProjectOptions.Meta.Name, deleteProjectOptions.Meta.Namespace)
-		if err != nil {
-			return errors.Wrap(err, "Failed to fetch existing project for leader delete")
-		}
-		shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, deleteProjectOptions.Meta.Labels, existingProject)
+		shouldApply, _, err := c.evaluateLeaderRequestWithCRD(ctx,
+			deleteProjectOptions.Meta.Name,
+			deleteProjectOptions.Meta.Namespace,
+			deleteProjectOptions.Meta.Labels)
 		if err != nil {
 			return err
 		}
@@ -165,6 +162,32 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	}
 
 	return platform.ErrSuccessfulDeleteProjectLeader
+}
+
+// evaluateLeaderRequestWithCRD runs the full 2PC evaluation pipeline for a leader-origin
+// write: fetch the existing CRD, then ask the leader whether the write should be applied,
+// is idempotent (skip), or invalid (error).
+//
+// When 2PC is disabled on the configured leader (Iguazio pass-through, or MLRun with the
+// feature flag off), the entire pipeline is short-circuited: EvaluateLeaderRequest would
+// be an unconditional (true, nil) pass-through and the Get would be wasted, so we return
+// (true, nil, nil) directly and let the caller proceed to the internal write.
+func (c *Client) evaluateLeaderRequestWithCRD(ctx context.Context,
+	name, namespace string,
+	labels map[string]string) (bool, platform.Project, error) {
+	if !c.leaderClient.ProjectSync2PCEnabled() {
+		return true, nil, nil
+	}
+
+	existingProject, err := c.getExistingProject(ctx, name, namespace)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "Failed to fetch existing project for leader evaluation")
+	}
+	shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, labels, existingProject)
+	if err != nil {
+		return false, existingProject, errors.Wrap(err, "Failed to evaluate leader request")
+	}
+	return shouldApply, existingProject, nil
 }
 
 func (c *Client) getExistingProject(ctx context.Context, name, namespace string) (platform.Project, error) {

@@ -132,6 +132,34 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 	suite.Require().NoError(err)
 }
 
+// TestLeaderCreateSkipsEvaluationWhen2PCDisabled covers the short-circuit path: when
+// the configured leader does not run 2PC (Iguazio pass-through, or MLRun with the
+// feature flag disabled), the external client must skip both the internal Get and the
+// EvaluateLeaderRequest call, going straight to the internal write.
+func (suite *ExternalProjectClientTestSuite) TestLeaderCreateSkipsEvaluationWhen2PCDisabled() {
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("ProjectSync2PCEnabled").
+		Return(false).
+		Once()
+	suite.mockInternalProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(&platform.AbstractProject{}, nil).
+		Once()
+
+	_, err := suite.Create(suite.ctx, &createProjectOptions)
+	suite.Require().NoError(err)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything)
+	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "EvaluateLeaderRequest", mock.Anything, mock.Anything, mock.Anything)
+}
+
 func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 	createProjectOptions := platform.CreateProjectOptions{
 		RequestOrigin: "not-leader",
@@ -199,8 +227,13 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 }
 
 // expectGetExistingProject stubs the internal Get used by getExistingProject
-// to return no existing project (the simplest valid 2PC pre-state).
+// to return no existing project (the simplest valid 2PC pre-state), and tells the
+// leader mock that 2PC is enabled so the external client performs the Get.
 func (suite *ExternalProjectClientTestSuite) expectGetExistingProject(name string) {
+	suite.mockLeaderProjectsClient.
+		On("ProjectSync2PCEnabled").
+		Return(true).
+		Once()
 	suite.mockInternalProjectsClient.
 		On("Get", suite.ctx, mock.MatchedBy(func(opts *platform.GetProjectsOptions) bool {
 			return opts != nil && opts.Meta.Name == name

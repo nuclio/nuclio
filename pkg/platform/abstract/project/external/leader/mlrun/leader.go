@@ -204,8 +204,10 @@ func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, labels map[string]s
 	case syncStatus == leaderCommon.MLRunSyncStatusOnline && currentOpID != "":
 		// In-place update: project stays "online" but its spec changes.
 		return l.validateSpecUpdate(labels, existing)
-	case syncStatus == "":
+	case syncStatus == "" && currentOpID == "":
 		// Phase 1 of deletion: MLRun has finished its cleanup; permanently delete the CRD.
+		// Final-delete carries only op_id; current-op-id must be absent so we don't
+		// silently misclassify a malformed request that forgot to set sync-status.
 		return l.validateFinalDelete(labels, existing)
 	default:
 		// Unknown label combination — reject with a clear diagnostic.
@@ -213,6 +215,13 @@ func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, labels map[string]s
 			fmt.Sprintf("Unrecognised 2PC labels: sync-status=%q current-op-id=%q",
 				syncStatus, currentOpID))
 	}
+}
+
+// ProjectSync2PCEnabled exposes the 2PC feature flag so callers can decide whether to
+// fetch the existing CRD before invoking EvaluateLeaderRequest. When the flag is off,
+// evaluation is an unconditional pass-through, so the Get would be wasted.
+func (l *LeaderOps) ProjectSync2PCEnabled() bool {
+	return l.projectSync2PCEnabled
 }
 
 func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return false }
@@ -364,8 +373,9 @@ func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platfo
 
 	// CAS check: the current-op-id in the request must equal the op_id stored on the CRD.
 	// This ensures the caller is operating on the exact version it last read, preventing
-	// a concurrent update from being silently overwritten.
-	if err := l.requireOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Mark-delete"); err != nil {
+	// a concurrent update from being silently overwritten. The CAS is skipped on legacy
+	// CRDs that have no stored op_id yet — see requireCASOpIDMatch for the rationale.
+	if err := l.requireCASOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Mark-delete"); err != nil {
 		return false, err
 	}
 
@@ -381,10 +391,13 @@ func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platfo
 // MLRun calls this when a project's configuration changes (e.g. labels, description).
 // The status stays "online" — only the op_id advances to record that the update happened.
 //
-// Ordering is enforced by op_id alone: the incoming op_id must be strictly newer than the
-// stored one (UUIDv7 lexicographic order = chronological order). The current-op-id label
-// is ignored here — unlike MarkDelete, a spec update is non-destructive and reversible,
-// so last-writer-wins by timestamp is the right trade-off between safety and recoverability.
+// Two ordering guards must hold:
+//  1. CAS: current-op-id in the request must equal the op_id stored on the CRD.
+//     This rejects updates that were computed against a stale view of the project,
+//     preventing a concurrent write from being silently overwritten.
+//  2. Replay protection: the new op_id must be strictly newer than the stored one
+//     (UUIDv7 lexicographic order = chronological order).
+//
 // op_id is required: it must be written to the CRD so subsequent operations can match against it.
 //
 // Returns (true, nil) on success; caller should update the CRD.
@@ -413,14 +426,22 @@ func (l *LeaderOps) validateSpecUpdate(labels map[string]string, existing platfo
 	// Idempotency: the CRD is already online and the new op_id is already stored, meaning
 	// Nuclio already applied this update (perhaps the response timed out). Both the status
 	// check above and this op_id check together confirm the post-apply state is fully reached.
-	// Return success without writing again.
+	// Return success without writing again. This must come before the CAS check because after
+	// a successful update the stored op_id has advanced past the request's current-op-id.
 	if storedOpID == newOpID {
 		return false, nil
 	}
 
-	// The new op_id must be strictly newer than the stored one.
-	// This is the only ordering guard for spec-updates: any newer op always wins,
-	// including recovery cases where MLRun's tracked current-op-id is stale.
+	// CAS check: the current-op-id in the request must equal the op_id stored on the CRD.
+	// This ensures the caller is operating on the exact version it last read, preventing
+	// a concurrent update from being silently overwritten. The CAS is skipped on legacy
+	// CRDs that have no stored op_id yet — see requireCASOpIDMatch for the rationale.
+	if err := l.requireCASOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Update"); err != nil {
+		return false, err
+	}
+
+	// The new op_id must be strictly newer than the stored one, preventing replayed or
+	// out-of-order requests from overwriting a more recent operation.
 	if err := l.requireNewerOpID(newOpID, storedOpID, "Update"); err != nil {
 		return false, err
 	}
@@ -512,11 +533,11 @@ func (l *LeaderOps) requireSyncStatus(effectiveStatus, expectedStatus, operation
 }
 
 // requireOpIDMatch returns a 409 Conflict when the two op_id values do not match.
-// Used in two ways:
-//  1. To implement a CAS check: the current-op-id in the request must equal the op_id
-//     stored on the CRD (MarkDelete, SpecUpdate).
-//  2. To bind two phases together: the op_id in FinalDelete must equal the one that was
-//     written during MarkDelete, confirming both steps are part of the same operation.
+// Used by phase-binding callers (Commit, FinalDelete) where the request's op_id must
+// equal the one already written on the CRD — by the matching Provision or Mark-delete.
+// For these callers an empty storedOpID is unreachable in practice (the preceding
+// requireSyncStatus check already excludes legacy / pre-2PC CRDs), so this helper does
+// not accommodate that case; use requireCASOpIDMatch for CAS-style mutations instead.
 func (l *LeaderOps) requireOpIDMatch(requestedOpID, storedOpID, operation string) error {
 	if storedOpID != requestedOpID {
 		return nuclio.GetByStatusCode(http.StatusConflict)(
@@ -524,6 +545,22 @@ func (l *LeaderOps) requireOpIDMatch(requestedOpID, storedOpID, operation string
 				requestedOpID, storedOpID, operation))
 	}
 	return nil
+}
+
+// requireCASOpIDMatch is a Compare-And-Swap variant of requireOpIDMatch for the CAS-style
+// mutation phases (Mark-delete, Spec-update). It treats an empty storedOpID as
+// "no CAS key has been written yet" and accepts the request unconditionally, which is the
+// one-shot migration path for legacy CRDs that pre-date 2PC: their op_id label is unset
+// because nothing has stamped it. The current write is what stamps it, so there is nothing
+// to CAS against and any non-empty current-op-id the leader sent is necessarily based on a
+// stale read — rejecting it would permanently block the CRD from ever being mutated again.
+// After the first leader-driven write the op_id is on the CRD and normal CAS enforcement
+// resumes for every subsequent operation.
+func (l *LeaderOps) requireCASOpIDMatch(requestedOpID, storedOpID, operation string) error {
+	if storedOpID == "" {
+		return nil
+	}
+	return l.requireOpIDMatch(requestedOpID, storedOpID, operation)
 }
 
 // requireNewerOpID returns a 409 Conflict when the incoming op_id is not strictly newer

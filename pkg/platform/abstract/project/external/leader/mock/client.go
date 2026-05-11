@@ -104,3 +104,8 @@ func (c *Client) EvaluateLeaderRequest(ctx context.Context, labels map[string]st
 	args := c.Called(ctx, labels, existingProject)
 	return args.Bool(0), args.Error(1)
 }
+
+func (c *Client) ProjectSync2PCEnabled() bool {
+	args := c.Called()
+	return args.Bool(0)
+}

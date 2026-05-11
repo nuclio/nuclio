@@ -50,6 +50,12 @@ type Client interface {
 	// Returns (false, nil) – idempotent replay, caller should skip the write and return existing.
 	// Returns (false, err) – validation failed (400 / 409 / 412).
 	EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error)
+
+	// ProjectSync2PCEnabled reports whether the configured leader runs the two-phase-commit
+	// project sync protocol. When false, EvaluateLeaderRequest is an unconditional
+	// pass-through and callers can skip fetching the existing CRD before invoking it.
+	// True only for MLRun with the 2PC feature flag on; Iguazio and disabled-MLRun return false.
+	ProjectSync2PCEnabled() bool
 }
 
 type LeaderOps interface {
@@ -60,6 +66,12 @@ type LeaderOps interface {
 	// Returns (false, nil) – idempotent replay, caller should skip the write.
 	// Returns (false, err) – validation failed (400 / 409 / 412).
 	EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error)
+
+	// ProjectSync2PCEnabled reports whether this leader runs the two-phase-commit project
+	// sync protocol. When false, EvaluateLeaderRequest is an unconditional pass-through
+	// and the existing CRD is never inspected — callers can use this to skip a redundant
+	// Kubernetes Get before each leader-origin write.
+	ProjectSync2PCEnabled() bool
 
 	// Create operations
 

@@ -563,6 +563,16 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_MarkDelete() {
 			// then requireSyncStatus(deleting, online) → 412
 			wantStatusCode: http.StatusPreconditionFailed,
 		},
+		{
+			// Legacy CRD created before 2PC was enabled: it has no op_id label and
+			// resolveSyncStatus defaults its status to "online". CAS must be skipped (there
+			// is nothing to swap against) so the first leader-driven mark-delete can stamp
+			// op_id onto the CRD. Subsequent operations go through the normal CAS path.
+			name:            "LegacyCRDNoStoredOpIDBootstraps",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, "", ""),
+			wantApply:       true,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -619,12 +629,14 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_SpecUpdate() {
 			wantStatusCode:  http.StatusPreconditionFailed,
 		},
 		{
-			name:          "NewerOpIDStaleCASKey",
+			name:          "StaleCASKeyRejected",
 			requestLabels: requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opOld),
-			// current-op-id (opOld) does not match stored (opStored), but op_id (opNew) is newer —
-			// spec-update uses last-writer-wins by op_id alone, so this is allowed.
+			// current-op-id (opOld) does not match stored (opStored): the caller
+			// computed this update against a stale view of the CRD, so reject with 409
+			// rather than silently overwriting a concurrent update.
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, opStored, ""),
-			wantApply:       true,
+			wantApply:       false,
+			wantStatusCode:  http.StatusConflict,
 		},
 		{
 			name:            "NewOpIDOlderThanStored",
@@ -645,6 +657,16 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_SpecUpdate() {
 			requestLabels:  requestLabels(leaderCommon.MLRunSyncStatusOnline, "", opStored),
 			wantApply:      false,
 			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			// Legacy CRD created before 2PC was enabled: it has no op_id label and
+			// resolveSyncStatus defaults its status to "online". CAS must be skipped so
+			// the first leader-driven spec-update can stamp op_id onto the CRD; without
+			// this bootstrap the CRD would be permanently un-updatable.
+			name:            "LegacyCRDNoStoredOpIDBootstraps",
+			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusOnline, opNew, opStored),
+			existingProject: stubProject(leaderCommon.MLRunSyncStatusOnline, "", ""),
+			wantApply:       true,
 		},
 	}
 
@@ -742,6 +764,13 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_InvalidLabels() {
 		{
 			name:           "UnknownSyncStatus",
 			requestLabels:  requestLabels("unknown-status", "018e-op", ""),
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			// final-delete requires sync-status absent AND current-op-id absent;
+			// presence of current-op-id without sync-status is ambiguous, so reject.
+			name:           "EmptySyncStatusWithCurrentOpID",
+			requestLabels:  requestLabels("", "018e-op", "018d-op"),
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}
