@@ -72,6 +72,34 @@ func (suite *ConfigurationTestSuite) TestParseACKConfig() {
 	}
 }
 
+func (suite *ConfigurationTestSuite) TestParsePrefetchCount() {
+	testCases := []struct {
+		name             string
+		prefetchCount    interface{}
+		expectedPrefetch int
+	}{
+		{"ZeroValue", 0, 0},
+		{"NonZeroValue", 3, 3},
+		{"NotSet", nil, 0},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			attrs := map[string]interface{}{
+				"exchangeName": "my-exchange",
+				"queueName":    "my-queue",
+			}
+			if tc.prefetchCount != nil {
+				attrs["prefetchCount"] = tc.prefetchCount
+			}
+
+			cfg, err := NewConfiguration("test-id", &functionconfig.Trigger{Attributes: attrs}, &runtime.Configuration{})
+			suite.Require().NoError(err)
+			suite.Equal(tc.expectedPrefetch, cfg.PrefetchCount)
+		})
+	}
+}
+
 func TestConfigurationSuite(t *testing.T) {
 	suite.Run(t, new(ConfigurationTestSuite))
 }

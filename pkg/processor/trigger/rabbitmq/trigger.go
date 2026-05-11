@@ -146,6 +146,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to validate queue existence")
 	}
 
+	// apply prefetch QoS regardless of whether topics were provided
+	if err := rmq.applyPrefetchCount(); err != nil {
+		return errors.Wrap(err, "Failed to apply prefetch count")
+	}
+
 	// consume from queue
 	if err := rmq.consume(); err != nil {
 		return errors.Wrap(err, "Failed to consume messages")
@@ -255,12 +260,6 @@ func (rmq *rabbitMq) createTopics() error {
 	// to support listening on the provided exchange and queue
 	// TODO: move to ui and add feature flag
 
-	if rmq.configuration.PrefetchCount != 0 {
-		if err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true); err != nil {
-			return errors.Wrap(err, "Failed to setup prefetch on channel")
-		}
-	}
-
 	// create the exchange
 	if err := rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
 		"topic",
@@ -327,6 +326,17 @@ func (rmq *rabbitMq) validateQueueExists() error {
 	return nil
 }
 
+func (rmq *rabbitMq) applyPrefetchCount() error {
+	if rmq.configuration.PrefetchCount == 0 {
+		return nil
+	}
+	if err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true); err != nil {
+		return errors.Wrap(err, "Failed to setup prefetch on channel")
+	}
+	rmq.Logger.DebugWith("Applied prefetch count", "prefetchCount", rmq.configuration.PrefetchCount)
+	return nil
+}
+
 func (rmq *rabbitMq) consume() error {
 	var err error
 
@@ -365,6 +375,11 @@ func (rmq *rabbitMq) handleConnectionError(handleErr *amqp.Error) error {
 
 	if err := rmq.reconnect(); err != nil {
 		return errors.Wrap(err, "Failed to reconnect to broker")
+	}
+
+	// re-apply prefetch QoS on the new channel
+	if err := rmq.applyPrefetchCount(); err != nil {
+		return errors.Wrap(err, "Failed to apply prefetch count")
 	}
 
 	// start message consumption again
