@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
@@ -143,36 +142,28 @@ func NewManagerConfigration(
 	return manager
 }
 
-// EnrichAndValidate fills in defaults that require runtime context.
-// It must be called once after NewManagerConfigration and before the manager is used.
-//
-// EstablishConnectionTimeout resolution precedence:
-//  1. AsyncConfig.EstablishConnectionTimeout  — explicit per-trigger user setting
-//  2. 3 × ReadinessTimeoutSeconds — per-function derived default
-//  3. 3 × platform default        — platform-wide readiness timeout
-//  4. 3 × compile-time constant   — final fallback (platformconfig.DefaultFunctionReadinessTimeoutSeconds)
+// EnrichAndValidate resolves EstablishConnectionTimeout for the connection manager.
+// Primary path: parses AsyncConfig.EstablishConnectionTimeout populated by the platform's
+// EnrichFunctionConfig flow. Fallback (for configs that bypassed deploy-time enrichment, e.g.
+// older configs or unit tests): applies the same DefaultEstablishConnectionTimeoutMultiplier ×
+// ReadinessTimeoutSeconds policy here. Must be called once after NewManagerConfigration and
+// before the manager is used.
 func (mc *ManagerConfigration) EnrichAndValidate(runtimeConfiguration runtime.Configuration) error {
-	if runtimeConfiguration.AsyncConfig != nil {
-		explicitTimeout, err := runtimeConfiguration.AsyncConfig.GetEstablishConnectionTimeoutDuration()
-		if err != nil {
-			return errors.Wrap(err, "Failed to parse async config startup timeout")
-		}
-		if explicitTimeout != 0 {
-			mc.EstablishConnectionTimeout = explicitTimeout
-			return nil
-		}
+	if runtimeConfiguration.AsyncConfig == nil {
+		return nil
 	}
-
-	readinessTimeoutSeconds := runtimeConfiguration.Spec.ReadinessTimeoutSeconds
-	if readinessTimeoutSeconds == 0 {
-		if runtimeConfiguration.PlatformConfig != nil {
-			readinessTimeoutSeconds = int(runtimeConfiguration.PlatformConfig.GetDefaultFunctionReadinessTimeout().Seconds())
-		}
-		if readinessTimeoutSeconds == 0 {
-			readinessTimeoutSeconds = platformconfig.DefaultFunctionReadinessTimeoutSeconds
-		}
+	duration, err := runtimeConfiguration.AsyncConfig.GetEstablishConnectionTimeoutDuration()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse async config establish connection timeout")
 	}
-	mc.EstablishConnectionTimeout = 3 * time.Duration(readinessTimeoutSeconds) * time.Second
+	if duration == 0 {
+		readinessTimeout := time.Duration(runtimeConfiguration.Spec.ReadinessTimeoutSeconds) * time.Second
+		if readinessTimeout <= 0 && runtimeConfiguration.PlatformConfig != nil {
+			readinessTimeout = runtimeConfiguration.PlatformConfig.GetDefaultFunctionReadinessTimeout()
+		}
+		duration = functionconfig.DefaultEstablishConnectionTimeoutMultiplier * readinessTimeout
+	}
+	mc.EstablishConnectionTimeout = duration
 	return nil
 }
 
