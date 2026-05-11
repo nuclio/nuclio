@@ -132,7 +132,7 @@ type AsyncConfig struct {
 	EstablishConnectionTimeout string `json:"establishConnectionTimeout,omitempty"`
 
 	connectionAvailabilityTimeoutDuration time.Duration
-	establishConnectionTimeoutDuration                time.Duration
+	establishConnectionTimeoutDuration    time.Duration
 }
 
 func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration, error) {
