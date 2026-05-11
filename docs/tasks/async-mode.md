@@ -6,7 +6,7 @@
 
 Nuclio now supports asynchronous function invocation within a single worker process.
 This feature enhances performance and resource utilization, particularly in use cases where functions handle multiple concurrent requests. It is especially beneficial for I/O-bound operations.
-Currently, asynchronous mode is available only for HTTP triggers and the Python runtime.
+Currently, asynchronous mode is available for HTTP and RabbitMQ triggers with the Python runtime.
 
 ## Enabling Async Mode
 

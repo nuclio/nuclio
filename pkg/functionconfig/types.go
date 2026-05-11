@@ -188,6 +188,7 @@ var runtimesSupportBatching = []string{
 
 var triggerKindsSupportAsync = []string{
 	"http",
+	"rabbit-mq",
 }
 var runtimesSupportAsync = []string{
 	"python",

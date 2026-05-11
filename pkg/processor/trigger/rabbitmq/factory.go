@@ -50,8 +50,16 @@ func (f *factory) Create(parentLogger logger.Logger,
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (eventprocessor.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger, configuration.NumWorkers,
-				runtimeConfiguration)
+			switch triggerConfiguration.Mode {
+			case functionconfig.AsyncTriggerWorkMode:
+				return worker.WorkerFactorySingleton.CreateNonBlockingWorkerAllocator(triggerLogger,
+					configuration.NumWorkers,
+					runtimeConfiguration)
+			default:
+				return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
+					configuration.NumWorkers,
+					runtimeConfiguration)
+			}
 		})
 
 	if err != nil {

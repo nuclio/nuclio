@@ -106,3 +106,29 @@ During the enrichment stage, if credentials are provided within the URL, they ar
 The URL is then sanitized (i.e., credentials are removed) to prevent sensitive data from being exposed in logs or configurations.
 
 > Note: If both the URL and the trigger configuration specify credentials, the credentials from the URL take precedence and will override any existing username or password values in the trigger specification.
+
+## Asynchronous Mode
+
+The RabbitMQ trigger supports asynchronous processing mode with the Python runtime. In async mode, messages are dispatched concurrently, allowing a single worker to process multiple messages in parallel via multiple socket connections. This is especially beneficial for I/O-bound handlers.
+
+To enable async mode, set `mode: async` on the trigger configuration. You can optionally configure the number of connections per worker via `async.maxConnectionsNumber` (default: 1000).
+
+> **Note:** Async mode processes messages concurrently, so completion order is not guaranteed. If your function depends on strict message ordering, use the default sync mode. The `prefetchCount` attribute controls how many unacked messages RabbitMQ delivers at once, which naturally limits concurrency in async mode.
+
+For more details on async mode configuration and behavior, see [Asynchronous Mode](../../tasks/async-mode.md).
+
+### Async Mode Example
+
+```yaml
+triggers:
+  myRabbit:
+    kind: "rabbit-mq"
+    url: "amqp://user:pass@10.0.0.1:5672"
+    mode: async
+    async:
+      maxConnectionsNumber: 500
+    attributes:
+      exchangeName: "myExchangeName"
+      queueName: "myQueueName"
+      prefetchCount: 100
+```

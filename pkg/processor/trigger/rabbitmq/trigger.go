@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -43,6 +44,8 @@ type rabbitMq struct {
 	brokerInputMessagesChannel <-chan amqp.Delivery
 	stopChan                   chan struct{}
 	connectionErrorChan        chan *amqp.Error
+	inFlightMessages           sync.WaitGroup
+	handlerDone                chan struct{}
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -78,6 +81,14 @@ func (rmq *rabbitMq) Initialize() error {
 	}
 
 	rmq.setEmptyParameters()
+
+	// warn if async mode is used without a prefetch count, as this can lead to unbounded goroutine creation
+	if rmq.isAsyncMode() && rmq.configuration.PrefetchCount == 0 {
+		rmq.Logger.Warn("Async mode is enabled without a prefetchCount limit. " +
+			"This may cause unbounded goroutine creation under high throughput. " +
+			"Consider setting prefetchCount to limit concurrency")
+	}
+
 	return nil
 }
 
@@ -87,6 +98,7 @@ func (rmq *rabbitMq) Start(checkpoint functionconfig.Checkpoint) error {
 		"brokerUrl", rmq.configuration.URL)
 
 	rmq.stopChan = make(chan struct{})
+	rmq.handlerDone = make(chan struct{})
 
 	if err := rmq.createBrokerResources(); err != nil {
 		return errors.Wrap(err, "Failed to create broker resources")
@@ -102,6 +114,13 @@ func (rmq *rabbitMq) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 	// stop listening for messages
 	close(rmq.stopChan)
+
+	// wait for the message handler loop to exit, so no new goroutines can be spawned
+	<-rmq.handlerDone
+
+	// now wait for any in-flight async message goroutines to complete
+	// before closing the broker channel, so they can properly ack/nack their messages
+	rmq.inFlightMessages.Wait()
 
 	// close broker
 	if err := rmq.brokerChannel.Close(); err != nil {
@@ -179,6 +198,8 @@ func (rmq *rabbitMq) getConnectionConfig() *amqp.Config {
 }
 
 func (rmq *rabbitMq) handleBrokerMessages() {
+	defer close(rmq.handlerDone)
+
 	for {
 		select {
 		case err := <-rmq.connectionErrorChan:
@@ -193,7 +214,17 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 			rmq.Logger.DebugWith("Stopping consumption from queue", "queueName", rmq.configuration.QueueName)
 			return
 		case message := <-rmq.brokerInputMessagesChannel:
-			rmq.processMessage(&message)
+
+			// in async mode, dispatch each message in its own goroutine to allow concurrent processing
+			if rmq.isAsyncMode() {
+				rmq.inFlightMessages.Add(1)
+				go func() {
+					defer rmq.inFlightMessages.Done()
+					rmq.processMessage(&message)
+				}()
+			} else {
+				rmq.processMessage(&message)
+			}
 		}
 	}
 }
@@ -451,4 +482,8 @@ func (rmq *rabbitMq) getConsumerName() (string, error) {
 
 	// empty to let the client generate a random name
 	return consumerName, nil
+}
+
+func (rmq *rabbitMq) isAsyncMode() bool {
+	return rmq.configuration.Mode == functionconfig.AsyncTriggerWorkMode
 }
