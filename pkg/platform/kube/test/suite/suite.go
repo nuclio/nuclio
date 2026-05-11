@@ -343,7 +343,7 @@ func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(ctx context
 			// we do it because the invoked functions returns a list of "unknown" events.
 			// here, we simply want to know the list has been initialized and its length is greater than zero.
 			switch kind := reflect.TypeOf(events).Kind(); kind {
-			case reflect.Slice, reflect.Ptr:
+			case reflect.Slice, reflect.Pointer:
 				return reflect.Indirect(reflect.ValueOf(events)).Len() > 0
 			default:
 				suite.Require().FailNow("Expected a list", "receivedKind", kind)

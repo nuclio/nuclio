@@ -34,6 +34,7 @@ import (
 type Synchronizer struct {
 	logger                     logger.Logger
 	synchronizationIntervalStr string
+	syncOnStartup              bool
 	managedNamespaces          []string
 	leaderClient               leader.Client
 	internalProjectsClient     project.Client
@@ -41,6 +42,7 @@ type Synchronizer struct {
 
 func NewSynchronizer(parentLogger logger.Logger,
 	synchronizationIntervalStr string,
+	syncOnStartup bool,
 	managedNamespaces []string,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client) (*Synchronizer, error) {
@@ -48,6 +50,7 @@ func NewSynchronizer(parentLogger logger.Logger,
 	newSynchronizer := Synchronizer{
 		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
 		synchronizationIntervalStr: synchronizationIntervalStr,
+		syncOnStartup:              syncOnStartup,
 		leaderClient:               leaderClient,
 		internalProjectsClient:     internalProjectsClient,
 		managedNamespaces:          managedNamespaces,
@@ -64,16 +67,38 @@ func (c *Synchronizer) Start() error {
 
 	ctx := context.WithValue(context.Background(), "RequestID", "leader-synchronizer") // nolint: staticcheck
 
-	// don't synchronize when set to 0
+	// perform a one-shot sync on startup if configured
+	if c.syncOnStartup {
+		c.logger.InfoWithCtx(ctx, "Sync-on-startup enabled. Performing a one-time project sync from leader")
+		go c.syncOnce(ctx, c.managedNamespaces)
+	}
+
+	// don't run the periodic loop when interval is 0
 	if synchronizationInterval == 0 {
-		c.logger.InfoWithCtx(ctx,
-			"Synchronization interval set to 0. Projects will not synchronize with leader")
+		if !c.syncOnStartup {
+			c.logger.InfoWithCtx(ctx,
+				"Synchronization interval set to 0. Projects will not synchronize with leader")
+		}
 		return nil
 	}
 
 	// start synchronization loop in the background
 	go c.startSynchronizationLoop(ctx, synchronizationInterval, c.managedNamespaces)
 	return nil
+}
+
+// syncOnce performs a single synchronization pass for all managed namespaces. Intended for startup recovery.
+func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
+	c.logger.InfoWithCtx(ctx, "Running one-time project sync from leader", "namespaces", namespaces)
+	for _, namespace := range namespaces {
+		if _, err := c.synchronizeProjectsFromLeader(ctx, namespace, nil); err != nil {
+			c.logger.WarnWithCtx(ctx,
+				"Failed to sync projects from leader on startup",
+				"namespace", namespace,
+				"err", errors.GetErrorStackString(err, 10))
+		}
+	}
+	c.logger.InfoWithCtx(ctx, "One-time project sync from leader completed")
 }
 
 func (c *Synchronizer) startSynchronizationLoop(ctx context.Context,

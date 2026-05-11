@@ -195,6 +195,11 @@ type ProjectsLeader struct {
 	Kind                    ProjectsLeaderKind `json:"kind,omitempty"`
 	APIAddress              string             `json:"apiAddress,omitempty"`
 	SynchronizationInterval string             `json:"synchronizationInterval,omitempty"`
+
+	// SyncOnStartup, when true, performs a single project sync from the leader on startup instead of (or in
+	// addition to) the periodic interval loop. Useful for mlrun deployments where Nuclio should recover
+	// project state after a system hiccup without continuously polling the leader.
+	SyncOnStartup bool `json:"syncOnStartup,omitempty"`
 }
 
 type PlatformKubeConfig struct {

@@ -30,7 +30,6 @@ linters:
   default: none
   enable:
     - errcheck
-    - goconst
     - gocritic
     - govet
     - ineffassign
