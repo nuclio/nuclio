@@ -673,12 +673,20 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 			"errorStack", errors.GetErrorStackString(deployErr, 10))
 	}
 
-	// give the container some time - after 10 seconds, give up
-	deadline := time.Now().Add(10 * time.Second)
+	// Give the container time to become functionally ready after the health check passes.
+	// For functions with a slow init_context the Docker health check can fire before Python
+	// has established all RPC connections.  Use ReadinessTimeoutSeconds as the budget so
+	// that the window scales with what the test declared as an acceptable startup time.
+	// Fall back to 10 s for tests that do not set a custom readiness timeout.
+	postDeployTimeout := time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
+	if postDeployTimeout <= 0 {
+		postDeployTimeout = 10 * time.Second
+	}
+	deadline := time.Now().Add(postDeployTimeout)
 
 	for {
 
-		// stop after 10 seconds
+		// stop when the post-deploy deadline is reached
 		if time.Now().After(deadline) {
 			dockerLogs, err := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
 			if err == nil {
