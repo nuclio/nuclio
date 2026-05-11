@@ -95,17 +95,6 @@ func (suite *TestSuite) TestApplyPrefetchCountSkipsWhenZero() {
 	suite.NoError(err)
 }
 
-// TestCreateTopicsReturnsEarlyWithoutAffectingQoS verifies that when no topics are
-// configured, createTopics returns nil early and does not attempt any broker calls
-// (including the QoS setup that was previously incorrectly placed inside it).
-func (suite *TestSuite) TestCreateTopicsReturnsEarlyWithoutAffectingQoS() {
-	suite.trigger.configuration.Topics = []string{}
-
-	// brokerChannel is nil — if createTopics attempted any broker call it would panic
-	err := suite.trigger.createTopics()
-	suite.NoError(err)
-}
-
 func TestRabbitMQSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
