@@ -124,7 +124,15 @@ type AsyncConfig struct {
 	ConnectionCreationMode        ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
 	ConnectionAvailabilityTimeout string                 `json:"connectionAvailabilityTimeout,omitempty"`
 
+	// StartupTimeout is the total budget for connection establishment and wrapper readiness
+	// signalling (dial retries + WaitForStart). When unset it defaults to 3×
+	// ReadinessTimeoutSeconds so that functions with a slow init_context have enough
+	// time to start without requiring manual tuning of this field.
+	// Accepts a Go duration string, e.g. "5m".
+	StartupTimeout string `json:"startupTimeout,omitempty"`
+
 	connectionAvailabilityTimeoutDuration time.Duration
+	startupTimeoutDuration                time.Duration
 }
 
 func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration, error) {
@@ -147,6 +155,31 @@ func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration,
 
 	a.connectionAvailabilityTimeoutDuration = timeout
 	return a.connectionAvailabilityTimeoutDuration, nil
+}
+
+// GetStartupTimeoutDuration parses and caches StartupTimeout.
+// Returns (0, nil) when StartupTimeout is not set, signalling that the caller should
+// fall back to the default of 3× ReadinessTimeoutSeconds.
+func (a *AsyncConfig) GetStartupTimeoutDuration() (time.Duration, error) {
+	if a.StartupTimeout == "" {
+		return 0, nil
+	}
+
+	if a.startupTimeoutDuration != 0 {
+		return a.startupTimeoutDuration, nil
+	}
+
+	timeout, err := time.ParseDuration(a.StartupTimeout)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse startup timeout %q", a.StartupTimeout)
+	}
+
+	if timeout <= 0 {
+		return 0, errors.New("startup timeout must be greater than zero")
+	}
+
+	a.startupTimeoutDuration = timeout
+	return a.startupTimeoutDuration, nil
 }
 
 type ConnectionCreationMode string

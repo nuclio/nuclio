@@ -22,12 +22,14 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -96,6 +98,10 @@ type ManagerConfigration struct {
 	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
 	Statistics                  *runtime.Statistics
 
+	// StartupTimeout is the total budget for connection establishment and wrapper readiness
+	// signalling in async mode. It is set by EnrichAndValidate to 3× ReadinessTimeoutSeconds.
+	StartupTimeout time.Duration
+
 	eventTimeout time.Duration
 	chunkTimeout time.Duration
 
@@ -135,6 +141,39 @@ func NewManagerConfigration(
 		manager.port = portRangeBeginning + workerId
 	}
 	return manager
+}
+
+// EnrichAndValidate fills in defaults that require runtime context.
+// It must be called once after NewManagerConfigration and before the manager is used.
+//
+// StartupTimeout resolution precedence:
+//  1. AsyncConfig.StartupTimeout  — explicit per-trigger user setting
+//  2. 3 × ReadinessTimeoutSeconds — per-function derived default
+//  3. 3 × platform default        — platform-wide readiness timeout
+//  4. 3 × compile-time constant   — final fallback (platformconfig.DefaultFunctionReadinessTimeoutSeconds)
+func (mc *ManagerConfigration) EnrichAndValidate(runtimeConfiguration runtime.Configuration) error {
+	if runtimeConfiguration.AsyncConfig != nil {
+		explicitTimeout, err := runtimeConfiguration.AsyncConfig.GetStartupTimeoutDuration()
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse async config startup timeout")
+		}
+		if explicitTimeout != 0 {
+			mc.StartupTimeout = explicitTimeout
+			return nil
+		}
+	}
+
+	readinessTimeoutSeconds := runtimeConfiguration.Spec.ReadinessTimeoutSeconds
+	if readinessTimeoutSeconds == 0 {
+		if runtimeConfiguration.PlatformConfig != nil {
+			readinessTimeoutSeconds = int(runtimeConfiguration.PlatformConfig.GetDefaultFunctionReadinessTimeout().Seconds())
+		}
+		if readinessTimeoutSeconds == 0 {
+			readinessTimeoutSeconds = platformconfig.DefaultFunctionReadinessTimeoutSeconds
+		}
+	}
+	mc.StartupTimeout = 3 * time.Duration(readinessTimeoutSeconds) * time.Second
+	return nil
 }
 
 type ManagerKind string
