@@ -33,7 +33,38 @@ This represents the maximum number of events that can be processed concurrently 
 If all connections are occupied and a new event arrives, the event will wait for a connection to become available for up to `spec.triggers.trigger-name.async.connectionAvailabilityTimeout`.
 By default, this timeout is set to 10 seconds, but it can be customized to any desired value.
 
+### Slow `init_context` and Startup Timeouts
+
+When `init_context` takes a long time (e.g., loading a large model), the Go processor must wait for the Python wrapper to start listening before it can establish connections.
+By default the startup budget is **3 × `readinessTimeoutSeconds`**, which scales automatically with the function's configured readiness window.
+
+If your `init_context` routinely exceeds this budget, set an explicit override:
+
+```yaml
+spec:
+  readinessTimeoutSeconds: 300   # 5 minutes
+  triggers:
+    myTrigger:
+      kind: http
+      mode: async
+      async:
+        establishConnectionTimeout: "20m"    # override: 20 minutes
+```
+
+`establishConnectionTimeout` accepts any value valid for Go's [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration) (e.g., `"5m"`, `"600s"`).
+
 ### Troubleshooting
+
+#### "dial tcp 127.0.0.1:1337: connect: connection refused"
+
+This error occurs during deployment when the Python wrapper has not started listening by the time the startup budget is exhausted.
+
+**Causes:**
+- `init_context` takes longer than `3 × readinessTimeoutSeconds`
+
+**Solutions:**
+1. **Increase readiness timeout:** Set `spec.readinessTimeoutSeconds` to a value larger than your `init_context` duration — the startup budget will grow automatically (3×).
+2. **Set an explicit override:** Set `spec.triggers.trigger-name.async.establishConnectionTimeout` to a fixed duration if you need finer control (e.g., `"10m"`).
 
 #### "Failed to allocate connection for processing event"
 

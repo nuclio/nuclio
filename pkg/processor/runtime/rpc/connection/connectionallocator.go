@@ -217,15 +217,15 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 	eventConnections := make([]*Connection, 0)
 
 	// In async mode Python only starts listening after init_context completes (inside
-	// start(), which is called after initialize()). StartupTimeout (set to 3×
+	// start(), which is called after initialize()). EstablishConnectionTimeout (set to 3×
 	// ReadinessTimeoutSeconds by EnrichAndValidate) governs both the total retry window
 	// (one attempt per second) and the per-attempt dial cap, so the connection budget
 	// scales proportionally with how long the function is expected to take to be ready.
-	startupTimeout := ca.Configuration.StartupTimeout
-	dialRetryCount := int(startupTimeout.Seconds())
+	establishConnectionTimeout := ca.Configuration.EstablishConnectionTimeout
+	dialRetryCount := int(establishConnectionTimeout.Seconds())
 
 	for i := 0; i < connectionsNumber; i++ {
-		conn, err := ca.retryableDial(ca.serverAddress, dialRetryCount, 1*time.Second, startupTimeout)
+		conn, err := ca.retryableDial(ca.serverAddress, dialRetryCount, 1*time.Second, establishConnectionTimeout)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to establish connection")
 		}
@@ -244,16 +244,16 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 		if connectionsNumber > 1 {
 			ca.Logger.DebugWith("Waiting for start",
 				"connectionsNumber", connectionsNumber,
-				"timeout", startupTimeout.String())
+				"timeout", establishConnectionTimeout.String())
 		}
 		errGroup, _ := errgroup.WithContext(context.Background(), ca.Logger)
 		for _, eventConnection := range eventConnections {
 			errGroup.Go(fmt.Sprintf("Wait for connection start %s", eventConnection.Conn.LocalAddr().String()), func() error {
 
 				// WRAPPER_START is sent by _process_connection() which only runs after
-				// start() is called (post init_context). Wait up to startupTimeout so we
+				// start() is called (post init_context). Wait up to establishConnectionTimeout so we
 				// stay consistent with the dial budget above.
-				if err := eventConnection.WaitForStart(startupTimeout); err != nil {
+				if err := eventConnection.WaitForStart(establishConnectionTimeout); err != nil {
 					// if the connection is not started, close it
 					go eventConnection.Stop() //nolint: errcheck
 					return errors.Wrap(err,

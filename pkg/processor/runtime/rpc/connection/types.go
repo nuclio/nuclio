@@ -98,9 +98,9 @@ type ManagerConfigration struct {
 	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
 	Statistics                  *runtime.Statistics
 
-	// StartupTimeout is the total budget for connection establishment and wrapper readiness
+	// EstablishConnectionTimeout is the total budget for connection establishment and wrapper readiness
 	// signalling in async mode. It is set by EnrichAndValidate to 3× ReadinessTimeoutSeconds.
-	StartupTimeout time.Duration
+	EstablishConnectionTimeout time.Duration
 
 	eventTimeout time.Duration
 	chunkTimeout time.Duration
@@ -146,19 +146,19 @@ func NewManagerConfigration(
 // EnrichAndValidate fills in defaults that require runtime context.
 // It must be called once after NewManagerConfigration and before the manager is used.
 //
-// StartupTimeout resolution precedence:
-//  1. AsyncConfig.StartupTimeout  — explicit per-trigger user setting
+// EstablishConnectionTimeout resolution precedence:
+//  1. AsyncConfig.EstablishConnectionTimeout  — explicit per-trigger user setting
 //  2. 3 × ReadinessTimeoutSeconds — per-function derived default
 //  3. 3 × platform default        — platform-wide readiness timeout
 //  4. 3 × compile-time constant   — final fallback (platformconfig.DefaultFunctionReadinessTimeoutSeconds)
 func (mc *ManagerConfigration) EnrichAndValidate(runtimeConfiguration runtime.Configuration) error {
 	if runtimeConfiguration.AsyncConfig != nil {
-		explicitTimeout, err := runtimeConfiguration.AsyncConfig.GetStartupTimeoutDuration()
+		explicitTimeout, err := runtimeConfiguration.AsyncConfig.GetEstablishConnectionTimeoutDuration()
 		if err != nil {
 			return errors.Wrap(err, "Failed to parse async config startup timeout")
 		}
 		if explicitTimeout != 0 {
-			mc.StartupTimeout = explicitTimeout
+			mc.EstablishConnectionTimeout = explicitTimeout
 			return nil
 		}
 	}
@@ -172,7 +172,7 @@ func (mc *ManagerConfigration) EnrichAndValidate(runtimeConfiguration runtime.Co
 			readinessTimeoutSeconds = platformconfig.DefaultFunctionReadinessTimeoutSeconds
 		}
 	}
-	mc.StartupTimeout = 3 * time.Duration(readinessTimeoutSeconds) * time.Second
+	mc.EstablishConnectionTimeout = 3 * time.Duration(readinessTimeoutSeconds) * time.Second
 	return nil
 }
 

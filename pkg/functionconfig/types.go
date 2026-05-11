@@ -124,15 +124,15 @@ type AsyncConfig struct {
 	ConnectionCreationMode        ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
 	ConnectionAvailabilityTimeout string                 `json:"connectionAvailabilityTimeout,omitempty"`
 
-	// StartupTimeout is the total budget for connection establishment and wrapper readiness
+	// EstablishConnectionTimeout is the total budget for connection establishment and wrapper readiness
 	// signalling (dial retries + WaitForStart). When unset it defaults to 3×
 	// ReadinessTimeoutSeconds so that functions with a slow init_context have enough
 	// time to start without requiring manual tuning of this field.
 	// Accepts a Go duration string, e.g. "5m".
-	StartupTimeout string `json:"startupTimeout,omitempty"`
+	EstablishConnectionTimeout string `json:"establishConnectionTimeout,omitempty"`
 
 	connectionAvailabilityTimeoutDuration time.Duration
-	startupTimeoutDuration                time.Duration
+	establishConnectionTimeoutDuration                time.Duration
 }
 
 func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration, error) {
@@ -157,29 +157,29 @@ func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration,
 	return a.connectionAvailabilityTimeoutDuration, nil
 }
 
-// GetStartupTimeoutDuration parses and caches StartupTimeout.
-// Returns (0, nil) when StartupTimeout is not set, signalling that the caller should
+// GetEstablishConnectionTimeoutDuration parses and caches EstablishConnectionTimeout.
+// Returns (0, nil) when EstablishConnectionTimeout is not set, signalling that the caller should
 // fall back to the default of 3× ReadinessTimeoutSeconds.
-func (a *AsyncConfig) GetStartupTimeoutDuration() (time.Duration, error) {
-	if a.StartupTimeout == "" {
+func (a *AsyncConfig) GetEstablishConnectionTimeoutDuration() (time.Duration, error) {
+	if a.EstablishConnectionTimeout == "" {
 		return 0, nil
 	}
 
-	if a.startupTimeoutDuration != 0 {
-		return a.startupTimeoutDuration, nil
+	if a.establishConnectionTimeoutDuration != 0 {
+		return a.establishConnectionTimeoutDuration, nil
 	}
 
-	timeout, err := time.ParseDuration(a.StartupTimeout)
+	timeout, err := time.ParseDuration(a.EstablishConnectionTimeout)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to parse startup timeout %q", a.StartupTimeout)
+		return 0, errors.Wrapf(err, "failed to parse startup timeout %q", a.EstablishConnectionTimeout)
 	}
 
 	if timeout <= 0 {
 		return 0, errors.New("startup timeout must be greater than zero")
 	}
 
-	a.startupTimeoutDuration = timeout
-	return a.startupTimeoutDuration, nil
+	a.establishConnectionTimeoutDuration = timeout
+	return a.establishConnectionTimeoutDuration, nil
 }
 
 type ConnectionCreationMode string
