@@ -163,10 +163,10 @@ func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration,
 // itself must accommodate init_context).
 //
 // It is exported because the same policy is applied in two enrichment paths:
-//   1. Deploy-time, by the platform's EnrichFunctionConfig flow (writes the resolved value
-//      back to AsyncConfig.EstablishConnectionTimeout so users can see it in their config).
-//   2. Runtime-time, by the connection-manager's EnrichAndValidate as a fallback for configs
-//      that bypassed deploy-time enrichment (older function configs, unit tests).
+//  1. Deploy-time, by the platform's EnrichFunctionConfig flow (writes the resolved value
+//     back to AsyncConfig.EstablishConnectionTimeout so users can see it in their config).
+//  2. Runtime-time, by the connection-manager's EnrichAndValidate as a fallback for configs
+//     that bypassed deploy-time enrichment (older function configs, unit tests).
 const DefaultEstablishConnectionTimeoutMultiplier = 3
 
 // GetEstablishConnectionTimeoutDuration parses and caches EstablishConnectionTimeout.
