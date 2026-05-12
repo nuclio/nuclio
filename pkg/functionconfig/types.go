@@ -124,7 +124,15 @@ type AsyncConfig struct {
 	ConnectionCreationMode        ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
 	ConnectionAvailabilityTimeout string                 `json:"connectionAvailabilityTimeout,omitempty"`
 
+	// EstablishConnectionTimeout is the total budget for connection establishment and wrapper readiness
+	// signalling (dial retries + WaitForStart). When unset it defaults to 3×
+	// ReadinessTimeoutSeconds so that functions with a slow init_context have enough
+	// time to start without requiring manual tuning of this field.
+	// Accepts a Go duration string, e.g. "5m".
+	EstablishConnectionTimeout string `json:"establishConnectionTimeout,omitempty"`
+
 	connectionAvailabilityTimeoutDuration time.Duration
+	establishConnectionTimeoutDuration    time.Duration
 }
 
 func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration, error) {
@@ -147,6 +155,42 @@ func (a *AsyncConfig) GetConnectionAvailabilityTimeoutDuration() (time.Duration,
 
 	a.connectionAvailabilityTimeoutDuration = timeout
 	return a.connectionAvailabilityTimeoutDuration, nil
+}
+
+// DefaultEstablishConnectionTimeoutMultiplier is the factor applied to ReadinessTimeoutSeconds
+// to derive the default value of AsyncConfig.EstablishConnectionTimeout. The 3× factor is
+// chosen so that the establish-connection budget always exceeds the readiness window (which
+// itself must accommodate init_context).
+//
+// It is exported because the same policy is applied in two enrichment paths:
+//  1. Deploy-time, by the platform's EnrichFunctionConfig flow (writes the resolved value
+//     back to AsyncConfig.EstablishConnectionTimeout so users can see it in their config).
+//  2. Runtime-time, by the connection-manager's EnrichAndValidate as a fallback for configs
+//     that bypassed deploy-time enrichment (older function configs, unit tests).
+const DefaultEstablishConnectionTimeoutMultiplier = 3
+
+// GetEstablishConnectionTimeoutDuration parses and caches EstablishConnectionTimeout.
+// Returns (0, nil) when the field is empty; callers handle the default separately.
+func (a *AsyncConfig) GetEstablishConnectionTimeoutDuration() (time.Duration, error) {
+	if a.EstablishConnectionTimeout == "" {
+		return 0, nil
+	}
+
+	if a.establishConnectionTimeoutDuration != 0 {
+		return a.establishConnectionTimeoutDuration, nil
+	}
+
+	timeout, err := time.ParseDuration(a.EstablishConnectionTimeout)
+	if err != nil {
+		return 0, errors.Wrapf(err, "Failed to parse establish connection timeout %q", a.EstablishConnectionTimeout)
+	}
+
+	if timeout <= 0 {
+		return 0, errors.New("Establish connection timeout must be greater than zero")
+	}
+
+	a.establishConnectionTimeoutDuration = timeout
+	return a.establishConnectionTimeoutDuration, nil
 }
 
 type ConnectionCreationMode string

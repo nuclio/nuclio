@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -96,6 +97,10 @@ type ManagerConfigration struct {
 	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
 	Statistics                  *runtime.Statistics
 
+	// EstablishConnectionTimeout is the total budget for connection establishment and wrapper readiness
+	// signalling in async mode. It is set by EnrichAndValidate to 3× ReadinessTimeoutSeconds.
+	EstablishConnectionTimeout time.Duration
+
 	eventTimeout time.Duration
 	chunkTimeout time.Duration
 
@@ -135,6 +140,31 @@ func NewManagerConfigration(
 		manager.port = portRangeBeginning + workerId
 	}
 	return manager
+}
+
+// EnrichAndValidate resolves EstablishConnectionTimeout for the connection manager.
+// Primary path: parses AsyncConfig.EstablishConnectionTimeout populated by the platform's
+// EnrichFunctionConfig flow. Fallback (for configs that bypassed deploy-time enrichment, e.g.
+// older configs or unit tests): applies the same DefaultEstablishConnectionTimeoutMultiplier ×
+// ReadinessTimeoutSeconds policy here. Must be called once after NewManagerConfigration and
+// before the manager is used.
+func (mc *ManagerConfigration) EnrichAndValidate(runtimeConfiguration runtime.Configuration) error {
+	if runtimeConfiguration.AsyncConfig == nil {
+		return nil
+	}
+	duration, err := runtimeConfiguration.AsyncConfig.GetEstablishConnectionTimeoutDuration()
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse async config establish connection timeout")
+	}
+	if duration == 0 {
+		readinessTimeout := time.Duration(runtimeConfiguration.Spec.ReadinessTimeoutSeconds) * time.Second
+		if readinessTimeout <= 0 && runtimeConfiguration.PlatformConfig != nil {
+			readinessTimeout = runtimeConfiguration.PlatformConfig.GetDefaultFunctionReadinessTimeout()
+		}
+		duration = functionconfig.DefaultEstablishConnectionTimeoutMultiplier * readinessTimeout
+	}
+	mc.EstablishConnectionTimeout = duration
+	return nil
 }
 
 type ManagerKind string
