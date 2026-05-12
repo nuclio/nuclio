@@ -178,6 +178,15 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		Once()
 	defer suite.nuclioProjectInterfaceMock.AssertExpectations(suite.T())
 
+	// allow project create via OPA
+	suite.mockedOpaClient.
+		On("QueryPermissions",
+			fmt.Sprintf("/projects/%s", "some-name"),
+			opaclient.ActionCreate,
+			mock.AnythingOfType("*opaclient.PermissionOptions")).
+		Return(true, nil).
+		Once()
+
 	// create project
 	err := suite.platform.CreateProject(suite.ctx, &platform.CreateProjectOptions{
 		AuthSession: &nop.Session{},
@@ -252,6 +261,16 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		mock.Anything).
 		Return(nil).
 		Once()
+
+	// allow project delete via OPA
+	suite.mockedOpaClient.
+		On("QueryPermissions",
+			fmt.Sprintf("/projects/%s", "some-name"),
+			opaclient.ActionDelete,
+			mock.AnythingOfType("*opaclient.PermissionOptions")).
+		Return(true, nil).
+		Once()
+
 	err = suite.platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
 		AuthSession: &nop.Session{},
 		Meta: platform.ProjectMeta{
