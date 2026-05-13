@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -114,6 +115,21 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 	timeout := 500 * time.Millisecond
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout.String()
 	createFunctionOptions.FunctionConfig.Spec.Handler = "timeout_async:handler"
+
+	// Pin EstablishConnectionTimeout so the blocking-handler scenario below actually
+	// triggers a wrapper restart. The Release() reconnection path retries createConnections
+	// up to 3 times, each waiting up to EstablishConnectionTimeout for WRAPPER_START. With
+	// the default (3× ReadinessTimeoutSeconds = 180s) those 3 retries (~540s) would outlast
+	// the 2-minute blocking sleep — the wrapper would simply finish sleeping, accept the
+	// reconnect, and the test's "PID changed" assertion would fail. 30s × 3 = 90s < 120s
+	// keeps the recovery window strictly inside the blocking sleep, matching the original
+	// behaviour this test was written against.
+	httpTrigger := createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"]
+	httpTrigger.AsyncConfig = &functionconfig.AsyncConfig{
+		EstablishConnectionTimeout: (30 * time.Second).String(),
+	}
+	createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"] = httpTrigger
+
 	var oldPID int
 	okStatusCode := http.StatusOK
 	timeoutStatusCode := http.StatusRequestTimeout

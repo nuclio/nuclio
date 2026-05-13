@@ -1845,6 +1845,9 @@ func (ap *Platform) validateProcessingMode(triggerInstance functionconfig.Trigge
 	if _, err := triggerInstance.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
+	if _, err := triggerInstance.AsyncConfig.GetEstablishConnectionTimeoutDuration(); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
 
 	return nil
 }
@@ -2145,6 +2148,25 @@ func (ap *Platform) enrichProcessingMode(
 			"connectionAvailabilityTimeout", functionconfig.DefaultConnectionAvailabilityTimeout,
 		)
 		triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout = functionconfig.DefaultConnectionAvailabilityTimeout
+	}
+
+	// EstablishConnectionTimeout governs how long the processor will wait for the wrapper to
+	// accept TCP connections after start.  It must accommodate a slow init_context, so the
+	// default scales with the function's readiness window (3× ReadinessTimeoutSeconds).  Falls
+	// back to the platform default when ReadinessTimeoutSeconds has not been enriched yet.
+	if triggerInstance.AsyncConfig.EstablishConnectionTimeout == "" {
+		readinessTimeout := time.Duration(functionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
+		if readinessTimeout <= 0 {
+			readinessTimeout = ap.Config.GetDefaultFunctionReadinessTimeout()
+		}
+		establishConnectionTimeout := functionconfig.DefaultEstablishConnectionTimeoutMultiplier * readinessTimeout
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching EstablishConnectionTimeout for function trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+			"establishConnectionTimeout", establishConnectionTimeout.String(),
+		)
+		triggerInstance.AsyncConfig.EstablishConnectionTimeout = establishConnectionTimeout.String()
 	}
 
 	return nil
