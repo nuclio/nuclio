@@ -737,6 +737,16 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 		return errors.Wrap(err, "Failed to enrich a project configuration")
 	}
 
+	// check OPA permissions
+	permissionOptions := createProjectOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAProjectPermissions(ctx,
+		createProjectOptions.ProjectConfig.Meta.Name,
+		opaclient.ActionCreate,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed to authorize project creation")
+	}
+
 	// validate
 	if err := p.ValidateProjectConfig(createProjectOptions.ProjectConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate a project configuration")
@@ -777,6 +787,15 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 
 // UpdateProject updates an existing project
 func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
+
+	// check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(ctx,
+		updateProjectOptions.ProjectConfig.Meta.Name,
+		opaclient.ActionUpdate,
+		&updateProjectOptions.PermissionOptions); err != nil {
+		return errors.Wrap(err, "Failed to authorize project update")
+	}
+
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
@@ -794,6 +813,14 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 	// enrich to protect test flows where auth session is nil
 	if deleteProjectOptions.AuthSession == nil {
 		deleteProjectOptions.AuthSession = &nop.Session{}
+	}
+
+	// check OPA permissions
+	if _, err := p.QueryOPAProjectPermissions(ctx,
+		deleteProjectOptions.Meta.Name,
+		opaclient.ActionDelete,
+		&deleteProjectOptions.PermissionOptions); err != nil {
+		return errors.Wrap(err, "Failed to authorize project deletion")
 	}
 
 	if err := p.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {

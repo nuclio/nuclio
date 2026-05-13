@@ -192,6 +192,8 @@ func (pr *projectResource) Update(request *http.Request, id string) (restful.Att
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: opaclient.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
@@ -686,6 +688,8 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		SessionCookie: sessionCookie,
 		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
+			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),

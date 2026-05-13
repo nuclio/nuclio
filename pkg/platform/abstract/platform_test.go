@@ -2350,6 +2350,16 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 	}
 }
 func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
+
+	// Mirror enrichProcessingMode's default for EstablishConnectionTimeout: when both the
+	// trigger's EstablishConnectionTimeout and Spec.ReadinessTimeoutSeconds are unset (which
+	// is the case for functionconfig.NewConfig() used below), the platform falls back to
+	// DefaultEstablishConnectionTimeoutMultiplier × Config.GetDefaultFunctionReadinessTimeout().
+	// Computing it from the platform Config keeps the test in lockstep with production rather
+	// than hard-coding the default seconds.
+	defaultEstablishConnectionTimeout := (functionconfig.DefaultEstablishConnectionTimeoutMultiplier *
+		suite.Platform.Config.GetDefaultFunctionReadinessTimeout()).String()
+
 	testCases := []struct {
 		name                                string
 		trigger                             functionconfig.Trigger
@@ -2381,6 +2391,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				MaxConnectionsNumber:          functionconfig.DefaultMaxConnectionsNumber,
 				MinConnectionsNumber:          functionconfig.DefaultMaxConnectionsNumber,
 				ConnectionAvailabilityTimeout: functionconfig.DefaultConnectionAvailabilityTimeout,
+				EstablishConnectionTimeout:    defaultEstablishConnectionTimeout,
 			},
 			expectedNumWorkers:                  10,
 			expectedAvailabilityTimeoutDuration: common.Pointer(10 * time.Second),
@@ -2403,6 +2414,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				MaxConnectionsNumber:          10,
 				MinConnectionsNumber:          5,
 				ConnectionAvailabilityTimeout: "15ms",
+				EstablishConnectionTimeout:    defaultEstablishConnectionTimeout,
 			},
 			expectedNumWorkers:                  10,
 			expectedAvailabilityTimeoutDuration: common.Pointer(15 * time.Millisecond),
