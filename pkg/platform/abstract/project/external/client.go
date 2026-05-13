@@ -91,20 +91,23 @@ func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjec
 	return c.internalClient.Get(ctx, getProjectsOptions)
 }
 
-// Create routes the request through 2PC evaluation when the request originates
-// from the leader, or forwards it to the external leader HTTP client when it
-// comes from a user. The X-Projects-Role header is retained for IG3 compatibility.
+// Create routes the request through 2PC evaluation when the request originates from the
+// leader and the caller has not opted out via x-mlrun-force-sync; otherwise (non-leader
+// origin) the request is forwarded to the external leader HTTP client. The X-Projects-Role
+// header is retained for IG3 compatibility.
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	if createProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
-		shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
-			createProjectOptions.ProjectConfig.Meta.Name,
-			createProjectOptions.ProjectConfig.Meta.Namespace,
-			createProjectOptions.ProjectConfig.Meta.Labels)
-		if err != nil {
-			return nil, err
-		}
-		if !shouldApply {
-			return existingProject, nil // idempotent: same op_id already stored
+		if !createProjectOptions.SkipLeaderEvaluation {
+			shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
+				createProjectOptions.ProjectConfig.Meta.Name,
+				createProjectOptions.ProjectConfig.Meta.Namespace,
+				createProjectOptions.ProjectConfig.Meta.Labels)
+			if err != nil {
+				return nil, err
+			}
+			if !shouldApply {
+				return existingProject, nil // idempotent: same op_id already stored
+			}
 		}
 		return c.internalClient.Create(ctx, createProjectOptions)
 	}
@@ -116,19 +119,20 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 	return nil, platform.ErrSuccessfulCreateProjectLeader
 }
 
-// Update routes the request through 2PC evaluation when the request originates
-// from the leader, or forwards it to the external leader HTTP client.
+// Update follows the same routing rules as Create.
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	if updateProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
-		shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
-			updateProjectOptions.ProjectConfig.Meta.Name,
-			updateProjectOptions.ProjectConfig.Meta.Namespace,
-			updateProjectOptions.ProjectConfig.Meta.Labels)
-		if err != nil {
-			return nil, err
-		}
-		if !shouldApply {
-			return existingProject, nil // idempotent
+		if !updateProjectOptions.SkipLeaderEvaluation {
+			shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
+				updateProjectOptions.ProjectConfig.Meta.Name,
+				updateProjectOptions.ProjectConfig.Meta.Namespace,
+				updateProjectOptions.ProjectConfig.Meta.Labels)
+			if err != nil {
+				return nil, err
+			}
+			if !shouldApply {
+				return existingProject, nil // idempotent
+			}
 		}
 		return c.internalClient.Update(ctx, updateProjectOptions)
 	}
@@ -140,19 +144,20 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 	return nil, platform.ErrSuccessfulUpdateProjectLeader
 }
 
-// Delete routes the request through 2PC evaluation when the request originates
-// from the leader, or forwards it to the external leader HTTP client.
+// Delete follows the same routing rules as Create.
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if deleteProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
-		shouldApply, _, err := c.evaluateLeaderRequestWithCRD(ctx,
-			deleteProjectOptions.Meta.Name,
-			deleteProjectOptions.Meta.Namespace,
-			deleteProjectOptions.Meta.Labels)
-		if err != nil {
-			return err
-		}
-		if !shouldApply {
-			return nil // idempotent: CRD already gone
+		if !deleteProjectOptions.SkipLeaderEvaluation {
+			shouldApply, _, err := c.evaluateLeaderRequestWithCRD(ctx,
+				deleteProjectOptions.Meta.Name,
+				deleteProjectOptions.Meta.Namespace,
+				deleteProjectOptions.Meta.Labels)
+			if err != nil {
+				return err
+			}
+			if !shouldApply {
+				return nil // idempotent: CRD already gone
+			}
 		}
 		return c.internalClient.Delete(ctx, deleteProjectOptions)
 	}
@@ -168,10 +173,10 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 // write: fetch the existing CRD, then ask the leader whether the write should be applied,
 // is idempotent (skip), or invalid (error).
 //
-// When 2PC is disabled on the configured leader (Iguazio pass-through, or MLRun with the
-// feature flag off), the entire pipeline is short-circuited: EvaluateLeaderRequest would
-// be an unconditional (true, nil) pass-through and the Get would be wasted, so we return
-// (true, nil, nil) directly and let the caller proceed to the internal write.
+// If 2PC is disabled on the configured leader (Iguazio pass-through, or MLRun with the
+// feature flag off), the pipeline is short-circuited (return (true, nil, nil)) so the
+// caller proceeds directly to the internal write — EvaluateLeaderRequest would be an
+// unconditional (true, nil) pass-through and the Get would be wasted work.
 func (c *Client) evaluateLeaderRequestWithCRD(ctx context.Context,
 	name, namespace string,
 	labels map[string]string) (bool, platform.Project, error) {

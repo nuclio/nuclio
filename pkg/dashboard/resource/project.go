@@ -194,6 +194,7 @@ func (pr *projectResource) Update(request *http.Request, id string) (restful.Att
 		PermissionOptions: opaclient.PermissionOptions{
 			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
+		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
 	}); err != nil {
 		if statusCode := common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError); statusCode > 300 {
 			pr.Logger.WarnWithCtx(ctx, "Failed to update project",
@@ -340,6 +341,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
+		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
 
 		// TODO: read from request header
 		// if false - return "202" and let client to poll on resource until it becomes ready
@@ -686,6 +688,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		PermissionOptions: opaclient.PermissionOptions{
 			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
+		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
 	}); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
