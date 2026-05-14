@@ -73,6 +73,12 @@ controller:
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
   priorityClassName: ""
 
+  # Additional labels added to the controller pod template.metadata.labels.
+  # Merged with the chart's selectorLabels; values here take precedence.
+  # Example use: { "azure.workload.identity/use": "true" } to activate
+  # Azure Workload Identity token injection on AKS.
+  podLabels: {}
+
   # Uncomment to have the controller to listen only the namespace's events,
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
@@ -141,6 +147,12 @@ dashboard:
   ## Pod Priority
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
   priorityClassName: ""
+
+  # Additional labels added to the dashboard pod template.metadata.labels.
+  # Merged with the chart's selectorLabels; values here take precedence.
+  # Example use: { "azure.workload.identity/use": "true" } to activate
+  # Azure Workload Identity token injection on AKS.
+  podLabels: {}
 
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
