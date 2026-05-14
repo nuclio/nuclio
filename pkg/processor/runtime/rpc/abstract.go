@@ -320,6 +320,10 @@ func (r *AbstractRuntime) createConnectionManager() error {
 		eventTimeout,
 		streamChunkTimeout,
 	)
+	if err := connectionManagerConfiguration.EnrichAndValidate(*r.configuration); err != nil {
+		return errors.Wrap(err, "Failed to enrich and validate connection manager configuration")
+	}
+
 	var err error
 
 	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)

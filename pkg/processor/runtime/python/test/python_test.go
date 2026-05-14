@@ -819,6 +819,41 @@ func (suite *TestSuite) TestContextInitError() {
 		})
 }
 
+// TestAsyncSlowInitContext is a regression test for the bug where the async wrapper only
+// bound its TCP server socket inside start() — called after initialize() — so Go's
+// ConnectionAllocator would exhaust its ~30 s retry window with "connection refused"
+// whenever init_context took longer than that.
+//
+// Fix 1 (Python): the socket is now bound in __init__ before init_context runs.
+// Fix 2 (Go):     WaitForStart uses connectionTimeout (2 min) instead of 30 s, so the
+//
+//	handshake packet sent after init_context completes is not missed.
+//
+// The function used here sleeps 35 s in init_context — safely above the old 30 s
+// threshold — and must deploy and respond successfully after both fixes are in place.
+func (suite *TestSuite) TestAsyncSlowInitContext() {
+	const initSleepSeconds = 35
+
+	createFunctionOptions := suite.GetDeployOptionsAsync(
+		"slow-init-context",
+		path.Join(suite.GetTestFunctionsDir(), "common", "slow-init-context", "python"),
+		1)
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "slowinit:handler"
+	// ReadinessTimeout must comfortably exceed the init_context sleep duration.
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 3 * initSleepSeconds
+
+	statusOK := http.StatusOK
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			RequestMethod:              http.MethodPost,
+			RequestBody:                "hello",
+			ExpectedResponseBody:       "ok",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+	})
+}
+
 func (suite *TestSuite) TestModifiedRequestBodySize() {
 
 	// TODO: make test more generic and run cross runtimes
