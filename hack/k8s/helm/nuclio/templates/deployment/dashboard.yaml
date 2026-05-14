@@ -31,15 +31,7 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ template "nuclio.name" . }}
-        release: {{ .Release.Name }}
-        nuclio.io/app: dashboard
-        nuclio.io/name: {{ template "nuclio.dashboardName" . }}
-        nuclio.io/class: service
-        {{- include "nuclio.standardLabels.dashboard" . | nindent 8 }}
-        {{- with .Values.dashboard.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "nuclio.podTemplateLabels.dashboard" . | nindent 8 }}
       annotations:
         nuclio.io/version: {{ .Values.dashboard.image.tag }}
         checksum/secret-registry-credentials: {{ include (print $.Template.BasePath "/secret/registry-credentials.yaml") . | sha256sum }}

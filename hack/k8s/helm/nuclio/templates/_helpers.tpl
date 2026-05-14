@@ -187,3 +187,40 @@ imagePullSecrets:
 {{- define "nuclio.standardLabels.controller" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "controller") .) -}}{{- end -}}
 {{- define "nuclio.standardLabels.dlx" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "dlx") .) -}}{{- end -}}
 {{- define "nuclio.standardLabels.autoscaler" -}}{{- include "nuclio.standardLabels" (merge (dict "component" "autoscaler") .) -}}{{- end -}}
+
+{{/*
+  Pod template metadata labels for a Nuclio service.
+  Merges (precedence left-to-right): user-supplied podLabels, the inline
+  selector-matching labels, then standardLabels (which already merges
+  commonLabels with the chart's k8s-recommended labels).
+  Expects . with .component set and .podLabels passed in (via merge in
+  the per-component wrapper); has access to .Chart, .Release, .Values.
+  When a key in podLabels collides with a chart-managed label, the user
+  value wins — same precedence model as commonLabels.
+*/}}
+{{- define "nuclio.podTemplateLabels" -}}
+{{- $component := .component -}}
+{{- $compName := "" -}}
+{{- if eq $component "dashboard" -}}{{- $compName = include "nuclio.dashboardName" . -}}{{- end -}}
+{{- if eq $component "controller" -}}{{- $compName = include "nuclio.controllerName" . -}}{{- end -}}
+{{- if eq $component "dlx" -}}{{- $compName = include "nuclio.dlxName" . -}}{{- end -}}
+{{- if eq $component "autoscaler" -}}{{- $compName = include "nuclio.scalerName" . -}}{{- end -}}
+{{- $selector := dict
+  "app" (include "nuclio.name" .)
+  "release" .Release.Name
+  "nuclio.io/app" $component
+  "nuclio.io/name" $compName
+  "nuclio.io/class" "service"
+-}}
+{{- $standard := fromYaml (include "nuclio.standardLabels" .) -}}
+{{- $podLabels := .podLabels | default dict -}}
+{{- toYaml (merge (deepCopy $podLabels) $selector $standard) }}
+{{- end -}}
+
+{{/*
+  Per-component shortcuts for nuclio.podTemplateLabels.
+  Pass the component's podLabels through; helper merges with the
+  generated labels giving precedence to podLabels.
+*/}}
+{{- define "nuclio.podTemplateLabels.dashboard" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "dashboard" "podLabels" .Values.dashboard.podLabels) .) -}}{{- end -}}
+{{- define "nuclio.podTemplateLabels.controller" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "controller" "podLabels" .Values.controller.podLabels) .) -}}{{- end -}}
