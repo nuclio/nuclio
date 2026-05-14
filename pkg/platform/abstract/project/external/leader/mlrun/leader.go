@@ -350,9 +350,12 @@ func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platfo
 		return false, err
 	}
 
-	// Mark-delete cannot happen if there is no CRD — the project must exist.
-	if err := l.requireExistingProject(existing, "Mark-delete"); err != nil {
-		return false, err
+	// Idempotency: the CRD is already gone. Mark-delete is phase 0 of deletion — its
+	// goal is "start removing this project from Nuclio". If there is no CRD that goal
+	// is already achieved and FinalDelete will hit the same idempotent branch, so
+	// let the 2PC flow complete instead of forcing a reconcile with 412.
+	if existing == nil {
+		return false, nil
 	}
 
 	// Read the current state of the CRD.
@@ -360,10 +363,21 @@ func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platfo
 
 	// Idempotency: the CRD is already in "deleting" state with the new op_id already stored,
 	// meaning Nuclio already applied this mark (perhaps the response timed out). Return success
-	// without writing again. This check must come before requireSyncStatus because after a
-	// successful mark-delete the status is "deleting", not "online".
+	// without writing again. This check must come before the conflict check below because the
+	// same status + op_id is a replay, not a conflict.
 	if effectiveStatus == leaderCommon.MLRunSyncStatusDeleting && storedOpID == newOpID {
 		return false, nil
+	}
+
+	// Conflict: the CRD is already in "deleting" state with a different op_id — a
+	// different delete operation is in progress and this request must not silently
+	// overwrite it. Surface 409 with an explicit message rather than the generic 412
+	// from requireSyncStatus below, which would say "expected online, got deleting"
+	// and lose the context that the real failure is a conflicting concurrent delete.
+	if effectiveStatus == leaderCommon.MLRunSyncStatusDeleting {
+		return false, nuclio.GetByStatusCode(http.StatusConflict)(
+			fmt.Sprintf("Different delete already in progress (requested op_id %q, stored op_id %q) [Mark-delete]",
+				newOpID, storedOpID))
 	}
 
 	// The CRD must be in "online" state before it can be marked for deletion.

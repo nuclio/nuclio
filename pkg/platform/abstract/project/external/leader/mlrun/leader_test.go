@@ -514,11 +514,13 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_MarkDelete() {
 			wantApply:       true,
 		},
 		{
-			name:            "NoCRD",
+			name:            "NoCRDIdempotent",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
 			existingProject: nil,
 			wantApply:       false,
-			wantStatusCode:  http.StatusPreconditionFailed,
+			// no error: mark-delete's goal is to start removing the project; if the
+			// CRD is already gone the goal is achieved and FinalDelete will also skip,
+			// so let the 2PC flow complete instead of forcing a reconcile.
 		},
 		{
 			name:            "WrongStatus",
@@ -555,13 +557,14 @@ func (suite *LeaderTestSuite) TestEvaluateLeaderRequest_MarkDelete() {
 			// no error: CRD is already deleting with opNew stored, mark-delete is a no-op
 		},
 		{
-			name:            "AlreadyDeletingDifferentOpID",
+			name:            "AlreadyDeletingDifferentOpIDConflict",
 			requestLabels:   requestLabels(leaderCommon.MLRunSyncStatusDeleting, opNew, opStored),
 			existingProject: stubProject(leaderCommon.MLRunSyncStatusDeleting, opOld, ""),
 			wantApply:       false,
-			// CRD is deleting but with a different op_id — idempotency guard does not fire,
-			// then requireSyncStatus(deleting, online) → 412
-			wantStatusCode: http.StatusPreconditionFailed,
+			// CRD is already being deleted by a different operation — 409 Conflict
+			// with an explicit diagnostic, not the generic 412 that the online-state
+			// precondition would produce.
+			wantStatusCode: http.StatusConflict,
 		},
 		{
 			// Legacy CRD created before 2PC was enabled: it has no op_id label and
