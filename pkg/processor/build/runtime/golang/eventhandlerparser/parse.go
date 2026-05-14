@@ -22,6 +22,7 @@ import (
 	"go/token"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -59,26 +60,48 @@ func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]st
 		eventHandlerDir = path.Dir(eventHandlerPath)
 	}
 
-	pkgs, err := parser.ParseDir(token.NewFileSet(), eventHandlerDir, filter, 0)
-	if err != nil {
-		ehp.logger.ErrorWith("Can't parse directory", "dir", eventHandlerDir, "error", err)
-		return nil, nil, errors.Wrapf(err, "can't parse %s", eventHandlerDir)
-	}
-
 	// We want unique list of package names
 	pkgNames := make(map[string]bool)
 	var handlerNames []string
 
-	for _, pkg := range pkgs {
-		pkgNames[pkg.Name] = true
-		for _, file := range pkg.Files {
-			fileHandlers, err := ehp.findEventHandlers(file)
-			if err != nil {
-				ehp.logger.ErrorWith("can't parse file", "path", file.Name.String(), "error", err)
-				return nil, nil, errors.Wrapf(err, "error parsing %s", file.Name.String())
-			}
-			handlerNames = append(handlerNames, fileHandlers...)
+	dirEntries, err := os.ReadDir(eventHandlerDir)
+	if err != nil {
+		ehp.logger.ErrorWith("Can't read directory", "dir", eventHandlerDir, "error", err)
+		return nil, nil, errors.Wrapf(err, "can't read %s", eventHandlerDir)
+	}
+
+	fset := token.NewFileSet()
+
+	for _, dirEntry := range dirEntries {
+		if dirEntry.IsDir() || !strings.HasSuffix(dirEntry.Name(), ".go") {
+			continue
 		}
+
+		fileInfo, err := dirEntry.Info()
+		if err != nil {
+			ehp.logger.ErrorWith("Can't stat file", "path", path.Join(eventHandlerDir, dirEntry.Name()), "error", err)
+			return nil, nil, errors.Wrapf(err, "can't stat %s", path.Join(eventHandlerDir, dirEntry.Name()))
+		}
+
+		if filter != nil && !filter(fileInfo) {
+			continue
+		}
+
+		filePath := path.Join(eventHandlerDir, dirEntry.Name())
+		file, err := parser.ParseFile(fset, filePath, nil, 0)
+		if err != nil {
+			ehp.logger.ErrorWith("can't parse file", "path", filePath, "error", err)
+			return nil, nil, errors.Wrapf(err, "error parsing %s", filePath)
+		}
+
+		pkgNames[file.Name.Name] = true
+
+		fileHandlers, err := ehp.findEventHandlers(file)
+		if err != nil {
+			ehp.logger.ErrorWith("can't parse file", "path", filePath, "error", err)
+			return nil, nil, errors.Wrapf(err, "error parsing %s", filePath)
+		}
+		handlerNames = append(handlerNames, fileHandlers...)
 	}
 
 	return ehp.toSlice(pkgNames), handlerNames, nil
