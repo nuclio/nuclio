@@ -274,6 +274,18 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 	return c.leaderOps.ResolveGetProjectResponse(false, responseBody)
 }
 
+// EvaluateLeaderRequest determines the 2PC phase from labels and delegates to the
+// configured LeaderOps implementation, returning whether the caller should apply the change.
+func (c *Client) EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error) {
+	return c.leaderOps.EvaluateLeaderRequest(ctx, labels, existingProject)
+}
+
+// ProjectSync2PCEnabled delegates to the configured LeaderOps so callers can decide
+// whether to fetch the existing CRD before invoking EvaluateLeaderRequest.
+func (c *Client) ProjectSync2PCEnabled() bool {
+	return c.leaderOps.ProjectSync2PCEnabled()
+}
+
 func (c *Client) logLeaderResponseError(ctx context.Context,
 	response *http.Response,
 	errMessage string) {

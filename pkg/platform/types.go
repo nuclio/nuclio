@@ -319,6 +319,13 @@ type CreateProjectOptions struct {
 	AuthSession                  auth.Session
 	ServiceAccountAuthentication bool
 	WaitForCreateCompletion      bool
+
+	// SkipLeaderEvaluation, set from the x-mlrun-force-sync header, instructs the external
+	// client to skip 2PC leader evaluation (sync-status / op_id validation and current-op-id
+	// CAS) and apply the write directly. Only honored on leader-origin requests; ignored
+	// for non-leader callers (otherwise the header would bypass leader forwarding entirely).
+	// See headers.MLRunForceSync.
+	SkipLeaderEvaluation bool
 }
 
 type UpdateProjectOptions struct {
@@ -328,6 +335,13 @@ type UpdateProjectOptions struct {
 	PermissionOptions            opaclient.PermissionOptions
 	AuthSession                  auth.Session
 	ServiceAccountAuthentication bool
+
+	// SkipLeaderEvaluation, set from the x-mlrun-force-sync header, instructs the external
+	// client to skip 2PC leader evaluation (sync-status / op_id validation and current-op-id
+	// CAS) and apply the write directly. Only honored on leader-origin requests; ignored
+	// for non-leader callers (otherwise the header would bypass leader forwarding entirely).
+	// See headers.MLRunForceSync.
+	SkipLeaderEvaluation bool
 }
 
 type DeleteProjectStrategy string
@@ -363,6 +377,13 @@ type DeleteProjectOptions struct {
 	PermissionOptions            opaclient.PermissionOptions
 	AuthSession                  auth.Session
 	ServiceAccountAuthentication bool
+
+	// SkipLeaderEvaluation, set from the x-mlrun-force-sync header, instructs the external
+	// client to skip 2PC leader evaluation (sync-status / op_id validation and current-op-id
+	// CAS) and apply the write directly. Only honored on leader-origin requests; ignored
+	// for non-leader callers (otherwise the header would bypass leader forwarding entirely).
+	// See headers.MLRunForceSync.
+	SkipLeaderEvaluation bool
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings

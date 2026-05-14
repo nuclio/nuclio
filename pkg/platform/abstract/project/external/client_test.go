@@ -29,7 +29,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -43,7 +44,7 @@ type ExternalProjectClientTestSuite struct {
 	ctx                        context.Context
 }
 
-func (suite *ExternalProjectClientTestSuite) SetupSuite() {
+func (suite *ExternalProjectClientTestSuite) SetupTest() {
 	var err error
 
 	// create logger
@@ -72,7 +73,6 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 		internalClient:        suite.mockInternalProjectsClient,
 		leaderClient:          suite.mockLeaderProjectsClient,
 	}
-	suite.Require().NoError(err)
 }
 
 func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
@@ -85,6 +85,8 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 		},
 	}
 
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
 	suite.mockInternalProjectsClient.
 		On("Create", suite.ctx, &createProjectOptions).
 		Return(&platform.AbstractProject{}, nil).
@@ -98,12 +100,12 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 	updateProjectOptions := platform.UpdateProjectOptions{
 		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
 		ProjectConfig: platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: "test-func",
-			},
+			Meta: platform.ProjectMeta{Name: "test-func"},
 		},
 	}
 
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
 	suite.mockInternalProjectsClient.
 		On("Update", suite.ctx, &updateProjectOptions).
 		Return(&platform.AbstractProject{}, nil).
@@ -116,11 +118,11 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 	deleteProjectOptions := platform.DeleteProjectOptions{
 		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
-		Meta: platform.ProjectMeta{
-			Name: "test-func",
-		},
+		Meta:          platform.ProjectMeta{Name: "test-func"},
 	}
 
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
 	suite.mockInternalProjectsClient.
 		On("Delete", suite.ctx, &deleteProjectOptions).
 		Return(nil).
@@ -130,13 +132,128 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 	suite.Require().NoError(err)
 }
 
+// TestLeaderCreateSkipsEvaluationWhen2PCDisabled covers the short-circuit path: when
+// the configured leader does not run 2PC (Iguazio pass-through, or MLRun with the
+// feature flag disabled), the external client must skip both the internal Get and the
+// EvaluateLeaderRequest call, going straight to the internal write.
+func (suite *ExternalProjectClientTestSuite) TestLeaderCreateSkipsEvaluationWhen2PCDisabled() {
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("ProjectSync2PCEnabled").
+		Return(false).
+		Once()
+	suite.mockInternalProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(&platform.AbstractProject{}, nil).
+		Once()
+
+	_, err := suite.Create(suite.ctx, &createProjectOptions)
+	suite.Require().NoError(err)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything)
+	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "EvaluateLeaderRequest", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// TestCreateSkipsLeaderEvaluation asserts that when a leader-origin request carries
+// SkipLeaderEvaluation (sourced from the x-mlrun-force-sync header), Create skips the
+// 2PC pipeline entirely — no ProjectSync2PCEnabled, no Get, no EvaluateLeaderRequest —
+// and applies the write through the internal client directly.
+func (suite *ExternalProjectClientTestSuite) TestCreateSkipsLeaderEvaluation() {
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin:        platformconfig.ProjectsLeaderKindMock,
+		SkipLeaderEvaluation: true,
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockInternalProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(&platform.AbstractProject{}, nil).
+		Once()
+
+	_, err := suite.Create(suite.ctx, &createProjectOptions)
+	suite.Require().NoError(err)
+
+	suite.assertLeaderEvaluationSkipped()
+}
+
+// TestUpdateSkipsLeaderEvaluation mirrors the Create case for Update.
+func (suite *ExternalProjectClientTestSuite) TestUpdateSkipsLeaderEvaluation() {
+	updateProjectOptions := platform.UpdateProjectOptions{
+		RequestOrigin:        platformconfig.ProjectsLeaderKindMock,
+		SkipLeaderEvaluation: true,
+		ProjectConfig: platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockInternalProjectsClient.
+		On("Update", suite.ctx, &updateProjectOptions).
+		Return(&platform.AbstractProject{}, nil).
+		Once()
+
+	_, err := suite.Update(suite.ctx, &updateProjectOptions)
+	suite.Require().NoError(err)
+
+	suite.assertLeaderEvaluationSkipped()
+}
+
+// TestDeleteSkipsLeaderEvaluation mirrors the Create case for Delete.
+func (suite *ExternalProjectClientTestSuite) TestDeleteSkipsLeaderEvaluation() {
+	deleteProjectOptions := platform.DeleteProjectOptions{
+		RequestOrigin:        platformconfig.ProjectsLeaderKindMock,
+		SkipLeaderEvaluation: true,
+		Meta:                 platform.ProjectMeta{Name: "test-func"},
+	}
+
+	suite.mockInternalProjectsClient.
+		On("Delete", suite.ctx, &deleteProjectOptions).
+		Return(nil).
+		Once()
+
+	err := suite.Delete(suite.ctx, &deleteProjectOptions)
+	suite.Require().NoError(err)
+
+	suite.assertLeaderEvaluationSkipped()
+}
+
+// TestNotLeaderCreateIgnoresSkipLeaderEvaluation asserts the security-tightening contract:
+// a non-leader caller cannot use the x-mlrun-force-sync header to bypass leader
+// forwarding. The request must be sent to the external leader as if the header were absent.
+// Update and Delete use identical routing; one Create test is sufficient.
+func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreateIgnoresSkipLeaderEvaluation() {
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin:        "not-leader",
+		SkipLeaderEvaluation: true,
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(nil, nil).
+		Once()
+
+	_, err := suite.Create(suite.ctx, &createProjectOptions)
+	suite.Require().Error(err)
+	suite.Require().Equal(err, platform.ErrSuccessfulCreateProjectLeader)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Create", mock.Anything, mock.Anything)
+}
+
 func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 	createProjectOptions := platform.CreateProjectOptions{
 		RequestOrigin: "not-leader",
 		ProjectConfig: &platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: "test-func",
-			},
+			Meta: platform.ProjectMeta{Name: "test-func"},
 		},
 	}
 
@@ -154,9 +271,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 	updateProjectOptions := platform.UpdateProjectOptions{
 		RequestOrigin: "not-leader",
 		ProjectConfig: platform.ProjectConfig{
-			Meta: platform.ProjectMeta{
-				Name: "test-func",
-			},
+			Meta: platform.ProjectMeta{Name: "test-func"},
 		},
 	}
 
@@ -173,9 +288,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 	deleteProjectOptions := platform.DeleteProjectOptions{
 		RequestOrigin: "not-leader",
-		Meta: platform.ProjectMeta{
-			Name: "test-func",
-		},
+		Meta:          platform.ProjectMeta{Name: "test-func"},
 	}
 
 	suite.mockLeaderProjectsClient.
@@ -190,9 +303,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 
 func (suite *ExternalProjectClientTestSuite) TestGet() {
 	getProjectOptions := platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name: "test-func",
-		},
+		Meta: platform.ProjectMeta{Name: "test-func"},
 	}
 
 	suite.mockInternalProjectsClient.
@@ -202,6 +313,41 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 
 	_, err := suite.Get(suite.ctx, &getProjectOptions)
 	suite.Require().NoError(err)
+}
+
+// expectGetExistingProject stubs the internal Get used by getExistingProject
+// to return no existing project (the simplest valid 2PC pre-state), and tells the
+// leader mock that 2PC is enabled so the external client performs the Get.
+func (suite *ExternalProjectClientTestSuite) expectGetExistingProject(name string) {
+	suite.mockLeaderProjectsClient.
+		On("ProjectSync2PCEnabled").
+		Return(true).
+		Once()
+	suite.mockInternalProjectsClient.
+		On("Get", suite.ctx, mock.MatchedBy(func(opts *platform.GetProjectsOptions) bool {
+			return opts != nil && opts.Meta.Name == name
+		})).
+		Return([]platform.Project{}, nil).
+		Once()
+}
+
+// expectEvaluateLeaderRequest stubs the leader's 2PC evaluation to return
+// shouldApply=true so the test exercises the apply branch.
+func (suite *ExternalProjectClientTestSuite) expectEvaluateLeaderRequest(shouldApply bool) {
+	suite.mockLeaderProjectsClient.
+		On("EvaluateLeaderRequest", suite.ctx, mock.Anything, mock.Anything).
+		Return(shouldApply, nil).
+		Once()
+}
+
+// assertLeaderEvaluationSkipped asserts that none of the 2PC evaluation calls
+// fired — neither the feature-flag probe, the Get for the existing CRD, nor the
+// leader-side evaluation. Used by the SkipLeaderEvaluation tests to prove the skip
+// is short-circuit-complete and not just a "skip the result" check.
+func (suite *ExternalProjectClientTestSuite) assertLeaderEvaluationSkipped() {
+	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "ProjectSync2PCEnabled")
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything)
+	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "EvaluateLeaderRequest", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestExternalProjectClientTestSuite(t *testing.T) {
