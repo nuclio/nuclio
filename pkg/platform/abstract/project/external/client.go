@@ -179,7 +179,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 // unconditional (true, nil) pass-through and the Get would be wasted work.
 func (c *Client) evaluateLeaderRequestWithCRD(ctx context.Context,
 	name, namespace string,
-	labels map[string]string) (bool, platform.Project, error) {
+	incomingLabels map[string]string) (bool, platform.Project, error) {
 	if !c.leaderClient.ProjectSync2PCEnabled() {
 		return true, nil, nil
 	}
@@ -188,7 +188,7 @@ func (c *Client) evaluateLeaderRequestWithCRD(ctx context.Context,
 	if err != nil {
 		return false, nil, errors.Wrap(err, "Failed to fetch existing project for leader evaluation")
 	}
-	shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, labels, existingProject)
+	shouldApply, err := c.leaderClient.EvaluateLeaderRequest(ctx, incomingLabels, existingProject)
 	if err != nil {
 		return false, existingProject, errors.Wrap(err, "Failed to evaluate leader request")
 	}

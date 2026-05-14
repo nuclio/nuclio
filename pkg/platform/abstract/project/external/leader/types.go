@@ -172,7 +172,7 @@ const (
 // 2PC sync label keys written on NuclioProject CRDs by the external client.
 const (
 	MLRunLabelKeySyncStatus  = "mlrun/sync-status"
-	MLRunLabelKeyOpID        = "mlrun/op_id"
+	MLRunLabelKeyOpID        = "mlrun/op-id"
 	MLRunLabelKeyCurrentOpID = "mlrun/current-op-id"
 )
 
