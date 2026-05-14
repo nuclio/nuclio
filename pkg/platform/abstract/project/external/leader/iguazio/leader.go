@@ -212,6 +212,16 @@ func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress string, _ string)
 	return l.projectRequestURL(apiAddress)
 }
 
+func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, _ map[string]string, _ platform.Project) (bool, error) {
+	return true, nil
+}
+
+// ProjectSync2PCEnabled is always false for the Iguazio leader: the 2PC protocol is an
+// MLRun-only concept. EvaluateLeaderRequest is an unconditional pass-through here.
+func (l *LeaderOps) ProjectSync2PCEnabled() bool {
+	return false
+}
+
 func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return true }
 
 func (l *LeaderOps) GetJobStatusRequestCookies(config *platformconfig.Config) []*http.Cookie {

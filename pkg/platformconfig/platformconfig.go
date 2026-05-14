@@ -200,6 +200,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
 	c.enrichRuntimeBaseImages()
+	c.enrichProjectsLeaderConfig()
 
 	return nil
 }
@@ -490,6 +491,18 @@ func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding)
 	}
 
 	return LoggerSinksWithLevel, nil
+}
+
+func (c *Config) enrichProjectsLeaderConfig() {
+	if c.ProjectsLeader == nil {
+		return
+	}
+
+	// ProjectSync2PCEnabled is opt-in; default to false so existing deployments that
+	// have not yet upgraded MLRun to 2PC support are unaffected.
+	if !c.ProjectsLeader.ProjectSync2PCEnabled {
+		c.ProjectsLeader.ProjectSync2PCEnabled = DefaultProjectSync2PCEnabled
+	}
 }
 
 func (c *Config) enrichLocalPlatform() {

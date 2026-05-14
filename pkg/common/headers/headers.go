@@ -41,6 +41,17 @@ const (
 	DeleteProjectStrategy = "X-Nuclio-Delete-Project-Strategy"
 	ProjectsRole          = "X-Projects-Role"
 
+	// MLRunForceSync, when set to "true" on a leader-origin project CRUD request,
+	// instructs the external client to skip 2PC leader evaluation (sync-status / op_id
+	// validation, current-op-id CAS) and apply the write directly. It is a break-glass
+	// override for MLRun-driven recovery / migration flows where the leader has already
+	// decided to mutate the CRD and does not want Nuclio to re-validate. The header is
+	// ignored on non-leader requests — it must not become a way for arbitrary callers to
+	// bypass leader forwarding. The wire name is kept as x-mlrun-force-sync for the
+	// backwards-compatible contract; internally the option is named SkipLeaderEvaluation
+	// because that describes what actually happens.
+	MLRunForceSync = "x-mlrun-force-sync"
+
 	// Invocation headers
 	TargetName          = "X-Nuclio-Target"
 	InvokeURL           = "X-Nuclio-Invoke-Url"
