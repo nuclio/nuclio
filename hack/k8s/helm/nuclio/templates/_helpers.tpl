@@ -224,3 +224,5 @@ imagePullSecrets:
 */}}
 {{- define "nuclio.podTemplateLabels.dashboard" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "dashboard" "podLabels" .Values.dashboard.podLabels) .) -}}{{- end -}}
 {{- define "nuclio.podTemplateLabels.controller" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "controller" "podLabels" .Values.controller.podLabels) .) -}}{{- end -}}
+{{- define "nuclio.podTemplateLabels.dlx" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "dlx" "podLabels" .Values.dlx.podLabels) .) -}}{{- end -}}
+{{- define "nuclio.podTemplateLabels.autoscaler" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "autoscaler" "podLabels" .Values.autoscaler.podLabels) .) -}}{{- end -}}
