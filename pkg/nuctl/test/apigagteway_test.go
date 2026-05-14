@@ -276,6 +276,27 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		return request
 	}
 
+	// when auth is enabled, wait until bad credentials are rejected before asserting the happy path
+	// the secret is created after the ingress, so we need to wait until it's applied
+	if authenticationMode != ingress.AuthenticationModeNone {
+		err = common.RetryUntilSuccessful(90*time.Second, 1*time.Second, func() bool {
+			request := createHTTPRequest()
+
+			// fill request with bad credentials
+			switch authenticationMode {
+			case ingress.AuthenticationModeBasicAuth:
+				request.SetBasicAuth(basicAuthUsername, "bad-credentials")
+			default:
+				suite.Require().Failf("Must implement a scenario where a test would fail for ingress %s",
+					string(authenticationMode))
+			}
+
+			_, statusCode, err := suite.invokeHTTPRequest(request)
+			return err == nil && statusCode == http.StatusUnauthorized
+		})
+		suite.Require().NoError(err, "Auth middleware was not enforced within timeout")
+	}
+
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
 	// we retry as it takes some time for apigw resource create function ingress
 	err = common.RetryUntilSuccessful(90*time.Second, 1*time.Second, func() bool {
@@ -287,29 +308,6 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		return err == nil && statusCode == http.StatusOK && responseBody == expectedResponseBody
 	})
 	suite.Require().NoError(err)
-
-	// test scenarios where auth is given, but bad credentials were given
-	if authenticationMode != ingress.AuthenticationModeNone {
-
-		// create request
-		request := createHTTPRequest()
-
-		// fill request request with credentials correspondingly to its ingress auth mode
-		switch authenticationMode {
-		case ingress.AuthenticationModeBasicAuth:
-			request.SetBasicAuth(basicAuthUsername, "bad-credentials")
-		default:
-			suite.Require().Failf("Must implement a scenario where a test would fail for ingress %s",
-				string(authenticationMode))
-		}
-
-		// invoke http request with bad credentials
-		_, statusCode, err := suite.invokeHTTPRequest(request)
-		suite.Require().NoError(err)
-
-		// expect it to fail due to unauthorized request
-		suite.Require().Equal(statusCode, http.StatusUnauthorized)
-	}
 }
 
 func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
