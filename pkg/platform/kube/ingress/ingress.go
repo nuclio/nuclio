@@ -160,31 +160,6 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 
 	m.logger.InfoWithCtx(ctx, "Creating/Updating ingress resources", "ingressName", resources.Ingress.Name)
 
-	if appliedIngress, err = m.kubeClientSet.CreateIngress(
-		ctx,
-		resources.Ingress.Namespace,
-		resources.Ingress); err != nil {
-
-		if !apierrors.IsAlreadyExists(err) {
-			return nil, nil, errors.Wrap(err, "Failed to create ingress")
-		}
-
-		// if the ingress already exists - update it
-		m.logger.InfoWithCtx(ctx, "Ingress already exists. Updating it",
-			"ingressName", resources.Ingress.Name)
-		if appliedIngress, err = m.kubeClientSet.UpdateIngress(
-			ctx,
-			resources.Ingress.Namespace,
-			resources.Ingress); err != nil {
-
-			return nil, nil, errors.Wrap(err, "Failed to update ingress")
-		}
-		m.logger.InfoWithCtx(ctx, "Successfully updated ingress", "ingressName", resources.Ingress.Name)
-
-	} else {
-		m.logger.InfoWithCtx(ctx, "Successfully created ingress", "ingressName", resources.Ingress.Name)
-	}
-
 	// if there's a secret among the ingress resources - create/update it
 	if resources.BasicAuthSecret != nil {
 
@@ -217,6 +192,31 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 			m.logger.InfoWithCtx(ctx, "Successfully created basic-auth secret",
 				"secretName", resources.BasicAuthSecret.Name)
 		}
+	}
+
+	if appliedIngress, err = m.kubeClientSet.CreateIngress(
+		ctx,
+		resources.Ingress.Namespace,
+		resources.Ingress); err != nil {
+
+		if !apierrors.IsAlreadyExists(err) {
+			return nil, nil, errors.Wrap(err, "Failed to create ingress")
+		}
+
+		// if the ingress already exists - update it
+		m.logger.InfoWithCtx(ctx, "Ingress already exists. Updating it",
+			"ingressName", resources.Ingress.Name)
+		if appliedIngress, err = m.kubeClientSet.UpdateIngress(
+			ctx,
+			resources.Ingress.Namespace,
+			resources.Ingress); err != nil {
+
+			return nil, nil, errors.Wrap(err, "Failed to update ingress")
+		}
+		m.logger.InfoWithCtx(ctx, "Successfully updated ingress", "ingressName", resources.Ingress.Name)
+
+	} else {
+		m.logger.InfoWithCtx(ctx, "Successfully created ingress", "ingressName", resources.Ingress.Name)
 	}
 
 	return appliedIngress, appliedBasicAuthSecret, nil
