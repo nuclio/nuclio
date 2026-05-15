@@ -39,7 +39,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.15.26-amd64
+    tag: 1.15.27-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -113,7 +113,7 @@ dashboard:
   servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.15.26-amd64
+    tag: 1.15.27-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -329,7 +329,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.15.26-amd64
+    tag: 1.15.27-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -363,7 +363,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.15.26-amd64
+    tag: 1.15.27-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
