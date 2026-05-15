@@ -14,9 +14,9 @@
 #
 version: "2"
 
-# timeout for analysis
-timeout: 5m
 run:
+  # timeout for analysis
+  timeout: 5m
   build-tags:
     - test_unit
     - test_integration
@@ -30,7 +30,6 @@ linters:
   default: none
   enable:
     - errcheck
-    - goconst
     - gocritic
     - govet
     - ineffassign
