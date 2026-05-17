@@ -93,7 +93,7 @@ Use the command `minikube kubectl -- get pods --namespace nuclio` to verify both
 
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](https://github.com/nuclio/nuclio/tree/development/hack/examples/golang/helloworld/helloworld.go) Go function.
+Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](https://github.com/nuclio/nuclio/blob/development/hack/examples/golang/helloworld/helloworld.go) Go function.
 You can add the `--verbose` flag if you want to peek under the hood.
 ```sh
 nuctl deploy helloworld \

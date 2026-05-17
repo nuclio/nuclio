@@ -191,10 +191,21 @@ const (
 	ProjectsLeaderKindMock    ProjectsLeaderKind = "mock"
 )
 
+const (
+	// DefaultProjectSync2PCEnabled is false: 2PC validation is opt-in so that deployments
+	// running a pre-2PC MLRun version continue to work without any configuration change.
+	DefaultProjectSync2PCEnabled = false
+)
+
 type ProjectsLeader struct {
 	Kind                    ProjectsLeaderKind `json:"kind,omitempty"`
 	APIAddress              string             `json:"apiAddress,omitempty"`
 	SynchronizationInterval string             `json:"synchronizationInterval,omitempty"`
+
+	// ProjectSync2PCEnabled enables two-phase-commit validation for leader-origin project requests.
+	// When false (default), all leader requests bypass 2PC checks and are applied unconditionally,
+	// preserving backwards compatibility with pre-2PC MLRun versions.
+	ProjectSync2PCEnabled bool `json:"projectSync2PCEnabled,omitempty"`
 
 	// SyncOnStartup, when true, performs a single project sync from the leader on startup instead of (or in
 	// addition to) the periodic interval loop. Useful for mlrun deployments where Nuclio should recover

@@ -85,6 +85,16 @@ func (suite *TestSuite) TestSetEmptyParametersMakesNoChange() {
 	suite.EqualValues(suite.trigger.configuration.Topics, []string{})
 }
 
+// TestApplyPrefetchCountSkipsWhenZero verifies that applyPrefetchCount is a no-op
+// when PrefetchCount is 0, without requiring a broker connection.
+func (suite *TestSuite) TestApplyPrefetchCountSkipsWhenZero() {
+	suite.trigger.configuration.PrefetchCount = 0
+
+	// brokerChannel is nil here — if Qos were called it would panic
+	err := suite.trigger.applyPrefetchCount()
+	suite.NoError(err)
+}
+
 func TestRabbitMQSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

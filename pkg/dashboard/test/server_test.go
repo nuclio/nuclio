@@ -52,6 +52,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	opaclient "github.com/nuclio/opa-client"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -2042,6 +2043,9 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 					Namespace: "p1-namespace",
 				},
 				Strategy: platform.DeleteProjectStrategyCascading,
+				PermissionOptions: opaclient.PermissionOptions{
+					RaiseForbidden: true,
+				},
 			},
 			deleteProjectReturnedError: nil,
 			requestHeaders: map[string]string{
@@ -2057,6 +2061,9 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 					Namespace: "p1-namespace",
 				},
 				Strategy: platform.DeleteProjectStrategyRestricted,
+				PermissionOptions: opaclient.PermissionOptions{
+					RaiseForbidden: true,
+				},
 			},
 			requestHeaders: map[string]string{
 				headers.DeleteProjectStrategy: string(platform.DeleteProjectStrategyRestricted),
@@ -2072,6 +2079,9 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 					Namespace: "p1-namespace",
 				},
 				Strategy: platform.DeleteProjectStrategyRestricted,
+				PermissionOptions: opaclient.PermissionOptions{
+					RaiseForbidden: true,
+				},
 			},
 			requestHeaders:             map[string]string{},
 			deleteProjectReturnedError: nil,
