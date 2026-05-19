@@ -233,7 +233,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d # 2.16.1
+      - uses: manusa/actions-setup-minikube@c714373206b0bc4eb9565d795fe5acf5e41ab483 # 2.17.1
         with:
           minikube version: "v1.38.0"
           kubernetes version: "v1.35.0"
@@ -384,7 +384,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d # 2.16.1
+      - uses: manusa/actions-setup-minikube@c714373206b0bc4eb9565d795fe5acf5e41ab483 # 2.17.1
         with:
           minikube version: "v1.38.0"
           kubernetes version: "v1.35.0"
