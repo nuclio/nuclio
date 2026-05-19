@@ -17,10 +17,13 @@ limitations under the License.
 package clients
 
 import (
+	"context"
+	stderrors "errors"
 	"strings"
 	"time"
 
 	"github.com/nuclio/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // default retry parameters
@@ -36,7 +39,7 @@ func RequestWithRetry[T any](fn func() (T, error), maxRetries int, delay time.Du
 		if err == nil {
 			return result, nil
 		}
-		if !isK8sRetryableErrors(err) {
+		if !IsK8sRetryableError(err) {
 			return result, err // Not retryable, fail fast
 		}
 
@@ -45,10 +48,32 @@ func RequestWithRetry[T any](fn func() (T, error), maxRetries int, delay time.Du
 	return result, errors.Wrapf(err, "Kubernetes call failed after %d retries", maxRetries)
 }
 
-func isK8sRetryableErrors(err error) bool {
+// IsK8sRetryableError reports whether err describes a transient Kubernetes API,
+// etcd, or network condition where the operation may have succeeded server-side
+// but the response never reached the client — i.e. it is safe to retry.
+//
+// It first tries typed apierror predicates and context.DeadlineExceeded, then
+// falls back to substring matching for cases where the error has been wrapped
+// (the project's errors library produces plain strings via Error(), so typed
+// checks against the wrapped value fail).
+func IsK8sRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
+
+	// Typed checks — preferred when the original apierror is still in the
+	// chain (e.g. fresh from the kubernetes client, before nuclio wrapping).
+	if apierrors.IsServerTimeout(err) ||
+		apierrors.IsTimeout(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsInternalError(err) ||
+		apierrors.IsServiceUnavailable(err) {
+		return true
+	}
+	if stderrors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
 	errStr := err.Error()
 	return strings.Contains(errStr, "Error: etcdserver: ") ||
 		strings.Contains(errStr, "etcdserver: leader changed") ||
@@ -56,5 +81,8 @@ func isK8sRetryableErrors(err error) bool {
 		strings.Contains(errStr, "Kubernetes cluster unreachable") ||
 		strings.Contains(errStr, "Unable to connect to the server") ||
 		strings.Contains(errStr, "Internal error occurred: resource quota evaluation timed out") ||
-		strings.Contains(errStr, ":443: i/o timeout")
+		strings.Contains(errStr, ":443: i/o timeout") ||
+		strings.Contains(errStr, "Timeout: request did not complete within") ||
+		strings.Contains(errStr, "the server was unable to return a response in the time allotted") ||
+		strings.Contains(errStr, "context deadline exceeded")
 }
