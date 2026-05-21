@@ -217,7 +217,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	// initialize goroutine communication channels
 	submittedEventChan := make(chan *submittedEvent)
-	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
 	workerDrainingCompleteChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
@@ -225,16 +224,19 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	ackWindowSize := int64(k.configuration.ackWindowSize)
 
-	// listen for explicit ack messages if enabled
+	// listen for explicit ack messages if enabled. The subscription owns its
+	// channel and is closed in the deferred cleanup below.
+	var explicitAckSubscription controlcommunication.Subscription
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-
-		if err := k.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+		sub, err := k.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind)
+		if err != nil {
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
+		explicitAckSubscription = sub
 
 		go k.explicitAckHandler(
 			session,
-			explicitAckControlMessageChan,
+			explicitAckSubscription.C(),
 			claim.Partition(),
 			claim.Topic(),
 		)
@@ -314,16 +316,15 @@ consumptionLoop:
 
 	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
 
-	// unsubscribe channel from the streamAck control message kind before closing it
-	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-		if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
-			k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
-		}
+	// Close the explicit-ack subscription before closing the event submitter:
+	// Close() drives the broker to drain in-flight deliveries and then close the
+	// subscription's channel, which terminates explicitAckHandler's range loop.
+	if explicitAckSubscription != nil {
+		explicitAckSubscription.Close()
 	}
 
 	// shut down goroutines and channels
 	close(submittedEventChan)
-	close(explicitAckControlMessageChan)
 	close(workerDrainingCompleteChan)
 
 	return submitError
@@ -660,10 +661,12 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 }
 
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
-// offset accordingly
+// offset accordingly. The channel is owned by the broker; the handler exits
+// cleanly when the subscription is closed and the channel is therefore drained
+// and closed by the broker.
 func (k *kafka) explicitAckHandler(
 	session sarama.ConsumerGroupSession,
-	controlMessageChan chan *controlcommunication.ControlMessage,
+	controlMessageChan <-chan *controlcommunication.ControlMessage,
 	partitionNumber int32,
 	topic string) {
 

@@ -636,14 +636,10 @@ func (be *AbstractEventConnection) Continue() error {
 	return nuclio.ErrNotImplemented
 }
 
-// Subscribe subscribes to a control message kind
-func (be *AbstractEventConnection) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return nuclio.ErrNotImplemented
-}
-
-// Unsubscribe unsubscribes from a control message kind
-func (be *AbstractEventConnection) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return nuclio.ErrNotImplemented
+// Subscribe is not implemented at the event-connection level; control-message
+// subscriptions go through the runtime broker.
+func (be *AbstractEventConnection) Subscribe(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
+	return nil, nuclio.ErrNotImplemented
 }
 
 func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (result.Result, error) {

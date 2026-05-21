@@ -113,12 +113,10 @@ func (m *MockEventProcessor) SupportsRestart() bool {
 	return m.Called().Bool(0)
 }
 
-func (m *MockEventProcessor) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return m.Called(kind, channel).Error(0)
-}
-
-func (m *MockEventProcessor) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return m.Called(kind, channel).Error(0)
+func (m *MockEventProcessor) Subscribe(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
+	args := m.Called(kind)
+	sub, _ := args.Get(0).(controlcommunication.Subscription)
+	return sub, args.Error(1)
 }
 
 func (m *MockEventProcessor) WaitForStart(timeout time.Duration) error {

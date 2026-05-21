@@ -19,8 +19,6 @@ package controlcommunication
 import (
 	"bufio"
 	"sync"
-
-	"github.com/nuclio/errors"
 )
 
 type ControlMessageKind string
@@ -42,56 +40,28 @@ type ControlMessageAttributesExplicitAck struct {
 	Offset    int64  `json:"offset"`
 }
 
-type ControlConsumer struct {
-	channels []chan *ControlMessage
-	kind     ControlMessageKind
+// Subscription is a handle to a control-message subscription.
+//
+// The broker owns the underlying channel: it is the sole writer and the sole closer.
+// Callers receive messages by ranging or selecting on C() and must invoke Close()
+// when they are no longer interested in messages. After Close() returns, the channel
+// is closed and no further sends to it will occur, so it is safe for the broker to
+// drop late messages without panicking on a closed-channel write.
+//
+// Close is idempotent and safe to call from multiple goroutines.
+type Subscription interface {
+
+	// C returns the receive-only channel for control messages of the subscribed kind.
+	// The channel is closed by the broker exactly once, after Close() returns.
+	C() <-chan *ControlMessage
+
+	// Close unsubscribes from the broker and closes the channel. Safe to call
+	// multiple times.
+	Close()
 }
 
-// NewControlConsumer creates a new control consumer
-func NewControlConsumer(kind ControlMessageKind) *ControlConsumer {
-
-	return &ControlConsumer{
-		channels: make([]chan *ControlMessage, 0),
-		kind:     kind,
-	}
-}
-
-// GetKind returns the kind of the consumer
-func (c *ControlConsumer) GetKind() ControlMessageKind {
-	return c.kind
-}
-
-// Send broadcasts a message to all subscribed channels
-func (c *ControlConsumer) Send(message *ControlMessage) error {
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(c.channels))
-	for _, channel := range c.channels {
-
-		go func(channel chan *ControlMessage, message *ControlMessage) {
-			channel <- message
-			wg.Done()
-		}(channel, message)
-	}
-
-	wg.Wait()
-	return nil
-}
-
-func (c *ControlConsumer) addChannel(channel chan *ControlMessage) {
-	c.channels = append(c.channels, channel)
-}
-
-func (c *ControlConsumer) deleteChannel(channelToDelete chan *ControlMessage) {
-	// remove the channel from the consumer
-	for i, channel := range c.channels {
-		if channel == channelToDelete {
-			c.channels = append(c.channels[:i], c.channels[i+1:]...)
-			break
-		}
-	}
-}
-
+// ControlMessageBroker routes control messages received from a runtime wrapper to
+// subscribers interested in specific message kinds.
 type ControlMessageBroker interface {
 
 	// WriteControlMessage writes a control message to the control communication
@@ -100,27 +70,29 @@ type ControlMessageBroker interface {
 	// ReadControlMessage reads a control message from the control communication
 	ReadControlMessage(reader *bufio.Reader) (*ControlMessage, error)
 
-	// SendToConsumers sends a control message to all consumers
+	// SendToConsumers fans out a control message to all subscriptions whose kind matches.
+	// The call returns once delivery has been scheduled; per-subscription delivery
+	// happens asynchronously and is bounded by the subscription's lifetime — a
+	// subscription that is Close()d while a send is in flight drops the message
+	// instead of blocking the broker.
 	SendToConsumers(message *ControlMessage) error
 
-	// Subscribe subscribes channel to a control message kind
-	Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error
-
-	// Unsubscribe unsubscribes channel from a control message kind
-	Unsubscribe(kind ControlMessageKind, channel chan *ControlMessage) error
+	// Subscribe creates a new subscription for the given control message kind.
+	// The returned Subscription owns its channel; the caller must invoke
+	// Subscription.Close() to release resources.
+	Subscribe(kind ControlMessageKind) (Subscription, error)
 }
 
+// AbstractControlMessageBroker is the default ControlMessageBroker implementation.
+// The zero value is not usable; construct with NewAbstractControlMessageBroker.
 type AbstractControlMessageBroker struct {
-	Consumers   []*ControlConsumer
-	channelLock sync.Mutex
+	subscriptions []*subscription
+	lock          sync.Mutex
 }
 
 // NewAbstractControlMessageBroker creates a new abstract control message broker
 func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
-	return &AbstractControlMessageBroker{
-		Consumers:   make([]*ControlConsumer, 0),
-		channelLock: sync.Mutex{},
-	}
+	return &AbstractControlMessageBroker{}
 }
 
 func (acmb *AbstractControlMessageBroker) WriteControlMessage(message *ControlMessage) error {
@@ -132,59 +104,49 @@ func (acmb *AbstractControlMessageBroker) ReadControlMessage(reader *bufio.Reade
 }
 
 func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessage) error {
-	acmb.channelLock.Lock()
-	defer acmb.channelLock.Unlock()
 
-	for _, consumer := range acmb.Consumers {
-		if consumer.GetKind() == message.Kind {
-			if err := consumer.Send(message); err != nil {
-				return errors.Wrap(err, "Failed to send message to consumer")
-			}
+	// snapshot matching subscriptions under the lock so we can release it before
+	// any blocking channel write. wg.Add must happen under the same lock that
+	// guards removal, otherwise a concurrent Close() could miss in-flight sends.
+	acmb.lock.Lock()
+	var targets []*subscription
+	for _, sub := range acmb.subscriptions {
+		if sub.kind == message.Kind {
+			sub.inFlight.Add(1)
+			targets = append(targets, sub)
 		}
+	}
+	acmb.lock.Unlock()
+
+	// deliver to each subscription concurrently — a slow subscriber must not
+	// block delivery to fast ones, and a Close()d subscription must not block
+	// the broker at all
+	for _, sub := range targets {
+		go sub.deliver(message)
 	}
 
 	return nil
 }
 
-func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
+func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind) (Subscription, error) {
+	sub := newSubscription(kind, acmb)
 
-	// acquire lock to prevent concurrent access to the consumers and channels
-	acmb.channelLock.Lock()
-	defer acmb.channelLock.Unlock()
+	acmb.lock.Lock()
+	acmb.subscriptions = append(acmb.subscriptions, sub)
+	acmb.lock.Unlock()
 
-	// create consumers if they don't exist
-	if acmb.Consumers == nil {
-		acmb.Consumers = make([]*ControlConsumer, 0)
-	}
-
-	// Add the consumer to the list of the relevant kind
-	for _, consumer := range acmb.Consumers {
-		if consumer.GetKind() == kind {
-			consumer.addChannel(channel)
-			return nil
-		}
-	}
-
-	// consumer for the kind doesn't exist, create one
-	consumer := NewControlConsumer(kind)
-	consumer.addChannel(channel)
-	acmb.Consumers = append(acmb.Consumers, consumer)
-
-	return nil
+	return sub, nil
 }
 
-func (acmb *AbstractControlMessageBroker) Unsubscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
-
-	// acquire lock to prevent concurrent access to the consumers and channels
-	acmb.channelLock.Lock()
-	defer acmb.channelLock.Unlock()
-
-	// Find the consumer with relevant kind
-	for _, consumer := range acmb.Consumers {
-		if consumer.GetKind() == kind {
-			consumer.deleteChannel(channel)
-			return nil
+// removeSubscription removes sub from the broker's subscription list. Called by
+// subscription.Close() — never call directly from outside the package.
+func (acmb *AbstractControlMessageBroker) removeSubscription(target *subscription) {
+	acmb.lock.Lock()
+	defer acmb.lock.Unlock()
+	for i, sub := range acmb.subscriptions {
+		if sub == target {
+			acmb.subscriptions = append(acmb.subscriptions[:i], acmb.subscriptions[i+1:]...)
+			return
 		}
 	}
-	return nil
 }

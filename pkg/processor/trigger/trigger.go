@@ -345,44 +345,39 @@ func (at *AbstractTrigger) Restart() error {
 	return nil
 }
 
-// SubscribeToControlMessageKind subscribes all workers to control message kind
-func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage) error {
+// SubscribeToControlMessageKind subscribes every worker's control-message broker
+// to the given kind and merges them into a single Subscription that delivers
+// messages from any worker over one channel.
+//
+// The caller owns the returned Subscription and must call Close() — typically
+// in a defer — to release the per-worker subscriptions and close the merged
+// channel. Because the broker is the sole writer/closer, Close() is safe to
+// invoke at any time without racing against in-flight deliveries.
+func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
 
+	workers := at.WorkerAllocator.GetObjects()
 	at.Logger.DebugWith("Subscribing to control message kind",
 		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetObjects()))
+		"numWorkers", len(workers))
 
-	for _, workerInstance := range at.WorkerAllocator.GetObjects() {
-		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err,
+	subs := make([]controlcommunication.Subscription, 0, len(workers))
+	for _, workerInstance := range workers {
+		sub, err := workerInstance.Subscribe(kind)
+		if err != nil {
+			// release any subscriptions we already created so we don't leak
+			// channels on the partial-failure path
+			for _, s := range subs {
+				s.Close()
+			}
+			return nil, errors.Wrapf(err,
 				"Failed to subscribe to control message kind %s in worker %d",
 				kind,
 				workerInstance.GetIndex())
 		}
+		subs = append(subs, sub)
 	}
 
-	return nil
-}
-
-// UnsubscribeFromControlMessageKind unsubscribes all workers from control message kind
-func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage) error {
-
-	at.Logger.DebugWith("Unsubscribing channel from control message kind",
-		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetObjects()))
-
-	for _, workerInstance := range at.WorkerAllocator.GetObjects() {
-		if err := workerInstance.Unsubscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err,
-				"Failed to unsubscribe channel from control message kind %s in worker %d",
-				kind,
-				workerInstance.GetIndex())
-		}
-	}
-
-	return nil
+	return controlcommunication.MergeSubscriptions(subs), nil
 }
 
 // SignalWorkersToDrain sends a signal to all workers, telling them to drop or ack events
