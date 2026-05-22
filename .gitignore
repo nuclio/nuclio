@@ -9,6 +9,10 @@ pkg/processor/runtime/python/py/whl
 
 vendor
 
+# Claude Code plan/scratch directories (not for source control)
+.claude/
+.claude-plans/
+
 # general
 *.class
 *.iml

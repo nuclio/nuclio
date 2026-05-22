@@ -34,8 +34,10 @@ import (
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -154,6 +156,74 @@ func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 
 	// function state must be change to error after panicking during its create/update
 	suite.Assert().Equal(functionconfig.FunctionStateError, functionInstance.Status.State)
+}
+
+// TestTransientApiErrorMarksFunctionUnhealthy reproduces NUC-797: a transient
+// Kubernetes API server timeout on resource create/update used to send the
+// function to terminal FunctionStateError. The controller's statesToRespond
+// excludes Error, so the function would never re-reconcile. The fix marks the
+// function as FunctionStateUnhealthy instead, which the function_monitor can
+// flip back to Ready once the API recovers and the deployment is available.
+func (suite *NuclioFunctionTestSuite) TestTransientApiErrorMarksFunctionUnhealthy() {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "transient-error-func"
+	functionInstance.Namespace = suite.namespace
+	functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
+	functionInstance.Status.InternalInvocationURLs = []string{"transient-error-func.svc.cluster.local:8080"}
+	functionInstance.Status.ExternalInvocationURLs = []string{"transient-error-func.example.com"}
+	functionInstance.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: suite.projectName,
+	}
+
+	_, err := suite.functionClientSet.NuclioV1beta1().
+		NuclioFunctions(suite.namespace).
+		Create(suite.ctx, functionInstance, metav1.CreateOptions{})
+	suite.Require().NoError(err)
+
+	suite.k8sClientSet.PrependReactor("create",
+		"services",
+		func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewServerTimeout(schema.GroupResource{Resource: "services"}, "create", 0)
+		})
+
+	err = suite.controller.functionOperator.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().Error(err, "transient error should surface so the work queue retries")
+
+	suite.Assert().Equal(functionconfig.FunctionStateUnhealthy, functionInstance.Status.State,
+		"transient K8s API error must not strand the function in terminal FunctionStateError")
+	suite.Assert().Equal([]string{"transient-error-func.svc.cluster.local:8080"}, functionInstance.Status.InternalInvocationURLs,
+		"invocation URLs must be preserved on transient-error transition")
+	suite.Assert().Equal([]string{"transient-error-func.example.com"}, functionInstance.Status.ExternalInvocationURLs,
+		"invocation URLs must be preserved on transient-error transition")
+}
+
+// TestNonTransientApiErrorMarksFunctionError guards against regressions where
+// the new transient-error path accidentally swallows real failures.
+func (suite *NuclioFunctionTestSuite) TestNonTransientApiErrorMarksFunctionError() {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "real-error-func"
+	functionInstance.Namespace = suite.namespace
+	functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
+	functionInstance.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: suite.projectName,
+	}
+
+	_, err := suite.functionClientSet.NuclioV1beta1().
+		NuclioFunctions(suite.namespace).
+		Create(suite.ctx, functionInstance, metav1.CreateOptions{})
+	suite.Require().NoError(err)
+
+	suite.k8sClientSet.PrependReactor("create",
+		"services",
+		func(action k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewBadRequest("service spec is invalid")
+		})
+
+	err = suite.controller.functionOperator.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().Error(err)
+
+	suite.Assert().Equal(functionconfig.FunctionStateError, functionInstance.Status.State,
+		"non-transient errors must still go to terminal FunctionStateError")
 }
 
 func TestTestSuite(t *testing.T) {

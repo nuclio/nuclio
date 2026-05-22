@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
@@ -248,17 +249,17 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	// enrich node selectors with values from function, project and platform and save enriched value to function.status
 	if err := fo.enrichNodeSelector(ctx, function); err != nil {
-		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to enrich node selectors when create/update function"))
+		return fo.recordReconcileError(ctx, function, nil, errors.Wrap(err, "Failed to enrich node selectors when create/update function"))
 	}
 
 	if err := fo.enrichAndValidateServiceAccount(ctx, function); err != nil {
-		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to enrich or validate service account when create/update function"))
+		return fo.recordReconcileError(ctx, function, nil, errors.Wrap(err, "Failed to enrich or validate service account when create/update function"))
 	}
 
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
-		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to create/update function"))
+		return fo.recordReconcileError(ctx, function, nil, errors.Wrap(err, "Failed to create/update function"))
 	}
 
 	// readinessTimeout would be zero when
@@ -286,10 +287,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	if err = fo.updateFunctionSelectorIfRequired(ctx, function); err != nil {
-		return fo.setFunctionError(ctx,
-			function,
-			functionconfig.FunctionStateError,
-			nil,
+		return fo.recordReconcileError(ctx, function, nil,
 			errors.Wrap(err, "Failed to patch function service selector when scale from zero"))
 	}
 
@@ -432,6 +430,65 @@ func (fo *functionOperator) updateFunctionSelectorIfRequired(ctx context.Context
 		}
 	}
 	return nil
+}
+
+// recordReconcileError records a reconcile failure on the function CR. For
+// transient Kubernetes API errors (server timeout, context deadline, 5xx) the
+// function is set to FunctionStateUnhealthy so the function_monitor can flip
+// it back to Ready when the API recovers and the deployment reports as
+// available. Non-transient failures still go to the terminal FunctionStateError
+// sink. The (wrapped) error is returned unchanged so the operator's work queue
+// re-enqueues with backoff.
+func (fo *functionOperator) recordReconcileError(
+	ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	resources functionres.Resources,
+	wrappedErr error) error {
+
+	if clients.IsK8sRetryableError(wrappedErr) {
+		return fo.markFunctionUnhealthy(ctx, function, wrappedErr)
+	}
+	return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, resources, wrappedErr)
+}
+
+// markFunctionUnhealthy transitions the function to FunctionStateUnhealthy
+// while preserving the rest of its status (invocation URLs, logs, scale-to-zero
+// state, etc.). Unlike setFunctionError, which rebuilds Status from scratch
+// and drops invocation URLs, this helper is used for recoverable conditions
+// where the function_monitor is expected to flip the state back to Ready as
+// soon as the underlying deployment becomes available again.
+//
+// The original error is returned so callers (and the operator work queue)
+// see the failure.
+func (fo *functionOperator) markFunctionUnhealthy(
+	ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	err error) error {
+
+	// the calling context may already be deadline-cancelled (which is often
+	// how we get here) — detach so the CR status update still goes through.
+	detachedContext := context.WithoutCancel(ctx)
+
+	fo.logger.WarnWithCtx(detachedContext,
+		"Marking function as unhealthy (transient error); function_monitor will recover",
+		"functionName", function.Name,
+		"functionNamespace", function.Namespace,
+		"err", err)
+
+	function.Status.State = functionconfig.FunctionStateUnhealthy
+	function.Status.Message = errors.GetErrorStackString(err, 10)
+
+	if _, updateErr := fo.controller.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(function.Namespace).
+		Update(detachedContext, function, metav1.UpdateOptions{}); updateErr != nil {
+		fo.logger.WarnWithCtx(detachedContext,
+			"Failed to update function status to unhealthy",
+			"functionName", function.Name,
+			"updateErr", errors.Cause(updateErr))
+	}
+
+	return err
 }
 
 func (fo *functionOperator) setFunctionError(
