@@ -181,7 +181,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 	// allow project create via OPA
 	suite.mockedOpaClient.
 		On("QueryPermissions",
-			fmt.Sprintf("/projects/%s", "some-name"),
+			"/projects",
 			opaclient.ActionCreate,
 			mock.AnythingOfType("*opaclient.PermissionOptions")).
 		Return(true, nil).
