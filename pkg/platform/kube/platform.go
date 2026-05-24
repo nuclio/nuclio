@@ -741,7 +741,7 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 	permissionOptions := createProjectOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
 	if _, err := p.QueryOPAProjectPermissions(ctx,
-		createProjectOptions.ProjectConfig.Meta.Name,
+		"",
 		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed to authorize project creation")
