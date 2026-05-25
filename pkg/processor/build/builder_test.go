@@ -519,6 +519,7 @@ func (suite *testSuite) TestValidateAndParseS3Attributes() {
 		"s3AccessKeyId":     "myaccesskeyid",
 		"s3SecretAccessKey": "mysecretaccesskey",
 		"s3SessionToken":    "mys3sessiontoken",
+		"s3Endpoint":        "https://minio.example.com",
 	}
 	expectedResult := map[string]string{
 		"s3Bucket":          "my-bucket",
@@ -527,6 +528,7 @@ func (suite *testSuite) TestValidateAndParseS3Attributes() {
 		"s3AccessKeyId":     "myaccesskeyid",
 		"s3SecretAccessKey": "mysecretaccesskey",
 		"s3SessionToken":    "mys3sessiontoken",
+		"s3Endpoint":        "https://minio.example.com",
 	}
 	res, err := suite.builder.validateAndParseS3Attributes(goodS3CodeEntryAttributes)
 	suite.Require().NoError(err)
@@ -600,7 +602,8 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-region")),
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-access-key-id")),
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-secret-access-key")),
-			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-session-token"))).
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-session-token")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("https://minio.example.com"))).
 		Return(nil).
 		Once()
 
@@ -614,6 +617,7 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 			"s3AccessKeyId":     "my-s3-access-key-id",
 			"s3SecretAccessKey": "my-s3-secret-access-key",
 			"s3SessionToken":    "my-s3-session-token",
+			"s3Endpoint":        "https://minio.example.com",
 			"workDir":           "/funcs/my-python-func",
 		},
 	}
