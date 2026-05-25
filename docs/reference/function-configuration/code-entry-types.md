@@ -280,7 +280,8 @@ Set the [`spec.build.codeEntryType`](function-configuration-reference.md#functio
   - `s3AccessKeyId` (dashboard: **Access key ID**) (Optional) &mdash; an S3 access key ID for download authentication.
   - `s3SecretAccessKey` (dashboard: **Secret access key**) (Optional) &mdash; an S3 secret access key for download authentication.
   - `s3SessionToken` (dashboard: **Session token**) (Optional) &mdash; an S3 session token for download authentication.
-  - `s3Region` (dashboard: **Region**) (Optional) &mdash; the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced.
+  - `s3Region` (dashboard: **Region**) (Optional) &mdash; the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced (skipped if `s3Endpoint` is set).
+  - `s3Endpoint` (dashboard: **Endpoint**) (Optional) &mdash; a custom S3 endpoint URL for S3-compatible backends such as MinIO. When set, the fetch targets this endpoint, uses path-style addressing, and skips the bucket-region probe.
   - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the extracted archive-file directory.
       The default work directory is the root of the extracted archive-file directory (`"/"`).
 
@@ -300,6 +301,7 @@ spec:
       s3SecretAccessKey: "my-53cr3t-@cce55-k3y"
       s3SessionToken: "my-s3ss10n-t0k3n"
       s3Region: "us-east-1"
+      s3Endpoint: "https://minio.example.com"
       workDir: "/go/myfunc"
 ```
 
