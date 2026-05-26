@@ -737,10 +737,9 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 		return errors.Wrap(err, "Failed to enrich a project configuration")
 	}
 
-	// check OPA permissions
 	permissionOptions := createProjectOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(ctx,
+	if err := p.checkProjectAuthorization(ctx,
 		"",
 		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
@@ -788,8 +787,7 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 // UpdateProject updates an existing project
 func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 
-	// check OPA permissions
-	if _, err := p.QueryOPAProjectPermissions(ctx,
+	if err := p.checkProjectAuthorization(ctx,
 		updateProjectOptions.ProjectConfig.Meta.Name,
 		opaclient.ActionUpdate,
 		&updateProjectOptions.PermissionOptions); err != nil {
@@ -815,8 +813,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 		deleteProjectOptions.AuthSession = &nop.Session{}
 	}
 
-	// check OPA permissions
-	if _, err := p.QueryOPAProjectPermissions(ctx,
+	if err := p.checkProjectAuthorization(ctx,
 		deleteProjectOptions.Meta.Name,
 		opaclient.ActionDelete,
 		&deleteProjectOptions.PermissionOptions); err != nil {
@@ -2557,4 +2554,18 @@ func (p *Platform) validateAPIGatewayAuthentication(apiGatewayConfig *platform.A
 	default:
 	}
 	return nil
+}
+
+func (p *Platform) checkProjectAuthorization(ctx context.Context,
+	projectName string,
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) error {
+
+	// in Iguazio 3.x, the project leader is the source of truth for authorization
+	if !p.IsAuthKindIguazioV4() {
+		return nil
+	}
+
+	_, err := p.QueryOPAProjectPermissions(ctx, projectName, action, permissionOptions)
+	return err
 }

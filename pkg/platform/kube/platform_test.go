@@ -165,11 +165,21 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.platform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(suite.Logger, platform.GetAPIGatewaySensitiveField(), suite.platform.consumer.KubeClientSet)
 }
 
+func (suite *KubePlatformTestSuite) withAuthKind(kind auth.Kind) {
+	previous := suite.abstractPlatform.Config.Opa.AuthKind
+	suite.abstractPlatform.Config.Opa.AuthKind = kind
+	suite.T().Cleanup(func() {
+		suite.abstractPlatform.Config.Opa.AuthKind = previous
+	})
+}
+
 type ProjectKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
 
 func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
+	suite.withAuthKind(auth.KindIguazioV4)
+
 	suite.nuclioProjectInterfaceMock.On("Create",
 		suite.ctx,
 		mock.Anything,
@@ -181,7 +191,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 	// allow project create via OPA
 	suite.mockedOpaClient.
 		On("QueryPermissions",
-			"/projects",
+			"/resources/projects",
 			opaclient.ActionCreate,
 			mock.AnythingOfType("*opaclient.PermissionOptions")).
 		Return(true, nil).
@@ -208,8 +218,8 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		On("QueryPermissionsMultiResources",
 			suite.ctx,
 			[]string{
-				fmt.Sprintf("/projects/%s", "some-name"),
-				fmt.Sprintf("/projects/%s", "other-name"),
+				fmt.Sprintf("/resources/projects/%s", "some-name"),
+				fmt.Sprintf("/resources/projects/%s", "other-name"),
 			},
 			opaclient.ActionRead,
 			mock.Anything).
@@ -265,7 +275,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 	// allow project delete via OPA
 	suite.mockedOpaClient.
 		On("QueryPermissions",
-			fmt.Sprintf("/projects/%s", "some-name"),
+			fmt.Sprintf("/resources/projects/%s", "some-name"),
 			opaclient.ActionDelete,
 			mock.AnythingOfType("*opaclient.PermissionOptions")).
 		Return(true, nil).
@@ -282,6 +292,78 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 	suite.Require().Equal(suite.platform.projectsCache.Len(),
 		0,
 		"project was not removed from cache")
+}
+
+func (suite *ProjectKubePlatformTestSuite) TestCheckProjectAuthorizationSkippedForNonIguazioV4() {
+	for _, kind := range []auth.Kind{auth.KindNop, auth.KindIguazio} {
+		suite.Run(string(kind), func() {
+			suite.withAuthKind(kind)
+
+			// no OPA mocks registered - any OPA call would panic the mock
+			for _, action := range []opaclient.Action{
+				opaclient.ActionCreate,
+				opaclient.ActionUpdate,
+				opaclient.ActionDelete,
+			} {
+				err := suite.platform.checkProjectAuthorization(suite.ctx,
+					"some-project",
+					action,
+					&opaclient.PermissionOptions{
+						MemberIds:      []string{"id1"},
+						RaiseForbidden: true,
+					})
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *ProjectKubePlatformTestSuite) TestCheckProjectAuthorizationInvokedForIguazioV4() {
+	for _, tc := range []struct {
+		name       string
+		opaAllowed bool
+		expectErr  bool
+	}{
+		{
+			name:       "Allowed",
+			opaAllowed: true,
+			expectErr:  false,
+		},
+		{
+			name:       "Forbidden",
+			opaAllowed: false,
+			expectErr:  true,
+		},
+	} {
+		suite.Run(tc.name, func() {
+			defer suite.ResetCRDMocks()
+			suite.withAuthKind(auth.KindIguazioV4)
+
+			projectName := "some-project"
+			suite.mockedOpaClient.
+				On("QueryPermissions",
+					fmt.Sprintf("/resources/projects/%s", projectName),
+					opaclient.ActionUpdate,
+					mock.AnythingOfType("*opaclient.PermissionOptions")).
+				Return(tc.opaAllowed, nil).
+				Once()
+			defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+			err := suite.platform.checkProjectAuthorization(suite.ctx,
+				projectName,
+				opaclient.ActionUpdate,
+				&opaclient.PermissionOptions{
+					MemberIds:      []string{"id1"},
+					RaiseForbidden: true,
+				})
+
+			if tc.expectErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
 }
 
 type FunctionKubePlatformTestSuite struct {
