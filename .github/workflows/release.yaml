@@ -40,7 +40,7 @@ on:
         type: string
       bump_version_mode:
         description: 'Version bump mode'
-        default: 'bump-minor'
+        default: 'bump-patch'
         type: choice
         options: ['bump-minor', 'bump-major', 'bump-patch']
       helm_chart_target_version:
