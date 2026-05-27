@@ -740,7 +740,7 @@ func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}
 	parsedAttributes := map[string]string{}
 
 	mandatoryFields := []string{"s3Bucket", "s3ItemKey"}
-	optionalFields := []string{"s3Region", "s3AccessKeyId", "s3SecretAccessKey", "s3SessionToken"}
+	optionalFields := []string{"s3Region", "s3AccessKeyId", "s3SecretAccessKey", "s3SessionToken", "s3Endpoint"}
 
 	for _, key := range append(mandatoryFields, optionalFields...) {
 		value, found := attributes[key]
@@ -1765,7 +1765,8 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		s3Attributes["s3Region"],
 		s3Attributes["s3AccessKeyId"],
 		s3Attributes["s3SecretAccessKey"],
-		s3Attributes["s3SessionToken"]); err != nil {
+		s3Attributes["s3SessionToken"],
+		s3Attributes["s3Endpoint"]); err != nil {
 
 		// assume running on ec2 container, which resolves the authentication seamlessly
 		if downloadError := b.s3Client.DownloadWithinEC2Instance(tempFile,
