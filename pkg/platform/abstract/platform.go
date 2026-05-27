@@ -1380,6 +1380,14 @@ func (ap *Platform) QueryOPAMultipleResources(ctx context.Context,
 	return ap.queryOPAPermissionsMultiResources(ctx, resources, action, permissionOptions)
 }
 
+func (ap *Platform) IsAuthKindIguazioV4() bool {
+	return ap.IsAuthKind(auth.KindIguazioV4)
+}
+
+func (ap *Platform) IsAuthKind(kind auth.Kind) bool {
+	return ap.Config.Opa.AuthKind == kind
+}
+
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build
@@ -2254,14 +2262,14 @@ func (ap *Platform) queryOPAPermissions(ctx context.Context,
 }
 
 func (ap *Platform) getOPAResourcesPrefix() string {
-	if ap.Config.Opa.AuthKind == auth.KindIguazioV4 {
+	if ap.IsAuthKindIguazioV4() {
 		return opa.IguazioV4ResourcePrefix
 	}
 	return ""
 }
 
 func (ap *Platform) getOPAManagementPrefix() string { // nolint: unused
-	if ap.Config.Opa.AuthKind == auth.KindIguazioV4 {
+	if ap.IsAuthKindIguazioV4() {
 		return opa.IguazioV4ManagementPrefix
 	}
 	return ""

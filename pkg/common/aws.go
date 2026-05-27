@@ -34,7 +34,7 @@ import (
 const DefaultRegion = "us-east-1"
 
 type S3Client interface {
-	Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error
+	Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken, endpoint string) error
 	DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error
 }
 
@@ -48,28 +48,36 @@ func (asc *AbstractS3Client) Download(file *os.File,
 	region string,
 	accessKeyID string,
 	secretAccessKey string,
-	sessionToken string) error {
+	sessionToken string,
+	endpoint string) error {
 	bucketAndPath, item := asc.resolveBucketPathAndItem(bucket, itemKey)
 
 	// Create AWS config with credentials
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	cfgOpts := []func(*config.LoadOptions) error{
 		config.WithRegion(DefaultRegion), // default region (some valid region must be mentioned)
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, sessionToken)),
-	)
+	}
+	if endpoint != "" {
+		cfgOpts = append(cfgOpts, config.WithBaseEndpoint(endpoint))
+	}
+	cfg, err := config.LoadDefaultConfig(context.TODO(), cfgOpts...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create AWS config")
 	}
 
-	// get the bucket's region in case it wasn't given
-	if region == "" {
-		region, err = asc.getBucketRegion(context.TODO(), cfg, bucketAndPath)
+	// Skip GetBucketLocation when a custom endpoint is set;
+	// not all S3-compatible backends implement it.
+	if region == "" && endpoint == "" {
+		region, err = asc.getBucketRegion(context.TODO(), cfg, bucketAndPath, endpoint)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get bucket region")
 		}
 	}
-	cfg.Region = region
+	if region != "" {
+		cfg.Region = region
+	}
 
-	return asc.download(file, cfg, bucketAndPath, item)
+	return asc.download(file, cfg, bucketAndPath, item, endpoint)
 }
 
 func (asc *AbstractS3Client) DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error {
@@ -80,7 +88,7 @@ func (asc *AbstractS3Client) DownloadWithinEC2Instance(file *os.File, bucket, it
 	if err != nil {
 		return errors.Wrap(err, "Failed to create AWS config")
 	}
-	return asc.download(file, cfg, bucketAndPath, item)
+	return asc.download(file, cfg, bucketAndPath, item, "")
 }
 
 func (asc *AbstractS3Client) resolveBucketPathAndItem(bucket, itemKey string) (string, string) {
@@ -89,8 +97,19 @@ func (asc *AbstractS3Client) resolveBucketPathAndItem(bucket, itemKey string) (s
 	return bucketAndPath, item
 }
 
-func (asc *AbstractS3Client) getBucketRegion(ctx context.Context, cfg aws.Config, bucket string) (string, error) {
-	s3Client := s3.NewFromConfig(cfg)
+// newS3Client forces path-style addressing when a custom endpoint is set,
+// which most S3-compatible backends require for sigv4 to match.
+func newS3Client(cfg aws.Config, endpoint string) *s3.Client {
+	if endpoint == "" {
+		return s3.NewFromConfig(cfg)
+	}
+	return s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+	})
+}
+
+func (asc *AbstractS3Client) getBucketRegion(ctx context.Context, cfg aws.Config, bucket, endpoint string) (string, error) {
+	s3Client := newS3Client(cfg, endpoint)
 	result, err := s3Client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{
 		Bucket: aws.String(bucket),
 	})
@@ -105,8 +124,8 @@ func (asc *AbstractS3Client) getBucketRegion(ctx context.Context, cfg aws.Config
 	return string(result.LocationConstraint), nil
 }
 
-func (asc *AbstractS3Client) download(file *os.File, cfg aws.Config, bucketAndPath, item string) error {
-	s3Client := s3.NewFromConfig(cfg)
+func (asc *AbstractS3Client) download(file *os.File, cfg aws.Config, bucketAndPath, item, endpoint string) error {
+	s3Client := newS3Client(cfg, endpoint)
 	downloader := manager.NewDownloader(s3Client)
 
 	_, err := downloader.Download(context.TODO(), file, &s3.GetObjectInput{
@@ -124,12 +143,12 @@ type MockS3Client struct {
 	FilePath string
 }
 
-func (msc *MockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
+func (msc *MockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken, endpoint string) error {
 	functionArchiveFileBytes, _ := os.ReadFile(msc.FilePath)
 
 	_ = os.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
 
-	args := msc.Called(file, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken)
+	args := msc.Called(file, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken, endpoint)
 	return args.Error(0)
 }
 
