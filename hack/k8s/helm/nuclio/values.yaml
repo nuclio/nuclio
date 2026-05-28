@@ -495,6 +495,13 @@ rbac:
   # If true, creates the necessary roles and role bindings for nuclio's service account
   create: true
 
+  # If true (and rbac.create is true), creates the service account used by nuclio's
+  # components. Set to false when the service account is managed externally (e.g. to
+  # attach workload identity annotations) but the chart should still create the
+  # roles and role bindings that bind to it. When false, set `rbac.serviceAccountName`
+  # to the name of the existing service account.
+  createServiceAccount: true
+
   # serviceAccountName: service-account-name
 
   # Allow / deny cluster-wide resource access. values: "cluster", "namespaced".
