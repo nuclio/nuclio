@@ -584,6 +584,12 @@ platform: {}
 #    webapiURL: ""
 #    getStreamShardsConcurrentRequests: 64
 #
+#  # Security: maskSensitiveFields moves trigger credentials (password, secret, nested
+#  # attributes.sasl.password, etc.) out of the NuclioFunction CRD into Kubernetes Secrets
+#  # and replaces them with reference tokens. It is OFF by default. When off, credentials
+#  # are stored verbatim in the CRD and returned in plaintext by the Dashboard API
+#  # (GET /api/functions). Enable for production deployments. See
+#  # docs/setup/k8s/running-in-production-k8s.md#securing-the-dashboard.
 #  sensitiveFields:
 #    maskSensitiveFields: true
 #

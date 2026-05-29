@@ -9,6 +9,7 @@ This document describes advanced configuration options and best-practice guideli
 - [The preferred deployment method](#the-preferred-deployment-method)
 - [Freezing a qualified version](#freezing-a-qualified-version)
 - [Multi-Tenancy](#multi-tenancy)
+- [Securing the Dashboard](#securing-the-dashboard)
 - [Air-gapped deployment](#air-gapped-deployment)
 - [Using Kaniko as an image builder](#using-kaniko-as-an-image-builder)
 
@@ -69,6 +70,39 @@ Note:
   This means that the controller handles Nuclio resources (functions, function events, and projects) only within its own namespace.
   This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) configurations.
 - To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `registry.hub.docker.com` or `quay.io`).
+
+<a id="securing-the-dashboard"></a>
+## Securing the Dashboard
+
+> **Security note:** The Nuclio Dashboard exposes an HTTP API (`/api/...`) that reads and writes function configuration, including any credentials carried by event triggers — for example the top-level `password` and `secret` fields, and nested values inside `attributes` such as `attributes.sasl.password` and `attributes.accesskey` on Kafka triggers or `attributes.password` on `v3io-stream` triggers.
+> The default Helm deployment does **not** authenticate this API and does **not** mask trigger credentials at rest. Treat the Dashboard as a privileged control plane and harden it before exposing it on any network that is not fully trusted.
+
+The default chart values are tuned for a quick development setup and assume the Dashboard sits on a trusted network. Before running Nuclio in production, apply both controls below.
+
+### Authenticate the Dashboard API
+
+By default, `dashboard.authConfig.kind` is unset, which selects the "NOP" authenticator — every request is accepted without credentials. The built-in authenticator kinds are listed in [`pkg/auth/types.go`](https://github.com/nuclio/nuclio/blob/development/pkg/auth/types.go); the non-NOP options are tied to specific platforms. For deployments that do not run on one of those platforms, terminate authentication at the network layer instead — for example with an authenticating ingress controller, an OAuth2 / OIDC proxy, or a service-mesh authorization policy — and ensure the Dashboard service only accepts traffic from that proxy.
+
+Without an authenticator in front of the Dashboard, any client that can reach the Dashboard service (port 8070 by default) can read every function definition in the namespace — including the trigger credentials stored on those functions.
+
+### Mask sensitive fields at rest
+
+The Nuclio Kubernetes deployer can move sensitive trigger fields out of the `NuclioFunction` CRD and into Kubernetes Secrets, replacing the value in the CRD with a reference token. This feature is controlled by `platformConfig.sensitiveFields.maskSensitiveFields` and is **off by default** in the official Helm chart.
+
+When the feature is off, credentials supplied to triggers (Kafka `password` and `attributes.sasl.password`, RabbitMQ `password`, `v3io-stream` `attributes.password`, Kinesis `attributes.secretAccessKey`, and so on) are stored verbatim in the `NuclioFunction` CRD and returned in plaintext by `GET /api/functions` and `GET /api/functions/{name}`.
+
+Enable masking in your Helm values:
+
+```yaml
+# values.yaml
+platformConfig:
+  sensitiveFields:
+    maskSensitiveFields: true
+```
+
+See [Sensitive fields](../../tasks/configuring-a-platform.md#sensitive-fields) in the platform configuration guide for the default match list and how to extend it with `customSensitiveFields`.
+
+> **Note:** Masking applies on function deploy. Functions that already exist when you enable the feature need to be re-deployed for their credentials to migrate from the CRD into a Secret.
 
 ## Freezing a qualified version
 
