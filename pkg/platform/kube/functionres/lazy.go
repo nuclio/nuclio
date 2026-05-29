@@ -1751,7 +1751,6 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 
 	// Prepare the new cron job object
 
-	// prepare cron job meta
 	cronJobMeta := metav1.ObjectMeta{
 		Name:      kube.CronJobName(),
 		Namespace: function.Namespace,
@@ -2143,54 +2142,54 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		}
 	}
 
-	// generate a string containing all the headers with --header flag as prefix, to be used by curl later
-	headersAsCurlArg := ""
-	for headerKey := range attributes.Event.Headers {
-		headerValue := attributes.Event.GetHeaderString(headerKey)
-		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValue)
-	}
-
-	// add default headers
-	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\" --header \"%s: %s\"",
-		headersAsCurlArg,
-		headers.InvokeTrigger,
-		"cron",
-		headers.TargetName,
-		function.Name,
-	)
-
 	functionAddress, err := lc.getCronTriggerInvocationURL(resources, function.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get cron trigger invocation URL")
 	}
 
-	// generate the curl command to be run by the CronJob to invoke the function
-	// invoke the function (retry for 10 seconds)
-	curlCommand := fmt.Sprintf("curl --silent %s %s --retry 10 --retry-delay 1 --retry-max-time 10 --retry-connrefused",
-		headersAsCurlArg,
-		functionAddress)
+	// Build curl args using exec form so the CronJob container invokes curl directly,
+	// without a shell. This prevents user-supplied header keys/values or event body
+	// from being interpreted as shell syntax (see GHSA-v5px-423j-pf7p).
+	curlArgs := []string{"--silent"}
 
+	// user-supplied headers, sorted for deterministic ordering across reconciles
+	userHeaderKeys := make([]string, 0, len(attributes.Event.Headers))
+	for headerKey := range attributes.Event.Headers {
+		userHeaderKeys = append(userHeaderKeys, headerKey)
+	}
+	sort.Strings(userHeaderKeys)
+	for _, headerKey := range userHeaderKeys {
+		curlArgs = append(curlArgs,
+			"--header", fmt.Sprintf("%s: %s", headerKey, attributes.Event.GetHeaderString(headerKey)))
+	}
+
+	// default headers
+	curlArgs = append(curlArgs,
+		"--header", fmt.Sprintf("%s: %s", headers.InvokeTrigger, "cron"),
+		"--header", fmt.Sprintf("%s: %s", headers.TargetName, function.Name),
+	)
+
+	// event body, compacted as JSON when valid (for size/readability, not for safety)
 	if attributes.Event.Body != "" {
 		eventBody := attributes.Event.Body
-
-		// if a body exists - dump it into a file, and pass this file as argument (done to support JSON body)
-		eventBodyFilePath := "/tmp/eventbody.out"
-		eventBodyCurlArg := fmt.Sprintf("--data '@%s'", eventBodyFilePath)
-
-		// try compact as JSON (will fail if it's not a valid JSON)
 		eventBodyAsCompactedJSON := bytes.NewBuffer([]byte{})
 		if err := json.Compact(eventBodyAsCompactedJSON, []byte(eventBody)); err == nil {
-
-			// set the compacted JSON as event body
 			eventBody = eventBodyAsCompactedJSON.String()
 		}
-
-		curlCommand = fmt.Sprintf("echo %s > %s && %s %s",
-			strconv.Quote(eventBody),
-			eventBodyFilePath,
-			curlCommand,
-			eventBodyCurlArg)
+		// use --data-raw, not --data: --data treats a leading '@' as "load file"
+		// (and '@-' as "read stdin"), which would let a function spec author exfiltrate
+		// a file from the CronJob pod via a body of e.g. "@/etc/passwd".
+		curlArgs = append(curlArgs, "--data-raw", eventBody)
 	}
+
+	// retry settings and target URL (kept last so curl sees them after all flags)
+	curlArgs = append(curlArgs,
+		"--retry", "10",
+		"--retry-delay", "1",
+		"--retry-max-time", "10",
+		"--retry-connrefused",
+		functionAddress,
+	)
 
 	// get cron job retries until failing a job (default=2)
 	jobBackoffLimit := attributes.JobBackoffLimit
@@ -2209,7 +2208,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 							Image: common.GetEnvOrDefaultString(
 								"NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME",
 								"gcr.io/iguazio/curlimages/curl:7.81.0"),
-							Args:            []string{"/bin/sh", "-c", curlCommand},
+							Command:         []string{"curl"},
+							Args:            curlArgs,
 							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),
 						},
 					},

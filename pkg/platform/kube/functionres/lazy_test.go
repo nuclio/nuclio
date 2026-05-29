@@ -21,6 +21,7 @@ package functionres
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -968,6 +970,190 @@ func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 			suite.Require().True(metricSpec.Pods.Target.AverageValue.Equal(podTargetValue))
 		}
 	}
+}
+
+// TestCronTriggerExecFormNoShellInjection is the regression test for GHSA-v5px-423j-pf7p.
+// It exercises the cron-trigger CronJob spec generation and asserts that the resulting
+// container runs `curl` directly (exec form) with user-supplied header keys/values and
+// event body passed as discrete argv entries — never as parts of a shell command.
+func (suite *lazyTestSuite) TestCronTriggerExecFormNoShellInjection() {
+	for _, testCase := range []struct {
+		name             string
+		headers          map[string]interface{}
+		body             string
+		assertions       func(args []string)
+		assertNoDataFlag bool
+	}{
+		{
+			name: "header_key_with_quote_does_not_break_shell",
+
+			// the advisory's Path-A payload: a header key containing `"` and shell
+			// metacharacters. In exec form, this entire string is one argv entry of
+			// curl after `--header`; the shell never sees it.
+			headers: map[string]interface{}{
+				`X-Inject"; echo PWNED; echo "`: "marker",
+			},
+			assertions: func(args []string) {
+				suite.Require().Contains(args,
+					`X-Inject"; echo PWNED; echo "`+`: marker`,
+					"header key+value should appear as a single literal argv entry")
+			},
+		},
+		{
+			name: "body_with_command_substitution_is_literal",
+
+			// the advisory's Path-B payload: `$()` survived strconv.Quote and was
+			// expanded by /bin/sh. In exec form, no shell sees it.
+			body: "$(id)",
+			assertions: func(args []string) {
+				suite.Require().Contains(args, "$(id)",
+					"body should appear as a literal argv entry")
+				suite.Require().Contains(args, "--data-raw",
+					"body should be passed via --data-raw, not --data")
+				suite.Require().NotContains(args, "--data",
+					"--data interprets leading '@' as file-load; must use --data-raw")
+			},
+		},
+		{
+			name: "body_starting_with_at_is_not_file_load",
+
+			// curl `--data` treats a body starting with `@` as "load from file" —
+			// using `--data-raw` removes that primitive.
+			body: "@/etc/passwd",
+			assertions: func(args []string) {
+				suite.Require().Contains(args, "@/etc/passwd",
+					"body should appear literally; --data-raw must prevent file load")
+				suite.Require().Contains(args, "--data-raw")
+				suite.Require().NotContains(args, "--data")
+			},
+		},
+		{
+			name:             "empty_body_omits_data_flag",
+			body:             "",
+			assertNoDataFlag: true,
+			assertions: func(args []string) {
+				suite.Require().NotContains(args, "--data-raw")
+				suite.Require().NotContains(args, "--data")
+			},
+		},
+		{
+			name: "json_body_is_compacted",
+			body: "{\n  \"a\": 1,\n  \"b\": 2\n}",
+			assertions: func(args []string) {
+				suite.Require().Contains(args, `{"a":1,"b":2}`,
+					"valid JSON body should be compacted before being passed to curl")
+			},
+		},
+		{
+			name: "non_json_body_passed_through_unchanged",
+			body: "not json",
+			assertions: func(args []string) {
+				suite.Require().Contains(args, "not json",
+					"non-JSON body should be passed through unchanged")
+			},
+		},
+		{
+			name: "headers_sorted_for_deterministic_order",
+
+			// use a custom prefix so the default X-Nuclio-* headers don't sneak into
+			// the order assertion
+			headers: map[string]interface{}{
+				"Q-Zeta":  "z",
+				"Q-Alpha": "a",
+				"Q-Mu":    "m",
+			},
+			assertions: func(args []string) {
+				userHeaderArgs := suite.collectHeaderArgs(args, "Q-")
+				suite.Require().Equal([]string{
+					"Q-Alpha: a",
+					"Q-Mu: m",
+					"Q-Zeta: z",
+				}, userHeaderArgs, "user-supplied headers must be sorted by key")
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.setKubeCronTriggerMode()
+
+			triggerAttributes := map[string]interface{}{
+				"schedule": "*/1 * * * *",
+				"event": map[string]interface{}{
+					"headers": testCase.headers,
+					"body":    testCase.body,
+				},
+			}
+			cronJob := suite.deployFunctionWithCronTrigger("test-func", triggerAttributes)
+
+			container := cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0]
+
+			// the exec-form invariant: no shell anywhere.
+			suite.Require().Equal([]string{"curl"}, container.Command,
+				"container must invoke curl directly, never /bin/sh")
+			suite.Require().NotContains(container.Args, "/bin/sh",
+				"args must not contain /bin/sh — that's the vulnerability")
+			suite.Require().NotContains(container.Args, "-c",
+				"args must not contain -c — that's the shell-evaluation flag")
+
+			// default headers always emitted
+			suite.Require().Contains(container.Args, "X-Nuclio-Invoke-Trigger: cron")
+			suite.Require().Contains(container.Args, "X-Nuclio-Target: test-func")
+
+			testCase.assertions(container.Args)
+		})
+	}
+}
+
+// setKubeCronTriggerMode swaps the suite's platform configuration to one that creates
+// cron triggers as k8s CronJobs (the path the security fix lives in).
+func (suite *lazyTestSuite) setKubeCronTriggerMode() {
+	platformConfiguration, err := platformconfig.NewPlatformConfig("")
+	suite.Require().NoError(err)
+	platformConfiguration.CronTriggerCreationMode = platformconfig.KubeCronTriggerCreationMode
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: platformConfiguration,
+	})
+}
+
+// deployFunctionWithCronTrigger creates a NuclioFunction with a single cron trigger,
+// runs the reconciliation path, and returns the resulting k8s CronJob.
+func (suite *lazyTestSuite) deployFunctionWithCronTrigger(
+	functionName string,
+	triggerAttributes map[string]interface{}) *batchv1.CronJob {
+
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes(functionName)
+
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"cron-trigger": {
+			Kind:       "cron",
+			Name:       "cron-trigger",
+			Attributes: triggerAttributes,
+		},
+	}
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	suite.Require().NoError(err)
+
+	cronJobs, err := resources.CronJobs()
+	suite.Require().NoError(err)
+	suite.Require().Len(cronJobs, 1,
+		"expected exactly one CronJob from a single cron trigger")
+
+	return cronJobs[0]
+}
+
+// collectHeaderArgs returns the values of all `--header <K: V>` pairs in args whose
+// key starts with the given prefix, in encounter order.
+func (suite *lazyTestSuite) collectHeaderArgs(args []string, keyPrefix string) []string {
+	var headerValues []string
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] != "--header" {
+			continue
+		}
+		if strings.HasPrefix(args[i+1], keyPrefix) {
+			headerValues = append(headerValues, args[i+1])
+		}
+	}
+	return headerValues
 }
 
 func (suite *lazyTestSuite) generateFunctionWithIngress(functionName, host string, annotations map[string]string) nuclioio.NuclioFunction {
