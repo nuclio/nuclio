@@ -206,6 +206,31 @@ func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExten
 	suite.Assert().Error(err)
 }
 
+// TestWriteFunctionSourceCodeToTempFileRejectsPathTraversal verifies that a malicious
+// spec.handler whose module name escapes the build temp dir is rejected before any write
+// happens, closing the path-traversal vulnerability (GHSA-wpcj-rmv4-86qg, CWE-22).
+// The traversal-detection logic itself is exhaustively unit-tested in common.IsPathWithinDir;
+// this asserts it is actually wired into the source-code write path. Before the fix this
+// handler caused os.WriteFile to write attacker bytes outside tempDir.
+func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileRejectsPathTraversal() {
+	suite.builder.options.FunctionConfig.Spec.Runtime = "shell"
+	// exact reproducer from the advisory
+	suite.builder.options.FunctionConfig.Spec.Handler = "../../../../tmp/evil.txt:handler"
+
+	err := suite.builder.createTempDir()
+	suite.Require().NoError(err)
+	defer suite.builder.cleanupTempDir() // nolint: errcheck
+
+	encodedSourceCode := base64.StdEncoding.EncodeToString([]byte("echo pwned"))
+	suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedSourceCode
+
+	tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(encodedSourceCode)
+	suite.Require().Error(err)
+	suite.Require().Contains(err.Error(), "outside the build directory")
+	// no path is returned and, since the guard runs before os.WriteFile, nothing is written
+	suite.Require().Empty(tempPath)
+}
+
 func (suite *testSuite) TestGetImage() {
 
 	// user specified
