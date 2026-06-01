@@ -166,6 +166,10 @@ spec:
         - name: NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT
           value: {{ .Values.dashboard.kaniko.defaultServiceAccount }}
         {{- end }}
+        {{- if .Values.dashboard.kaniko.podLabels }}
+        - name: NUCLIO_KANIKO_POD_LABELS
+          value: {{ .Values.dashboard.kaniko.podLabels | toJson | quote }}
+        {{- end }}
         {{- if .Values.registry.runRegistryURL }}
         - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
           value: {{ .Values.registry.runRegistryURL }}

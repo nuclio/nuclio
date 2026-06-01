@@ -207,6 +207,13 @@ dashboard:
     # the default service account to use for kaniko pod, if not specified otherwise
     defaultServiceAccount: ""
 
+    # Additional labels added to the kaniko build pod template.metadata.labels.
+    # The dashboard passes these through to the kaniko Job it creates at
+    # runtime (so they can't be set on the chart-rendered manifests).
+    # Example use: { "azure.workload.identity/use": "true" } to activate
+    # Azure Workload Identity token injection for ACR push on AKS.
+    podLabels: {}
+
   # use to configure node port
   nodePort:
 
