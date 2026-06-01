@@ -29,6 +29,72 @@ type KanikoTestSuite struct {
 	kaniko *Kaniko
 }
 
+func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPodLabels() {
+	for _, testCase := range []struct {
+		name      string
+		envValue  string
+		expected  map[string]string
+		expectErr bool
+	}{
+		{
+			name:     "Unset",
+			envValue: "",
+			expected: nil,
+		},
+		{
+			name:     "SingleLabel",
+			envValue: `{"azure.workload.identity/use":"true"}`,
+			expected: map[string]string{"azure.workload.identity/use": "true"},
+		},
+		{
+			name:     "MultipleLabels",
+			envValue: `{"a":"1","b":"2"}`,
+			expected: map[string]string{"a": "1", "b": "2"},
+		},
+		{
+			name:      "InvalidJSON",
+			envValue:  "not-json",
+			expectErr: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			if testCase.envValue != "" {
+				suite.T().Setenv("NUCLIO_KANIKO_POD_LABELS", testCase.envValue)
+			}
+
+			config, err := NewContainerBuilderConfiguration()
+			if testCase.expectErr {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Equal(testCase.expected, config.KanikoPodLabels)
+		})
+	}
+}
+
+func (suite *KanikoTestSuite) TestResolveKanikoPodLabelsCopiesAndIsolatesFromConfig() {
+	configLabels := map[string]string{"azure.workload.identity/use": "true"}
+	k := &Kaniko{
+		builderConfiguration: &ContainerBuilderConfiguration{
+			KanikoPodLabels: configLabels,
+		},
+	}
+
+	resolved := k.resolveKanikoPodLabels()
+	suite.Equal("true", resolved["azure.workload.identity/use"])
+
+	// Mutating the returned map must not leak back into the shared config map.
+	resolved["mutated"] = "yes"
+	_, leaked := configLabels["mutated"]
+	suite.False(leaked, "resolveKanikoPodLabels must return a copy; mutation leaked into builderConfiguration")
+}
+
+func (suite *KanikoTestSuite) TestResolveKanikoPodLabelsReturnsNilWhenNoLabelsConfigured() {
+	k := &Kaniko{builderConfiguration: &ContainerBuilderConfiguration{}}
+	suite.Nil(k.resolveKanikoPodLabels())
+}
+
 func (suite *KanikoTestSuite) SetupTest() {
 	suite.kaniko = &Kaniko{}
 }

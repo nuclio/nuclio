@@ -237,3 +237,33 @@ helm install nuclio \
     --set registry.pushPullUrl=<your registry URL> \
     nuclio/nuclio
 ```
+
+### Using Kaniko with cloud workload identity (Azure WI, GKE WI, AWS IRSA)
+
+On managed Kubernetes you can authenticate Kaniko to your container registry via a cloud workload identity bound to the build pod's ServiceAccount, instead of mounting a static docker-config secret.
+This is the standard pattern on AKS with Azure Workload Identity for ACR, on GKE with Workload Identity for Artifact Registry / GCR, and on EKS with IRSA for ECR.
+
+Because Kaniko jobs are created by the Nuclio dashboard at run time (rather than rendered by the chart), the chart exposes `dashboard.kaniko.podLabels`, a map of labels that the dashboard applies to every build pod template it creates.
+On clusters where workload identity is opt-in via a pod label (e.g. AKS requires `azure.workload.identity/use: "true"`), set those labels here.
+You also need to set `dashboard.kaniko.defaultServiceAccount` (or the per-function `BuilderServiceAccount`) to a ServiceAccount that is bound to the cloud identity with push permissions on the target registry.
+
+Example for AKS with Azure Workload Identity:
+
+```sh
+helm upgrade --install --reuse-values nuclio \
+    --set registry.pushPullUrl=<your-acr>.azurecr.io \
+    --set dashboard.containerBuilderKind=kaniko \
+    --set dashboard.kaniko.defaultServiceAccount=<sa-bound-to-acrpush-identity> \
+    --set-json 'dashboard.kaniko.podLabels={"azure.workload.identity/use":"true"}' \
+    nuclio/nuclio
+```
+
+#### Precedence when both are configured
+
+It's a valid configuration to set **both** `registry.secretName` (or `registry.credentials`) **and** `dashboard.kaniko.podLabels` + a workload-identity-bound `defaultServiceAccount`.
+Kaniko's auth resolution is the standard go-containerregistry chain, so when a docker-config secret is mounted at `/kaniko/.docker/config.json`, **those static credentials take precedence** over the federated token that workload identity would otherwise provide.
+The federated token is only consulted if the mounted config has no matching entry for the target registry.
+
+This means the workload-identity setup is effectively shadowed when `registry.secretName` / `registry.credentials` is also set.
+If you intend to authenticate to the registry via workload identity, do **not** also set `registry.secretName` (or only set one whose docker config does not match the target registry).
+It is the responsibility of whoever configures Nuclio to choose one auth path or the other; the chart does not enforce this.
