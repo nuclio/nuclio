@@ -335,7 +335,7 @@ runtimeBaseImages:
 
 In this example:
 - All Node.js functions will use `custom-registry.io/node:20` by default 
-- All Golang functions will use the default Nuclio Go base image (`gcr.io/iguazio/alpine:3.20`), since no image is explicitly specified
+- All Golang functions will use the default Nuclio Go base image (`gcr.io/iguazio/alpine:3.23`), since no image is explicitly specified
 - Python 3.11 functions will specifically use `custom-registry.io/python:3.11`
 - Python 3.12 functions will specifically use `custom-registry.io/python:3.12`
 - Other python functions (without a version-specific match) will use `custom-registry.io/python:3.12`, since `3.12` is the current default Python version
