@@ -567,8 +567,8 @@ func (c *Config) enrichElasticSearchConfig() {
 // getDefaultRuntimeBaseImages returns the default runtime base images
 func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
 	return map[string]string{
-		common.RuntimeShell:      "gcr.io/iguazio/alpine:3.20",
-		common.RuntimeGolang:     "gcr.io/iguazio/alpine:3.20",
+		common.RuntimeShell:      "gcr.io/iguazio/alpine:3.23",
+		common.RuntimeGolang:     "gcr.io/iguazio/alpine:3.23",
 		common.RuntimePython310:  "gcr.io/iguazio/python:3.10",
 		common.RuntimePython311:  "gcr.io/iguazio/python:3.11",
 		common.RuntimePython312:  "gcr.io/iguazio/python:3.12",
