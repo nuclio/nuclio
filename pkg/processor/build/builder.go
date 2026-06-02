@@ -653,6 +653,17 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
+	// Guard against path traversal (CWE-22): moduleFileName is derived from the
+	// attacker-controlled spec.handler. path.Join strips leading separators and cleans
+	// the result, but "../" sequences can still resolve the file outside tempDir.
+	withinTempDir, err := common.IsPathWithinDir(sourceFilePath, tempDir)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to validate source file path")
+	}
+	if !withinTempDir {
+		return "", errors.Errorf("Handler module name resolves outside the build directory: %s", moduleFileName)
+	}
+
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
 	if err := os.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
