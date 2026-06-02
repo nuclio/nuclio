@@ -24,6 +24,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -40,6 +42,13 @@ func NewEventHandlerParser(logger logger.Logger) *EventHandlerParser {
 
 // ParseEventHandlers return list of packages and handler names in path
 func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]string, []string, error) {
+
+	// eventHandlerPath derives from user-controlled function config (Spec.Build.Path);
+	// reject directory-traversal sequences before filesystem access.
+	if common.ContainsPathTraversal(eventHandlerPath) {
+		return nil, nil, errors.New("Invalid event handler path: contains '..'")
+	}
+
 	pathInfo, err := os.Stat(eventHandlerPath)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get path information")

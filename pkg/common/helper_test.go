@@ -752,6 +752,54 @@ func (suite *IsPathWithinDirTestSuite) TestIsPathWithinDir() {
 	}
 }
 
+type ContainsPathTraversalTestSuite struct {
+	suite.Suite
+}
+
+func (suite *ContainsPathTraversalTestSuite) TestContainsPathTraversal() {
+	for _, testCase := range []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "cleanAbsolutePath",
+			path:     "/tmp/nuclio-build-123/source",
+			expected: false,
+		},
+		{
+			name:     "cleanRelativePath",
+			path:     "handler/main.go",
+			expected: false,
+		},
+		{
+			name:     "emptyPath",
+			path:     "",
+			expected: false,
+		},
+		{
+			name:     "leadingTraversal",
+			path:     "../../etc/passwd",
+			expected: true,
+		},
+		{
+			name:     "embeddedTraversal",
+			path:     "/tmp/nuclio-build-123/source/../../../../etc/passwd",
+			expected: true,
+		},
+		{
+			// removing "../" alone would leave "../", so the whole input must be rejected
+			name:     "obfuscatedTraversal",
+			path:     "....//etc/passwd",
+			expected: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expected, ContainsPathTraversal(testCase.path))
+		})
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -763,4 +811,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(LabelsMapMatcherTestSuite))
 	suite.Run(t, new(MiscTestSuite))
 	suite.Run(t, new(IsPathWithinDirTestSuite))
+	suite.Run(t, new(ContainsPathTraversalTestSuite))
 }
