@@ -39,7 +39,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.16.3-amd64
+    tag: 1.16.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -119,7 +119,7 @@ dashboard:
   servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.16.3-amd64
+    tag: 1.16.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -206,6 +206,19 @@ dashboard:
 
     # the default service account to use for kaniko pod, if not specified otherwise
     defaultServiceAccount: ""
+
+    # Additional labels added to the kaniko build pod template.metadata.labels.
+    # The dashboard passes these through to the kaniko Job it creates at
+    # runtime (so they can't be set on the chart-rendered manifests).
+    # Example use: { "azure.workload.identity/use": "true" } to activate
+    # Azure Workload Identity token injection for ACR push on AKS.
+    #
+    # Note: if `registry.secretName` / `registry.credentials` is also set,
+    # the resulting docker-config secret is mounted at /kaniko/.docker
+    # and takes precedence over any federated token a workload identity
+    # would provide. See "Using Kaniko with cloud workload identity" in
+    # docs/setup/k8s/running-in-production-k8s.md.
+    podLabels: {}
 
   # use to configure node port
   nodePort:
@@ -341,7 +354,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.16.3-amd64
+    tag: 1.16.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -381,7 +394,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.16.3-amd64
+    tag: 1.16.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 

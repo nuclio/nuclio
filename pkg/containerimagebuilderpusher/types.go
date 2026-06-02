@@ -17,6 +17,7 @@ limitations under the License.
 package containerimagebuilderpusher
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -84,6 +85,13 @@ type ContainerBuilderConfiguration struct {
 	InsecurePullRegistry                 bool
 	PushImagesRetries                    int
 	ImageFSExtractionRetries             int
+
+	// KanikoPodLabels are labels to set on the metadata of the kaniko build
+	// pod template. Used, for example, to opt the pod into the Azure
+	// Workload Identity webhook (azure.workload.identity/use: "true") so
+	// kaniko can authenticate to ACR via federated tokens on identity-based
+	// installs.
+	KanikoPodLabels map[string]string
 }
 
 func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) {
@@ -164,6 +172,12 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 
 	containerBuilderConfiguration.DefaultServiceAccount = common.GetEnvOrDefaultString("NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT",
 		"")
+
+	if rawPodLabels := common.GetEnvOrDefaultString("NUCLIO_KANIKO_POD_LABELS", ""); rawPodLabels != "" {
+		if err := json.Unmarshal([]byte(rawPodLabels), &containerBuilderConfiguration.KanikoPodLabels); err != nil {
+			return nil, errors.Wrap(err, "Failed to parse NUCLIO_KANIKO_POD_LABELS as JSON object")
+		}
+	}
 
 	return &containerBuilderConfiguration, nil
 }
