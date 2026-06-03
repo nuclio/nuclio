@@ -18,11 +18,24 @@ package java
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"sigs.k8s.io/yaml"
 )
+
+// repositoryPattern enumerates the characters permitted in a user-supplied Gradle
+// repository declaration (e.g. "mavenCentral()"). Repository values are rendered verbatim
+// into the generated build.gradle, so any unescaped Groovy metacharacter is a code
+// injection vector: an attacker can embed "}" to break out of the `repositories { }` block
+// and append arbitrary top-level statements that Gradle executes during its configuration
+// phase (GHSA-3v79-m2cg-89ww). This allowlist accepts every documented repository form
+// while rejecting the metacharacters that enable the exploit - braces, quotes, internal
+// whitespace, newlines, ";", "$" and backslash - so no string literal can be constructed
+// and no statement boundary crossed. Surrounding whitespace is trimmed before matching.
+var repositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_.:/()-]+$`)
 
 type dependency struct {
 	Group   string `json:"group,omitempty"`
@@ -59,6 +72,19 @@ func newBuildAttributes(encodedBuildAttributes map[string]interface{}) (*buildAt
 		newBuildAttributes.Repositories = []string{
 			"mavenCentral()",
 		}
+		return &newBuildAttributes, nil
+	}
+
+	// validate every user-supplied repository value before it is rendered into build.gradle,
+	// to prevent Groovy/Gradle code injection during the build (GHSA-3v79-m2cg-89ww)
+	for i, repository := range newBuildAttributes.Repositories {
+		trimmedRepository := strings.TrimSpace(repository)
+		if !repositoryPattern.MatchString(trimmedRepository) {
+			return nil, errors.Errorf(
+				"Invalid repository value %q: only the characters A-Z a-z 0-9 _ . : / ( ) - are allowed",
+				repository)
+		}
+		newBuildAttributes.Repositories[i] = trimmedRepository
 	}
 
 	return &newBuildAttributes, nil
