@@ -26,16 +26,15 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// repositoryPattern enumerates the characters permitted in a user-supplied Gradle
-// repository declaration (e.g. "mavenCentral()"). Repository values are rendered verbatim
-// into the generated build.gradle, so any unescaped Groovy metacharacter is a code
-// injection vector: an attacker can embed "}" to break out of the `repositories { }` block
-// and append arbitrary top-level statements that Gradle executes during its configuration
-// phase (GHSA-3v79-m2cg-89ww). This allowlist accepts every documented repository form
-// while rejecting the metacharacters that enable the exploit - braces, quotes, internal
-// whitespace, newlines, ";", "$" and backslash - so no string literal can be constructed
-// and no statement boundary crossed. Surrounding whitespace is trimmed before matching.
-var repositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_.:/()-]+$`)
+// repositoryPattern matches a single no-argument Gradle repository declaration of the form
+// "name()" (e.g. "mavenCentral()"). Repository values are rendered verbatim into the
+// generated build.gradle, so the value must not be able to express arbitrary Groovy that
+// Gradle would execute during its configuration phase (GHSA-3v79-m2cg-89ww). Permitting only
+// a bare "name()" call - no ".", no arguments, no string-delimiter characters - means no
+// method chain, command string or block break-out can be formed, while every documented
+// repository shortcut (mavenCentral(), jcenter(), google(), mavenLocal(),
+// gradlePluginPortal()) is accepted. Surrounding whitespace is trimmed before matching.
+var repositoryPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*\(\)$`)
 
 type dependency struct {
 	Group   string `json:"group,omitempty"`
@@ -81,8 +80,8 @@ func newBuildAttributes(encodedBuildAttributes map[string]interface{}) (*buildAt
 		trimmedRepository := strings.TrimSpace(repository)
 		if !repositoryPattern.MatchString(trimmedRepository) {
 			return nil, errors.Errorf(
-				"Invalid repository value %q: only the characters A-Z a-z 0-9 _ . : / ( ) - are allowed",
-				repository)
+				"Invalid repository value %q: must be a no-argument repository declaration such as mavenCentral()",
+				trimmedRepository)
 		}
 		newBuildAttributes.Repositories[i] = trimmedRepository
 	}

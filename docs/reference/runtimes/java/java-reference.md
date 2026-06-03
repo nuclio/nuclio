@@ -101,7 +101,7 @@ repositories {
 }
 ```
 
-Each `repositories` value is validated before it is written to the **build.gradle** script: only the characters `A-Z`, `a-z`, `0-9`, `_`, `.`, `:`, `/`, `(`, `)` and `-` are permitted (for example `mavenCentral()` or `jcenter()`). A value containing any other character — such as whitespace, quotes, braces or newlines — is rejected and the function build fails. This prevents arbitrary Groovy from being injected into the generated build script. To use a fully custom repository configuration (for example a private `maven { ... }` repository), provide your own **build.gradle** file as described below.
+Each `repositories` value is validated before it is written to the **build.gradle** script: a value must be a no-argument repository declaration of the form `name()` — for example `mavenCentral()`, `jcenter()`, `google()`, `mavenLocal()` or `gradlePluginPortal()`. Any other value — anything containing arguments, method chains, quotes, braces or whitespace — is rejected and the function build fails. This prevents arbitrary Groovy from being executed during the build. To use a custom repository configuration (for example a private `maven { ... }` repository), provide your own **build.gradle** file as described below.
 
 ### Custom Gradle script
 

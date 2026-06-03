@@ -96,6 +96,34 @@ func (suite *testSuite) TestNewBuildAttributesRepositoryValidation() {
 			repositories: []string{"maven { url 'https://evil' }"},
 			expectError:  true,
 		},
+		// the following payloads execute code inside the repositories {} block without
+		// any block-breakout metacharacters (no brace, newline or quote); the structural
+		// "name()" rule must still reject them (GHSA-3v79-m2cg-89ww)
+		{
+			name:         "method call with argument rejected",
+			repositories: []string{"System.exit(0)"},
+			expectError:  true,
+		},
+		{
+			name:         "runtime exec rejected",
+			repositories: []string{"Runtime.getRuntime().exec(/usr/bin/id/)"},
+			expectError:  true,
+		},
+		{
+			name:         "slashy-string execute rejected",
+			repositories: []string{"/id/.execute()"},
+			expectError:  true,
+		},
+		{
+			name:         "char-cast string construction rejected",
+			repositories: []string{"((char)105).toString().concat(((char)100).toString()).execute()"},
+			expectError:  true,
+		},
+		{
+			name:         "method chain rejected",
+			repositories: []string{"mavenCentral().toString()"},
+			expectError:  true,
+		},
 		{
 			name:         "empty string element rejected",
 			repositories: []string{""},
