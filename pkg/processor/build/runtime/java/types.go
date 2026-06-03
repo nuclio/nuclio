@@ -18,11 +18,23 @@ package java
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"sigs.k8s.io/yaml"
 )
+
+// repositoryPattern matches a single no-argument Gradle repository declaration of the form
+// "name()" (e.g. "mavenCentral()"). Repository values are rendered verbatim into the
+// generated build.gradle, so the value must not be able to express arbitrary Groovy that
+// Gradle would execute during its configuration phase (GHSA-3v79-m2cg-89ww). Permitting only
+// a bare "name()" call - no ".", no arguments, no string-delimiter characters - means no
+// method chain, command string or block break-out can be formed, while every documented
+// repository shortcut (mavenCentral(), jcenter(), google(), mavenLocal(),
+// gradlePluginPortal()) is accepted. Surrounding whitespace is trimmed before matching.
+var repositoryPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*\(\)$`)
 
 type dependency struct {
 	Group   string `json:"group,omitempty"`
@@ -59,6 +71,19 @@ func newBuildAttributes(encodedBuildAttributes map[string]interface{}) (*buildAt
 		newBuildAttributes.Repositories = []string{
 			"mavenCentral()",
 		}
+		return &newBuildAttributes, nil
+	}
+
+	// validate every user-supplied repository value before it is rendered into build.gradle,
+	// to prevent Groovy/Gradle code injection during the build (GHSA-3v79-m2cg-89ww)
+	for i, repository := range newBuildAttributes.Repositories {
+		trimmedRepository := strings.TrimSpace(repository)
+		if !repositoryPattern.MatchString(trimmedRepository) {
+			return nil, errors.Errorf(
+				"Invalid repository value %q: must be a no-argument repository declaration such as mavenCentral()",
+				trimmedRepository)
+		}
+		newBuildAttributes.Repositories[i] = trimmedRepository
 	}
 
 	return &newBuildAttributes, nil
