@@ -87,6 +87,14 @@ func SanitizePath(path string) (string, error) {
 	return absPath, nil
 }
 
+// ContainsPathTraversal reports whether the given path contains a directory-traversal
+// sequence ("..") and therefore must not be trusted for filesystem access. Note that
+// stripping "../" is not a safe alternative, since inputs such as "....//" would still
+// resolve to "../"; reject the input outright instead.
+func ContainsPathTraversal(path string) bool {
+	return strings.Contains(path, "..")
+}
+
 // IsPathWithinDir reports whether targetPath resolves to a location strictly inside dir.
 // Both arguments are resolved to absolute paths first, so the check is robust against
 // "../" traversal sequences in targetPath. A path equal to dir is not considered within it.
