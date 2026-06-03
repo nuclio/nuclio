@@ -944,7 +944,7 @@ func (b *Builder) createTempDir() error {
 	if b.options.FunctionConfig.Spec.Build.TempDir != "" {
 
 		// Validate the user-provided temporary directory to ensure it does not contain directory traversal sequences
-		if strings.Contains(b.options.FunctionConfig.Spec.Build.TempDir, "..") {
+		if common.ContainsPathTraversal(b.options.FunctionConfig.Spec.Build.TempDir) {
 			return errors.New("Invalid temporary directory path: contains '..'")
 		}
 
