@@ -104,6 +104,45 @@ See [Sensitive fields](../../tasks/configuring-a-platform.md#sensitive-fields) i
 
 > **Note:** Masking applies on function deploy. Functions that already exist when you enable the feature need to be re-deployed for their credentials to migrate from the CRD into a Secret.
 
+### Restrict the Dashboard's outbound requests
+
+When a function is created with `spec.build.codeEntryType` set to `archive` (or with a bare URL supplied as `spec.build.path`), the Dashboard fetches that user-supplied URL **server-side** — the request originates from inside the cluster, from the Dashboard pod. Any client permitted to create a function can therefore cause the Dashboard to issue an HTTP `GET` to an arbitrary address, including cluster-internal services (the Kubernetes API server, other pods and `ClusterIP` services), the node loopback interface, and the cloud metadata endpoint (`169.254.169.254`). Differences in the returned error let the caller infer which internal ports are open. User-supplied `spec.build.codeEntryAttributes.headers` are forwarded on that request.
+
+Nuclio treats function creation as a **privileged, trusted control-plane operation** — a function author already controls the function's image, environment, volumes, and mounts. The controls below keep that trust boundary intact in production:
+
+1. **Authenticate the API and limit who can create functions** — see [Authenticate the Dashboard API](#securing-the-dashboard) above. This removes the unauthenticated path entirely.
+2. **Restrict who can reach the Dashboard** with a `NetworkPolicy`. This is a pod-level control and applies however you expose the Dashboard — an `Ingress`, a Gateway API `HTTPRoute`, or a `LoadBalancer` / `NodePort` Service. Allow traffic only from trusted sources; the example below permits only the `nuclio` namespace:
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: nuclio-dashboard-restrict-ingress
+      namespace: nuclio
+    spec:
+      podSelector:
+        matchLabels:
+          nuclio.io/app: dashboard
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: nuclio
+    ```
+
+    If the Dashboard is exposed through an ingress controller or a Gateway API `HTTPRoute`, the proxied connection reaches the Dashboard pod from that controller's or gateway's own pods — typically in a separate namespace (`ingress-nginx`, `envoy-gateway-system`, and so on), not `nuclio`. Allow that namespace as the source instead of, or in addition to, `nuclio`; otherwise the policy blocks the legitimate proxied traffic.
+
+3. **Restrict Dashboard egress** so build downloads cannot reach internal ranges. Allow DNS and the registries or hosts you actually pull function code from, and deny the private RFC 1918 ranges, the link-local range (`169.254.0.0/16`, which covers the cloud metadata service), and the cluster API service IP. Egress `NetworkPolicy` enforcement requires a CNI that supports it, such as Calico or Cilium.
+4. **On cloud nodes, enforce IMDSv2 with a hop limit of 1** so pods cannot reach the instance metadata service:
+
+    ```bash
+    aws ec2 modify-instance-metadata-options \
+      --instance-id <id> --http-tokens required --http-put-response-hop-limit 1
+    ```
+
+> **Note:** These are deployment controls. If you delegate function creation to semi-trusted or multi-tenant users, the egress `NetworkPolicy` (control 3) is what prevents a permitted function author from reaching internal or metadata endpoints — authentication alone does not.
+
 ## Freezing a qualified version
 
 When working in production, you need reproducibility and consistency.
