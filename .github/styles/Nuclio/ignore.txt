@@ -64,6 +64,7 @@ Params
 plaintext
 prefetch
 prefetching
+proxied
 qos
 rebalance
 rebalancing
