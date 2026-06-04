@@ -53,7 +53,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tsenart/vegeta/v12 v12.13.0
-	github.com/v3io/scaler v0.10.5
+	github.com/v3io/scaler v0.10.6
 	github.com/v3io/v3io-go v0.3.14
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
