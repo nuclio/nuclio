@@ -206,13 +206,13 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
-	// Check OPA permissions
+	// Check OPA permissions. Retry on a deny to absorb the OPA manifest-propagation lag after a
+	// freshly-created project: the function-create grant may not be live in OPA yet when a
+	// deploy is fired right after project creation. A genuine denial still 403s (after the window).
 	permissionOptions := createFunctionOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(ctx,
+	if err := p.EnsureFunctionCreateAuthorized(ctx,
 		createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
-		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -761,8 +761,8 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 	}
 
 	// ensure project permissions are populated in OPA
-	if err := common.RetryUntilSuccessful(time.Second*10,
-		time.Second*1,
+	if err := common.RetryUntilSuccessful(abstract.OPAPermissionPropagationWindow,
+		abstract.OPAPermissionPropagationInterval,
 		func() bool {
 			if err := p.EnsureProjectRead(ctx, createProjectOptions.ProjectConfig.Meta.Name, &createProjectOptions.PermissionOptions); err != nil {
 				return false
