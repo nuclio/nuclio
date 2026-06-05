@@ -1292,6 +1292,59 @@ func (ap *Platform) EnsureProjectRead(ctx context.Context,
 	return nil
 }
 
+// OPAPermissionPropagationWindow / OPAPermissionPropagationInterval bound the wait for OPA to
+// reflect permissions granted by a just-created project/policy. The grants are committed at create
+// time, but the OPA permission manifest regenerates asynchronously, so an operation fired within the
+// window can authorize against a manifest that does not yet grant it. CreateProject waits this long
+// for the project-read grant (#3951) and EnsureFunctionCreateAuthorized for the function-create
+// grant; they share one value so the two propagation waits stay consistent.
+const (
+	OPAPermissionPropagationWindow   = 10 * time.Second
+	OPAPermissionPropagationInterval = 1 * time.Second
+)
+
+// EnsureFunctionCreateAuthorized authorizes function creation against OPA, retrying on a deny to
+// absorb the OPA manifest-propagation lag after a freshly-created project: a deploy fired
+// within ~1s of project creation can authorize against a manifest that does not yet grant
+// function-create. It re-queries until OPA grants the create or the window expires; on expiry it
+// surfaces OPA's own last error — the canonical Forbidden (403) on a genuine denial, or the
+// underlying error on a persistent OPA failure — rather than the retry primitive's generic timeout.
+// The happy path (already allowed) issues a single query and adds no latency; retry only fires on a
+// denial. Like the EnsureProjectRead wait CreateProject performs, the polling is not ctx-cancellable
+// between attempts.
+func (ap *Platform) EnsureFunctionCreateAuthorized(ctx context.Context,
+	projectName string,
+	functionName string,
+	permissionOptions *opaclient.PermissionOptions) error {
+
+	authzOptions := *permissionOptions
+	authzOptions.RaiseForbidden = true
+
+	var lastErr error
+	if err := common.RetryUntilSuccessful(OPAPermissionPropagationWindow,
+		OPAPermissionPropagationInterval,
+		func() bool {
+			_, lastErr = ap.QueryOPAFunctionPermissions(ctx,
+				projectName,
+				functionName,
+				opaclient.ActionCreate,
+				&authzOptions)
+			return lastErr == nil
+		}); err != nil {
+
+		// Window exhausted while OPA kept denying (or erroring). lastErr is the typed error from the
+		// final attempt — the canonical 403 on a genuine denial — which the caller surfaces in
+		// preference to the retry primitive's generic "timed out" error. Fall back to that timeout
+		// error if lastErr is somehow nil: this is an authorization gate, so an exhausted window must
+		// fail closed and never return nil (which would read as authorized).
+		if lastErr == nil {
+			lastErr = err
+		}
+		return lastErr
+	}
+	return nil
+}
+
 func (ap *Platform) QueryOPAProjectPermissions(ctx context.Context,
 	projectName string,
 	action opaclient.Action,
