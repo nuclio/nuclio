@@ -306,9 +306,12 @@ dashboard:
     logLevel: info
     logFormat: json
 
+    extraArgs:
+      - "--skip-version-check"
+
     image:
       repository: openpolicyagent/opa
-      tag: 0.30.1
+      tag: 1.17.0
       pullPolicy: IfNotPresent
       pullSecrets: []
     resources: {}
