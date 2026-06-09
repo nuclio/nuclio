@@ -81,4 +81,3 @@ type ControlMessageBroker interface {
 	// Subscription.Close() to release resources.
 	Subscribe(kind ControlMessageKind) (Subscription, error)
 }
-

@@ -189,11 +189,11 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	// channel and is closed in the deferred cleanup below.
 	var explicitAckSubscription controlcommunication.Subscription
 	if functionconfig.ExplicitAckEnabled(vs.configuration.ExplicitAckMode) {
-		sub, err := vs.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind)
+		var err error
+		explicitAckSubscription, err = vs.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind)
 		if err != nil {
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
-		explicitAckSubscription = sub
 
 		go vs.explicitAckHandler(
 			explicitAckSubscription.C(),

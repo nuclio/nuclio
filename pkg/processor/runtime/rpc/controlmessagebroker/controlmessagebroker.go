@@ -42,9 +42,9 @@ func NewRpcControlMessageBroker(encoder encoder.EventEncoder, logger logger.Logg
 	}
 
 	return &rpcControlMessageBroker{
-		ControlMessageBrokerBase: abstractControlMessageBroker,
-		ControlMessageEventEncoder:   encoder,
-		logger:                       logger.GetChild("controlMessageBroker"),
+		ControlMessageBrokerBase:   abstractControlMessageBroker,
+		ControlMessageEventEncoder: encoder,
+		logger:                     logger.GetChild("controlMessageBroker"),
 	}
 }
 

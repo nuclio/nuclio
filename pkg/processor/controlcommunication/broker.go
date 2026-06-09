@@ -21,9 +21,9 @@ import (
 	"sync"
 )
 
-// ControlMessageBrokerBase is the default ControlMessageBroker implementation.
-// Embed it in a struct to inherit fan-out and subscription management;
-// override WriteControlMessage and ReadControlMessage for transport-specific behaviour.
+// ControlMessageBrokerBase provides fan-out and subscription management for
+// embedding. Override WriteControlMessage and ReadControlMessage for
+// transport-specific behaviour.
 type ControlMessageBrokerBase struct {
 	subscriptions []*subscription
 	lock          sync.Mutex

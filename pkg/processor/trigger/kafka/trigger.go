@@ -228,11 +228,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// channel and is closed in the deferred cleanup below.
 	var explicitAckSubscription controlcommunication.Subscription
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-		sub, err := k.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind)
+		var err error
+		explicitAckSubscription, err = k.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind)
 		if err != nil {
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
-		explicitAckSubscription = sub
 
 		go k.explicitAckHandler(
 			session,
