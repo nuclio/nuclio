@@ -35,11 +35,11 @@ const regressionTimeout = 2 * time.Second
 
 type BrokerTestSuite struct {
 	suite.Suite
-	broker *AbstractControlMessageBroker
+	broker *ControlMessageBrokerBase
 }
 
 func (s *BrokerTestSuite) SetupTest() {
-	s.broker = NewAbstractControlMessageBroker()
+	s.broker = NewControlMessageBrokerBase()
 }
 
 // TestSubscribeReceive — the happy path. A subscriber receives every message
@@ -337,8 +337,8 @@ type MergedSubscriptionTestSuite struct {
 // TestMergeAggregatesFromAllSubs — every message sent through any underlying
 // subscription must arrive on the merged channel.
 func (s *MergedSubscriptionTestSuite) TestMergeAggregatesFromAllSubs() {
-	brokerA := NewAbstractControlMessageBroker()
-	brokerB := NewAbstractControlMessageBroker()
+	brokerA := NewControlMessageBrokerBase()
+	brokerB := NewControlMessageBrokerBase()
 
 	subA, err := brokerA.Subscribe(StreamMessageAckKind)
 	s.Require().NoError(err)
@@ -389,7 +389,7 @@ func (s *MergedSubscriptionTestSuite) TestMergeEmpty() {
 // TestSingleSubPassthrough — MergeSubscriptions([sub]) should just return the
 // sub itself to avoid an unnecessary forwarder goroutine.
 func (s *MergedSubscriptionTestSuite) TestSingleSubPassthrough() {
-	broker := NewAbstractControlMessageBroker()
+	broker := NewControlMessageBrokerBase()
 	sub, err := broker.Subscribe(StreamMessageAckKind)
 	s.Require().NoError(err)
 
@@ -401,7 +401,7 @@ func (s *MergedSubscriptionTestSuite) TestSingleSubPassthrough() {
 // TestCloseClosesAllUnderlying — closing the merged subscription must close
 // every underlying subscription too (no leaked channels or goroutines).
 func (s *MergedSubscriptionTestSuite) TestCloseClosesAllUnderlying() {
-	broker := NewAbstractControlMessageBroker()
+	broker := NewControlMessageBrokerBase()
 
 	const n = 4
 	subs := make([]Subscription, 0, n)
@@ -438,7 +438,7 @@ func (s *MergedSubscriptionTestSuite) TestCloseClosesAllUnderlying() {
 // reading from the merged channel (e.g. ctx.Done in Drain() just fired).
 // Close must drain the in-flight messages and not deadlock.
 func (s *MergedSubscriptionTestSuite) TestCloseUnblocksAggregatedSendWithoutReader() {
-	broker := NewAbstractControlMessageBroker()
+	broker := NewControlMessageBrokerBase()
 	sub, err := broker.Subscribe(StreamMessageAckKind)
 	s.Require().NoError(err)
 
@@ -465,7 +465,7 @@ func (s *MergedSubscriptionTestSuite) TestCloseUnblocksAggregatedSendWithoutRead
 // TestConcurrentCloseAndSends — race detector regression. Many concurrent
 // sends and a Close in the middle must not panic, deadlock, or trip -race.
 func (s *MergedSubscriptionTestSuite) TestConcurrentCloseAndSends() {
-	broker := NewAbstractControlMessageBroker()
+	broker := NewControlMessageBrokerBase()
 
 	const n = 4
 	subs := make([]Subscription, 0, n)
@@ -526,7 +526,7 @@ func (s *MergedSubscriptionTestSuite) TestConcurrentCloseAndSends() {
 	senders.Wait()
 }
 
-func mustSubscribe(t *testing.T, broker *AbstractControlMessageBroker) Subscription {
+func mustSubscribe(t *testing.T, broker *ControlMessageBrokerBase) Subscription {
 	t.Helper()
 	sub, err := broker.Subscribe(StreamMessageAckKind)
 	if err != nil {

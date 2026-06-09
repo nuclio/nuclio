@@ -56,7 +56,7 @@ type Configuration struct {
 	TriggerName              string
 	TriggerKind              string
 	WorkerTerminationTimeout time.Duration
-	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
+	ControlMessageBroker     *controlcommunication.ControlMessageBrokerBase
 	Mode                     functionconfig.TriggerWorkMode
 	AsyncConfig              *functionconfig.AsyncConfig
 }

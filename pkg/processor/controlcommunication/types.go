@@ -18,7 +18,6 @@ package controlcommunication
 
 import (
 	"bufio"
-	"sync"
 )
 
 type ControlMessageKind string
@@ -83,70 +82,3 @@ type ControlMessageBroker interface {
 	Subscribe(kind ControlMessageKind) (Subscription, error)
 }
 
-// AbstractControlMessageBroker is the default ControlMessageBroker implementation.
-// The zero value is not usable; construct with NewAbstractControlMessageBroker.
-type AbstractControlMessageBroker struct {
-	subscriptions []*subscription
-	lock          sync.Mutex
-}
-
-// NewAbstractControlMessageBroker creates a new abstract control message broker
-func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
-	return &AbstractControlMessageBroker{}
-}
-
-func (acmb *AbstractControlMessageBroker) WriteControlMessage(message *ControlMessage) error {
-	return nil
-}
-
-func (acmb *AbstractControlMessageBroker) ReadControlMessage(reader *bufio.Reader) (*ControlMessage, error) {
-	return nil, nil
-}
-
-func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessage) error {
-
-	// snapshot matching subscriptions under the lock so we can release it before
-	// any blocking channel write. wg.Add must happen under the same lock that
-	// guards removal, otherwise a concurrent Close() could miss in-flight sends.
-	acmb.lock.Lock()
-	var targets []*subscription
-	for _, sub := range acmb.subscriptions {
-		if sub.kind == message.Kind {
-			sub.inFlight.Add(1)
-			targets = append(targets, sub)
-		}
-	}
-	acmb.lock.Unlock()
-
-	// deliver to each subscription concurrently — a slow subscriber must not
-	// block delivery to fast ones, and a Close()d subscription must not block
-	// the broker at all
-	for _, sub := range targets {
-		go sub.deliver(message)
-	}
-
-	return nil
-}
-
-func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind) (Subscription, error) {
-	sub := newSubscription(kind, acmb)
-
-	acmb.lock.Lock()
-	acmb.subscriptions = append(acmb.subscriptions, sub)
-	acmb.lock.Unlock()
-
-	return sub, nil
-}
-
-// removeSubscription removes sub from the broker's subscription list. Called by
-// subscription.Close() — never call directly from outside the package.
-func (acmb *AbstractControlMessageBroker) removeSubscription(target *subscription) {
-	acmb.lock.Lock()
-	defer acmb.lock.Unlock()
-	for i, sub := range acmb.subscriptions {
-		if sub == target {
-			acmb.subscriptions = append(acmb.subscriptions[:i], acmb.subscriptions[i+1:]...)
-			return
-		}
-	}
-}

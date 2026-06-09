@@ -29,20 +29,20 @@ import (
 )
 
 type rpcControlMessageBroker struct {
-	*controlcommunication.AbstractControlMessageBroker
+	*controlcommunication.ControlMessageBrokerBase
 	ControlMessageEventEncoder encoder.EventEncoder
 	logger                     logger.Logger
 }
 
 // NewRpcControlMessageBroker creates a new RPC control message broker
-func NewRpcControlMessageBroker(encoder encoder.EventEncoder, logger logger.Logger, abstractControlMessageBroker *controlcommunication.AbstractControlMessageBroker) *rpcControlMessageBroker {
+func NewRpcControlMessageBroker(encoder encoder.EventEncoder, logger logger.Logger, abstractControlMessageBroker *controlcommunication.ControlMessageBrokerBase) *rpcControlMessageBroker {
 
 	if abstractControlMessageBroker == nil {
-		abstractControlMessageBroker = controlcommunication.NewAbstractControlMessageBroker()
+		abstractControlMessageBroker = controlcommunication.NewControlMessageBrokerBase()
 	}
 
 	return &rpcControlMessageBroker{
-		AbstractControlMessageBroker: abstractControlMessageBroker,
+		ControlMessageBrokerBase: abstractControlMessageBroker,
 		ControlMessageEventEncoder:   encoder,
 		logger:                       logger.GetChild("controlMessageBroker"),
 	}

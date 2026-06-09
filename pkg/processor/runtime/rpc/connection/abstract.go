@@ -819,7 +819,7 @@ func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker cont
 	}
 }
 
-func (bc *AbstractControlMessageConnection) SetBroker(abstractBroker *controlcommunication.AbstractControlMessageBroker) {
+func (bc *AbstractControlMessageConnection) SetBroker(abstractBroker *controlcommunication.ControlMessageBrokerBase) {
 	bc.broker = controlmessagebroker.NewRpcControlMessageBroker(
 		bc.encoder,
 		bc.Logger,

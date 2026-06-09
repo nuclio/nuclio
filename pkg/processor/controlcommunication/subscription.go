@@ -33,7 +33,7 @@ import (
 //     the `done` arm before close() runs.
 type subscription struct {
 	kind     ControlMessageKind
-	broker   *AbstractControlMessageBroker
+	broker   *ControlMessageBrokerBase
 	messages chan *ControlMessage
 	done     chan struct{}
 
@@ -46,7 +46,7 @@ type subscription struct {
 	closeOnce sync.Once
 }
 
-func newSubscription(kind ControlMessageKind, broker *AbstractControlMessageBroker) *subscription {
+func newSubscription(kind ControlMessageKind, broker *ControlMessageBrokerBase) *subscription {
 	return &subscription{
 		kind:     kind,
 		broker:   broker,
