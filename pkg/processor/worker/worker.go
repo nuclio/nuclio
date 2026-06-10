@@ -172,14 +172,10 @@ func (w *Worker) Continue() error {
 	return nil
 }
 
-// Subscribe subscribes to a control message kind
-func (w *Worker) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return w.runtime.GetControlMessageBroker().Subscribe(kind, channel)
-}
-
-// Unsubscribe unsubscribes from a control message kind
-func (w *Worker) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return w.runtime.GetControlMessageBroker().Unsubscribe(kind, channel)
+// Subscribe creates a control-message subscription owned by this worker's
+// runtime broker. The caller must Close() the returned Subscription.
+func (w *Worker) Subscribe(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
+	return w.runtime.GetControlMessageBroker().Subscribe(kind)
 }
 
 func (w *Worker) WaitForStart(time.Duration) error {
