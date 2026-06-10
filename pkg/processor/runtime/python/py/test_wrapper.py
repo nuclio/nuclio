@@ -478,6 +478,56 @@ class TestSubmitEvents(BaseTestSubmitEvents):
     #         profiled_serve_requests_func(num_requests=num_of_events)
     #     self.assertEqual(num_of_events, self._wrapper._entrypoint.call_count, 'Received unexpected number of events')
 
+    def test_call_drain_handler_sends_drain_complete(self):
+        # NUC-756: after the user's drain callback runs, the wrapper must acknowledge completion to
+        # the processor over the control socket (kind='drain', carrying its worker id) so the
+        # trigger can proceed with the rebalance instead of waiting for a fixed timeout.
+        self._wrapper._worker_id = '3'
+        self._wrapper._send_data_on_control_socket = unittest.mock.AsyncMock()
+        self._wrapper._platform._on_signal = unittest.mock.MagicMock(return_value=None)
+
+        self._loop.run_until_complete(self._wrapper._call_drain_handler())
+
+        self._wrapper._platform._on_signal.assert_called_once_with(callback_type='drain')
+        self._wrapper._send_data_on_control_socket.assert_awaited_once_with({
+            'kind': 'drain',
+            'attributes': {'workerId': '3'},
+        })
+        self.assertTrue(self._wrapper._drained)
+
+    def test_on_drain_signal_resends_ack_when_already_drained(self):
+        # NUC-166: a second drain signal arriving while the worker is already drained (before
+        # SIGCONT resumes it) must re-send the acknowledgement rather than re-run the handler or be
+        # silently dropped, so the processor is not left waiting on a lost message.
+        self._wrapper._discard_events = True
+        self._wrapper._drained = True
+        self._wrapper._send_drain_complete_control_message = unittest.mock.AsyncMock()
+
+        async def trigger_signal():
+            self._wrapper._on_drain_signal('SIGUSR2')
+
+            # let the task scheduled via ensure_future run to completion
+            await asyncio.sleep(0)
+
+        self._loop.run_until_complete(trigger_signal())
+
+        self._wrapper._send_drain_complete_control_message.assert_called_once()
+
+    def test_on_drain_signal_ignored_while_still_draining(self):
+        # A drain signal arriving while a drain is in progress but not yet complete must be ignored
+        # outright - no re-run, and no premature acknowledgement before the handler finishes.
+        self._wrapper._discard_events = True
+        self._wrapper._drained = False
+        self._wrapper._send_drain_complete_control_message = unittest.mock.AsyncMock()
+
+        async def trigger_signal():
+            self._wrapper._on_drain_signal('SIGUSR2')
+            await asyncio.sleep(0)
+
+        self._loop.run_until_complete(trigger_signal())
+
+        self._wrapper._send_drain_complete_control_message.assert_not_called()
+
     async def _collect_packets_async(self, entrypoint_output):
         return [
             (prefix, payload)
