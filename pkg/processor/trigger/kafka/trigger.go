@@ -250,7 +250,6 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 		}
 	}
 
-
 	k.Logger.InfoWith("Ending consumer session",
 		"claims", session.Claims(),
 		"memberID", session.MemberID(),
