@@ -213,7 +213,7 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 		return errors.Wrap(err, "Failed to stop partition worker allocator")
 	}
 
-	if k.restartWorkersOnCleanup.Load() {
+	if k.restartWorkersOnCleanup.Swap(false) {
 		k.Logger.WarnWith("Workers were marked for restart during cleanup, " +
 			"restarting workers to prevent potential zombie state")
 
@@ -250,8 +250,6 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 		}
 	}
 
-	// reset the flag to prevent unnecessary worker restarts during subsequent normal rebalances
-	k.restartWorkersOnCleanup.Store(false)
 
 	k.Logger.InfoWith("Ending consumer session",
 		"claims", session.Claims(),
