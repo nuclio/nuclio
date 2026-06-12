@@ -154,10 +154,17 @@ Set the [`spec.build.codeEntryType`](function-configuration-reference.md) functi
       - `tag` (dashboard: **Tag**) &mdash; the Git repository tag from which to download the function code.
       - `reference` (dashboard: **Reference**) &mdash; the Git repository reference from which to download the function code.
 
-      - `username` (dashboard: **Username**) (Optional) Git username
-      - `password` (dashboard: **Password**) (Optional) Git password
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository.
       The default work directory is the root directory of the git repository (`"/"`).
+
+      // for HTTP(S) authentication (e.g. a username and a personal access token)
+      - `username` (dashboard: **Username**) (Optional) Git username
+      - `password` (dashboard: **Password**) (Optional) Git password
+
+      // for SSH authentication &mdash; used when the repository URL is an SSH URL (`ssh://...` or `git@host:...`)
+      - `sshPrivateKey` (Optional) &mdash; the PEM-encoded contents of an SSH private key (for example, a deploy key) used to clone the repository over SSH.
+      - `sshPassphrase` (Optional) &mdash; the passphrase that decrypts `sshPrivateKey`, when the key is passphrase-protected.
+      - `sshKnownHosts` (Optional) &mdash; the contents of a `known_hosts` file. When set, the server's host key is verified against it; when omitted, host-key verification is skipped.
 
       **Mutual TLS (client certificates):**
       - `clientCert` (Optional) &mdash; a PEM-encoded client certificate to present to the Git server.
@@ -237,6 +244,32 @@ spec:
         -----BEGIN CERTIFICATE-----
         ...
         -----END CERTIFICATE-----
+```
+
+Using SSH authentication (for example, a GitHub deploy key):
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "git"
+    # use an SSH URL (`ssh://...` or `git@host:...`)
+    path: "git@github.com:<my-organization>/<my-repository>.git"
+    codeEntryAttributes:
+      workDir: "/go-function"
+      branch: "go-func"
+      sshPrivateKey: |
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        <private-key-contents>
+        -----END OPENSSH PRIVATE KEY-----
+
+      # Uncomment if the key is passphrase-protected
+      # sshPassphrase: "mypassphrase"
+
+      # Uncomment to enforce host-key verification (otherwise it is skipped)
+      # sshKnownHosts: |
+      #   github.com ssh-ed25519 AAAAC3Nza...
 ```
 
 ### GitHub code-entry type
