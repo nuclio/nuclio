@@ -18,6 +18,7 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -27,9 +28,11 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	cryptossh "golang.org/x/crypto/ssh"
 )
 
 type Client interface {
@@ -59,7 +62,6 @@ func NewClient(parentLogger logger.Logger) (Client, error) {
 
 func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *Attributes) error {
 	var referenceName string
-	var gitAuth *githttp.BasicAuth
 	var err error
 
 	// resolve full git reference name
@@ -68,13 +70,17 @@ func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *At
 		return errors.Wrap(err, "Failed to resolve git reference")
 	}
 
-	// resolve git credentials when given
-	gitAuth = agc.parseCredentials(attributes)
-
 	// HACK: if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
 	// TODO: remove when the issue is resolved - https://github.com/go-git/go-git/issues/64
+	// Azure Devops cloning shells out to the git CLI and only supports HTTP basic auth
 	if isAzureDevopsRepositoryURL(repositoryURL) {
-		return agc.cloneFromAzureDevops(outputDir, repositoryURL, referenceName, gitAuth, agc.cmdRunner)
+		return agc.cloneFromAzureDevops(outputDir, repositoryURL, referenceName, agc.parseCredentials(attributes), agc.cmdRunner)
+	}
+
+	// resolve the auth method (SSH public key or HTTP basic auth) when credentials are given
+	gitAuth, err := agc.resolveAuthMethod(repositoryURL, attributes)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve git auth method")
 	}
 
 	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth, attributes)
@@ -204,6 +210,24 @@ func (agc *AbstractClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceN
 		"commitSHA", commitSHA)
 }
 
+// resolveAuthMethod picks the git auth method based on the given attributes and repository URL.
+// SSH public key auth is used when an SSH private key is provided or the URL is an SSH-scheme URL;
+// otherwise HTTP basic auth is used (username/password or a personal access token).
+func (agc *AbstractClient) resolveAuthMethod(repositoryURL string, attributes *Attributes) (transport.AuthMethod, error) {
+
+	// SSH auth - when an SSH private key is provided or the repository URL is an SSH URL
+	if attributes.SSHPrivateKey != "" || isSSHRepositoryURL(repositoryURL) {
+		return agc.parseSSHAuth(attributes)
+	}
+
+	// HTTP basic auth - returns nil when no credentials are given (e.g. public repositories)
+	if basicAuth := agc.parseCredentials(attributes); basicAuth != nil {
+		return basicAuth, nil
+	}
+
+	return nil, nil
+}
+
 func (agc *AbstractClient) parseCredentials(attributes *Attributes) *githttp.BasicAuth {
 	username := attributes.Username
 	password := attributes.Password
@@ -222,6 +246,75 @@ func (agc *AbstractClient) parseCredentials(attributes *Attributes) *githttp.Bas
 	}
 
 	return nil
+}
+
+// parseSSHAuth builds an SSH public key auth method from the given attributes, configuring
+// host key verification based on whether known hosts were provided.
+func (agc *AbstractClient) parseSSHAuth(attributes *Attributes) (transport.AuthMethod, error) {
+	if attributes.SSHPrivateKey == "" {
+		return nil, nuclio.NewErrBadRequest("An SSH private key must be provided for SSH-based git authentication")
+	}
+
+	// "git" is the conventional SSH user for git hosting providers (e.g. git@github.com)
+	publicKeys, err := gitssh.NewPublicKeys("git", []byte(attributes.SSHPrivateKey), attributes.SSHPassphrase)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create SSH public key auth method")
+	}
+
+	// resolve host key verification
+	hostKeyCallback, err := agc.resolveHostKeyCallback(attributes)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve SSH host key callback")
+	}
+	publicKeys.HostKeyCallback = hostKeyCallback
+
+	return publicKeys, nil
+}
+
+// resolveHostKeyCallback returns a host key verification callback. When known hosts are provided,
+// strict verification is enforced; otherwise verification is skipped (insecure, but pragmatic for
+// ephemeral build environments that have no pre-populated known_hosts).
+func (agc *AbstractClient) resolveHostKeyCallback(attributes *Attributes) (cryptossh.HostKeyCallback, error) {
+	if attributes.SSHKnownHosts == "" {
+		agc.logger.Warn("SSH host key verification is disabled; provide sshKnownHosts to enable strict verification")
+		return cryptossh.InsecureIgnoreHostKey(), nil // nolint: gosec
+	}
+
+	knownHostsPath, err := writeTempKnownHostsFile(attributes.SSHKnownHosts)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to write known hosts file")
+	}
+
+	return gitssh.NewKnownHostsCallback(knownHostsPath)
+}
+
+// writeTempKnownHostsFile writes the given known_hosts contents to a temporary file and returns its
+// path. go-git's known hosts callback reads from a file, so the in-memory contents must be persisted.
+func writeTempKnownHostsFile(knownHostsContents string) (string, error) {
+	tempFile, err := os.CreateTemp("", "nuclio-git-known-hosts-*")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create temp known hosts file")
+	}
+	defer tempFile.Close() // nolint: errcheck
+
+	if _, err := tempFile.WriteString(knownHostsContents); err != nil {
+		return "", errors.Wrap(err, "Failed to write known hosts contents")
+	}
+
+	return tempFile.Name(), nil
+}
+
+// isSSHRepositoryURL reports whether the repository URL uses SSH, either via an ssh:// scheme or the
+// scp-like syntax (e.g. git@github.com:org/repo.git).
+func isSSHRepositoryURL(repositoryURL string) bool {
+	if strings.HasPrefix(repositoryURL, "ssh://") {
+		return true
+	}
+
+	// scp-like syntax: user@host:path, with no explicit scheme
+	return !strings.Contains(repositoryURL, "://") &&
+		strings.Contains(repositoryURL, "@") &&
+		strings.Contains(repositoryURL, ":")
 }
 
 func ResolveReference(repositoryURL string, attributes *Attributes) (string, error) {
