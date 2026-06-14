@@ -104,6 +104,7 @@ class AbstractWrapper(object):
         self._platform = nuclio_sdk.Platform(platform_kind,
                                              namespace=namespace,
                                              on_control_callback=self._send_data_on_control_socket)
+        self._worker_id = worker_id
         self._decode_event_strings = decode_event_strings
 
         # 1gb
@@ -148,9 +149,15 @@ class AbstractWrapper(object):
                                            logger_per_async_task=logger_per_async_task)
 
         # initialize flags
+        #
+        # _drained tracks whether the drain handler has already run for the current drain cycle.
+        # A second SIGUSR2 arriving while still discarding events (before SIGCONT resumes the
+        # worker) must not re-run the handler; if the handler already completed we re-send the
+        # drain-complete acknowledgement so the processor isn't left waiting on a lost message.
         self._is_drain_needed = False
         self._is_termination_needed = False
         self._discard_events = False
+        self._drained = False
 
         self._event_message_length_task = None
 
@@ -430,9 +437,16 @@ class AbstractWrapper(object):
         asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
 
     def _on_drain_signal(self, signal_name):
-        # do not perform draining if discarding events
+        # a drain is already in progress or finished for this cycle
         if self._discard_events:
-            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
+            if self._drained:
+                # the handler already completed; the processor likely missed the original
+                # acknowledgement (e.g. its wait timed out and it re-signalled), so re-send it.
+                # this handler runs inside the event loop, so schedule the async send as a task.
+                self._logger.debug('Draining signal received while already drained, re-sending drain-complete')
+                asyncio.ensure_future(self._send_drain_complete_control_message())
+            else:
+                self._logger.debug('Draining signal received, ignoring as the worker is already being drained')
             return
 
         self._logger.debug_with('Received signal', signal=signal_name)
@@ -440,6 +454,9 @@ class AbstractWrapper(object):
 
         # set the flag to True to stop processing events which are received after draining
         self._discard_events = True
+
+        # starting a fresh drain cycle - the handler has not run yet for this cycle
+        self._drained = False
 
         # if serving loop is waiting for an event, unblock this operation to allow the drain callback to be called
         if self._event_message_length_task:
@@ -462,12 +479,30 @@ class AbstractWrapper(object):
         # set this flag to False, so continue normal event processing flow
         self._discard_events = False
 
-    def _call_drain_handler(self):
+    async def _call_drain_handler(self):
         self._logger.debug('Calling platform drain handler')
 
         # set the flag to False so the drain handler will not be called more than once
         self._is_drain_needed = False
-        return self._platform._on_signal(callback_type="drain")
+
+        draining_result = self._platform._on_signal(callback_type="drain")
+        if asyncio.iscoroutine(draining_result):
+            await draining_result
+
+        # mark the cycle as drained so a duplicate drain signal re-acknowledges instead of
+        # re-running the user's drain handler
+        self._drained = True
+
+        # acknowledge completion to the processor over the control socket so the trigger can
+        # proceed with the rebalance immediately rather than waiting for a fixed timeout
+        await self._send_drain_complete_control_message()
+
+    async def _send_drain_complete_control_message(self):
+        self._logger.debug_with('Sending drain complete control message', worker_id=self._worker_id)
+        await self._send_data_on_control_socket({
+            'kind': 'drain',
+            'attributes': {'workerId': self._worker_id},
+        })
 
     def _call_termination_handler(self):
         self._logger.debug('Calling platform termination handler')
