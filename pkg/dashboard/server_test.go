@@ -30,10 +30,10 @@ import (
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
-	opaclient "github.com/nuclio/opa-client"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	opaclient "github.com/nuclio/opa-client"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
