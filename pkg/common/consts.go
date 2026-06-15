@@ -47,6 +47,10 @@ const NuclioLabelKeyComponent = "nuclio.io/component"
 const NuclioLabelKeyFunctionCronTriggerName = "nuclio.io/function-cron-trigger-name"
 const NuclioLabelKeyFunctionCronJobPod = "nuclio.io/function-cron-job-pod"
 
+// Nuclio Annotations
+
+const NuclioAnnotationKeyControllerVersion = "nuclio.io/controller-version"
+
 // KubernetesDomainLevelMaxLength DNS domain level limitation is 63 chars
 // https://en.wikipedia.org/wiki/Subdomain#Overview
 const KubernetesDomainLevelMaxLength = 63

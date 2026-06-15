@@ -83,8 +83,9 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 		return errors.New("Received unexpected object, expected api gateway")
 	}
 
-	// validate the state is inside states to respond to
-	if !ago.shouldRespondToState(apiGateway.Status.State) {
+	// validate the state is inside states to respond to, or upgrade ones created by an older controller version
+	needsUpgrade := common.IsControllerVersionStale(apiGateway.Annotations[common.NuclioAnnotationKeyControllerVersion])
+	if !ago.shouldRespondToState(apiGateway.Status.State) && !needsUpgrade {
 		ago.logger.DebugWithCtx(ctx, "Api gateway state is not waiting for creation/update, skipping create/update",
 			"name", apiGateway.Spec.Name,
 			"state", apiGateway.Status.State)
@@ -129,6 +130,12 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 	// wait for api gateway to become available
 	ago.controller.apigatewayresClient.WaitAvailable(ctx, apiGateway.Namespace, apiGateway.Name)
+
+	// stamp current controller version
+	if apiGateway.Annotations == nil {
+		apiGateway.Annotations = map[string]string{}
+	}
+	apiGateway.Annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetControllerVersion()
 
 	// set state to ready
 	if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateReady, nil); err != nil {

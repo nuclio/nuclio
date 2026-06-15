@@ -19,8 +19,32 @@ package common
 import (
 	"runtime"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/v3io/version-go"
 )
+
+// GetControllerVersion returns the build version label, or "unknown" for dev builds.
+func GetControllerVersion() string {
+	if label := version.Get().Label; label != "" {
+		return label
+	}
+	return "unknown"
+}
+
+// IsControllerVersionStale reports whether stampedVersion is older than the running controller's
+func IsControllerVersionStale(stampedVersion string) bool {
+	currentVersion := GetControllerVersion()
+	if stampedVersion == currentVersion {
+		return false
+	}
+	stamped, stampedErr := semver.NewVersion(stampedVersion)
+	current, currentErr := semver.NewVersion(currentVersion)
+	if stampedErr != nil || currentErr != nil {
+		// if version differs, and they are not semver, consider it stale
+		return true
+	}
+	return stamped.LessThan(*current)
+}
 
 // SetVersionFromEnv is being used by tests to override linker injected values
 func SetVersionFromEnv() {
