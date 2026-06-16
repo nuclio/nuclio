@@ -310,7 +310,7 @@ func (s *Server) markStaleFunctionsAsError(ctx context.Context) {
 	})
 	if err != nil {
 		// non-fatal: a transient list failure shouldn't block the dashboard from starting
-		s.Logger.WarnWithCtx(ctx, "Failed to get functions while sweeping for stale functions; skipping sweep",
+		s.Logger.WarnWithCtx(ctx, "Failed to list functions for stale-function sweep; skipping",
 			"err", err.Error())
 		return
 	}
@@ -368,11 +368,16 @@ func (s *Server) markStaleFunctionsAsError(ctx context.Context) {
 				s.Logger.WarnWithCtx(ctx, "Failed to set stale function state to error",
 					"functionName", functionConfig.Meta.Name,
 					"err", err.Error())
+				return
 			}
+
+			s.Logger.DebugWithCtx(ctx, "Marked stale function as error",
+				"functionName", functionConfig.Meta.Name)
 		})
 	}
 
 	wg.Wait()
+	s.Logger.DebugWithCtx(ctx, "Finished marking stale functions as error")
 }
 
 func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Credentials) string {
