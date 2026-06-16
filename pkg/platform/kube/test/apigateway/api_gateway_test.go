@@ -277,7 +277,15 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		suite.Require().Equal(afterUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
 
 		apiGateway := suite.GetAPIGateway(getAPIGatewayOptions)
-		suite.Require().Equal(testAnnotations, apiGateway.GetConfig().Meta.Annotations)
+
+		// the controller stamps its version on the gateway, so expect it alongside the user annotations
+		expectedAnnotations := map[string]string{
+			common.NuclioAnnotationKeyControllerVersion: common.GetNuclioVersion(),
+		}
+		for key, value := range testAnnotations {
+			expectedAnnotations[key] = value
+		}
+		suite.Require().Equal(expectedAnnotations, apiGateway.GetConfig().Meta.Annotations)
 		return true
 	})
 }
