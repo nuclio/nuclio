@@ -50,7 +50,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/v3io/version-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1655,6 +1654,12 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 		// save to bool if there are current rules
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
 
+		// older controller version: clear all managed fields
+		if common.IsNuclioVersionStale(ingress.Annotations[common.NuclioAnnotationKeyVersion]) {
+			ingress.Labels = functionLabels
+			ingress.Spec = networkingv1.IngressSpec{}
+		}
+
 		if err := lc.populateIngressConfig(ctx, functionLabels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
@@ -1891,15 +1896,8 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction
 		return nil, errors.Wrap(err, "Failed to get function as JSON")
 	}
 
-	var nuclioVersion string
-
-	// get version
-	nuclioVersion = version.Get().Label
-	if nuclioVersion == "" {
-		nuclioVersion = "unknown"
-	}
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
-	annotations["nuclio.io/controller-version"] = nuclioVersion
+	annotations[common.NuclioAnnotationKeyVersion] = common.GetNuclioVersion()
 
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
@@ -2311,6 +2309,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		platformConfig.IngressConfig.EnableSSLRedirect {
 		meta.Annotations[annotations.NginxSSLRedirect] = "true"
 	}
+
+	// stamp current version for upgrade-reconcile detection
+	meta.Annotations[common.NuclioAnnotationKeyVersion] = common.GetNuclioVersion()
 
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []networkingv1.IngressRule{}
