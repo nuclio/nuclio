@@ -23,8 +23,8 @@ import (
 	"github.com/v3io/version-go"
 )
 
-// GetControllerVersion returns the build version label, or "unknown" for dev builds.
-func GetControllerVersion() string {
+// GetNuclioVersion returns the build version label, or "unknown" for dev builds.
+func GetNuclioVersion() string {
 	if label := version.Get().Label; label != "" {
 		return label
 	}
@@ -33,7 +33,8 @@ func GetControllerVersion() string {
 
 // IsControllerVersionStale reports whether stampedVersion is older than the running controller's
 func IsControllerVersionStale(stampedVersion string) bool {
-	currentVersion := GetControllerVersion()
+	currentVersion := GetNuclioVersion()
+
 	if stampedVersion == currentVersion {
 		return false
 	}

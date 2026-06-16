@@ -135,7 +135,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	if apiGateway.Annotations == nil {
 		apiGateway.Annotations = map[string]string{}
 	}
-	apiGateway.Annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetControllerVersion()
+	apiGateway.Annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetNuclioVersion()
 
 	// set state to ready
 	if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateReady, nil); err != nil {

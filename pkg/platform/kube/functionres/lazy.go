@@ -1897,7 +1897,7 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction
 	}
 
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
-	annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetControllerVersion()
+	annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetNuclioVersion()
 
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
@@ -2311,7 +2311,7 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 	}
 
 	// stamp current version for upgrade-reconcile detection
-	meta.Annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetControllerVersion()
+	meta.Annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetNuclioVersion()
 
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []networkingv1.IngressRule{}
