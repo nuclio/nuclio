@@ -84,7 +84,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	// validate the state is inside states to respond to, or upgrade ones created by an older controller version
-	needsUpgrade := common.IsControllerVersionStale(apiGateway.Annotations[common.NuclioAnnotationKeyVersion])
+	needsUpgrade := common.IsNuclioVersionStale(apiGateway.Annotations[common.NuclioAnnotationKeyVersion])
 	if !ago.shouldRespondToState(apiGateway.Status.State) && !needsUpgrade {
 		ago.logger.DebugWithCtx(ctx, "Api gateway state is not waiting for creation/update, skipping create/update",
 			"name", apiGateway.Spec.Name,

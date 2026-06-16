@@ -38,7 +38,7 @@ func (suite *VersionTestSuite) TearDownSuite() {
 	version.Set(suite.originalVersion)
 }
 
-func (suite *VersionTestSuite) TestIsControllerVersionStale() {
+func (suite *VersionTestSuite) TestIsNuclioVersionStale() {
 	for _, tc := range []struct {
 		name    string
 		current string
@@ -55,7 +55,7 @@ func (suite *VersionTestSuite) TestIsControllerVersionStale() {
 	} {
 		suite.Run(tc.name, func() {
 			version.Set(&version.Info{Label: tc.current})
-			suite.Equal(tc.stale, IsControllerVersionStale(tc.stamped))
+			suite.Equal(tc.stale, IsNuclioVersionStale(tc.stamped))
 		})
 	}
 }

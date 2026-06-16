@@ -1655,7 +1655,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
 
 		// older controller version: clear all managed fields
-		if common.IsControllerVersionStale(ingress.Annotations[common.NuclioAnnotationKeyVersion]) {
+		if common.IsNuclioVersionStale(ingress.Annotations[common.NuclioAnnotationKeyVersion]) {
 			ingress.Labels = functionLabels
 			ingress.Spec = networkingv1.IngressSpec{}
 		}

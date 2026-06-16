@@ -31,8 +31,8 @@ func GetNuclioVersion() string {
 	return "unknown"
 }
 
-// IsControllerVersionStale reports whether stampedVersion is older than the running controller's
-func IsControllerVersionStale(stampedVersion string) bool {
+// IsNuclioVersionStale reports whether stampedVersion is older than the running Nuclio version
+func IsNuclioVersionStale(stampedVersion string) bool {
 	currentVersion := GetNuclioVersion()
 
 	if stampedVersion == currentVersion {
