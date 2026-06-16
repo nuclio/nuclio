@@ -55,7 +55,6 @@ func (suite *DashboardServerTestSuite) SetupTest() {
 	suite.mockPlatform = &mockplatform.Platform{}
 	suite.Platform = suite.mockPlatform
 	suite.defaultNamespace = "default-namespace"
-	// the zombie sweep reads the OPA override value to authorize its update as a system call
 	suite.platformConfiguration = &platformconfig.Config{
 		Opa: &opa.Config{
 			Config: &opaclient.Config{OverrideHeaderValue: "iguazio"},
@@ -102,9 +101,9 @@ func (suite *DashboardServerTestSuite) TestResolveRegistryURLFromDockerCredentia
 	}
 }
 
-// TestMarkZombieFunctionsAsError verifies that functions in pre-build/build states are flipped to
+// TestMarkStaleFunctionsAsError verifies that functions in pre-build/build states are flipped to
 // error while functions in other states are left untouched.
-func (suite *DashboardServerTestSuite) TestMarkZombieFunctionsAsError() {
+func (suite *DashboardServerTestSuite) TestMarkStaleFunctionsAsError() {
 	buildingFunction := suite.newFunction("f-building", functionconfig.FunctionStateBuilding)
 	waitingForBuildFunction := suite.newFunction("f-waiting", functionconfig.FunctionStateWaitingForBuild)
 	readyFunction := suite.newFunction("f-ready", functionconfig.FunctionStateReady)
@@ -137,7 +136,7 @@ func (suite *DashboardServerTestSuite) TestMarkZombieFunctionsAsError() {
 		Return(nil).
 		Twice()
 
-	suite.markZombieFunctionsAsError(context.Background())
+	suite.markStaleFunctionsAsError(context.Background())
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 	for name, flipped := range expectedFlipped {
@@ -145,10 +144,10 @@ func (suite *DashboardServerTestSuite) TestMarkZombieFunctionsAsError() {
 	}
 }
 
-// TestMarkZombieFunctionsAsErrorSuppressesReadinessError verifies that the expected
+// TestMarkStaleFunctionsAsErrorSuppressesReadinessError verifies that the expected
 // "in error state" readiness-wait error returned by the kube platform's UpdateFunction (after the
 // status was already persisted) is treated as success and does not abort the sweep.
-func (suite *DashboardServerTestSuite) TestMarkZombieFunctionsAsErrorSuppressesReadinessError() {
+func (suite *DashboardServerTestSuite) TestMarkStaleFunctionsAsErrorSuppressesReadinessError() {
 	buildingFunction := suite.newFunction("f-building", functionconfig.FunctionStateBuilding)
 
 	suite.mockPlatform.
@@ -165,21 +164,21 @@ func (suite *DashboardServerTestSuite) TestMarkZombieFunctionsAsErrorSuppressesR
 		Return(readinessErr).
 		Once()
 
-	suite.markZombieFunctionsAsError(context.Background())
+	suite.markStaleFunctionsAsError(context.Background())
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-// TestMarkZombieFunctionsAsErrorGetFunctionsError verifies that a failure to list functions is
+// TestMarkStaleFunctionsAsErrorGetFunctionsError verifies that a failure to list functions is
 // non-fatal: the sweep returns without panicking and never attempts to update any function.
-func (suite *DashboardServerTestSuite) TestMarkZombieFunctionsAsErrorGetFunctionsError() {
+func (suite *DashboardServerTestSuite) TestMarkStaleFunctionsAsErrorGetFunctionsError() {
 	suite.mockPlatform.
 		On("GetFunctions", mock.Anything, mock.Anything).
 		Return([]platform.Function{}, errors.New("failed to list functions")).
 		Once()
 
 	suite.Require().NotPanics(func() {
-		suite.markZombieFunctionsAsError(context.Background())
+		suite.markStaleFunctionsAsError(context.Background())
 	})
 
 	suite.mockPlatform.AssertExpectations(suite.T())

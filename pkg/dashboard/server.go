@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -40,6 +41,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/opa-client"
+	"golang.org/x/sync/semaphore"
 )
 
 type PlatformAuthorizationMode string
@@ -47,6 +49,8 @@ type PlatformAuthorizationMode string
 const (
 	PlatformAuthorizationModeServiceAccount          PlatformAuthorizationMode = "service-account"
 	PlatformAuthorizationModeAuthorizationHeaderOIDC PlatformAuthorizationMode = "authorization-header-oidc"
+	// maximum number of stale-function updates to run concurrently
+	staleFunctionUpdateConcurrency = 5
 )
 
 type Server struct {
@@ -186,15 +190,13 @@ func NewServer(parentLogger logger.Logger,
 	return newServer, nil
 }
 
-// Start runs the base server, then marks any zombie functions (stuck in a pre-build/build state
-// from a previous deployment) as error so they are visible and redeployable.
+// Start Starts the server and launches background job to mark stale functions as errored
 func (s *Server) Start() error {
 	if err := s.AbstractServer.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start server")
 	}
 
-	// Start() has no ctx in the restful.Server interface, so the sweep uses its own context
-	s.markZombieFunctionsAsError(context.Background())
+	go s.markStaleFunctionsAsError(context.Background())
 
 	return nil
 }
@@ -301,65 +303,76 @@ func (s *Server) getRegistryURL() string {
 	return registryURL
 }
 
-// markZombieFunctionsAsError flips functions that are stuck in a pre-build/build state to error.
-func (s *Server) markZombieFunctionsAsError(ctx context.Context) {
+// markStaleFunctionsAsError flips functions that are stuck in a pre-build/build state to error.
+func (s *Server) markStaleFunctionsAsError(ctx context.Context) {
 	functions, err := s.Platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Namespace: s.GetDefaultNamespace(),
 	})
 	if err != nil {
 		// non-fatal: a transient list failure shouldn't block the dashboard from starting
-		s.Logger.WarnWithCtx(ctx, "Failed to get functions while sweeping for zombie functions; skipping sweep",
+		s.Logger.WarnWithCtx(ctx, "Failed to get functions while sweeping for stale functions; skipping sweep",
 			"err", err.Error())
 		return
 	}
 
 	// states from which no process can advance the function after a dashboard restart
-	zombieStates := map[functionconfig.FunctionState]struct{}{
+	staleStates := map[functionconfig.FunctionState]struct{}{
 		functionconfig.FunctionStateWaitingForBuild: {},
 		functionconfig.FunctionStateBuilding:        {},
 	}
 
+	// update stale functions concurrently, bounded by a semaphore
+	var wg sync.WaitGroup
+	sem := semaphore.NewWeighted(staleFunctionUpdateConcurrency)
+
 	for _, function := range functions {
 		functionStatus := function.GetStatus()
-		if _, isZombie := zombieStates[functionStatus.State]; !isZombie {
+		if _, isStale := staleStates[functionStatus.State]; !isStale {
 			continue
 		}
 
 		functionConfig := function.GetConfig()
-		s.Logger.DebugWithCtx(ctx, "Found zombie function on startup, setting its state to error",
+		s.Logger.DebugWithCtx(ctx, "Found stale function on startup, setting its state to error",
 			"functionName", functionConfig.Meta.Name,
 			"functionState", functionStatus.State)
 
-		functionStatus.State = functionconfig.FunctionStateError
-		functionStatus.Message = "Function deployment was interrupted and could not be completed. Please redeploy the function."
+		_ = sem.Acquire(ctx, 1)
+		wg.Go(func() {
+			defer sem.Release(1)
 
-		if err := s.Platform.UpdateFunction(ctx, &platform.UpdateFunctionOptions{
-			FunctionMeta:   &functionConfig.Meta,
-			FunctionSpec:   &functionConfig.Spec,
-			FunctionStatus: functionStatus,
+			functionStatus.State = functionconfig.FunctionStateError
+			functionStatus.Message = "Function deployment was interrupted and could not be completed. Please redeploy the function."
 
-			// the sweep runs at startup with no user session; mark it as a system call so it
-			// bypasses OPA authorization (the configured override value is matched by the OPA client)
-			PermissionOptions: opaclient.PermissionOptions{
-				OverrideHeaderValue: s.platformConfiguration.Opa.OverrideHeaderValue,
-			},
-		}); err != nil {
+			if err := s.Platform.UpdateFunction(ctx, &platform.UpdateFunctionOptions{
+				FunctionMeta:   &functionConfig.Meta,
+				FunctionSpec:   &functionConfig.Spec,
+				FunctionStatus: functionStatus,
 
-			// the kube platform's UpdateFunction persists the status and then waits for function
-			// readiness, which returns an error for the "error" state we just set. that wait error is
-			// expected here and means the update actually succeeded.
-			if strings.Contains(errors.RootCause(err).Error(), "in error state") {
-				s.Logger.DebugWithCtx(ctx, "Zombie function state set to error",
-					"functionName", functionConfig.Meta.Name)
-				continue
+				// the sweep runs at startup with no user session; mark it as a system call so it
+				// bypasses OPA authorization (the configured override value is matched by the OPA client)
+				PermissionOptions: opaclient.PermissionOptions{
+					OverrideHeaderValue: s.platformConfiguration.Opa.OverrideHeaderValue,
+				},
+			}); err != nil {
+
+				// the kube platform's UpdateFunction persists the status and then waits for function
+				// readiness, which returns an error for the "error" state we just set. that wait error is
+				// expected here and means the update actually succeeded.
+				if strings.Contains(errors.RootCause(err).Error(), "in error state") {
+					s.Logger.DebugWithCtx(ctx, "Stale function state set to error",
+						"functionName", functionConfig.Meta.Name)
+					return
+				}
+
+				// non-fatal: keep sweeping the remaining functions
+				s.Logger.WarnWithCtx(ctx, "Failed to set stale function state to error",
+					"functionName", functionConfig.Meta.Name,
+					"err", err.Error())
 			}
-
-			// non-fatal: keep sweeping the remaining functions
-			s.Logger.WarnWithCtx(ctx, "Failed to set zombie function state to error",
-				"functionName", functionConfig.Meta.Name,
-				"err", err.Error())
-		}
+		})
 	}
+
+	wg.Wait()
 }
 
 func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Credentials) string {
