@@ -179,8 +179,8 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				"a": "c",
 			},
 			expectedFunctionIngressAnnotations: map[string]string{
-				"a": "c",
-				common.NuclioAnnotationKeyControllerVersion: common.GetNuclioVersion(),
+				"a":                               "c",
+				common.NuclioAnnotationKeyVersion: common.GetNuclioVersion(),
 			},
 		},
 		{
@@ -189,8 +189,8 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				"a": "",
 			},
 			expectedFunctionIngressAnnotations: map[string]string{
-				"a": "",
-				common.NuclioAnnotationKeyControllerVersion: common.GetNuclioVersion(),
+				"a":                               "",
+				common.NuclioAnnotationKeyVersion: common.GetNuclioVersion(),
 			},
 		},
 		{
@@ -204,7 +204,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				}
 				err := mergo.Merge(&ingressAnnotations, &defaultIngressAnnotations)
 				suite.Require().NoError(err)
-				ingressAnnotations[common.NuclioAnnotationKeyControllerVersion] = common.GetNuclioVersion()
+				ingressAnnotations[common.NuclioAnnotationKeyVersion] = common.GetNuclioVersion()
 				return ingressAnnotations
 			}(),
 		},

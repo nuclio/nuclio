@@ -280,7 +280,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 		// the controller stamps its version on the gateway, so expect it alongside the user annotations
 		expectedAnnotations := map[string]string{
-			common.NuclioAnnotationKeyControllerVersion: common.GetNuclioVersion(),
+			common.NuclioAnnotationKeyVersion: common.GetNuclioVersion(),
 		}
 		for key, value := range testAnnotations {
 			expectedAnnotations[key] = value
