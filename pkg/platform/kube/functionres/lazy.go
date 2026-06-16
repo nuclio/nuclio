@@ -1655,7 +1655,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
 
 		// older controller version: clear all managed fields
-		if common.IsControllerVersionStale(ingress.Annotations[common.NuclioAnnotationKeyControllerVersion]) {
+		if common.IsControllerVersionStale(ingress.Annotations[common.NuclioAnnotationKeyVersion]) {
 			ingress.Labels = functionLabels
 			ingress.Spec = networkingv1.IngressSpec{}
 		}
@@ -1897,7 +1897,7 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction
 	}
 
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
-	annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetNuclioVersion()
+	annotations[common.NuclioAnnotationKeyVersion] = common.GetNuclioVersion()
 
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
@@ -2311,7 +2311,7 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 	}
 
 	// stamp current version for upgrade-reconcile detection
-	meta.Annotations[common.NuclioAnnotationKeyControllerVersion] = common.GetNuclioVersion()
+	meta.Annotations[common.NuclioAnnotationKeyVersion] = common.GetNuclioVersion()
 
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []networkingv1.IngressRule{}
