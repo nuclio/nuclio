@@ -526,6 +526,38 @@ func (s *MergedSubscriptionTestSuite) TestConcurrentCloseAndSends() {
 	senders.Wait()
 }
 
+// TestCloseDrainsInflightToReader — a message the broker already dispatched must
+// be drained to a still-present reader on Close, not dropped. This is the
+// explicit-ack-on-rebalance guarantee: the reader (explicitAckHandler) is still
+// ranging C() while Close runs, so in-flight acks must reach it and be marked.
+// The reader here begins consuming only after Close has started, so a Close that
+// dropped in-flight deliveries (the pre-fix behaviour) would lose the message.
+func (s *MergedSubscriptionTestSuite) TestCloseDrainsInflightToReader() {
+	broker := NewControlMessageBrokerBase()
+	merged := MergeSubscriptions([]Subscription{mustSubscribe(s.T(), broker), mustSubscribe(s.T(), broker)})
+
+	msg := &ControlMessage{Kind: StreamMessageAckKind, Attributes: map[string]interface{}{"n": 1}}
+	s.Require().NoError(broker.SendToConsumers(msg))
+
+	got := make(chan *ControlMessage, 8)
+	go func() {
+		// begin reading only after Close has begun its drain
+		time.Sleep(50 * time.Millisecond)
+		for m := range merged.C() {
+			got <- m
+		}
+	}()
+
+	merged.Close()
+
+	select {
+	case m := <-got:
+		s.Require().EqualValues(1, m.Attributes["n"], "in-flight message must be drained to the reader, not dropped")
+	case <-time.After(regressionTimeout):
+		s.Fail("merged Close dropped the in-flight message instead of draining it")
+	}
+}
+
 func mustSubscribe(t *testing.T, broker *ControlMessageBrokerBase) Subscription {
 	t.Helper()
 	sub, err := broker.Subscribe(StreamMessageAckKind)

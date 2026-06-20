@@ -18,6 +18,8 @@ package controlcommunication
 
 import (
 	"sync"
+
+	"github.com/nuclio/nuclio/pkg/common"
 )
 
 // MergeSubscriptions returns a single Subscription whose channel delivers
@@ -72,19 +74,28 @@ func (m *mergedSubscription) C() <-chan *ControlMessage {
 func (m *mergedSubscription) Close() {
 	m.closeOnce.Do(func() {
 
-		// signal forwarders to stop pushing to the merged channel; they may
-		// also exit via their underlying subscription's channel closing below
-		close(m.done)
-
-		// close underlying subscriptions: this both unblocks any forwarder
-		// reading sub.C() (closed channel returns ok=false) and releases the
-		// per-worker broker resources
+		// Close the underlying subscriptions concurrently. Each drains its in-flight
+		// deliveries to our forwarders, which flush them to the merged channel for
+		// the holder. Closing them concurrently (and waiting on the forwarders below,
+		// not here) overlaps the two drains so the whole close stays bounded by a
+		// single drainOnCloseTimeout.
+		var subClosers sync.WaitGroup
 		for _, sub := range m.subs {
-			sub.Close()
+			subClosers.Go(func() {
+				sub.Close()
+			})
 		}
 
-		// wait until every forwarder has exited so it's safe to close `merged`
+		// If the holder has stopped reading, the drain times out and we signal `done`
+		// so forwarders parked on `merged <- msg` drop instead of hanging Close;
+		// otherwise they exit as the underlying channels close. Either way every
+		// forwarder must exit before we close `merged` - on the timeout path `done` is
+		// already closed, so this returns promptly rather than waiting again.
+		if !common.WaitGroupWithTimeout(&m.forwarder, drainOnCloseTimeout) {
+			close(m.done)
+		}
 		m.forwarder.Wait()
+		subClosers.Wait()
 
 		close(m.merged)
 	})
