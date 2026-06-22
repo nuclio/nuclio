@@ -47,7 +47,7 @@ jobs:
     if: github.event.inputs.pr_number != ''  && github.repository == 'nuclio/nuclio'
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set 'long-ci-started' Label
         uses: actions/github-script@v9
@@ -71,7 +71,7 @@ jobs:
         command: [ nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests, kafka-tests ]
     steps:
       # checkout from development
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: github.event.inputs.pr_number == ''
 
       - if : ${{ github.event.inputs.pr_number != '' }}
@@ -79,7 +79,7 @@ jobs:
         run: echo "PR number - ${{ github.event.inputs.pr_number }}"
 
       # checkout from PR
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -162,7 +162,7 @@ jobs:
           fi
 
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set labels
         if: github.event.inputs.pr_number != ''  && github.repository == 'nuclio/nuclio'

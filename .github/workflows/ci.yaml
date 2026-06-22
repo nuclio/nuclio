@@ -50,7 +50,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -101,7 +101,7 @@ jobs:
     name: Check copyright and license
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # 2.0.4
         with:
           deno-version: v1.x
@@ -136,7 +136,7 @@ jobs:
     name: Test short
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -151,7 +151,7 @@ jobs:
     name: Build nuctl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -174,7 +174,7 @@ jobs:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # 4.2.0
@@ -217,7 +217,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Run this again even after running it in build_docker_images
       # So that we have as much memory as possible
@@ -337,7 +337,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -368,7 +368,7 @@ jobs:
         test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
     name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions Kubernetes' || 'Test Kubernetes' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Run this again even after running it in build_docker_images
       # So that we have as much memory as possible
@@ -457,7 +457,7 @@ jobs:
     name: Test python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Run python test
         run: |
@@ -467,7 +467,7 @@ jobs:
     name: Test NodeJS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Run NodeJS test
         run: |
