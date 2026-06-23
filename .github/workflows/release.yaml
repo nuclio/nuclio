@@ -90,7 +90,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       helm_version: ${{ steps.resolve.outputs.helm_version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.branch }}
           # Fetch all history for all tags and branches
@@ -140,7 +140,7 @@ jobs:
     needs: [ prepare-inputs ]
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
@@ -171,7 +171,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_bump_helm_charts != 'true'
     needs: [ prepare-inputs ]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
@@ -215,7 +215,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
@@ -264,7 +264,7 @@ jobs:
       - name: Set NUCLIO_LABEL to release tag
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # checkout to the specified branch to be able to run workflow from development branch
           # and release from the specified branch
@@ -354,7 +354,7 @@ jobs:
       - name: Set NUCLIO_LABEL to release tag
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # checkout to the specified branch to be able to run workflow from development branch
           # and release from the specified branch
