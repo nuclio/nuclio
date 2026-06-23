@@ -32,6 +32,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 	"unicode/utf8"
@@ -734,4 +735,20 @@ func ImageHasRegistry(image string) bool {
 	}
 	firstSegment := image[:slashIndex]
 	return strings.Contains(firstSegment, ".") || strings.Contains(firstSegment, ":")
+}
+
+// WaitGroupWithTimeout waits for wg to complete, returning true if it finished
+// before the timeout elapsed or false otherwise.
+func WaitGroupWithTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }

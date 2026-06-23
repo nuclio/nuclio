@@ -18,7 +18,13 @@ package controlcommunication
 
 import (
 	"sync"
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/common"
 )
+
+// drainOnCloseTimeout bounds the drain attempt in Close (see Close for details).
+const drainOnCloseTimeout = 1 * time.Second
 
 // subscription is the broker-owned Subscription implementation.
 //
@@ -66,15 +72,20 @@ func (s *subscription) Close() {
 		// SendToConsumers call won't even see this subscription
 		s.broker.removeSubscription(s)
 
-		// unblock any delivery goroutines that are stuck on `messages <- msg`
-		// (no reader on the other end after Close)
-		close(s.done)
+		// Drain in-flight deliveries to the reader so messages the broker already
+		// dispatched are not dropped. While the holder is still ranging C() (e.g.
+		// explicitAckHandler during a rebalance) this completes immediately. If the
+		// reader has stopped, the drain times out and we signal `done` so the parked
+		// deliveries drop instead of hanging Close (the NUC-765 deadlock backstop).
+		if !common.WaitGroupWithTimeout(&s.inFlight, drainOnCloseTimeout) {
+			close(s.done)
+		}
 
-		// wait for every in-flight delivery to observe `done` and exit before
-		// we close `messages` — otherwise the goroutine could race and write
-		// to a closed channel
+		// Every delivery goroutine must exit before we close `messages` (a parked
+		// `messages <- msg` would panic on a closed channel). On the timeout path
+		// `done` is already closed, so the parked deliveries drop and this returns
+		// promptly rather than waiting again.
 		s.inFlight.Wait()
-
 		close(s.messages)
 	})
 }
