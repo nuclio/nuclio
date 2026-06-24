@@ -5,6 +5,7 @@ Akka
 args
 async
 asyncio
+autoscaler
 autoscaling
 backoff
 bool
@@ -18,6 +19,7 @@ configs
 deployer
 deserialization
 dev
+dlx
 egress
 env
 executable's
@@ -49,6 +51,7 @@ kubernetes
 Kusto
 liveness
 loopback
+Makefile
 Minikube
 MLRun
 multithreading
@@ -79,6 +82,7 @@ sharded
 sharding
 SSRF
 stdin
+stdlib
 substring
 Substring
 tcp
