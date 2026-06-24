@@ -66,7 +66,7 @@ The end-to-end flow (see `docs/concepts/architecture.md`) is: **build → push t
 ### Function build (`pkg/processor/build`)
 `builder.go` orchestrates turning a handler + config into an image: resolves the runtime, generates a Dockerfile, and delegates the actual image build/push to a `containerimagebuilderpusher` implementation:
 - `pkg/containerimagebuilderpusher/docker.go` — local Docker daemon.
-- `pkg/containerimagebuilderpusher/kaniko.go` — in-cluster, daemonless builds (default on k8s).
+- `pkg/containerimagebuilderpusher/kaniko.go` — in-cluster, non-daemon builds (default on k8s).
 
 Per-language build logic (base images, onbuild handling, dependency install) lives in `pkg/processor/build/runtime/<lang>`. Generated "onbuild" handler images come from the `handler-builder-*-onbuild` Makefile targets.
 
