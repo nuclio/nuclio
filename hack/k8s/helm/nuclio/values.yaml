@@ -617,6 +617,7 @@ platform: {}
 #
 # scaleToZero:
 #     scalerInterval: 1m
+#     readinessPollInterval: 3s
 #     metricsClient:
 #       kind: prometheusClient
 #       url: http://monitoring-prometheus-server
