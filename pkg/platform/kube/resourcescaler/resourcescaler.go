@@ -332,10 +332,11 @@ func (n *NuclioResourceScaler) updateFunctionStatus(ctx context.Context,
 }
 
 func (n *NuclioResourceScaler) waitFunctionReadiness(ctx context.Context, namespace string, functionName string) error {
+	pollInterval := n.platformConfiguration.GetScaleToZeroReadinessPollInterval()
 	n.logger.DebugWithCtx(ctx,
 		"Waiting for function readiness",
-		"functionName", functionName)
-	pollInterval := parseReadinessPollInterval(n.platformConfiguration.ScaleToZero.ReadinessPollInterval)
+		"functionName", functionName,
+		"pollInterval", pollInterval)
 	var function *nuclioio.NuclioFunction
 	var err error
 	for {
@@ -364,21 +365,6 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(ctx context.Context, namesp
 		time.Sleep(pollInterval)
 	}
 	return n.verifyReadiness(ctx, function)
-}
-
-const defaultReadinessPollInterval = 3 * time.Second
-
-// parseReadinessPollInterval parses the configured scale-from-zero readiness poll
-// interval, falling back to the default on empty/invalid/non-positive values.
-func parseReadinessPollInterval(value string) time.Duration {
-	if value == "" {
-		return defaultReadinessPollInterval
-	}
-	parsed, err := time.ParseDuration(value)
-	if err != nil || parsed <= 0 {
-		return defaultReadinessPollInterval
-	}
-	return parsed
 }
 
 func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nuclioio.NuclioFunction) error {

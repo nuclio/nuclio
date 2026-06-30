@@ -34,6 +34,7 @@ import (
 const (
 	DefaultFunctionReadinessTimeoutSeconds  = 120
 	DefaultFunctionInvocationTimeoutSeconds = 60
+	DefaultReadinessPollInterval = 3 * time.Second
 )
 
 var DefaultReadinessProbeConfiguration = &corev1.Probe{
@@ -118,7 +119,7 @@ type ScaleToZero struct {
 	ResyncInterval string `json:"resyncInterval,omitempty"`
 
 	// Used by the resource scaler, how often to poll the function CRD state while
-	// waiting for it to become ready on scale-from-zero. Defaults to "3s".
+	// waiting for it to become ready on scale-from-zero. Defaults to DefaultReadinessPollInterval.
 	ReadinessPollInterval string `json:"readinessPollInterval,omitempty"`
 
 	// Used for scaler options, specifies metrics client configuration and type

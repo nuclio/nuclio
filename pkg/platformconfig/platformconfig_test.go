@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -819,6 +820,39 @@ func (suite *PlatformConfigTestSuite) TestEnrichNewPlatformConfig() {
 			suite.Require().Equal(testCase.expectedResult.Kube.DefaultLivenessProbe, testCase.platformConfig.Kube.DefaultLivenessProbe)
 		})
 	}
+}
+
+func (suite *PlatformConfigTestSuite) TestScaleToZeroReadinessPollIntervalEnrichment() {
+	for _, testCase := range []struct {
+		name             string
+		configured       string
+		expectEnrichErr  bool
+		expectedInterval time.Duration
+	}{
+		{name: "default when unset", configured: "", expectedInterval: DefaultReadinessPollInterval},
+		{name: "explicit value", configured: "500ms", expectedInterval: 500 * time.Millisecond},
+		{name: "invalid duration errors", configured: "not-a-duration", expectEnrichErr: true},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{ScaleToZero: ScaleToZero{ReadinessPollInterval: testCase.configured}}
+			err := config.EnrichPlatformConfig()
+			if testCase.expectEnrichErr {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedInterval, config.GetScaleToZeroReadinessPollInterval())
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestScaleToZeroReadinessPollIntervalValidation() {
+	config := &Config{
+		RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+		ScaleToZero:       ScaleToZero{ReadinessPollInterval: "0s"},
+	}
+	suite.Require().NoError(config.EnrichPlatformConfig())
+	suite.Require().Error(config.ValidatePlatformConfig())
 }
 
 func (suite *PlatformConfigTestSuite) TestEnrichRuntimeBaseImages() {
