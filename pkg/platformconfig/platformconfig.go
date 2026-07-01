@@ -74,6 +74,9 @@ type Config struct {
 
 	// stores the encoded FunctionInvocationTimeout as time.Duration
 	functionInvocationTimeout *time.Duration
+
+	// stores the encoded ScaleToZero.ReadinessPollInterval as time.Duration
+	scaleToZeroReadinessPollInterval *time.Duration
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
@@ -165,6 +168,10 @@ func (c *Config) EnrichPlatformConfig() error {
 		c.ScaleToZero.MetricsClient.Kind = scalertypes.KindK8sMetricsClient
 	}
 
+	if c.ScaleToZero.ReadinessPollInterval == "" {
+		c.ScaleToZero.ReadinessPollInterval = DefaultReadinessPollInterval.String()
+	}
+
 	// fall back to legacy default
 	if !AutoScaleMetricsModeIsValid(c.AutoScaleMetricsMode) {
 		c.AutoScaleMetricsMode = AutoScaleMetricsModeLegacy
@@ -193,6 +200,12 @@ func (c *Config) EnrichPlatformConfig() error {
 		return errors.Wrap(err, "Failed to parse function invocation timeout")
 	}
 	c.functionInvocationTimeout = &functionInvocationTimeout
+
+	scaleToZeroReadinessPollInterval, err := time.ParseDuration(c.ScaleToZero.ReadinessPollInterval)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse scale to zero readiness poll interval")
+	}
+	c.scaleToZeroReadinessPollInterval = &scaleToZeroReadinessPollInterval
 
 	c.SensitiveFields.CompileSensitiveFieldsRegex()
 
@@ -258,6 +271,17 @@ func (c *Config) GetDefaultFunctionInvocationTimeout() time.Duration {
 
 	// no configuration were explicitly given, return default
 	return DefaultFunctionInvocationTimeoutSeconds * time.Second
+}
+
+func (c *Config) GetScaleToZeroReadinessPollInterval() time.Duration {
+
+	// provided by the platform config
+	if c.scaleToZeroReadinessPollInterval != nil {
+		return *c.scaleToZeroReadinessPollInterval
+	}
+
+	// no configuration was explicitly given, return default
+	return DefaultReadinessPollInterval
 }
 
 func (c *Config) GetFunctionReadinessTimeoutOrDefault(functionReadinessTimeoutSeconds int) int {
@@ -380,6 +404,11 @@ func (c *Config) DisableSensitiveFieldMasking() {
 func (c *Config) ValidatePlatformConfig() error {
 	if err := c.validateRuntimeBaseImages(); err != nil {
 		return errors.Wrap(err, "Failed to validate runtime base images")
+	}
+
+	if c.scaleToZeroReadinessPollInterval != nil && *c.scaleToZeroReadinessPollInterval <= 0 {
+		return errors.Errorf("Scale to zero readiness poll interval must be positive, got %s",
+			*c.scaleToZeroReadinessPollInterval)
 	}
 
 	return nil
