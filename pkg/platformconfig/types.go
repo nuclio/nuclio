@@ -34,7 +34,7 @@ import (
 const (
 	DefaultFunctionReadinessTimeoutSeconds  = 120
 	DefaultFunctionInvocationTimeoutSeconds = 60
-	DefaultReadinessPollInterval = 3 * time.Second
+	DefaultReadinessPollInterval            = 3 * time.Second
 )
 
 var DefaultReadinessProbeConfiguration = &corev1.Probe{
