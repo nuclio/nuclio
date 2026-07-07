@@ -344,7 +344,15 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
+  # Elasticsearch basic auth password secret.
+  # Used only when elasticSearchApiKey is not set — the API key takes precedence.
   elasticSearchPassword:
+    secretName: ""
+    secretKey: ""
+
+  # Elasticsearch API key secret.
+  # Takes precedence over elasticSearchPassword when both are set.
+  elasticSearchApiKey:
     secretName: ""
     secretKey: ""
 
