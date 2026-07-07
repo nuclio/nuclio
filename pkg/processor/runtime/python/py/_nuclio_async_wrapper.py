@@ -169,7 +169,7 @@ class AsyncWrapper(AbstractWrapper):
 
                     # respond with an error so the processor does not block forever waiting for
                     # a response to the discarded event (its default event timeout is infinite)
-                    await self._write_response_error('Event discarded: worker draining', sock)
+                    await self._write_response_error('Event discarded: worker drained', sock)
 
                 # Release event reference
                 del event
