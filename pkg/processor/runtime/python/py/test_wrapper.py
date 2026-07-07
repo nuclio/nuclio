@@ -528,6 +528,31 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         self._wrapper._send_drain_complete_control_message.assert_not_called()
 
+    def test_discarded_event_returns_error_response(self):
+        # ML-12573: an event the processor already handed off when draining started must be
+        # answered with an error response, not silently dropped - the processor waits for the
+        # response with no timeout by default, so a silent drop wedges the worker (and its
+        # partition) forever.
+        self._wrapper._entrypoint = unittest.mock.MagicMock()
+        self._wrapper._discard_events = True
+
+        self._send_events([nuclio_sdk.Event(_id=0, body='discard-me')])
+        self._wrapper._event_sock.setblocking(False)
+        self._loop.run_until_complete(self._wrapper.serve_requests(num_requests=1))
+
+        # the discarded event must not reach the handler
+        self._wrapper._entrypoint.assert_not_called()
+
+        # the processor must still get a response ('s' start packet from setUp + 'r' error)
+        self._wait_until_received_messages(2, self._unix_stream_server._messages)
+        responses = [
+            message for message in self._unix_stream_server._messages
+            if message['type'] == PacketType.SINGLE_RESPONSE
+        ]
+        self.assertEqual(1, len(responses))
+        self.assertEqual(500, responses[0]['body']['status_code'])
+        self.assertIn('discarded', responses[0]['body']['body'])
+
     async def _collect_packets_async(self, entrypoint_output):
         return [
             (prefix, payload)

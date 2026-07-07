@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import json
 import logging
 import operator
 import socket
@@ -20,6 +21,7 @@ import sys
 import tempfile
 import random
 import unittest
+import unittest.mock
 import os
 
 import msgpack
@@ -176,6 +178,44 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             minimum_messages_length=3,
             messages=self._unix_stream_server._messages,
         )
+
+    def test_discarded_event_returns_error_response(self):
+        # ML-12573: an event the processor already handed off when draining started must be
+        # answered with an error response, not silently dropped - the processor waits for the
+        # response with no timeout by default, so a silent drop wedges the worker (and its
+        # partition) forever.
+        self._wrapper._entrypoint = unittest.mock.MagicMock()
+        self._wrapper._discard_events = True
+
+        async def send_event_and_read_response():
+            client_socket = self._create_client_socket()
+            try:
+                event = self._event_to_dict(nuclio_sdk.Event(_id=0, body='discard-me'))
+                body = msgpack.Packer().pack(event)
+                await self._loop.sock_sendall(client_socket, struct.pack(">I", len(body)))
+                await self._loop.sock_sendall(client_socket, body)
+
+                # read until a response ('r') message arrives; fail rather than hang if the
+                # discarded event is never answered
+                data = bytearray()
+                while True:
+                    chunk = await asyncio.wait_for(self._loop.sock_recv(client_socket, 128), timeout=10)
+                    if not chunk:
+                        raise AssertionError('Connection closed before receiving a response')
+                    data.extend(chunk)
+                    for message in data.split(b'\n')[:-1]:
+                        if message.startswith(b'r'):
+                            return json.loads(message[1:])
+            finally:
+                client_socket.close()
+
+        response = self._loop.run_until_complete(send_event_and_read_response())
+
+        # the discarded event must not reach the handler
+        self._wrapper._entrypoint.assert_not_called()
+
+        self.assertEqual(500, response['status_code'])
+        self.assertIn('discarded', response['body'])
 
     async def _send_events(self, events, single_connection=True):
         data = []
