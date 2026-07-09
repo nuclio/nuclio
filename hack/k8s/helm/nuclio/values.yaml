@@ -53,10 +53,16 @@ controller:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -128,10 +134,16 @@ dashboard:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -160,6 +172,12 @@ dashboard:
 
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
+
+  # Mount an emptyDir at /tmp so the embedded builder can write build temp
+  # dirs, /tmp/kaniko-builds bundles and fetched function templates. Enable
+  # this whenever the dashboard container runs with readOnlyRootFilesystem: true
+  # (otherwise the dashboard writes directly to its rootfs /tmp).
+  writableTmpVolume: false
 
   # Monitor docker deamon connectivity, in conjunction with container builder kind "docker"
   monitorDockerDeamon:
@@ -380,10 +398,16 @@ autoscaler:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -420,10 +444,16 @@ dlx:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -637,6 +667,23 @@ platform: {}
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
   externalHostAddress:
+
+  # Shared container-level securityContext applied to every Nuclio service
+  # container (dashboard/controller/dlx/autoscaler). Set once here to harden
+  # all components; override per component via <component>.containerSecurityContext.
+  # Empty by default so the chart renders unchanged unless hardening is configured.
+  # Note: readOnlyRootFilesystem: true on the dashboard requires
+  # dashboard.writableTmpVolume: true (the embedded builder writes under /tmp).
+  # Example hardened set:
+  #   allowPrivilegeEscalation: false
+  #   capabilities:
+  #     drop:
+  #       - ALL
+  #   readOnlyRootFilesystem: true
+  #   runAsNonRoot: true
+  #   runAsUser: 1000
+  containerSecurityContext: {}
+
   # image pull secrets shared by Nuclio service deployments (dashboard/controller/dlx/autoscaler)
   # imagePullSecrets:
   #   - name: my-registry-secret
