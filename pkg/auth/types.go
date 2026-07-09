@@ -29,6 +29,17 @@ const (
 	KindIguazioV4 = "iguazio-v4"
 )
 
+// ProxyMode selects how the auth-proxy operates.
+type ProxyMode string
+
+const (
+	// ProxyModeReverseProxy fronts a function: authenticates each request, forwards allowed ones to the processor.
+	ProxyModeReverseProxy ProxyMode = "reverse-proxy"
+
+	// ProxyModeAuthOnly serves only the /auth endpoint (called by the DLX); does no forwarding.
+	ProxyModeAuthOnly ProxyMode = "auth-only"
+)
+
 type SessionContextKey string
 
 const (
