@@ -44,6 +44,10 @@ spec:
       - name: {{ template "nuclio.controllerName" . }}
         image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}
         imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+        {{- with (include "nuclio.containerSecurityContext.controller" .) }}
+        securityContext:
+          {{- . | nindent 10 }}
+        {{- end }}
         {{- if .Values.controller.resources }}
         resources:
           {{ toYaml .Values.controller.resources | nindent 11 }}
