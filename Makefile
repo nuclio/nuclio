@@ -200,6 +200,7 @@ DOCKER_IMAGES_RULES ?= \
 	processor \
 	autoscaler \
 	dlx \
+	auth-proxy \
 	handler-builder-golang-onbuild \
 	handler-builder-java-onbuild \
 	handler-builder-ruby-onbuild \
@@ -454,6 +455,30 @@ dlx: build-builder
 ifneq ($(filter dlx,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME))
 $(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_DLX_IMAGE_NAME_CACHE))
+endif
+
+# Auth-proxy
+NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/auth-proxy:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME_CACHE=$(NUCLIO_CACHE_REPO)/auth-proxy:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+
+.PHONY: auth-proxy
+auth-proxy: build-builder
+	docker build \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
+		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
+		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME_CACHE) \
+		--file cmd/authproxy/Dockerfile \
+		--tag $(NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME) \
+		--tag $(NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME_CACHE) \
+		--platform $(NUCLIO_OS)/$(NUCLIO_ARCH) \
+		$(NUCLIO_DOCKER_LABELS) .
+
+ifneq ($(filter auth-proxy,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_AUTH_PROXY_IMAGE_NAME_CACHE))
 endif
 
 #
