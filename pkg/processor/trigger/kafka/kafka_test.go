@@ -22,9 +22,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"sync"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
