@@ -442,9 +442,9 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 		wg.Wait()
 		// Guard the send so that if drainOnRebalance already returned via the timeout
 		// path the goroutine exits cleanly instead of sending on a closed channel and
-		// panicking (NUC-825). Without the guard, defer close(readyForRebalanceChan)
-		// fires on the timeout path while this goroutine is still in wg.Wait(); when
-		// wg.Wait() returns the send would race the close and panic.
+		// panicking. Without the guard, defer close(readyForRebalanceChan) fires on
+		// the timeout path while this goroutine is still in wg.Wait(); when wg.Wait()
+		// returns the send would race the close and panic.
 		select {
 		case readyForRebalanceChan <- true:
 		case <-drainingContext.Done():

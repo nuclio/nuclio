@@ -32,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
@@ -592,23 +591,9 @@ func (suite *TestSuite) TestMetadataAndAdminMaxRetryConfiguration() {
 	}
 }
 
-// TestDrainOnRebalanceTimeoutDoesNotPanic is a regression test for NUC-825.
-//
-// Without the fix, drainOnRebalance closed readyForRebalanceChan via a deferred
-// close when returning on the timeout path. The background goroutine could be
-// mid-wg.Wait() at that point; once wg.Wait() returned, the bare send
-// `readyForRebalanceChan <- true` panicked on the already-closed channel. The
-// caught panic corrupted the consumer group, causing an infinite retry loop and
-// preventing the HPA from scaling down.
-//
-// With the fix the deferred close is removed and the send is guarded:
-//
-//	select {
-//	case readyForRebalanceChan <- true:
-//	case <-drainingContext.Done():
-//	}
-//
-// so the goroutine takes the Done case and exits cleanly.
+// TestDrainOnRebalanceTimeoutDoesNotPanic verifies that when the rebalance
+// timeout fires while a handler is still in-flight the background goroutine
+// exits cleanly instead of panicking.
 func (suite *TestSuite) TestDrainOnRebalanceTimeoutDoesNotPanic() {
 	// syncWriter protects the shared buffer from concurrent writes by the logger
 	// goroutine and reads by the test goroutine.
@@ -619,7 +604,7 @@ func (suite *TestSuite) TestDrainOnRebalanceTimeoutDoesNotPanic() {
 	k := &kafka{
 		AbstractTrigger: trigger.AbstractTrigger{
 			Logger:          captureLogger,
-			WorkerAllocator: &zeroWorkerAllocator{},
+			WorkerAllocator: &eventprocessor.ZeroAllocator{},
 			Statistics:      &trigger.Statistics{},
 		},
 		configuration: &Configuration{},
@@ -663,24 +648,6 @@ func (w *syncWriter) string() string {
 	defer w.mu.Unlock()
 	return w.b.String()
 }
-
-// zeroWorkerAllocator is a no-op Allocator with zero workers. Drain returns
-// immediately because MergeSubscriptions([]) yields an already-closed channel.
-type zeroWorkerAllocator struct{}
-
-func (z *zeroWorkerAllocator) Allocate(_ time.Duration) (eventprocessor.EventProcessor, error) {
-	return nil, nil
-}
-func (z *zeroWorkerAllocator) Release(_ eventprocessor.EventProcessor)             {}
-func (z *zeroWorkerAllocator) GetObjects() []eventprocessor.EventProcessor         { return nil }
-func (z *zeroWorkerAllocator) SetObjects(_ []eventprocessor.EventProcessor) error  { return nil }
-func (z *zeroWorkerAllocator) GetNumObjectsAvailable() int                         { return 0 }
-func (z *zeroWorkerAllocator) GetStatistics() *statistics.AllocatorStatistics      { return nil }
-func (z *zeroWorkerAllocator) SignalDraining() error                               { return nil }
-func (z *zeroWorkerAllocator) SignalContinue() error                               { return nil }
-func (z *zeroWorkerAllocator) SignalTermination() error                            { return nil }
-func (z *zeroWorkerAllocator) Stop() error                                         { return nil }
-func (z *zeroWorkerAllocator) IsTerminated() bool                                  { return false }
 
 // noopSession is a no-op sarama.ConsumerGroupSession.
 type noopSession struct{}
