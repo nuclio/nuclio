@@ -19,7 +19,10 @@ limitations under the License.
 package kafka
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
+	"sync"
 	"os"
 	"path"
 	"testing"
@@ -27,7 +30,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
@@ -586,6 +591,117 @@ func (suite *TestSuite) TestMetadataAndAdminMaxRetryConfiguration() {
 		})
 	}
 }
+
+// TestDrainOnRebalanceTimeoutDoesNotPanic is a regression test for NUC-825.
+//
+// Without the fix, drainOnRebalance closed readyForRebalanceChan via a deferred
+// close when returning on the timeout path. The background goroutine could be
+// mid-wg.Wait() at that point; once wg.Wait() returned, the bare send
+// `readyForRebalanceChan <- true` panicked on the already-closed channel. The
+// caught panic corrupted the consumer group, causing an infinite retry loop and
+// preventing the HPA from scaling down.
+//
+// With the fix the deferred close is removed and the send is guarded:
+//
+//	select {
+//	case readyForRebalanceChan <- true:
+//	case <-drainingContext.Done():
+//	}
+//
+// so the goroutine takes the Done case and exits cleanly.
+func (suite *TestSuite) TestDrainOnRebalanceTimeoutDoesNotPanic() {
+	// syncWriter protects the shared buffer from concurrent writes by the logger
+	// goroutine and reads by the test goroutine.
+	var logBuf syncWriter
+	captureLogger, err := nucliozap.NewNuclioZap("test", "console", nil, &logBuf, &logBuf, nucliozap.DebugLevel)
+	suite.Require().NoError(err)
+
+	k := &kafka{
+		AbstractTrigger: trigger.AbstractTrigger{
+			Logger:          captureLogger,
+			WorkerAllocator: &zeroWorkerAllocator{},
+			Statistics:      &trigger.Statistics{},
+		},
+		configuration: &Configuration{},
+		ctx:           context.Background(),
+	}
+	k.configuration.maxWaitHandlerDuringRebalance = 30 * time.Millisecond
+
+	done := make(chan error)
+	se := &submittedEvent{done: done}
+
+	// drainOnRebalance blocks until the 30 ms timeout fires because the handler
+	// (goroutine A) is waiting for `done` and never completes.
+	k.drainOnRebalance(&noopSession{}, &noopClaim{}, se, &sarama.ConsumerMessage{}, true)
+
+	// drainOnRebalance returned via timeout. Signal goroutine A so it calls
+	// wg.Done() and the outer goroutine reaches the race-condition site.
+	done <- nil
+
+	// Give the goroutines a moment to run through the select and exit.
+	time.Sleep(100 * time.Millisecond)
+
+	suite.True(k.restartWorkersOnCleanup.Load(), "restartWorkersOnCleanup must be set on drain timeout")
+	suite.NotContains(logBuf.string(), "Panic caught while trying to write into channel",
+		"goroutine must exit cleanly via the drainingContext.Done case, not panic")
+}
+
+// syncWriter is a goroutine-safe io.Writer backed by a bytes.Buffer.
+type syncWriter struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (w *syncWriter) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.b.Write(p)
+}
+
+func (w *syncWriter) string() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.b.String()
+}
+
+// zeroWorkerAllocator is a no-op Allocator with zero workers. Drain returns
+// immediately because MergeSubscriptions([]) yields an already-closed channel.
+type zeroWorkerAllocator struct{}
+
+func (z *zeroWorkerAllocator) Allocate(_ time.Duration) (eventprocessor.EventProcessor, error) {
+	return nil, nil
+}
+func (z *zeroWorkerAllocator) Release(_ eventprocessor.EventProcessor)             {}
+func (z *zeroWorkerAllocator) GetObjects() []eventprocessor.EventProcessor         { return nil }
+func (z *zeroWorkerAllocator) SetObjects(_ []eventprocessor.EventProcessor) error  { return nil }
+func (z *zeroWorkerAllocator) GetNumObjectsAvailable() int                         { return 0 }
+func (z *zeroWorkerAllocator) GetStatistics() *statistics.AllocatorStatistics      { return nil }
+func (z *zeroWorkerAllocator) SignalDraining() error                               { return nil }
+func (z *zeroWorkerAllocator) SignalContinue() error                               { return nil }
+func (z *zeroWorkerAllocator) SignalTermination() error                            { return nil }
+func (z *zeroWorkerAllocator) Stop() error                                         { return nil }
+func (z *zeroWorkerAllocator) IsTerminated() bool                                  { return false }
+
+// noopSession is a no-op sarama.ConsumerGroupSession.
+type noopSession struct{}
+
+func (n *noopSession) Claims() map[string][]int32                           { return nil }
+func (n *noopSession) MemberID() string                                    { return "" }
+func (n *noopSession) GenerationID() int32                                 { return 0 }
+func (n *noopSession) MarkOffset(_ string, _ int32, _ int64, _ string)    {}
+func (n *noopSession) Commit()                                             {}
+func (n *noopSession) ResetOffset(_ string, _ int32, _ int64, _ string)   {}
+func (n *noopSession) MarkMessage(_ *sarama.ConsumerMessage, _ string)    {}
+func (n *noopSession) Context() context.Context                            { return context.Background() }
+
+// noopClaim is a no-op sarama.ConsumerGroupClaim.
+type noopClaim struct{}
+
+func (n *noopClaim) Topic() string                                { return "" }
+func (n *noopClaim) Partition() int32                             { return 0 }
+func (n *noopClaim) InitialOffset() int64                         { return 0 }
+func (n *noopClaim) HighWaterMarkOffset() int64                   { return 0 }
+func (n *noopClaim) Messages() <-chan *sarama.ConsumerMessage     { return nil }
 
 func TestKafkaSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
