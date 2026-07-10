@@ -652,23 +652,23 @@ func (w *syncWriter) string() string {
 // noopSession is a no-op sarama.ConsumerGroupSession.
 type noopSession struct{}
 
-func (n *noopSession) Claims() map[string][]int32                           { return nil }
-func (n *noopSession) MemberID() string                                    { return "" }
-func (n *noopSession) GenerationID() int32                                 { return 0 }
-func (n *noopSession) MarkOffset(_ string, _ int32, _ int64, _ string)    {}
-func (n *noopSession) Commit()                                             {}
-func (n *noopSession) ResetOffset(_ string, _ int32, _ int64, _ string)   {}
-func (n *noopSession) MarkMessage(_ *sarama.ConsumerMessage, _ string)    {}
-func (n *noopSession) Context() context.Context                            { return context.Background() }
+func (n *noopSession) Claims() map[string][]int32                       { return nil }
+func (n *noopSession) MemberID() string                                 { return "" }
+func (n *noopSession) GenerationID() int32                              { return 0 }
+func (n *noopSession) MarkOffset(_ string, _ int32, _ int64, _ string)  {}
+func (n *noopSession) Commit()                                          {}
+func (n *noopSession) ResetOffset(_ string, _ int32, _ int64, _ string) {}
+func (n *noopSession) MarkMessage(_ *sarama.ConsumerMessage, _ string)  {}
+func (n *noopSession) Context() context.Context                         { return context.Background() }
 
 // noopClaim is a no-op sarama.ConsumerGroupClaim.
 type noopClaim struct{}
 
-func (n *noopClaim) Topic() string                                { return "" }
-func (n *noopClaim) Partition() int32                             { return 0 }
-func (n *noopClaim) InitialOffset() int64                         { return 0 }
-func (n *noopClaim) HighWaterMarkOffset() int64                   { return 0 }
-func (n *noopClaim) Messages() <-chan *sarama.ConsumerMessage     { return nil }
+func (n *noopClaim) Topic() string                            { return "" }
+func (n *noopClaim) Partition() int32                         { return 0 }
+func (n *noopClaim) InitialOffset() int64                     { return 0 }
+func (n *noopClaim) HighWaterMarkOffset() int64               { return 0 }
+func (n *noopClaim) Messages() <-chan *sarama.ConsumerMessage { return nil }
 
 func TestKafkaSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
