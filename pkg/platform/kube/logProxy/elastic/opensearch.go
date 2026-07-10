@@ -53,14 +53,24 @@ func NewOpenSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*OpenSea
 		// Set to true to skip TLS verification if SSLVerificationMode is "none"
 		InsecureSkipVerify: config.SSLVerificationMode == "none",
 	}
-	if openSearchClient.client, err = opensearchapi.NewClient(opensearchapi.Config{Client: opensearch.Config{
+	openSearchConfig := opensearch.Config{
 		Addresses: []string{config.URL},
-		Password:  config.Password,
 		Username:  config.Username,
+		Password:  config.Password,
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 		},
-	}}); err != nil {
+	}
+
+	// The opensearch-go client has no native API-key field, so pass the key as an
+	// Authorization header. OpenSearch's Security plugin (3.0+) authenticates API
+	// keys with the Bearer scheme — NOT Elasticsearch's "ApiKey <base64(id:key)>".
+	// Mutual exclusivity with basic auth is enforced by ElasticSearchConfig.Validate.
+	if config.APIKey != "" {
+		openSearchConfig.Header = http.Header{"Authorization": []string{"Bearer " + config.APIKey}}
+	}
+
+	if openSearchClient.client, err = opensearchapi.NewClient(opensearchapi.Config{Client: openSearchConfig}); err != nil {
 		return nil, errors.Wrap(err, "Failed to create opensearch client")
 	}
 

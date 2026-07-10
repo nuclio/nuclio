@@ -57,14 +57,16 @@ func NewElasticSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*Elas
 		// Set to true to skip TLS verification if SSLVerificationMode is "none"
 		InsecureSkipVerify: config.SSLVerificationMode == "none",
 	}
-	if esClient.client, err = elasticsearch.NewTypedClient(elasticsearch.Config{
+	esConfig := elasticsearch.Config{
 		Addresses: []string{config.URL},
-		Password:  config.Password,
 		Username:  config.Username,
+		Password:  config.Password,
+		APIKey:    config.APIKey,
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 		},
-	}); err != nil {
+	}
+	if esClient.client, err = elasticsearch.NewTypedClient(esConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to create elasticsearch client")
 	}
 	return esClient, err

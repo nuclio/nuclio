@@ -411,6 +411,10 @@ func (c *Config) ValidatePlatformConfig() error {
 			*c.scaleToZeroReadinessPollInterval)
 	}
 
+	if err := c.Kube.ElasticSearchConfig.Validate(); err != nil {
+		return errors.Wrap(err, "Failed to validate Elasticsearch config")
+	}
+
 	return nil
 }
 
@@ -591,6 +595,21 @@ func (c *Config) enrichElasticSearchConfig() {
 	if envPassword := os.Getenv("NUCLIO_ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
 		c.Kube.ElasticSearchConfig.Password = envPassword
 	}
+	if envAPIKey := os.Getenv("NUCLIO_ELASTIC_SEARCH_API_KEY"); envAPIKey != "" {
+		c.Kube.ElasticSearchConfig.APIKey = envAPIKey
+	}
+}
+
+func (c *ElasticSearchConfig) Validate() error {
+	if c == nil {
+		return nil
+	}
+	passwordConfigured := c.Password != "" || common.GetEnvOrDefaultString("NUCLIO_ELASTIC_SEARCH_PASSWORD", "") != ""
+	apiKeyConfigured := c.APIKey != "" || common.GetEnvOrDefaultString("NUCLIO_ELASTIC_SEARCH_API_KEY", "") != ""
+	if passwordConfigured && apiKeyConfigured {
+		return errors.New("Elasticsearch authentication misconfiguration: basic auth (password) and API key auth are mutually exclusive — please configure only one")
+	}
+	return nil
 }
 
 // getDefaultRuntimeBaseImages returns the default runtime base images
