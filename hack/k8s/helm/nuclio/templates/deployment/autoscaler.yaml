@@ -44,6 +44,10 @@ spec:
       - name: {{ template "nuclio.scalerName" . }}
         image: {{ .Values.autoscaler.image.repository }}:{{ .Values.autoscaler.image.tag }}
         imagePullPolicy: {{ .Values.autoscaler.image.pullPolicy }}
+        {{- with (include "nuclio.containerSecurityContext.autoscaler" .) }}
+        securityContext:
+          {{- . | nindent 10 }}
+        {{- end }}
         {{- if .Values.autoscaler.resources }}
         resources:
           {{ toYaml .Values.autoscaler.resources | nindent 11 }}

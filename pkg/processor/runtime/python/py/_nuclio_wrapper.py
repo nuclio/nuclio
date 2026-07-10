@@ -103,6 +103,10 @@ class Wrapper(AbstractWrapper):
                 else:
                     self._logger.debug_with('Event has been discarded', event=event)
 
+                    # respond with an error so the processor does not block forever waiting for
+                    # a response to the discarded event (its default event timeout is infinite)
+                    await self._write_response_error('Event discarded: worker drained', self._event_sock)
+
                 # allow event to be garbage collected by deleting the reference
                 del event
 

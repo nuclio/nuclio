@@ -226,3 +226,33 @@ imagePullSecrets:
 {{- define "nuclio.podTemplateLabels.controller" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "controller" "podLabels" .Values.controller.podLabels) .) -}}{{- end -}}
 {{- define "nuclio.podTemplateLabels.dlx" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "dlx" "podLabels" .Values.dlx.podLabels) .) -}}{{- end -}}
 {{- define "nuclio.podTemplateLabels.autoscaler" -}}{{- include "nuclio.podTemplateLabels" (merge (dict "component" "autoscaler" "podLabels" .Values.autoscaler.podLabels) .) -}}{{- end -}}
+
+{{/*
+  Container-level securityContext for a Nuclio service container.
+  Merges the shared .Values.global.containerSecurityContext default with the
+  per-component .Values.<component>.containerSecurityContext override, the
+  override winning on key collisions. Renders nothing when the effective
+  context is empty, so containers stay unchanged unless hardening is configured.
+  Usage: include "nuclio.containerSecurityContext.dashboard" .  (or .controller, .dlx, .autoscaler)
+*/}}
+{{- define "nuclio.containerSecurityContext" -}}
+{{- $global := dict -}}
+{{- if .Values.global -}}
+{{- $global = .Values.global.containerSecurityContext | default dict -}}
+{{- end -}}
+{{- $override := .componentSecurityContext | default dict -}}
+{{- $merged := mergeOverwrite (deepCopy $global) $override -}}
+{{- if $merged -}}
+{{- toYaml $merged -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+  Per-component shortcuts for nuclio.containerSecurityContext.
+  Pass the component's containerSecurityContext override through; the helper
+  merges it over the shared global default.
+*/}}
+{{- define "nuclio.containerSecurityContext.dashboard" -}}{{- include "nuclio.containerSecurityContext" (merge (dict "componentSecurityContext" .Values.dashboard.containerSecurityContext) .) -}}{{- end -}}
+{{- define "nuclio.containerSecurityContext.controller" -}}{{- include "nuclio.containerSecurityContext" (merge (dict "componentSecurityContext" .Values.controller.containerSecurityContext) .) -}}{{- end -}}
+{{- define "nuclio.containerSecurityContext.dlx" -}}{{- include "nuclio.containerSecurityContext" (merge (dict "componentSecurityContext" .Values.dlx.containerSecurityContext) .) -}}{{- end -}}
+{{- define "nuclio.containerSecurityContext.autoscaler" -}}{{- include "nuclio.containerSecurityContext" (merge (dict "componentSecurityContext" .Values.autoscaler.containerSecurityContext) .) -}}{{- end -}}

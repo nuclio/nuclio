@@ -46,6 +46,10 @@ spec:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}
         imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
+        {{- with (include "nuclio.containerSecurityContext.dashboard" .) }}
+        securityContext:
+          {{- . | nindent 10 }}
+        {{- end }}
         ports:
         - containerPort: 8070
         - name: liveness-port
@@ -70,6 +74,13 @@ spec:
           failureThreshold: 4
           periodSeconds: 15
         volumeMounts:
+        {{- if .Values.dashboard.writableTmpVolume }}
+        # Writable scratch space for the embedded builder (build temp dirs,
+        # /tmp/kaniko-builds bundles, fetched function templates). Required
+        # when readOnlyRootFilesystem is enabled on the dashboard container.
+        - name: tmp
+          mountPath: /tmp
+        {{- end }}
         {{- if .Values.dashboard.pipCACertSecretName }}
         - mountPath: /etc/ssl/certs/nuclio
           name: pip-ca-cert
@@ -131,13 +142,19 @@ spec:
           value: {{ .Values.dashboard.kaniko.image.pullPolicy }}
         - name: NUCLIO_KANIKO_JOB_DELETION_TIMEOUT
           value: {{ .Values.dashboard.kaniko.jobDeletionTimeout | quote }}
-        {{- if and .Values.dashboard.elasticSearchPassword.secretName .Values.dashboard.elasticSearchPassword.secretKey }}
+        {{- if and .Values.dashboard.elasticSearchApiKey.secretName .Values.dashboard.elasticSearchApiKey.secretKey }}
+        - name: NUCLIO_ELASTIC_SEARCH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.dashboard.elasticSearchApiKey.secretName }}
+              key: {{ .Values.dashboard.elasticSearchApiKey.secretKey }}
+        {{- else if and .Values.dashboard.elasticSearchPassword.secretName .Values.dashboard.elasticSearchPassword.secretKey }}
         - name: NUCLIO_ELASTIC_SEARCH_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Values.dashboard.elasticSearchPassword.secretName }}
               key: {{ .Values.dashboard.elasticSearchPassword.secretKey }}
-         {{- end }}
+        {{- end }}
         {{- if .Values.dashboard.kaniko.insecurePushRegistry }}
         - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
           value: "true"
@@ -251,6 +268,10 @@ spec:
             name: opa-config
       {{- end }}
       volumes:
+      {{- if .Values.dashboard.writableTmpVolume }}
+      - name: tmp
+        emptyDir: {}
+      {{- end }}
       {{- if .Values.dashboard.pipCACertSecretName }}
       - name: pip-ca-cert
         secret:
