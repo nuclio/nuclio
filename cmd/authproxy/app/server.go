@@ -1,0 +1,107 @@
+/*
+Copyright 2026 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package app
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/nuclio/nuclio/pkg/auth"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+)
+
+// server fronts a function or the DLX.
+type server struct {
+	logger      logger.Logger
+	httpServer  *http.Server
+	upstreamURL string
+	authURL     string
+	signinURL   string
+}
+
+// newServer builds the auth-proxy for the given mode. The mode decides only where it listens and what it
+// serves: reverseProxy is exposed to the cluster on a configurable port and forwards to the processor;
+// authOnly is reachable only from within the pod (loopback) and serves the DLX /auth endpoint.
+func newServer(parentLogger logger.Logger,
+	mode auth.ProxyMode,
+	listenPort int,
+	upstreamURL string,
+	authURL string,
+	signinURL string) (*server, error) {
+
+	var listenAddress string
+	var handler http.Handler
+
+	switch mode {
+	case auth.ProxyModeReverseProxy:
+		listenAddress = fmt.Sprintf(":%d", listenPort)
+		handler = newReverseProxyHandler(parentLogger)
+	case auth.ProxyModeAuthOnly:
+		listenAddress = fmt.Sprintf("127.0.0.1:%d", listenPort)
+		handler = newAuthOnlyHandler(parentLogger)
+	default:
+		return nil, errors.Errorf("Unknown auth-proxy mode: %s", mode)
+	}
+
+	return &server{
+		logger: parentLogger,
+		httpServer: &http.Server{
+			Addr:    listenAddress,
+			Handler: handler,
+		},
+		upstreamURL: upstreamURL,
+		authURL:     authURL,
+		signinURL:   signinURL,
+	}, nil
+}
+
+func (s *server) start() error {
+	s.logger.InfoWith("Starting auth-proxy",
+		"listenAddress", s.httpServer.Addr,
+		"upstreamURL", s.upstreamURL,
+		"authURL", s.authURL,
+		"signinURL", s.signinURL)
+
+	if err := s.httpServer.ListenAndServe(); err != nil {
+		return errors.Wrap(err, "Auth-proxy server failed to start")
+	}
+
+	return nil
+}
+
+// newReverseProxyHandler serves the running-function topology. It does not forward requests upstream yet:
+// authenticating and proxying to the processor over loopback is implemented in NUC-828 / NUC-837.
+func newReverseProxyHandler(logger logger.Logger) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, _ *http.Request) {
+		logger.Warn("reverseProxy forwarding is not yet implemented")
+		responseWriter.WriteHeader(http.StatusNotImplemented)
+	})
+}
+
+// newAuthOnlyHandler serves the DLX /auth decision endpoint. Only /auth is routed; any other path
+// returns 404, pinning the endpoint surface now so the NUC-837 decision logic slots into /auth.
+func newAuthOnlyHandler(logger logger.Logger) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, _ *http.Request) {
+		//TODO: implement authOnly decision as part of NUC-837
+		logger.Warn("authOnly mode was requested but is not yet implemented")
+		responseWriter.WriteHeader(http.StatusNotImplemented)
+	})
+	return mux
+}

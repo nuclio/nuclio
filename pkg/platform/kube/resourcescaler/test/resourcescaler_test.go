@@ -250,7 +250,7 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 
 		// add target header, expect it to wake up the function
 		// for this specific test case, the response status code is 502
-		// reason dlx tries to reverse-proxy the request to the function by its service
+		// reason dlx tries to reverseProxy the request to the function by its service
 		// and since the dlx component is running as a process (and not as a POD)
 		// it fails to resolve the internal (kubernetes) function host
 		// Background: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
@@ -348,7 +348,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 
 				// add target header, expect it to wake up both functions
 				// for this specific test case, the response status code is 502
-				// reason dlx tries to reverse-proxy the request to the function by its service
+				// reason dlx tries to reverseProxy the request to the function by its service
 				// and since the dlx component is running as a process (and not as a POD)
 				// it fails to resolve the internal (kubernetes) function host
 				// Background: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
