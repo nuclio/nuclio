@@ -19,6 +19,7 @@ limitations under the License.
 package app
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -53,7 +54,7 @@ func (suite *AuthProxyTestSuite) TestModeListenAddress() {
 		{name: "authOnly is loopback", mode: auth.ProxyModeAuthOnly, expectedListenAddress: "127.0.0.1:8080"},
 	} {
 		suite.Run(testCase.name, func() {
-			server, err := newServer(suite.logger, testCase.mode, 8080, "http://127.0.0.1:6080", "", "")
+			server, err := newServer(suite.logger, testCase.mode, 8080, "http://127.0.0.1:8080", "", "")
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedListenAddress, server.httpServer.Addr)
 		})
@@ -77,7 +78,11 @@ func (suite *AuthProxyTestSuite) TestAuthOnlyHandlerRouting() {
 		suite.Run(testCase.name, func() {
 			response, err := http.Get(handlerServer.URL + testCase.path)
 			suite.Require().NoError(err)
-			defer response.Body.Close()
+			defer func(Body io.ReadCloser) {
+				if err := Body.Close(); err != nil {
+					suite.logger.WarnWith("Failed to close response body", "err", err)
+				}
+			}(response.Body)
 
 			suite.Require().Equal(testCase.expectedStatusCode, response.StatusCode)
 		})

@@ -83,21 +83,21 @@ func newServer(parentLogger logger.Logger,
 
 	var listenAddress string
 	var handler http.Handler
-	logger := parentLogger.GetChild("authproxy")
+	authLogger := parentLogger.GetChild("authproxy")
 
 	switch mode {
 	case auth.ProxyModeReverseProxy:
 		listenAddress = fmt.Sprintf(":%d", listenPort)
-		handler = newReverseProxyHandler(logger)
+		handler = newReverseProxyHandler(authLogger)
 	case auth.ProxyModeAuthOnly:
 		listenAddress = fmt.Sprintf("127.0.0.1:%d", listenPort)
-		handler = newAuthOnlyHandler(logger)
+		handler = newAuthOnlyHandler(authLogger)
 	default:
 		return nil, errors.Errorf("Unknown auth-proxy mode: %s", mode)
 	}
 
 	return &server{
-		logger: logger,
+		logger: authLogger,
 		httpServer: &http.Server{
 			Addr:    listenAddress,
 			Handler: handler,
@@ -136,7 +136,7 @@ func newReverseProxyHandler(logger logger.Logger) http.Handler {
 func newAuthOnlyHandler(logger logger.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, _ *http.Request) {
-		//TODO - implement authOnly decision as part of NUC-837
+		//TODO: implement authOnly decision as part of NUC-837
 		logger.Warn("authOnly mode was requested but is not yet implemented")
 		responseWriter.WriteHeader(http.StatusNotImplemented)
 	})
@@ -144,7 +144,8 @@ func newAuthOnlyHandler(logger logger.Logger) http.Handler {
 }
 
 func validateConfiguration(listenPort int, upstreamURL string, authURL string, signinURL string) error {
-	if listenPort == 0 {
+	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
+	if listenPort < 1 || listenPort > 65535 {
 		return errors.Errorf("Invalid listen port: %d", listenPort)
 	}
 
