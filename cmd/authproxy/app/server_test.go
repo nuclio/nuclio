@@ -31,12 +31,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type AuthProxyTestSuite struct {
+type ServerTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 }
 
-func (suite *AuthProxyTestSuite) SetupTest() {
+func (suite *ServerTestSuite) SetupTest() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("auth-proxy-test")
 	suite.Require().NoError(err)
@@ -44,7 +44,7 @@ func (suite *AuthProxyTestSuite) SetupTest() {
 
 // TestModeListenAddress verifies the only difference between the modes: reverseProxy is exposed on the
 // configurable port, authOnly is bound to loopback (reachable only from within the pod).
-func (suite *AuthProxyTestSuite) TestModeListenAddress() {
+func (suite *ServerTestSuite) TestModeListenAddress() {
 	for _, testCase := range []struct {
 		name                  string
 		mode                  auth.ProxyMode
@@ -62,7 +62,7 @@ func (suite *AuthProxyTestSuite) TestModeListenAddress() {
 }
 
 // TestAuthOnlyHandlerRouting verifies only /auth is served (reserved for NUC-837); any other path 404s.
-func (suite *AuthProxyTestSuite) TestAuthOnlyHandlerRouting() {
+func (suite *ServerTestSuite) TestAuthOnlyHandlerRouting() {
 	handlerServer := httptest.NewServer(newAuthOnlyHandler(suite.logger))
 	defer handlerServer.Close()
 
@@ -89,12 +89,12 @@ func (suite *AuthProxyTestSuite) TestAuthOnlyHandlerRouting() {
 	}
 }
 
-func (suite *AuthProxyTestSuite) TestUnknownModeRejected() {
+func (suite *ServerTestSuite) TestUnknownModeRejected() {
 	_, err := newServer(suite.logger, "unknown-mode", 8080, "http://127.0.0.1:6080", "", "")
 	suite.Require().Error(err)
 	suite.Require().Contains(err.Error(), "Unknown auth-proxy mode")
 }
 
-func TestAuthProxyTestSuite(t *testing.T) {
-	suite.Run(t, new(AuthProxyTestSuite))
+func TestServerTestSuite(t *testing.T) {
+	suite.Run(t, new(ServerTestSuite))
 }
