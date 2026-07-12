@@ -378,6 +378,7 @@ type ElasticSearchConfig struct {
 	SSLVerificationMode  string `json:"sslVerificationMode,omitempty"`
 	Username             string `json:"username,omitempty"`
 	Password             string `json:"password,omitempty"`
+	APIKey               string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 	Index                string `json:"index,omitempty"`
 	CustomQueryParameter string `json:"customQueryParameter,omitempty"`
 
