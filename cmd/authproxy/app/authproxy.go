@@ -17,15 +17,11 @@ limitations under the License.
 package app
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 
 	// register logger sinks (stdout, appinsights) into the loggersink registry via init()
 	_ "github.com/nuclio/nuclio/pkg/sinks"
