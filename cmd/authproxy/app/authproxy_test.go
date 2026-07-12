@@ -41,16 +41,16 @@ func (suite *AuthProxyTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-// TestModeListenAddress verifies the only difference between the modes: reverse-proxy is exposed on the
-// configurable port, auth-only is bound to loopback (reachable only from within the pod).
+// TestModeListenAddress verifies the only difference between the modes: reverseProxy is exposed on the
+// configurable port, authOnly is bound to loopback (reachable only from within the pod).
 func (suite *AuthProxyTestSuite) TestModeListenAddress() {
 	for _, testCase := range []struct {
 		name                  string
 		mode                  auth.ProxyMode
 		expectedListenAddress string
 	}{
-		{name: "reverse-proxy is exposed", mode: auth.ProxyModeReverseProxy, expectedListenAddress: ":8080"},
-		{name: "auth-only is loopback", mode: auth.ProxyModeAuthOnly, expectedListenAddress: "127.0.0.1:8080"},
+		{name: "reverseProxy is exposed", mode: auth.ProxyModeReverseProxy, expectedListenAddress: ":8080"},
+		{name: "authOnly is loopback", mode: auth.ProxyModeAuthOnly, expectedListenAddress: "127.0.0.1:8080"},
 	} {
 		suite.Run(testCase.name, func() {
 			server, err := newServer(suite.logger, testCase.mode, 8080, "http://127.0.0.1:6080", "", "")

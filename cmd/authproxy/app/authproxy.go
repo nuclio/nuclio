@@ -31,23 +31,14 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
-// server fronts a function or the DLX.
-type server struct {
-	logger      logger.Logger
-	httpServer  *http.Server
-	upstreamURL string
-	authURL     string
-	redirectURL string
-}
-
 // Run creates and starts the auth-proxy server for the given mode.
 func Run(mode auth.ProxyMode,
 	listenPort int,
 	upstreamURL string,
 	authURL string,
-	redirectURL string,
+	signinURL string,
 	platformConfigurationPath string) error {
-	if err := validateConfiguration(listenPort, upstreamURL, authURL, redirectURL); err != nil {
+	if err := validateConfiguration(listenPort, upstreamURL, authURL, signinURL); err != nil {
 		return errors.Wrap(err, "Invalid auth-proxy configuration")
 	}
 
@@ -61,7 +52,7 @@ func Run(mode auth.ProxyMode,
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	server, err := newServer(rootLogger, mode, listenPort, upstreamURL, authURL, redirectURL)
+	server, err := newServer(rootLogger, mode, listenPort, upstreamURL, authURL, signinURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create auth-proxy server")
 	}
@@ -71,15 +62,24 @@ func Run(mode auth.ProxyMode,
 	select {}
 }
 
+// server fronts a function or the DLX.
+type server struct {
+	logger      logger.Logger
+	httpServer  *http.Server
+	upstreamURL string
+	authURL     string
+	signinURL   string
+}
+
 // newServer builds the auth-proxy for the given mode. The mode decides only where it listens and what it
-// serves: reverse-proxy is exposed to the cluster on a configurable port and forwards to the processor;
-// auth-only is reachable only from within the pod (loopback) and serves the DLX /auth endpoint.
+// serves: reverseProxy is exposed to the cluster on a configurable port and forwards to the processor;
+// authOnly is reachable only from within the pod (loopback) and serves the DLX /auth endpoint.
 func newServer(parentLogger logger.Logger,
 	mode auth.ProxyMode,
 	listenPort int,
 	upstreamURL string,
 	authURL string,
-	redirectURL string) (*server, error) {
+	signinURL string) (*server, error) {
 
 	var listenAddress string
 	var handler http.Handler
@@ -104,7 +104,7 @@ func newServer(parentLogger logger.Logger,
 		},
 		upstreamURL: upstreamURL,
 		authURL:     authURL,
-		redirectURL: redirectURL,
+		signinURL:   signinURL,
 	}, nil
 }
 
@@ -113,13 +113,11 @@ func (s *server) start() error {
 		"listenAddress", s.httpServer.Addr,
 		"upstreamURL", s.upstreamURL,
 		"authURL", s.authURL,
-		"redirectURL", s.redirectURL)
+		"signinURL", s.signinURL)
 
-	go func() {
-		if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.ErrorWith("Auth-proxy server stopped", "error", err)
-		}
-	}()
+	if err := s.httpServer.ListenAndServe(); err != nil {
+		return errors.Wrap(err, "Auth-proxy server failed to start")
+	}
 
 	return nil
 }
@@ -128,7 +126,7 @@ func (s *server) start() error {
 // authenticating and proxying to the processor over loopback is implemented in NUC-828 / NUC-837.
 func newReverseProxyHandler(logger logger.Logger) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, _ *http.Request) {
-		logger.Warn("reverse-proxy forwarding is not yet implemented")
+		logger.Warn("reverseProxy forwarding is not yet implemented")
 		responseWriter.WriteHeader(http.StatusNotImplemented)
 	})
 }
@@ -138,14 +136,14 @@ func newReverseProxyHandler(logger logger.Logger) http.Handler {
 func newAuthOnlyHandler(logger logger.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, _ *http.Request) {
-		//TODO - implement auth-only decision as part of NUC-837
-		logger.Warn("auth-only mode was requested but is not yet implemented")
+		//TODO - implement authOnly decision as part of NUC-837
+		logger.Warn("authOnly mode was requested but is not yet implemented")
 		responseWriter.WriteHeader(http.StatusNotImplemented)
 	})
 	return mux
 }
 
-func validateConfiguration(listenPort int, upstreamURL string, authURL string, redirectURL string) error {
+func validateConfiguration(listenPort int, upstreamURL string, authURL string, signinURL string) error {
 	if listenPort == 0 {
 		return errors.Errorf("Invalid listen port: %d", listenPort)
 	}
@@ -158,7 +156,7 @@ func validateConfiguration(listenPort int, upstreamURL string, authURL string, r
 		return errors.New("Auth URL must be provided")
 	}
 
-	if redirectURL == "" {
+	if signinURL == "" {
 		return errors.New("Redirect URL must be provided")
 	}
 

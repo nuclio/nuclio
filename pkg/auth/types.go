@@ -34,10 +34,10 @@ type ProxyMode string
 
 const (
 	// ProxyModeReverseProxy fronts a function: authenticates each request, forwards allowed ones to the processor.
-	ProxyModeReverseProxy ProxyMode = "reverse-proxy"
+	ProxyModeReverseProxy ProxyMode = "reverseProxy"
 
 	// ProxyModeAuthOnly serves only the /auth endpoint (called by the DLX); does no forwarding.
-	ProxyModeAuthOnly ProxyMode = "auth-only"
+	ProxyModeAuthOnly ProxyMode = "authOnly"
 )
 
 type SessionContextKey string

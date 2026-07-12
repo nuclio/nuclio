@@ -28,11 +28,11 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_MODE", string(auth.ProxyModeReverseProxy)), "Auth-proxy mode: reverse-proxy or auth-only")
+	mode := flag.String("mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_MODE", string(auth.ProxyModeReverseProxy)), "Auth-proxy mode: reverseProxy or authOnly")
 	listenPort := flag.Int("listen-port", common.GetEnvOrDefaultInt("NUCLIO_AUTHPROXY_LISTEN_PORT", 8080), "Port the auth-proxy listens on")
 	upstreamURL := flag.String("upstream-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_UPSTREAM_URL", "http://127.0.0.1:6080"), "URL of the upstream service (processor) to forward requests to")
-	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint (Orca GetSelf)")
-	redirectURL := flag.String("redirect-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_REDIRECT_URL", ""), "URL unauthenticated browser requests are redirected to (oauth2-proxy /oauth2/start)")
+	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint")
+	signinURL := flag.String("signin-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_SIGNIN_URL", ""), "URL unauthenticated browser requests are redirected to sign-in")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	flag.Parse()
 
@@ -40,7 +40,7 @@ func main() {
 		*listenPort,
 		*upstreamURL,
 		*authURL,
-		*redirectURL,
+		*signinURL,
 		*platformConfigurationPath); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 		os.Exit(1)
