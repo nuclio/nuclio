@@ -72,6 +72,11 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	functionName := request.Header.Get(headers.FunctionName)
+	if functionName != "" {
+		if err := fr.validateFunctionName(functionName); err != nil {
+			return nil, errors.Wrap(err, "Failed to validate function name")
+		}
+	}
 	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, functionName, false)
 	functions, err := fr.getPlatform().GetFunctions(ctx, getFunctionOptions)
 	if err != nil {
@@ -100,6 +105,11 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	namespace := fr.getNamespaceFromRequest(request)
 	if namespace == "" {
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
+	}
+
+	// validate function name from URL path
+	if err := fr.validateFunctionName(id); err != nil {
+		return nil, errors.Wrap(err, "Failed to validate function name")
 	}
 
 	// get function
@@ -360,6 +370,9 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 	if functionName == "" {
 		return nil, errors.New("Function name must not be empty")
 	}
+	if err := fr.validateFunctionName(functionName); err != nil {
+		return nil, err
+	}
 
 	// ensure replica name
 	functionReplicaName := fr.GetRouterURLParam(request, "replicaName")
@@ -408,6 +421,9 @@ func (fr *functionResource) proxyFunctionLogs(request *http.Request) (*restful.C
 	functionName := fr.GetRouterURLParam(request, "id")
 	if functionName == "" {
 		return nil, errors.New("Function name must not be empty")
+	}
+	if err := fr.validateFunctionName(functionName); err != nil {
+		return nil, err
 	}
 
 	// ensure access
@@ -912,6 +928,14 @@ func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request
 		}
 	}
 	return timeoutDuration
+}
+
+func (fr *functionResource) validateFunctionName(functionName string) error {
+	if errorMessages := validation.IsQualifiedName(functionName); len(errorMessages) != 0 {
+		return nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " +
+			strings.Join(errorMessages, ", "))
+	}
+	return nil
 }
 
 // register the resource
