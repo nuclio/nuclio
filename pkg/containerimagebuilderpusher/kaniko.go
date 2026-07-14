@@ -18,10 +18,12 @@ package containerimagebuilderpusher
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strings"
@@ -222,10 +224,12 @@ func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
 	tarFile.Close() // nolint: errcheck
 
 	k.logger.DebugWithCtx(ctx, "Compressing build bundle", "tarFilePath", tarFile.Name())
-	if _, err := k.cmdRunner.Run(&cmdrunner.RunOptions{
-		WorkingDir: &buildContainerBundleDir,
-	}, "tar -zcvf %s %s", path.Base(tarFile.Name()), contextDir); err != nil {
-		return "", "", errors.Wrapf(err, "Failed to compress build bundle")
+	tarCmd := exec.CommandContext(ctx, "tar", "-zcvf", path.Base(tarFile.Name()), contextDir)
+	tarCmd.Dir = buildContainerBundleDir
+	var tarStderr bytes.Buffer
+	tarCmd.Stderr = &tarStderr
+	if err := tarCmd.Run(); err != nil {
+		return "", "", errors.Wrapf(err, "Failed to compress build bundle: %s", tarStderr.String())
 	}
 
 	buildDir := "/tmp/kaniko-builds"
