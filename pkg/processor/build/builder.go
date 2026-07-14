@@ -948,6 +948,11 @@ func (b *Builder) createTempDir() error {
 			return errors.New("Invalid temporary directory path: contains '..'")
 		}
 
+		// Reject shell metacharacters — the path reaches a shell-executed tar command in the Kaniko builder
+		if common.ContainsShellMetacharacters(b.options.FunctionConfig.Spec.Build.TempDir) {
+			return errors.New("Invalid temporary directory path: contains shell metacharacters")
+		}
+
 		// if the user-provided temp directory is not under `/tmp` or `/var/folders/` (depends on OS), create it under it
 		if !strings.HasPrefix(b.options.FunctionConfig.Spec.Build.TempDir, os.TempDir()) {
 			b.tempDir = filepath.Join(os.TempDir(), b.options.FunctionConfig.Spec.Build.TempDir)
