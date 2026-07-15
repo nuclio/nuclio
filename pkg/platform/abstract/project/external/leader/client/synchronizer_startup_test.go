@@ -1,7 +1,7 @@
 //go:build test_unit
 
 /*
-Copyright 2023 The Nuclio Authors.
+Copyright 2026 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -111,7 +111,6 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupCoversAllNamesp
 		Return([]platform.Project{}, nil)
 
 	for _, ns := range namespaces {
-		ns := ns
 		suite.mockInternalProjectsClient.
 			On("Get", mock.Anything, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{Namespace: ns},
@@ -176,6 +175,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupToleratesLeader
 func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupAndPeriodicLoop() {
 	namespace := "ns-both"
 	startupFired := make(chan struct{})
+	internalGetCalled := make(chan struct{})
 
 	var nilTime *time.Time
 	suite.mockLeaderProjectsClient.
@@ -193,7 +193,14 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupAndPeriodicLoop
 		On("Get", mock.Anything, &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{Namespace: namespace},
 		}).
-		Return([]platform.Project{}, nil)
+		Return([]platform.Project{}, nil).
+		Run(func(args mock.Arguments) {
+			select {
+			case <-internalGetCalled:
+			default:
+				close(internalGetCalled)
+			}
+		})
 
 	// use a 1-hour interval so the periodic loop never actually ticks in this test
 	synchronizer := suite.newSynchronizer("1h", true, []string{namespace})
@@ -202,6 +209,8 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupAndPeriodicLoop
 	suite.Require().NoError(err)
 
 	suite.waitForChannel(startupFired, "startup sync to fire before the first periodic tick")
+	suite.waitForChannel(internalGetCalled, "startup sync to call the internal projects client")
+	suite.mockInternalProjectsClient.AssertExpectations(suite.T())
 }
 
 // TestStartInvalidInterval verifies that Start() returns an error when the interval cannot be parsed.

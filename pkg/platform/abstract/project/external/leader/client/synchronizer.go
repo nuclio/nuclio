@@ -68,10 +68,9 @@ func (c *Synchronizer) Start() error {
 	ctx := context.WithValue(context.Background(), "RequestID", "leader-synchronizer") // nolint: staticcheck
 
 	// perform a one-shot sync on startup if configured.
-	// blocking on purpose to avoid incoming leader requests
 	if c.syncOnStartup {
 		c.logger.InfoWithCtx(ctx, "Sync-on-startup enabled. Performing a one-time project sync from leader")
-		c.syncOnce(ctx, c.managedNamespaces)
+		go c.syncOnce(ctx, c.managedNamespaces)
 	}
 
 	// don't run the periodic loop when interval is 0
