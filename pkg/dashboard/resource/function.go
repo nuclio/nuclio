@@ -371,7 +371,7 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 		return nil, errors.New("Function name must not be empty")
 	}
 	if err := fr.validateFunctionName(functionName); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to validate function name")
 	}
 
 	// ensure replica name
@@ -423,7 +423,7 @@ func (fr *functionResource) proxyFunctionLogs(request *http.Request) (*restful.C
 		return nil, errors.New("Function name must not be empty")
 	}
 	if err := fr.validateFunctionName(functionName); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to validate function name")
 	}
 
 	// ensure access
