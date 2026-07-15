@@ -31,6 +31,24 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// ZeroAllocator is a no-op Allocator that owns zero workers. It is intended
+// for use in unit tests where Drain must return immediately: with no workers,
+// MergeSubscriptions returns an already-closed channel, so Drain returns as
+// soon as the loop reads the first (zero-value) message.
+type ZeroAllocator struct{}
+
+func (z *ZeroAllocator) Allocate(_ time.Duration) (EventProcessor, error) { return nil, nil }
+func (z *ZeroAllocator) Release(_ EventProcessor)                         {}
+func (z *ZeroAllocator) GetObjects() []EventProcessor                     { return nil }
+func (z *ZeroAllocator) SetObjects(_ []EventProcessor) error              { return nil }
+func (z *ZeroAllocator) GetNumObjectsAvailable() int                      { return 0 }
+func (z *ZeroAllocator) GetStatistics() *statistics.AllocatorStatistics   { return nil }
+func (z *ZeroAllocator) SignalDraining() error                            { return nil }
+func (z *ZeroAllocator) SignalContinue() error                            { return nil }
+func (z *ZeroAllocator) SignalTermination() error                         { return nil }
+func (z *ZeroAllocator) Stop() error                                      { return nil }
+func (z *ZeroAllocator) IsTerminated() bool                               { return false }
+
 type MockEventProcessor struct {
 	mock.Mock
 }
@@ -113,12 +131,10 @@ func (m *MockEventProcessor) SupportsRestart() bool {
 	return m.Called().Bool(0)
 }
 
-func (m *MockEventProcessor) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return m.Called(kind, channel).Error(0)
-}
-
-func (m *MockEventProcessor) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
-	return m.Called(kind, channel).Error(0)
+func (m *MockEventProcessor) Subscribe(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
+	args := m.Called(kind)
+	sub, _ := args.Get(0).(controlcommunication.Subscription)
+	return sub, args.Error(1)
 }
 
 func (m *MockEventProcessor) WaitForStart(timeout time.Duration) error {

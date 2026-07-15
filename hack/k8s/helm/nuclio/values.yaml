@@ -39,7 +39,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.15.25-amd64
+    tag: 1.17.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -53,10 +53,16 @@ controller:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -119,7 +125,7 @@ dashboard:
   servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.15.25-amd64
+    tag: 1.17.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -128,10 +134,16 @@ dashboard:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -160,6 +172,12 @@ dashboard:
 
   # Supported container builders: "kaniko", "docker"
   containerBuilderKind: "docker"
+
+  # Mount an emptyDir at /tmp so the embedded builder can write build temp
+  # dirs, /tmp/kaniko-builds bundles and fetched function templates. Enable
+  # this whenever the dashboard container runs with readOnlyRootFilesystem: true
+  # (otherwise the dashboard writes directly to its rootfs /tmp).
+  writableTmpVolume: false
 
   # Monitor docker deamon connectivity, in conjunction with container builder kind "docker"
   monitorDockerDeamon:
@@ -206,6 +224,19 @@ dashboard:
 
     # the default service account to use for kaniko pod, if not specified otherwise
     defaultServiceAccount: ""
+
+    # Additional labels added to the kaniko build pod template.metadata.labels.
+    # The dashboard passes these through to the kaniko Job it creates at
+    # runtime (so they can't be set on the chart-rendered manifests).
+    # Example use: { "azure.workload.identity/use": "true" } to activate
+    # Azure Workload Identity token injection for ACR push on AKS.
+    #
+    # Note: if `registry.secretName` / `registry.credentials` is also set,
+    # the resulting docker-config secret is mounted at /kaniko/.docker
+    # and takes precedence over any federated token a workload identity
+    # would provide. See "Using Kaniko with cloud workload identity" in
+    # docs/setup/k8s/running-in-production-k8s.md.
+    podLabels: {}
 
   # use to configure node port
   nodePort:
@@ -293,9 +324,12 @@ dashboard:
     logLevel: info
     logFormat: json
 
+    extraArgs:
+      - "--skip-version-check"
+
     image:
       repository: openpolicyagent/opa
-      tag: 0.30.1
+      tag: 1.17.1
       pullPolicy: IfNotPresent
       pullSecrets: []
     resources: {}
@@ -328,7 +362,15 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
+  # Elasticsearch basic auth password secret.
+  # Used only when elasticSearchApiKey is not set — the API key takes precedence.
   elasticSearchPassword:
+    secretName: ""
+    secretKey: ""
+
+  # Elasticsearch API key secret.
+  # Takes precedence over elasticSearchPassword when both are set.
+  elasticSearchApiKey:
     secretName: ""
     secretKey: ""
 
@@ -341,7 +383,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.15.25-amd64
+    tag: 1.17.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -356,10 +398,16 @@ autoscaler:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -381,7 +429,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.15.25-amd64
+    tag: 1.17.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -396,10 +444,16 @@ dlx:
   ##
   nodeSelector: {}
 
-  ## Deployment security context
+  ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
   securityContext: {}
+
+  ## Container-level security context for this component's main container.
+  ## Merged over the shared .Values.global.containerSecurityContext default,
+  ## with the values here winning on key collisions. Use it to override the
+  ## shared default per component (e.g. `readOnlyRootFilesystem: false`).
+  containerSecurityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -495,6 +549,13 @@ rbac:
   # If true, creates the necessary roles and role bindings for nuclio's service account
   create: true
 
+  # If true (and rbac.create is true), creates the service account used by nuclio's
+  # components. Set to false when the service account is managed externally (e.g. to
+  # attach workload identity annotations) but the chart should still create the
+  # roles and role bindings that bind to it. When false, set `rbac.serviceAccountName`
+  # to the name of the existing service account.
+  createServiceAccount: true
+
   # serviceAccountName: service-account-name
 
   # Allow / deny cluster-wide resource access. values: "cluster", "namespaced".
@@ -577,6 +638,12 @@ platform: {}
 #    webapiURL: ""
 #    getStreamShardsConcurrentRequests: 64
 #
+#  # Security: maskSensitiveFields moves trigger credentials (password, secret, nested
+#  # attributes.sasl.password, etc.) out of the NuclioFunction CRD into Kubernetes Secrets
+#  # and replaces them with reference tokens. It is OFF by default. When off, credentials
+#  # are stored verbatim in the CRD and returned in plaintext by the Dashboard API
+#  # (GET /api/functions). Enable for production deployments. See
+#  # docs/setup/k8s/running-in-production-k8s.md#securing-the-dashboard.
 #  sensitiveFields:
 #    maskSensitiveFields: true
 #
@@ -588,6 +655,7 @@ platform: {}
 #
 # scaleToZero:
 #     scalerInterval: 1m
+#     readinessPollInterval: 3s
 #     metricsClient:
 #       kind: prometheusClient
 #       url: http://monitoring-prometheus-server
@@ -599,6 +667,23 @@ platform: {}
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
   externalHostAddress:
+
+  # Shared container-level securityContext applied to every Nuclio service
+  # container (dashboard/controller/dlx/autoscaler). Set once here to harden
+  # all components; override per component via <component>.containerSecurityContext.
+  # Empty by default so the chart renders unchanged unless hardening is configured.
+  # Note: readOnlyRootFilesystem: true on the dashboard requires
+  # dashboard.writableTmpVolume: true (the embedded builder writes under /tmp).
+  # Example hardened set:
+  #   allowPrivilegeEscalation: false
+  #   capabilities:
+  #     drop:
+  #       - ALL
+  #   readOnlyRootFilesystem: true
+  #   runAsNonRoot: true
+  #   runAsUser: 1000
+  containerSecurityContext: {}
+
   # image pull secrets shared by Nuclio service deployments (dashboard/controller/dlx/autoscaler)
   # imagePullSecrets:
   #   - name: my-registry-secret

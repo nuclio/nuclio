@@ -206,13 +206,13 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
-	// Check OPA permissions
+	// Check OPA permissions. Retry on a deny to absorb the OPA manifest-propagation lag after a
+	// freshly-created project: the function-create grant may not be live in OPA yet when a
+	// deploy is fired right after project creation. A genuine denial still 403s (after the window).
 	permissionOptions := createFunctionOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(ctx,
+	if err := p.EnsureFunctionCreateAuthorized(ctx,
 		createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
-		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -737,11 +737,10 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 		return errors.Wrap(err, "Failed to enrich a project configuration")
 	}
 
-	// check OPA permissions
 	permissionOptions := createProjectOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(ctx,
-		createProjectOptions.ProjectConfig.Meta.Name,
+	if err := p.checkProjectAuthorization(ctx,
+		"",
 		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed to authorize project creation")
@@ -762,8 +761,8 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 	}
 
 	// ensure project permissions are populated in OPA
-	if err := common.RetryUntilSuccessful(time.Second*10,
-		time.Second*1,
+	if err := common.RetryUntilSuccessful(abstract.OPAPermissionPropagationWindow,
+		abstract.OPAPermissionPropagationInterval,
 		func() bool {
 			if err := p.EnsureProjectRead(ctx, createProjectOptions.ProjectConfig.Meta.Name, &createProjectOptions.PermissionOptions); err != nil {
 				return false
@@ -788,8 +787,7 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 // UpdateProject updates an existing project
 func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 
-	// check OPA permissions
-	if _, err := p.QueryOPAProjectPermissions(ctx,
+	if err := p.checkProjectAuthorization(ctx,
 		updateProjectOptions.ProjectConfig.Meta.Name,
 		opaclient.ActionUpdate,
 		&updateProjectOptions.PermissionOptions); err != nil {
@@ -815,8 +813,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 		deleteProjectOptions.AuthSession = &nop.Session{}
 	}
 
-	// check OPA permissions
-	if _, err := p.QueryOPAProjectPermissions(ctx,
+	if err := p.checkProjectAuthorization(ctx,
 		deleteProjectOptions.Meta.Name,
 		opaclient.ActionDelete,
 		&deleteProjectOptions.PermissionOptions); err != nil {
@@ -2557,4 +2554,18 @@ func (p *Platform) validateAPIGatewayAuthentication(apiGatewayConfig *platform.A
 	default:
 	}
 	return nil
+}
+
+func (p *Platform) checkProjectAuthorization(ctx context.Context,
+	projectName string,
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) error {
+
+	// in Iguazio 3.x, the project leader is the source of truth for authorization
+	if !p.IsAuthKindIguazioV4() {
+		return nil
+	}
+
+	_, err := p.QueryOPAProjectPermissions(ctx, projectName, action, permissionOptions)
+	return err
 }

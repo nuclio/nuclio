@@ -175,7 +175,6 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	}
 
 	submittedEventChan := make(chan *submittedEvent)
-	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
@@ -186,14 +185,18 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 	commitRecordFuncHandler := vs.resolveCommitRecordFuncHandler(session)
 
-	// listen for explicit ack messages if enabled
+	// listen for explicit ack messages if enabled. The subscription owns its
+	// channel and is closed in the deferred cleanup below.
+	var explicitAckSubscription controlcommunication.Subscription
 	if functionconfig.ExplicitAckEnabled(vs.configuration.ExplicitAckMode) {
-		if err := vs.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+		var err error
+		explicitAckSubscription, err = vs.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind)
+		if err != nil {
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
 		go vs.explicitAckHandler(
-			explicitAckControlMessageChan,
+			explicitAckSubscription.C(),
 			commitRecordFuncHandler,
 			claim.GetShardID(),
 			claim.GetStreamPath(),
@@ -237,16 +240,15 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 	vs.Logger.DebugWith("Claim consumption stopped", "shardID", claim.GetShardID())
 
-	// unsubscribe channel from the streamAck control message kind before closing it
-	if functionconfig.ExplicitAckEnabled(vs.configuration.ExplicitAckMode) {
-		if err := vs.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
-			vs.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
-		}
+	// Close the explicit-ack subscription before closing the event submitter:
+	// Close() drives the broker to drain in-flight deliveries and then close the
+	// subscription's channel, which terminates explicitAckHandler's range loop.
+	if explicitAckSubscription != nil {
+		explicitAckSubscription.Close()
 	}
 
-	// shut down the event submitter and the explicit ack handler
+	// shut down the event submitter
 	close(submittedEventChan)
-	close(explicitAckControlMessageChan)
 
 	return submitError
 }
@@ -428,7 +430,7 @@ func (vs *v3iostream) resolveCommitRecordFuncHandler(session streamconsumergroup
 }
 
 func (vs *v3iostream) explicitAckHandler(
-	controlMessageChan chan *controlcommunication.ControlMessage,
+	controlMessageChan <-chan *controlcommunication.ControlMessage,
 	commitRecordFuncHandler func(*v3io.StreamRecord),
 	claimShardId int,
 	claimStreamPath string) {

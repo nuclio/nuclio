@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/google/uuid"
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -84,6 +85,12 @@ type Trigger interface {
 
 	// SignalWorkersToDrain drains all workers
 	SignalWorkersToDrain() error
+
+	// Drain signals all workers to drain and waits for each to acknowledge completion
+	// over the control socket. It returns the set of worker IDs that finished draining.
+	// On context cancellation/timeout it still returns the IDs that drained so far,
+	// alongside the error, so callers can decide what to do with the rest.
+	Drain(ctx context.Context) (map[string]struct{}, error)
 
 	// SignalWorkersToContinue signal all workers to continue processing
 	SignalWorkersToContinue() error
@@ -345,44 +352,39 @@ func (at *AbstractTrigger) Restart() error {
 	return nil
 }
 
-// SubscribeToControlMessageKind subscribes all workers to control message kind
-func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage) error {
+// SubscribeToControlMessageKind subscribes every worker's control-message broker
+// to the given kind and merges them into a single Subscription that delivers
+// messages from any worker over one channel.
+//
+// The caller owns the returned Subscription and must call Close() — typically
+// in a defer — to release the per-worker subscriptions and close the merged
+// channel. Because the broker is the sole writer/closer, Close() is safe to
+// invoke at any time without racing against in-flight deliveries.
+func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
 
+	workers := at.WorkerAllocator.GetObjects()
 	at.Logger.DebugWith("Subscribing to control message kind",
 		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetObjects()))
+		"numWorkers", len(workers))
 
-	for _, workerInstance := range at.WorkerAllocator.GetObjects() {
-		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err,
+	subs := make([]controlcommunication.Subscription, 0, len(workers))
+	for _, workerInstance := range workers {
+		sub, err := workerInstance.Subscribe(kind)
+		if err != nil {
+			// release any subscriptions we already created so we don't leak
+			// channels on the partial-failure path
+			for _, s := range subs {
+				s.Close()
+			}
+			return nil, errors.Wrapf(err,
 				"Failed to subscribe to control message kind %s in worker %d",
 				kind,
 				workerInstance.GetIndex())
 		}
+		subs = append(subs, sub)
 	}
 
-	return nil
-}
-
-// UnsubscribeFromControlMessageKind unsubscribes all workers from control message kind
-func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage) error {
-
-	at.Logger.DebugWith("Unsubscribing channel from control message kind",
-		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetObjects()))
-
-	for _, workerInstance := range at.WorkerAllocator.GetObjects() {
-		if err := workerInstance.Unsubscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err,
-				"Failed to unsubscribe channel from control message kind %s in worker %d",
-				kind,
-				workerInstance.GetIndex())
-		}
-	}
-
-	return nil
+	return controlcommunication.MergeSubscriptions(subs), nil
 }
 
 // SignalWorkersToDrain sends a signal to all workers, telling them to drop or ack events
@@ -392,6 +394,71 @@ func (at *AbstractTrigger) SignalWorkersToDrain() error {
 		return errors.Wrap(err, "Failed to signal all workers to drain events")
 	}
 	return nil
+}
+
+// Drain signals all workers to drain and waits for each to acknowledge completion over the
+// control socket. Each Python worker sends a DrainMessageKind control message carrying its
+// worker ID once its drain callback finishes; we deduplicate by worker ID and return once
+// every worker has acknowledged. On context cancellation/timeout we return the set of workers
+// that drained so far alongside the error, leaving the caller to recover the rest.
+//
+// The drain subscription is owned by this call: the broker is the sole writer/closer, so
+// Close() (deferred) drains any in-flight delivery and closes the channel without racing a
+// late acknowledgement. This is what makes the acknowledged-drain protocol deadlock-free on
+// top of the channel-ownership broker.
+func (at *AbstractTrigger) Drain(ctx context.Context) (map[string]struct{}, error) {
+	drainedWorkerIds := map[string]struct{}{}
+
+	// subscribe to worker drain-complete control messages so we know when each worker is
+	// done draining and the trigger may proceed with the rebalance
+	subscription, err := at.SubscribeToControlMessageKind(controlcommunication.DrainMessageKind)
+	if err != nil {
+		return drainedWorkerIds, errors.Wrap(err, "Failed to subscribe to drain control messages")
+	}
+
+	// Close() unsubscribes every per-worker subscription, drains in-flight deliveries and
+	// closes the merged channel exactly once - safe even if an acknowledgement is still in flight
+	defer subscription.Close()
+
+	workers := at.WorkerAllocator.GetObjects()
+	if err := at.SignalWorkersToDrain(); err != nil {
+		return drainedWorkerIds, errors.Wrap(err, "Failed to signal all workers to drain events")
+	}
+
+	for {
+		select {
+		case controlMessage, ok := <-subscription.C():
+			if !ok {
+				// the subscription channel was closed by the broker - there is nothing left to
+				// wait for. This happens when there are no workers to drain (MergeSubscriptions
+				// returns an already-closed subscription), in which case the drained set is empty
+				// and correct.
+				return drainedWorkerIds, nil
+			}
+
+			drainAttributes := &controlcommunication.ControlMessageAttributesDrain{}
+			if err := mapstructure.Decode(controlMessage.Attributes, drainAttributes); err != nil {
+				at.Logger.WarnWith("Failed decoding drain control message attributes", "err", err.Error())
+				continue
+			}
+
+			drainedWorkerIds[drainAttributes.WorkerId] = struct{}{}
+			at.Logger.DebugWith("Worker acknowledged draining",
+				"workerId", drainAttributes.WorkerId,
+				"drained", len(drainedWorkerIds),
+				"total", len(workers))
+
+			if len(drainedWorkerIds) == len(workers) {
+				return drainedWorkerIds, nil
+			}
+
+		case <-ctx.Done():
+			at.Logger.DebugWith("Context cancelled while waiting for workers to drain",
+				"drained", len(drainedWorkerIds),
+				"total", len(workers))
+			return drainedWorkerIds, errors.Wrap(ctx.Err(), "Context cancelled while waiting for workers to drain")
+		}
+	}
 }
 
 // SignalWorkersToContinue sends a signal to all workers, telling them to continue event processing

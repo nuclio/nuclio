@@ -101,6 +101,23 @@ func (suite *ParseSuite) TestBadCode() {
 	suite.Require().Error(err, "No error on bad code")
 }
 
+func (suite *ParseSuite) TestRejectsPathTraversal() {
+
+	// a valid handler directory exists, but the path used to reach it contains a
+	// traversal sequence - the parser must reject it before touching the file system
+	handlerDir, err := os.MkdirTemp("", "parse-test")
+	suite.Require().NoError(err, "Can't create temporary directory")
+	suite.createHandler(handlerDir, 0)
+
+	// build the path by hand (not filepath.Join, which would clean away the "..") so the
+	// traversal sequence reaches the parser verbatim, even though it resolves to a real dir
+	traversalPath := handlerDir + "/../" + filepath.Base(handlerDir)
+
+	_, _, err = suite.parser.ParseEventHandlers(traversalPath)
+	suite.Require().Error(err, "Expected error for path containing '..'")
+	suite.Require().Contains(err.Error(), "..", "Error should reference the rejected traversal sequence")
+}
+
 func (suite *ParseSuite) TestFindHandlersInDirectory() {
 	handlerDir, err := os.MkdirTemp("", "parse-test")
 	suite.Require().NoError(err, "Can't create temporary directory")

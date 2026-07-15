@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -821,6 +822,39 @@ func (suite *PlatformConfigTestSuite) TestEnrichNewPlatformConfig() {
 	}
 }
 
+func (suite *PlatformConfigTestSuite) TestScaleToZeroReadinessPollIntervalEnrichment() {
+	for _, testCase := range []struct {
+		name             string
+		configured       string
+		expectEnrichErr  bool
+		expectedInterval time.Duration
+	}{
+		{name: "default when unset", configured: "", expectedInterval: DefaultReadinessPollInterval},
+		{name: "explicit value", configured: "500ms", expectedInterval: 500 * time.Millisecond},
+		{name: "invalid duration errors", configured: "not-a-duration", expectEnrichErr: true},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{ScaleToZero: ScaleToZero{ReadinessPollInterval: testCase.configured}}
+			err := config.EnrichPlatformConfig()
+			if testCase.expectEnrichErr {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedInterval, config.GetScaleToZeroReadinessPollInterval())
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestScaleToZeroReadinessPollIntervalValidation() {
+	config := &Config{
+		RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+		ScaleToZero:       ScaleToZero{ReadinessPollInterval: "0s"},
+	}
+	suite.Require().NoError(config.EnrichPlatformConfig())
+	suite.Require().Error(config.ValidatePlatformConfig())
+}
+
 func (suite *PlatformConfigTestSuite) TestEnrichRuntimeBaseImages() {
 	testCases := []struct {
 		name               string
@@ -911,6 +945,146 @@ func (suite *PlatformConfigTestSuite) getTestProbe(probeValue int32) *corev1.Pro
 		PeriodSeconds:       probeValue,
 		FailureThreshold:    probeValue,
 	}
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichElasticSearchConfigAPIKey() {
+	testCases := []struct {
+		name           string
+		configYAML     string
+		envAPIKey      string
+		expectedAPIKey string
+	}{
+		{
+			name: "apiKeyFromConfig",
+			configYAML: `
+kube:
+  elasticSearchConfig:
+    apiKey: "config-api-key"
+`,
+			envAPIKey:      "",
+			expectedAPIKey: "config-api-key",
+		},
+		{
+			name: "apiKeyFromEnv",
+			configYAML: `
+kube:
+  elasticSearchConfig:
+    apiKey: ""
+`,
+			envAPIKey:      "env-api-key",
+			expectedAPIKey: "env-api-key",
+		},
+		{
+			name: "apiKeyEnvOverridesConfig",
+			configYAML: `
+kube:
+  elasticSearchConfig:
+    apiKey: "config-api-key"
+`,
+			envAPIKey:      "env-api-key",
+			expectedAPIKey: "env-api-key",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			if tc.envAPIKey != "" {
+				os.Setenv("NUCLIO_ELASTIC_SEARCH_API_KEY", tc.envAPIKey)
+				defer os.Unsetenv("NUCLIO_ELASTIC_SEARCH_API_KEY")
+			}
+
+			var readConfiguration Config
+			err := suite.reader.Read(bytes.NewBufferString(tc.configYAML), "yaml", &readConfiguration)
+			suite.Require().NoError(err)
+
+			readConfiguration.enrichElasticSearchConfig()
+			suite.Equal(tc.expectedAPIKey, readConfiguration.Kube.ElasticSearchConfig.APIKey)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestElasticSearchConfigValidateMutualExclusivity() {
+	testCases := []struct {
+		name        string
+		config      *ElasticSearchConfig
+		envPassword string
+		envAPIKey   string
+		expectError bool
+	}{
+		{
+			name:        "neitherConfigured",
+			config:      &ElasticSearchConfig{},
+			expectError: false,
+		},
+		{
+			name:        "onlyPasswordInConfig",
+			config:      &ElasticSearchConfig{Password: "secret"},
+			expectError: false,
+		},
+		{
+			name:        "onlyAPIKeyInConfig",
+			config:      &ElasticSearchConfig{APIKey: "my-api-key"},
+			expectError: false,
+		},
+		{
+			name:        "bothInConfig",
+			config:      &ElasticSearchConfig{Password: "secret", APIKey: "my-api-key"},
+			expectError: true,
+		},
+		{
+			name:        "passwordInConfigAPIKeyInEnv",
+			config:      &ElasticSearchConfig{Password: "secret"},
+			envAPIKey:   "env-api-key",
+			expectError: true,
+		},
+		{
+			name:        "apiKeyInConfigPasswordInEnv",
+			config:      &ElasticSearchConfig{APIKey: "my-api-key"},
+			envPassword: "env-password",
+			expectError: true,
+		},
+		{
+			name:        "nilConfig",
+			config:      nil,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			if tc.envPassword != "" {
+				os.Setenv("NUCLIO_ELASTIC_SEARCH_PASSWORD", tc.envPassword)
+				defer os.Unsetenv("NUCLIO_ELASTIC_SEARCH_PASSWORD")
+			}
+			if tc.envAPIKey != "" {
+				os.Setenv("NUCLIO_ELASTIC_SEARCH_API_KEY", tc.envAPIKey)
+				defer os.Unsetenv("NUCLIO_ELASTIC_SEARCH_API_KEY")
+			}
+
+			err := tc.config.Validate()
+			if tc.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "mutually exclusive")
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigElasticSearchMutualExclusivity() {
+	config := &Config{
+		RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+		Kube: PlatformKubeConfig{
+			ElasticSearchConfig: &ElasticSearchConfig{
+				Password: "secret",
+				APIKey:   "my-api-key",
+			},
+		},
+	}
+	err := config.ValidatePlatformConfig()
+	suite.Require().Error(err)
+	suite.Contains(err.Error(), "Elasticsearch config")
 }
 
 func TestPlatformConfigTestSuite(t *testing.T) {

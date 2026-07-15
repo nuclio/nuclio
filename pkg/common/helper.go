@@ -32,6 +32,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 	"unicode/utf8"
@@ -85,6 +86,46 @@ func SanitizePath(path string) (string, error) {
 	}
 
 	return absPath, nil
+}
+
+// ContainsPathTraversal reports whether the given path contains a directory-traversal
+// sequence ("..") and therefore must not be trusted for filesystem access. Note that
+// stripping "../" is not a safe alternative, since inputs such as "....//" would still
+// resolve to "../"; reject the input outright instead.
+func ContainsPathTraversal(path string) bool {
+	return strings.Contains(path, "..")
+}
+
+// ContainsShellMetacharacters reports whether the given string contains characters that
+// have special meaning to a POSIX shell (/bin/sh -c). Such characters must never appear
+// in values that are interpolated into a shell command string.
+func ContainsShellMetacharacters(s string) bool {
+	return strings.ContainsAny(s, ";|&$`(){}\\\"' \t\n*?[]<>~!")
+}
+
+// IsPathWithinDir reports whether targetPath resolves to a location strictly inside dir.
+// Both arguments are resolved to absolute paths first, so the check is robust against
+// "../" traversal sequences in targetPath. A path equal to dir is not considered within it.
+// Use this to prevent path traversal (CWE-22) before writing to a user-influenced path.
+func IsPathWithinDir(targetPath, dir string) (bool, error) {
+	absTargetPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to resolve target path")
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to resolve dir")
+	}
+
+	relPath, err := filepath.Rel(absDir, absTargetPath)
+	if err != nil {
+		// the paths share no common base (e.g. different Windows volumes) - not within
+		return false, nil
+	}
+
+	return relPath != "." &&
+		relPath != ".." &&
+		!strings.HasPrefix(relPath, ".."+string(os.PathSeparator)), nil
 }
 
 // FileExists returns true if the file @ path exists
@@ -701,4 +742,20 @@ func ImageHasRegistry(image string) bool {
 	}
 	firstSegment := image[:slashIndex]
 	return strings.Contains(firstSegment, ".") || strings.Contains(firstSegment, ":")
+}
+
+// WaitGroupWithTimeout waits for wg to complete, returning true if it finished
+// before the timeout elapsed or false otherwise.
+func WaitGroupWithTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }

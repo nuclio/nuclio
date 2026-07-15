@@ -50,7 +50,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -101,8 +101,8 @@ jobs:
     name: Check copyright and license
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: denoland/setup-deno@667a34cdef165d8d2b2e98dde39547c9daac7282 # 2.0.4
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # 2.0.5
         with:
           deno-version: v1.x
       - name: Check License Lines
@@ -136,7 +136,7 @@ jobs:
     name: Test short
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -151,7 +151,7 @@ jobs:
     name: Build nuctl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -174,10 +174,10 @@ jobs:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # 4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # 4.4.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -217,14 +217,14 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Run this again even after running it in build_docker_images
       # So that we have as much memory as possible
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # 5.0.0
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # 5.0.1
         with:
           version: "v3.20.0"
 
@@ -233,7 +233,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d # 2.16.1
+      - uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55 # 2.18.0
         with:
           minikube version: "v1.38.0"
           kubernetes version: "v1.35.0"
@@ -337,7 +337,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -368,14 +368,14 @@ jobs:
         test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
     name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions Kubernetes' || 'Test Kubernetes' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Run this again even after running it in build_docker_images
       # So that we have as much memory as possible
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # 5.0.0
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # 5.0.1
         with:
           version: "v3.20.0"
 
@@ -384,7 +384,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@96202dee4ae1c2f46a62fe197273aaf22b83f42d # 2.16.1
+      - uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55 # 2.18.0
         with:
           minikube version: "v1.38.0"
           kubernetes version: "v1.35.0"
@@ -457,7 +457,7 @@ jobs:
     name: Test python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Run python test
         run: |
@@ -467,7 +467,7 @@ jobs:
     name: Test NodeJS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Run NodeJS test
         run: |

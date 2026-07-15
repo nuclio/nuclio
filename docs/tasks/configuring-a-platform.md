@@ -221,6 +221,8 @@ compared to function config values, which can be specified in the function confi
 Nuclio resources (currently function configuration and api gateway configuration) may contain sensitive information such as passwords, tokens, etc.
 When the 'masking sensitive fields' feature is enabled, these fields get obfuscated, and their raw values are stored separately (in a Kubernetes secret). They are then populated internally when needed, during function deployment or api gateway creation.
 
+> **Security note:** This feature is **disabled by default** in the official Helm chart (`platformConfig.sensitiveFields.maskSensitiveFields` is commented out, which resolves to `false`). When it is disabled, trigger credentials such as `password`, `secret`, and nested values like `attributes.sasl.password` are written verbatim into the `NuclioFunction` CRD and returned in plaintext by the Dashboard API (for example, `GET /api/functions`). Enable it for any deployment whose Dashboard or CRD store is reachable by clients that should not see those credentials — see [Securing the Dashboard](../setup/k8s/running-in-production-k8s.md#securing-the-dashboard) in the production guide for the full hardening checklist.
+
 In api gateway config only `password` field is masked if 'masking sensitive fields' is enabled.
 For function config there are some config fields that are [masked by default](https://github.com/nuclio/nuclio/blob/development/pkg/platformconfig/types.go#L303-L340). You can add custom sensitive fields to mask by specifying the regex to the path in the function configuration.
 The masked fields are replaced with references (`$ref`) in the function configuration.
@@ -333,7 +335,7 @@ runtimeBaseImages:
 
 In this example:
 - All Node.js functions will use `custom-registry.io/node:20` by default 
-- All Golang functions will use the default Nuclio Go base image (`gcr.io/iguazio/alpine:3.20`), since no image is explicitly specified
+- All Golang functions will use the default Nuclio Go base image (`gcr.io/iguazio/alpine:3.23`), since no image is explicitly specified
 - Python 3.11 functions will specifically use `custom-registry.io/python:3.11`
 - Python 3.12 functions will specifically use `custom-registry.io/python:3.12`
 - Other python functions (without a version-specific match) will use `custom-registry.io/python:3.12`, since `3.12` is the current default Python version

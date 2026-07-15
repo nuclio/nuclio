@@ -653,6 +653,17 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
+	// Guard against path traversal (CWE-22): moduleFileName is derived from the
+	// attacker-controlled spec.handler. path.Join strips leading separators and cleans
+	// the result, but "../" sequences can still resolve the file outside tempDir.
+	withinTempDir, err := common.IsPathWithinDir(sourceFilePath, tempDir)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to validate source file path")
+	}
+	if !withinTempDir {
+		return "", errors.Errorf("Handler module name resolves outside the build directory: %s", moduleFileName)
+	}
+
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
 	if err := os.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
@@ -740,7 +751,7 @@ func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}
 	parsedAttributes := map[string]string{}
 
 	mandatoryFields := []string{"s3Bucket", "s3ItemKey"}
-	optionalFields := []string{"s3Region", "s3AccessKeyId", "s3SecretAccessKey", "s3SessionToken"}
+	optionalFields := []string{"s3Region", "s3AccessKeyId", "s3SecretAccessKey", "s3SessionToken", "s3Endpoint"}
 
 	for _, key := range append(mandatoryFields, optionalFields...) {
 		value, found := attributes[key]
@@ -933,8 +944,13 @@ func (b *Builder) createTempDir() error {
 	if b.options.FunctionConfig.Spec.Build.TempDir != "" {
 
 		// Validate the user-provided temporary directory to ensure it does not contain directory traversal sequences
-		if strings.Contains(b.options.FunctionConfig.Spec.Build.TempDir, "..") {
+		if common.ContainsPathTraversal(b.options.FunctionConfig.Spec.Build.TempDir) {
 			return errors.New("Invalid temporary directory path: contains '..'")
+		}
+
+		// Reject shell metacharacters — the path reaches a shell-executed tar command in the Kaniko builder
+		if common.ContainsShellMetacharacters(b.options.FunctionConfig.Spec.Build.TempDir) {
+			return errors.New("Invalid temporary directory path: contains shell metacharacters")
 		}
 
 		// if the user-provided temp directory is not under `/tmp` or `/var/folders/` (depends on OS), create it under it
@@ -1765,7 +1781,8 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		s3Attributes["s3Region"],
 		s3Attributes["s3AccessKeyId"],
 		s3Attributes["s3SecretAccessKey"],
-		s3Attributes["s3SessionToken"]); err != nil {
+		s3Attributes["s3SessionToken"],
+		s3Attributes["s3Endpoint"]); err != nil {
 
 		// assume running on ec2 container, which resolves the authentication seamlessly
 		if downloadError := b.s3Client.DownloadWithinEC2Instance(tempFile,

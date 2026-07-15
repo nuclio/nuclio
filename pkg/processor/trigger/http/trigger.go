@@ -397,21 +397,10 @@ func (h *http) preHandleStatusValidation(ctx *fasthttp.RequestCtx, expectedStatu
 }
 
 func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
-	var functionLogger logger.Logger
-	var bufferLogger *nucliozap.BufferLogger
-
 	// internal endpoint to allow clients the information whether the http server is taking requests in
 	// this is an internal endpoint, we do not want to update statistics here
 	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
-		// here we want to allow only ready status
-		// because as soon as status has become non-ready,
-		// we want k8s to stop sending traffic to this pod
-		if ok := h.preHandleStatusValidation(
-			ctx,
-			status.Ready); !ok {
-			return
-		}
-		ctx.Response.SetStatusCode(nethttp.StatusOK)
+		h.handleInternalHealthCheck(ctx)
 		return
 	}
 
@@ -422,26 +411,17 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		h.UpdateStatistics(false, 1)
 		return
 	}
-
-	// attach the context to the event
 	// get the log level required
 	responseLogLevel := ctx.Request.Header.Peek(headers.LogLevel)
+	functionLogger, bufferLogger := h.resolveRequestLogger(ctx, responseLogLevel)
 
-	// check if we need to return the logs as part of the response in the header
-	if responseLogLevel != nil {
-
-		// set the function logger to the runtime's logger capable of writing to a buffer
-		bufferLogger, _ = h.bufferLoggerPool.Allocate(nil)
-
-		// set the logger level
-		bufferLogger.Logger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
-
-		// write open bracket for JSON
-		bufferLogger.Buffer.Write([]byte("["))
-
-		// set the function logger to that of the chosen buffer logger
-		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
+	// bufferLogger lifetime: returned to the pool when the handler returns, on every path
+	// (success, error, timeout). Guarded against nil because resolveRequestLogger only allocates
+	// when logs were requested by the caller via the LogLevel header.
+	if bufferLogger != nil {
+		defer h.bufferLoggerPool.Release(bufferLogger)
 	}
+
 	var timedOut bool
 	var response nuclio.ProcessingResult
 	var submitError error
@@ -449,46 +429,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var workerInstance eventprocessor.EventProcessor
 
 	if functionconfig.BatchModeEnabled(h.configuration.Batch) {
-		// cancelProcessing is a function that cancels the context to gracefully handle
-		// channel closure and avoid potential deadlocks
-		responseChan, cancelProcessing := h.PrepareEventAndSubmitToBatch(ctx)
-		defer close(responseChan)
-
-		// this flag indicates whether processing has been canceled
-		var processingCancelled bool
-		var responseFromBatch any
-
-		// wait for either event processing to finish or for the waiting timeout to pass
-		if h.eventTimeout != 0 {
-			select {
-			case <-time.After(h.eventTimeout):
-				// timeout occurred, cancel event processing and set flags accordingly
-				cancelProcessing()
-				processingCancelled = true
-				timedOut = true
-				response = nil
-				submitError = nil
-				processError = nil
-			case responseFromChan := <-responseChan:
-				responseFromBatch = responseFromChan
-			}
-		} else {
-			responseFromBatch = <-responseChan
-		}
-		// if event processing is not yet canceled, cancel it
-		if !processingCancelled {
-			cancelProcessing()
-		}
-		// handle the response received from batch processing
-		switch typedResponse := responseFromBatch.(type) {
-		case *runtime.ResponseWithErrors:
-			response = &typedResponse.Response
-			submitError = typedResponse.SubmitError
-			processError = typedResponse.ProcessError
-		case nuclio.ProcessingResult:
-			response = typedResponse
-		}
-
+		response, submitError, processError, timedOut = h.processRequestInBatchNode(ctx)
 	} else {
 		// TODO: change to return runtime.ResponseWithErrors
 		response, workerInstance, submitError, processError = h.AllocateWorkerAndSubmitEvent(ctx,
@@ -536,63 +477,16 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 	// if we failed to submit the event to a worker
 	if submitError != nil {
-		switch errors.Cause(submitError) {
-
-		// no available workers
-		case eventprocessor.ErrNoAvailableObjectsImmediately, eventprocessor.ErrNoAvailableObjectsTimeout, eventprocessor.ErrAllObjectsAreTerminated:
-			h.Logger.WarnWith("No workers available",
-				"err", submitError.Error())
-			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
-
-			// something else - most likely a bug
-		default:
-			h.Logger.WarnWith("Failed to submit event",
-				"err", submitError.Error())
-			ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
-		}
-
+		h.setSubmitError(ctx, submitError)
 		return
 	}
 
 	if processError != nil {
-		var statusCode int
-
-		// check if the user returned an error with a status code
-		switch typedError := processError.(type) {
-		case nuclio.WithStatusCode:
-			statusCode = typedError.StatusCode()
-		default:
-			// if the user didn't use one of the errors with status code, return internal error
-			statusCode = nethttp.StatusInternalServerError
-		}
-
-		ctx.Response.SetStatusCode(statusCode)
-		ctx.Response.SetBodyString(processError.Error())
+		h.setProcessError(ctx, processError)
 		return
 	}
 
-	fileStreamPath := ""
-	fileStreamDeleteAfterSend := false
-
-	// set headers
-	for headerKey, headerValue := range response.GetHeaders() {
-
-		// check if it's a special header
-		if strings.EqualFold(headerKey, headers.FileStreamDeleteAfterSend) {
-			fileStreamDeleteAfterSend = true
-		} else {
-			switch typedHeaderValue := headerValue.(type) {
-			case string:
-				if strings.EqualFold(headerKey, headers.FileStreamPath) {
-					fileStreamPath = headerValue.(string)
-				} else {
-					ctx.Response.Header.Set(headerKey, typedHeaderValue)
-				}
-			case int:
-				ctx.Response.Header.Set(headerKey, strconv.Itoa(typedHeaderValue))
-			}
-		}
-	}
+	fileStreamPath, fileStreamDeleteAfterSend := h.applyResponseHeaders(ctx, response)
 
 	// should be set before body is set
 	// set content type if set
@@ -606,21 +500,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	if fileStreamPath != "" {
-		fileResponse, err := newFileResponse(h.Logger, fileStreamPath, fileStreamDeleteAfterSend)
-		if err != nil {
-			if os.IsNotExist(err) {
-				ctx.Response.SetStatusCode(nethttp.StatusNotFound)
-			} else {
-				h.Logger.WarnWith("Failed to open file for file streaming", "error", err)
-				ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
-			}
-
-			return
-		}
-		// this is not a blocking call, so we can use it only for file steaming, because the file persists on FS
-		// and worker is not involved in streaming
-		// it also closes fileResponse when done
-		ctx.Response.SetBodyStream(fileResponse, -1)
+		h.setResponseFromFile(ctx, fileStreamPath, fileStreamDeleteAfterSend)
 	} else {
 		// set body
 		switch typedResponse := response.GetBody().(type) {
@@ -675,6 +555,166 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 }
 
+func (h *http) handleInternalHealthCheck(ctx *fasthttp.RequestCtx) {
+	// here we want to allow only ready status
+	// because as soon as status has become non-ready,
+	// we want k8s to stop sending traffic to this pod
+	if ok := h.preHandleStatusValidation(
+		ctx,
+		status.Ready); !ok {
+		return
+	}
+	ctx.Response.SetStatusCode(nethttp.StatusOK)
+}
+
+func (h *http) resolveRequestLogger(ctx *fasthttp.RequestCtx, responseLogLevel []byte) (logger.Logger, *nucliozap.BufferLogger) {
+	var functionLogger logger.Logger
+	var bufferLogger *nucliozap.BufferLogger
+
+	// check if we need to return the logs as part of the response in the header
+	if responseLogLevel != nil {
+
+		// set the function logger to the runtime's logger capable of writing to a buffer
+		bufferLogger, _ = h.bufferLoggerPool.Allocate(nil)
+
+		// set the logger level
+		bufferLogger.Logger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
+
+		// write open bracket for JSON
+		bufferLogger.Buffer.Write([]byte("["))
+
+		// set the function logger to that of the chosen buffer logger
+		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
+	}
+	return functionLogger, bufferLogger
+}
+
+func (h *http) processRequestInBatchNode(ctx *fasthttp.RequestCtx) (
+	response nuclio.ProcessingResult,
+	submitError error,
+	processError error,
+	timedOut bool,
+) {
+	// cancelProcessing is a function that cancels the context to gracefully handle
+	// channel closure and avoid potential deadlocks
+	responseChan, cancelProcessing := h.PrepareEventAndSubmitToBatch(ctx)
+	defer close(responseChan)
+
+	// this flag indicates whether processing has been canceled
+	var processingCancelled bool
+	var responseFromBatch any
+
+	// wait for either event processing to finish or for the waiting timeout to pass
+	if h.eventTimeout != 0 {
+		select {
+		case <-time.After(h.eventTimeout):
+			// timeout occurred, cancel event processing and signal the caller via timedOut.
+			// response / submitError / processError stay as their zero values
+			cancelProcessing()
+			processingCancelled = true
+			timedOut = true
+		case responseFromChan := <-responseChan:
+			responseFromBatch = responseFromChan
+		}
+	} else {
+		responseFromBatch = <-responseChan
+	}
+	// if event processing is not yet canceled, cancel it
+	if !processingCancelled {
+		cancelProcessing()
+	}
+	// handle the response received from batch processing
+	switch typedResponse := responseFromBatch.(type) {
+	case *runtime.ResponseWithErrors:
+		response = &typedResponse.Response
+		submitError = typedResponse.SubmitError
+		processError = typedResponse.ProcessError
+	case nuclio.ProcessingResult:
+		response = typedResponse
+	}
+
+	return response, submitError, processError, timedOut
+}
+
+func (h *http) setSubmitError(ctx *fasthttp.RequestCtx, submitError error) {
+	switch errors.Cause(submitError) {
+
+	// no available workers
+	case eventprocessor.ErrNoAvailableObjectsImmediately, eventprocessor.ErrNoAvailableObjectsTimeout, eventprocessor.ErrAllObjectsAreTerminated:
+		h.Logger.WarnWith("No workers available",
+			"err", submitError.Error())
+		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
+
+		// something else - most likely a bug
+	default:
+		h.Logger.WarnWith("Failed to submit event",
+			"err", submitError.Error())
+		ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
+	}
+}
+
+func (h *http) setProcessError(ctx *fasthttp.RequestCtx, processError error) {
+	var statusCode int
+
+	// check if the user returned an error with a status code
+	switch typedError := processError.(type) {
+	case nuclio.WithStatusCode:
+		statusCode = typedError.StatusCode()
+	default:
+		// if the user didn't use one of the errors with status code, return internal error
+		statusCode = nethttp.StatusInternalServerError
+	}
+
+	ctx.Response.SetStatusCode(statusCode)
+	ctx.Response.SetBodyString(processError.Error())
+}
+
+// applyResponseHeaders writes the response's headers onto ctx while intercepting the special
+// file-stream headers. Those headers are returned to the caller so it can decide how to deliver
+// the body (in-memory bytes, streaming reader, or file stream).
+func (h *http) applyResponseHeaders(ctx *fasthttp.RequestCtx, response nuclio.ProcessingResult) (fileStreamPath string, fileStreamDeleteAfterSend bool) {
+	for headerKey, headerValue := range response.GetHeaders() {
+
+		// special header: signals the file-stream body should be deleted after send
+		if strings.EqualFold(headerKey, headers.FileStreamDeleteAfterSend) {
+			fileStreamDeleteAfterSend = true
+			continue
+		}
+
+		switch typedHeaderValue := headerValue.(type) {
+		case string:
+
+			// special header: signals the body is a file-stream located at this path
+			if strings.EqualFold(headerKey, headers.FileStreamPath) {
+				fileStreamPath = typedHeaderValue
+				continue
+			}
+			ctx.Response.Header.Set(headerKey, typedHeaderValue)
+		case int:
+			ctx.Response.Header.Set(headerKey, strconv.Itoa(typedHeaderValue))
+		}
+	}
+	return fileStreamPath, fileStreamDeleteAfterSend
+}
+
+func (h *http) setResponseFromFile(ctx *fasthttp.RequestCtx, fileStreamPath string, fileStreamDeleteAfterSend bool) {
+	response, err := newFileResponse(h.Logger, fileStreamPath, fileStreamDeleteAfterSend)
+	if err != nil {
+		if os.IsNotExist(err) {
+			ctx.Response.SetStatusCode(nethttp.StatusNotFound)
+		} else {
+			h.Logger.WarnWith("Failed to open file for file streaming", "error", err)
+			ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
+		}
+
+		return
+	}
+	// this is not a blocking call, so we can use it only for file steaming, because the file persists on FS
+	// and worker is not involved in streaming
+	// it also closes fileResponse when done
+	ctx.Response.SetBodyStream(response, -1)
+}
+
 func (h *http) allocateEvents(size int) {
 	h.events = make([]Event, size)
 	for i := 0; i < size; i++ {
@@ -686,6 +726,7 @@ func (h *http) allocateEvents(size int) {
 // It finalizes the buffer logger output as a JSON array and sets it in the response header,
 // unless the content size exceeds the header size limit (4096 bytes).
 // This allows returning logs from the user code execution back to the client.
+// Ownership of bufferLogger stays with the caller (handleRequest releases it via defer).
 func (h *http) setLogs(ctx *fasthttp.RequestCtx, bufferLogger *nucliozap.BufferLogger, responseLogLevel []byte) {
 	if responseLogLevel == nil {
 		return
@@ -708,7 +749,4 @@ func (h *http) setLogs(ctx *fasthttp.RequestCtx, bufferLogger *nucliozap.BufferL
 	} else {
 		h.Logger.Warn("Skipped setting logs in header cause of size limit")
 	}
-
-	// return the buffer logger to the pool
-	h.bufferLoggerPool.Release(bufferLogger)
 }

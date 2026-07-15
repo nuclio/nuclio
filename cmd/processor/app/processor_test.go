@@ -19,6 +19,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -235,6 +236,11 @@ func (t *testTrigger) GetProjectName() string {
 func (t *testTrigger) SignalWorkersToDrain() error {
 	t.Called()
 	return nil
+}
+
+func (t *testTrigger) Drain(ctx context.Context) (map[string]struct{}, error) {
+	t.Called()
+	return map[string]struct{}{}, nil
 }
 
 func (t *testTrigger) SignalWorkersToTerminate() error {

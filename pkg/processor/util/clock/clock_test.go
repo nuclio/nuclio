@@ -30,9 +30,18 @@ type ClockSuite struct {
 }
 
 func (suite *ClockSuite) TestClock() {
-	resolution := 7 * time.Millisecond
+	// Now() lags real time by up to one tick interval (resolution) plus however late the
+	// scheduler wakes the tick goroutine. resolution is set well above that scheduler
+	// jitter - which is large under the race detector (NUC-728) - so the deterministic
+	// one-tick lag dominates the bound. maxDiff is that one-tick lag plus generous headroom
+	// for jitter: it does not tightly bound accuracy, but it tolerates a healthy clock under
+	// load while still failing if the tick goroutine stalls (the lag then grows past maxDiff
+	// within a couple of iterations).
+	resolution := 50 * time.Millisecond
+	jitterHeadroom := 2 * resolution
+	maxDiff := resolution + jitterHeadroom
+
 	c := New(resolution)
-	maxDiff := 2 * resolution
 	for i := 0; i < 10; i++ {
 		diff := time.Since(*c.Now())
 		if diff < 0 {

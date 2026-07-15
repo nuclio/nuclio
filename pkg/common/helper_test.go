@@ -704,6 +704,102 @@ func (suite *MiscTestSuite) TestImageHasRegistry() {
 	}
 }
 
+type IsPathWithinDirTestSuite struct {
+	suite.Suite
+}
+
+func (suite *IsPathWithinDirTestSuite) TestIsPathWithinDir() {
+	const dir = "/tmp/nuclio-build-123/source"
+	for _, testCase := range []struct {
+		name       string
+		targetPath string
+		expected   bool
+	}{
+		{
+			name:       "childWithinDir",
+			targetPath: "/tmp/nuclio-build-123/source/main.go",
+			expected:   true,
+		},
+		{
+			name:       "dirItself",
+			targetPath: "/tmp/nuclio-build-123/source",
+			expected:   false,
+		},
+		{
+			name:       "exactlyParentDir",
+			targetPath: "/tmp/nuclio-build-123",
+			expected:   false,
+		},
+		{
+			// the advisory reproducer: "../" sequences escaping the build dir
+			name:       "parentEscape",
+			targetPath: "/tmp/nuclio-build-123/source/../../../../tmp/evil.txt",
+			expected:   false,
+		},
+		{
+			// guards against a naive HasPrefix(path, dir) check, which would wrongly
+			// accept a sibling dir sharing the prefix ("source-evil" vs "source")
+			name:       "siblingWithSharedPrefix",
+			targetPath: "/tmp/nuclio-build-123/source-evil/x.txt",
+			expected:   false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			within, err := IsPathWithinDir(testCase.targetPath, dir)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expected, within)
+		})
+	}
+}
+
+type ContainsPathTraversalTestSuite struct {
+	suite.Suite
+}
+
+func (suite *ContainsPathTraversalTestSuite) TestContainsPathTraversal() {
+	for _, testCase := range []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "cleanAbsolutePath",
+			path:     "/tmp/nuclio-build-123/source",
+			expected: false,
+		},
+		{
+			name:     "cleanRelativePath",
+			path:     "handler/main.go",
+			expected: false,
+		},
+		{
+			name:     "emptyPath",
+			path:     "",
+			expected: false,
+		},
+		{
+			name:     "leadingTraversal",
+			path:     "../../etc/passwd",
+			expected: true,
+		},
+		{
+			name:     "embeddedTraversal",
+			path:     "/tmp/nuclio-build-123/source/../../../../etc/passwd",
+			expected: true,
+		},
+		{
+			// removing "../" alone would leave "../", so the whole input must be rejected
+			name:     "obfuscatedTraversal",
+			path:     "....//etc/passwd",
+			expected: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expected, ContainsPathTraversal(testCase.path))
+		})
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -714,4 +810,6 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(StripPrefixesTestSuite))
 	suite.Run(t, new(LabelsMapMatcherTestSuite))
 	suite.Run(t, new(MiscTestSuite))
+	suite.Run(t, new(IsPathWithinDirTestSuite))
+	suite.Run(t, new(ContainsPathTraversalTestSuite))
 }

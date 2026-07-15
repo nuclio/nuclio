@@ -332,9 +332,11 @@ func (n *NuclioResourceScaler) updateFunctionStatus(ctx context.Context,
 }
 
 func (n *NuclioResourceScaler) waitFunctionReadiness(ctx context.Context, namespace string, functionName string) error {
+	pollInterval := n.platformConfiguration.GetScaleToZeroReadinessPollInterval()
 	n.logger.DebugWithCtx(ctx,
 		"Waiting for function readiness",
-		"functionName", functionName)
+		"functionName", functionName,
+		"pollInterval", pollInterval)
 	var function *nuclioio.NuclioFunction
 	var err error
 	for {
@@ -360,7 +362,7 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(ctx context.Context, namesp
 			"functionName", functionName,
 			"currentState", function.Status.State)
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(pollInterval)
 	}
 	return n.verifyReadiness(ctx, function)
 }

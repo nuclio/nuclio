@@ -65,7 +65,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	newTestRuntime.configuration.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil).AbstractControlMessageBroker
+	newTestRuntime.configuration.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil).ControlMessageBrokerBase
 
 	return newTestRuntime, nil
 }
@@ -146,12 +146,10 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 
 	time.Sleep(1 * time.Second)
 
-	// create channel for consumer
-	controlMessageChannel := make(chan *controlcommunication.ControlMessage)
-
-	// subscribe to test message kind
-	err = suite.testRuntimeInstance.GetControlMessageBroker().Subscribe(messageKind, controlMessageChannel)
+	// subscribe to test message kind — the broker owns the channel
+	sub, err := suite.testRuntimeInstance.GetControlMessageBroker().Subscribe(messageKind)
 	suite.Require().NoError(err, "Can't subscribe to control message")
+	defer sub.Close()
 
 	// create control message
 	controlMessage := &controlcommunication.ControlMessage{
@@ -165,7 +163,7 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 
 	// wait for control message in a goroutine
 	go func() {
-		receivedControlMessage := <-controlMessageChannel
+		receivedControlMessage := <-sub.C()
 		suite.Require().Equal(controlMessage, receivedControlMessage, "Received control message doesn't match")
 		done <- true
 	}()
@@ -236,7 +234,7 @@ func (suite *RuntimeSuite) createLogger() logger.Logger {
 func (suite *RuntimeSuite) createConfig(loggerInstance logger.Logger) *runtime.Configuration {
 	return &runtime.Configuration{
 		FunctionLogger:       loggerInstance,
-		ControlMessageBroker: controlcommunication.NewAbstractControlMessageBroker(),
+		ControlMessageBroker: controlcommunication.NewControlMessageBrokerBase(),
 		Configuration: &processor.Configuration{
 			Config: functionconfig.Config{
 				Meta: functionconfig.Meta{

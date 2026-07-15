@@ -109,7 +109,12 @@ func getVersionFromSearchEngine(client *http.Client, config *platformconfig.Elas
 		return nil, errors.Wrap(err, "Failed to create request")
 	}
 
-	if config.Username != "" && config.Password != "" {
+	// Auto-detection uses the Elasticsearch "ApiKey" scheme for the probe. For an
+	// OpenSearch cluster secured with an API key, set kind: opensearch explicitly
+	// so this probe is skipped (OpenSearch authenticates API keys with Bearer).
+	if config.APIKey != "" {
+		req.Header.Set("Authorization", "ApiKey "+config.APIKey)
+	} else if config.Username != "" && config.Password != "" {
 		req.SetBasicAuth(config.Username, config.Password)
 	}
 

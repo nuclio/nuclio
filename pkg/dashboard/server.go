@@ -17,9 +17,11 @@ limitations under the License.
 package dashboard
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -29,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -37,6 +40,8 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/opa-client"
+	"golang.org/x/sync/semaphore"
 )
 
 type PlatformAuthorizationMode string
@@ -44,6 +49,8 @@ type PlatformAuthorizationMode string
 const (
 	PlatformAuthorizationModeServiceAccount          PlatformAuthorizationMode = "service-account"
 	PlatformAuthorizationModeAuthorizationHeaderOIDC PlatformAuthorizationMode = "authorization-header-oidc"
+	// maximum number of stale-function updates to run concurrently
+	staleFunctionUpdateConcurrency = 5
 )
 
 type Server struct {
@@ -183,6 +190,17 @@ func NewServer(parentLogger logger.Logger,
 	return newServer, nil
 }
 
+// Start Starts the server and launches background job to mark stale functions as errored
+func (s *Server) Start() error {
+	if err := s.AbstractServer.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start server")
+	}
+
+	go s.markStaleFunctionsAsError(context.Background())
+
+	return nil
+}
+
 func (s *Server) GetRegistryURL() string {
 	return s.defaultRegistryURL
 }
@@ -283,6 +301,83 @@ func (s *Server) getRegistryURL() string {
 	}
 
 	return registryURL
+}
+
+// markStaleFunctionsAsError flips functions that are stuck in a pre-build/build state to error.
+func (s *Server) markStaleFunctionsAsError(ctx context.Context) {
+	functions, err := s.Platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
+		Namespace: s.GetDefaultNamespace(),
+	})
+	if err != nil {
+		// non-fatal: a transient list failure shouldn't block the dashboard from starting
+		s.Logger.WarnWithCtx(ctx, "Failed to list functions for stale-function sweep; skipping",
+			"err", err.Error())
+		return
+	}
+
+	// states from which no process can advance the function after a dashboard restart
+	staleStates := map[functionconfig.FunctionState]struct{}{
+		functionconfig.FunctionStateWaitingForBuild: {},
+		functionconfig.FunctionStateBuilding:        {},
+	}
+
+	// update stale functions concurrently, bounded by a semaphore
+	var wg sync.WaitGroup
+	sem := semaphore.NewWeighted(staleFunctionUpdateConcurrency)
+
+	for _, function := range functions {
+		functionStatus := function.GetStatus()
+		if _, isStale := staleStates[functionStatus.State]; !isStale {
+			continue
+		}
+
+		functionConfig := function.GetConfig()
+		s.Logger.DebugWithCtx(ctx, "Found stale function on startup, setting its state to error",
+			"functionName", functionConfig.Meta.Name,
+			"functionState", functionStatus.State)
+
+		_ = sem.Acquire(ctx, 1)
+		wg.Go(func() {
+			defer sem.Release(1)
+
+			functionStatus.State = functionconfig.FunctionStateError
+			functionStatus.Message = "Function deployment was interrupted and could not be completed. Please redeploy the function."
+
+			if err := s.Platform.UpdateFunction(ctx, &platform.UpdateFunctionOptions{
+				FunctionMeta:   &functionConfig.Meta,
+				FunctionSpec:   &functionConfig.Spec,
+				FunctionStatus: functionStatus,
+
+				// the sweep runs at startup with no user session; mark it as a system call so it
+				// bypasses OPA authorization (the configured override value is matched by the OPA client)
+				PermissionOptions: opaclient.PermissionOptions{
+					OverrideHeaderValue: s.platformConfiguration.Opa.OverrideHeaderValue,
+				},
+			}); err != nil {
+
+				// the kube platform's UpdateFunction persists the status and then waits for function
+				// readiness, which returns an error for the "error" state we just set. that wait error is
+				// expected here and means the update actually succeeded.
+				if strings.Contains(errors.RootCause(err).Error(), "in error state") {
+					s.Logger.DebugWithCtx(ctx, "Stale function state set to error",
+						"functionName", functionConfig.Meta.Name)
+					return
+				}
+
+				// non-fatal: keep sweeping the remaining functions
+				s.Logger.WarnWithCtx(ctx, "Failed to set stale function state to error",
+					"functionName", functionConfig.Meta.Name,
+					"err", err.Error())
+				return
+			}
+
+			s.Logger.DebugWithCtx(ctx, "Marked stale function as error",
+				"functionName", functionConfig.Meta.Name)
+		})
+	}
+
+	wg.Wait()
+	s.Logger.DebugWithCtx(ctx, "Finished marking stale functions as error")
 }
 
 func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Credentials) string {

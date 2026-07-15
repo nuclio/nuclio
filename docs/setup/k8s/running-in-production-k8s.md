@@ -9,6 +9,7 @@ This document describes advanced configuration options and best-practice guideli
 - [The preferred deployment method](#the-preferred-deployment-method)
 - [Freezing a qualified version](#freezing-a-qualified-version)
 - [Multi-Tenancy](#multi-tenancy)
+- [Securing the Dashboard](#securing-the-dashboard)
 - [Air-gapped deployment](#air-gapped-deployment)
 - [Using Kaniko as an image builder](#using-kaniko-as-an-image-builder)
 
@@ -69,6 +70,78 @@ Note:
   This means that the controller handles Nuclio resources (functions, function events, and projects) only within its own namespace.
   This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) configurations.
 - To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `registry.hub.docker.com` or `quay.io`).
+
+<a id="securing-the-dashboard"></a>
+## Securing the Dashboard
+
+> **Security note:** The Nuclio Dashboard exposes an HTTP API (`/api/...`) that reads and writes function configuration, including any credentials carried by event triggers — for example the top-level `password` and `secret` fields, and nested values inside `attributes` such as `attributes.sasl.password` and `attributes.accesskey` on Kafka triggers or `attributes.password` on `v3io-stream` triggers.
+> The default Helm deployment does **not** authenticate this API and does **not** mask trigger credentials at rest. Treat the Dashboard as a privileged control plane and harden it before exposing it on any network that is not fully trusted.
+
+The default chart values are tuned for a quick development setup and assume the Dashboard sits on a trusted network. Before running Nuclio in production, apply both controls below.
+
+### Authenticate the Dashboard API
+
+By default, `dashboard.authConfig.kind` is unset, which selects the "NOP" authenticator — every request is accepted without credentials. The built-in authenticator kinds are listed in [`pkg/auth/types.go`](https://github.com/nuclio/nuclio/blob/development/pkg/auth/types.go); the non-NOP options are tied to specific platforms. For deployments that do not run on one of those platforms, terminate authentication at the network layer instead — for example with an authenticating ingress controller, an OAuth2 / OIDC proxy, or a service-mesh authorization policy — and ensure the Dashboard service only accepts traffic from that proxy.
+
+Without an authenticator in front of the Dashboard, any client that can reach the Dashboard service (port 8070 by default) can read every function definition in the namespace — including the trigger credentials stored on those functions.
+
+### Mask sensitive fields at rest
+
+The Nuclio Kubernetes deployer can move sensitive trigger fields out of the `NuclioFunction` CRD and into Kubernetes Secrets, replacing the value in the CRD with a reference token. This feature is controlled by `platformConfig.sensitiveFields.maskSensitiveFields` and is **off by default** in the official Helm chart.
+
+When the feature is off, credentials supplied to triggers (Kafka `password` and `attributes.sasl.password`, RabbitMQ `password`, `v3io-stream` `attributes.password`, Kinesis `attributes.secretAccessKey`, and so on) are stored verbatim in the `NuclioFunction` CRD and returned in plaintext by `GET /api/functions` and `GET /api/functions/{name}`.
+
+Enable masking in your Helm values:
+
+```yaml
+# values.yaml
+platformConfig:
+  sensitiveFields:
+    maskSensitiveFields: true
+```
+
+See [Sensitive fields](../../tasks/configuring-a-platform.md#sensitive-fields) in the platform configuration guide for the default match list and how to extend it with `customSensitiveFields`.
+
+> **Note:** Masking applies on function deploy. Functions that already exist when you enable the feature need to be re-deployed for their credentials to migrate from the CRD into a Secret.
+
+### Restrict the Dashboard's outbound requests
+
+When a function is created with `spec.build.codeEntryType` set to `archive` (or with a bare URL supplied as `spec.build.path`), the Dashboard fetches that user-supplied URL **server-side** — the request originates from inside the cluster, from the Dashboard pod. Any client permitted to create a function can therefore cause the Dashboard to issue an HTTP `GET` to an arbitrary address, including cluster-internal services (the Kubernetes API server, other pods and `ClusterIP` services), the node loopback interface, and the cloud metadata endpoint (`169.254.169.254`). Differences in the returned error let the caller infer which internal ports are open. User-supplied `spec.build.codeEntryAttributes.headers` are forwarded on that request.
+
+Nuclio treats function creation as a **privileged, trusted control-plane operation** — a function author already controls the function's image, environment, volumes, and mounts. The controls below keep that trust boundary intact in production:
+
+1. **Authenticate the API and limit who can create functions** — see [Authenticate the Dashboard API](#securing-the-dashboard) above. This removes the unauthenticated path entirely.
+2. **Restrict who can reach the Dashboard** with a `NetworkPolicy`. This is a pod-level control and applies however you expose the Dashboard — an `Ingress`, a Gateway API `HTTPRoute`, or a `LoadBalancer` / `NodePort` Service. Allow traffic only from trusted sources; the example below permits only the `nuclio` namespace:
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: nuclio-dashboard-restrict-ingress
+      namespace: nuclio
+    spec:
+      podSelector:
+        matchLabels:
+          nuclio.io/app: dashboard
+      policyTypes: [Ingress]
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: nuclio
+    ```
+
+    If the Dashboard is exposed through an ingress controller or a Gateway API `HTTPRoute`, the proxied connection reaches the Dashboard pod from that controller's or gateway's own pods — typically in a separate namespace (`ingress-nginx`, `envoy-gateway-system`, and so on), not `nuclio`. Allow that namespace as the source instead of, or in addition to, `nuclio`; otherwise the policy blocks the legitimate proxied traffic.
+
+3. **Restrict Dashboard egress** so build downloads cannot reach internal ranges. Allow DNS and the registries or hosts you actually pull function code from, and deny the private RFC 1918 ranges, the link-local range (`169.254.0.0/16`, which covers the cloud metadata service), and the cluster API service IP. Egress `NetworkPolicy` enforcement requires a CNI that supports it, such as Calico or Cilium.
+4. **On cloud nodes, enforce IMDSv2 with a hop limit of 1** so pods cannot reach the instance metadata service:
+
+    ```bash
+    aws ec2 modify-instance-metadata-options \
+      --instance-id <id> --http-tokens required --http-put-response-hop-limit 1
+    ```
+
+> **Note:** These are deployment controls. If you delegate function creation to semi-trusted or multi-tenant users, the egress `NetworkPolicy` (control 3) is what prevents a permitted function author from reaching internal or metadata endpoints — authentication alone does not.
 
 ## Freezing a qualified version
 
@@ -203,3 +276,33 @@ helm install nuclio \
     --set registry.pushPullUrl=<your registry URL> \
     nuclio/nuclio
 ```
+
+### Using Kaniko with cloud workload identity (Azure WI, GKE WI, AWS IRSA)
+
+On managed Kubernetes you can authenticate Kaniko to your container registry via a cloud workload identity bound to the build pod's ServiceAccount, instead of mounting a static docker-config secret.
+This is the standard pattern on AKS with Azure Workload Identity for ACR, on GKE with Workload Identity for Artifact Registry / GCR, and on EKS with IRSA for ECR.
+
+Because Kaniko jobs are created by the Nuclio dashboard at run time (rather than rendered by the chart), the chart exposes `dashboard.kaniko.podLabels`, a map of labels that the dashboard applies to every build pod template it creates.
+On clusters where workload identity is opt-in via a pod label (e.g. AKS requires `azure.workload.identity/use: "true"`), set those labels here.
+You also need to set `dashboard.kaniko.defaultServiceAccount` (or the per-function `BuilderServiceAccount`) to a ServiceAccount that is bound to the cloud identity with push permissions on the target registry.
+
+Example for AKS with Azure Workload Identity:
+
+```sh
+helm upgrade --install --reuse-values nuclio \
+    --set registry.pushPullUrl=<your-acr>.azurecr.io \
+    --set dashboard.containerBuilderKind=kaniko \
+    --set dashboard.kaniko.defaultServiceAccount=<sa-bound-to-acrpush-identity> \
+    --set-json 'dashboard.kaniko.podLabels={"azure.workload.identity/use":"true"}' \
+    nuclio/nuclio
+```
+
+#### Precedence when both are configured
+
+It's a valid configuration to set **both** `registry.secretName` (or `registry.credentials`) **and** `dashboard.kaniko.podLabels` + a workload-identity-bound `defaultServiceAccount`.
+Kaniko's auth resolution is the standard go-containerregistry chain, so when a docker-config secret is mounted at `/kaniko/.docker/config.json`, **those static credentials take precedence** over the federated token that workload identity would otherwise provide.
+The federated token is only consulted if the mounted config has no matching entry for the target registry.
+
+This means the workload-identity setup is effectively shadowed when `registry.secretName` / `registry.credentials` is also set.
+If you intend to authenticate to the registry via workload identity, do **not** also set `registry.secretName` (or only set one whose docker config does not match the target registry).
+It is the responsibility of whoever configures Nuclio to choose one auth path or the other; the chart does not enforce this.

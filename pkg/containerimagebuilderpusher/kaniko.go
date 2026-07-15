@@ -18,10 +18,12 @@ package containerimagebuilderpusher
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strings"
@@ -222,10 +224,12 @@ func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
 	tarFile.Close() // nolint: errcheck
 
 	k.logger.DebugWithCtx(ctx, "Compressing build bundle", "tarFilePath", tarFile.Name())
-	if _, err := k.cmdRunner.Run(&cmdrunner.RunOptions{
-		WorkingDir: &buildContainerBundleDir,
-	}, "tar -zcvf %s %s", path.Base(tarFile.Name()), contextDir); err != nil {
-		return "", "", errors.Wrapf(err, "Failed to compress build bundle")
+	tarCmd := exec.CommandContext(ctx, "tar", "-zcvf", path.Base(tarFile.Name()), contextDir)
+	tarCmd.Dir = buildContainerBundleDir
+	var tarStderr bytes.Buffer
+	tarCmd.Stderr = &tarStderr
+	if err := tarCmd.Run(); err != nil {
+		return "", "", errors.Wrapf(err, "Failed to compress build bundle: %s", tarStderr.String())
 	}
 
 	buildDir := "/tmp/kaniko-builds"
@@ -316,6 +320,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      jobName,
 					Namespace: namespace,
+					Labels:    k.resolveKanikoPodLabels(),
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
@@ -847,4 +852,19 @@ func (k *Kaniko) enrichServiceAccountFromBuilderConfiguration(buildOptions *Buil
 		return k.builderConfiguration.DefaultServiceAccount
 	}
 	return buildOptions.FunctionServiceAccount
+}
+
+// resolveKanikoPodLabels returns the labels to set on the kaniko Job pod
+// template. Returns nil when no labels are configured so the rendered pod
+// metadata is unchanged for installs that don't need this (e.g. on-prem,
+// credential-based cloud).
+func (k *Kaniko) resolveKanikoPodLabels() map[string]string {
+	if len(k.builderConfiguration.KanikoPodLabels) == 0 {
+		return nil
+	}
+	labels := make(map[string]string, len(k.builderConfiguration.KanikoPodLabels))
+	for key, value := range k.builderConfiguration.KanikoPodLabels {
+		labels[key] = value
+	}
+	return labels
 }

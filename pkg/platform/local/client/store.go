@@ -330,15 +330,18 @@ func (s *Store) getResources(resourceDir string,
 	rowHandler func([]byte) error) error {
 
 	var commandStdout, resourcePath string
+	var err error
 
 	// if the request is for a single resource, get that file
 	if resourceName != "" {
 		resourcePath = s.getResourcePath(resourceDir, resourceNamespace, resourceName)
+		// Quote the path to prevent shell metacharacter injection.
+		commandStdout, _, err = s.runCommand(nil, "/bin/cat %s", common.Quote(resourcePath))
 	} else {
 		resourcePath = path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), "*")
+		// Wildcard: keep shell wrapper for glob expansion; wildcard is hardcoded, not user-supplied.
+		commandStdout, _, err = s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
 	}
-
-	commandStdout, _, err := s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
 	if err != nil {
 
 		// if the error indicates that there's no such file that means nothing was created yet
@@ -495,12 +498,12 @@ func (s *Store) deleteResource(resourceDir string, resourceNamespace string, res
 	resourcePath := s.getResourcePath(resourceDir, resourceNamespace, resourceName)
 
 	// stat the file
-	if _, _, err := s.runCommand(nil, "/bin/stat %s", resourcePath); err != nil {
+	if _, _, err := s.runCommand(nil, "/bin/stat %s", common.Quote(resourcePath)); err != nil {
 		return nuclio.ErrNotFound
 	}
 
 	// remove the file
-	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
+	_, _, err := s.runCommand(nil, "/bin/rm %s", common.Quote(resourcePath))
 
 	// if the error indicates that there's no such file - that means nothing was created yet
 	if cause := errors.Cause(err); cause != nil && strings.Contains(cause.Error(), "No such file") {

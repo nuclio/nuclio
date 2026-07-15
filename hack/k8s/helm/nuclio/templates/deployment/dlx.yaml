@@ -44,6 +44,10 @@ spec:
       - name: {{ template "nuclio.dlxName" . }}
         image: {{ .Values.dlx.image.repository }}:{{ .Values.dlx.image.tag }}
         imagePullPolicy: {{ .Values.dlx.image.pullPolicy }}
+        {{- with (include "nuclio.containerSecurityContext.dlx" .) }}
+        securityContext:
+          {{- . | nindent 10 }}
+        {{- end }}
         {{- if .Values.dlx.resources }}
         resources:
           {{ toYaml .Values.dlx.resources | nindent 11 }}

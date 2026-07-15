@@ -206,6 +206,31 @@ func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExten
 	suite.Assert().Error(err)
 }
 
+// TestWriteFunctionSourceCodeToTempFileRejectsPathTraversal verifies that a malicious
+// spec.handler whose module name escapes the build temp dir is rejected before any write
+// happens, closing the path-traversal vulnerability (GHSA-wpcj-rmv4-86qg, CWE-22).
+// The traversal-detection logic itself is exhaustively unit-tested in common.IsPathWithinDir;
+// this asserts it is actually wired into the source-code write path. Before the fix this
+// handler caused os.WriteFile to write attacker bytes outside tempDir.
+func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileRejectsPathTraversal() {
+	suite.builder.options.FunctionConfig.Spec.Runtime = "shell"
+	// exact reproducer from the advisory
+	suite.builder.options.FunctionConfig.Spec.Handler = "../../../../tmp/evil.txt:handler"
+
+	err := suite.builder.createTempDir()
+	suite.Require().NoError(err)
+	defer suite.builder.cleanupTempDir() // nolint: errcheck
+
+	encodedSourceCode := base64.StdEncoding.EncodeToString([]byte("echo pwned"))
+	suite.builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedSourceCode
+
+	tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(encodedSourceCode)
+	suite.Require().Error(err)
+	suite.Require().Contains(err.Error(), "outside the build directory")
+	// no path is returned and, since the guard runs before os.WriteFile, nothing is written
+	suite.Require().Empty(tempPath)
+}
+
 func (suite *testSuite) TestGetImage() {
 
 	// user specified
@@ -519,6 +544,7 @@ func (suite *testSuite) TestValidateAndParseS3Attributes() {
 		"s3AccessKeyId":     "myaccesskeyid",
 		"s3SecretAccessKey": "mysecretaccesskey",
 		"s3SessionToken":    "mys3sessiontoken",
+		"s3Endpoint":        "https://minio.example.com",
 	}
 	expectedResult := map[string]string{
 		"s3Bucket":          "my-bucket",
@@ -527,6 +553,7 @@ func (suite *testSuite) TestValidateAndParseS3Attributes() {
 		"s3AccessKeyId":     "myaccesskeyid",
 		"s3SecretAccessKey": "mysecretaccesskey",
 		"s3SessionToken":    "mys3sessiontoken",
+		"s3Endpoint":        "https://minio.example.com",
 	}
 	res, err := suite.builder.validateAndParseS3Attributes(goodS3CodeEntryAttributes)
 	suite.Require().NoError(err)
@@ -600,7 +627,8 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-region")),
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-access-key-id")),
 			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-secret-access-key")),
-			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-session-token"))).
+			mock.MatchedBy(common.GenerateStringMatchVerifier("my-s3-session-token")),
+			mock.MatchedBy(common.GenerateStringMatchVerifier("https://minio.example.com"))).
 		Return(nil).
 		Once()
 
@@ -614,6 +642,7 @@ func (suite *testSuite) TestResolveFunctionPathS3CodeEntry() {
 			"s3AccessKeyId":     "my-s3-access-key-id",
 			"s3SecretAccessKey": "my-s3-secret-access-key",
 			"s3SessionToken":    "my-s3-session-token",
+			"s3Endpoint":        "https://minio.example.com",
 			"workDir":           "/funcs/my-python-func",
 		},
 	}
@@ -1060,6 +1089,31 @@ func (suite *testSuite) TestCreateTempDir() {
 			name:        "No temp dir provided",
 			tempDir:     "",
 			expectError: false,
+		},
+		{
+			name:        "Shell metacharacter semicolon injection",
+			tempDir:     "/tmp/evil;id",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter pipe injection",
+			tempDir:     "/tmp/evil|cat /etc/passwd",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter subshell injection",
+			tempDir:     "/tmp/evil$(id)",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter backtick injection",
+			tempDir:     "/tmp/evil`id`",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter ampersand injection",
+			tempDir:     "/tmp/evil&id",
+			expectError: true,
 		},
 	}
 

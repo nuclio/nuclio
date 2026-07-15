@@ -62,7 +62,11 @@ func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
 }
 
 func GenerateProjectResourceString(projectName, prefix string) string {
-	return fmt.Sprintf("%s/projects/%s", prefix, projectName)
+	resource := fmt.Sprintf("%s/projects", prefix)
+	if projectName != "" {
+		resource = fmt.Sprintf("%s/%s", resource, projectName)
+	}
+	return resource
 }
 
 func GenerateFunctionResourceString(projectName, functionName, prefix string) string {

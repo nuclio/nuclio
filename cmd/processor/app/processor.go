@@ -377,7 +377,7 @@ func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
-	abstractControlMessageBroker := controlcommunication.NewAbstractControlMessageBroker()
+	abstractControlMessageBroker := controlcommunication.NewControlMessageBrokerBase()
 
 	// create error group
 	errGroup, _ := errgroup.WithContext(context.Background(), p.logger)

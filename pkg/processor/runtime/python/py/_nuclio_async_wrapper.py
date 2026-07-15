@@ -167,6 +167,10 @@ class AsyncWrapper(AbstractWrapper):
                 else:
                     self._logger.debug("Event discarded")
 
+                    # respond with an error so the processor does not block forever waiting for
+                    # a response to the discarded event (its default event timeout is infinite)
+                    await self._write_response_error('Event discarded: worker drained', sock)
+
                 # Release event reference
                 del event
 
@@ -193,9 +197,7 @@ class AsyncWrapper(AbstractWrapper):
             await self._on_serving_error(exc, sock)
         finally:
             if self._is_drain_needed:
-                result = self._call_drain_handler()
-                if asyncio.iscoroutine(result):
-                    await result
+                await self._call_drain_handler()
 
             if self._is_termination_needed:
                 result = self._call_termination_handler()
