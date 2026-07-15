@@ -67,6 +67,10 @@ type Config struct {
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
 	ServiceAccountConfig      ServiceAccountConfig             `json:"serviceAccount,omitempty"`
 
+	// FunctionAuthenticationEnabled gates behind-Service function-level authentication.
+	// When false (default) functions keep today's ingress-level authentication.
+	FunctionAuthenticationEnabled bool `json:"functionAuthenticationEnabled,omitempty"`
+
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
 	// stores the encoded FunctionReadinessTimeout as time.Duration
