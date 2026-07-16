@@ -61,14 +61,17 @@ func NewClient(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create leader client")
 	}
 
-	// get leader synchronization interval
+	// get leader synchronization interval and startup-sync flag
 	synchronizationIntervalStr := "0"
+	var syncOnStartup bool
 	if platformConfiguration.ProjectsLeader != nil {
 		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
+		syncOnStartup = platformConfiguration.ProjectsLeader.SyncOnStartup
 	}
 
 	newClient.synchronizer, err = client.NewSynchronizer(parentLogger,
 		synchronizationIntervalStr,
+		syncOnStartup,
 		namespaces,
 		newClient.leaderClient,
 		internalClient)

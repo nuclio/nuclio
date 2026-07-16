@@ -211,6 +211,10 @@ type ProjectsLeader struct {
 	// When false (default), all leader requests bypass 2PC checks and are applied unconditionally,
 	// preserving backwards compatibility with pre-2PC MLRun versions.
 	ProjectSync2PCEnabled bool `json:"projectSync2PCEnabled,omitempty"`
+
+	// SyncOnStartup, when true, performs a single project sync from the leader on startup instead of (or in
+	// addition to) the periodic interval loop.
+	SyncOnStartup bool `json:"syncOnStartup,omitempty"`
 }
 
 type PlatformKubeConfig struct {
