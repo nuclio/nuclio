@@ -215,7 +215,6 @@ func (c *Config) EnrichPlatformConfig() error {
 	c.enrichElasticSearchConfig()
 	c.enrichRuntimeBaseImages()
 	c.enrichProjectsLeaderConfig()
-	c.enrichFeatureFlags()
 
 	return nil
 }
@@ -640,12 +639,6 @@ func (c *Config) enrichRuntimeBaseImages() {
 		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
 			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
 		}
-	}
-}
-
-func (c *Config) enrichFeatureFlags() {
-	if c.FeatureFlags == nil {
-		c.FeatureFlags = FeatureFlags{}
 	}
 }
 
