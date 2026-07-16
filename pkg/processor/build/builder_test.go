@@ -1090,6 +1090,31 @@ func (suite *testSuite) TestCreateTempDir() {
 			tempDir:     "",
 			expectError: false,
 		},
+		{
+			name:        "Shell metacharacter semicolon injection",
+			tempDir:     "/tmp/evil;id",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter pipe injection",
+			tempDir:     "/tmp/evil|cat /etc/passwd",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter subshell injection",
+			tempDir:     "/tmp/evil$(id)",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter backtick injection",
+			tempDir:     "/tmp/evil`id`",
+			expectError: true,
+		},
+		{
+			name:        "Shell metacharacter ampersand injection",
+			tempDir:     "/tmp/evil&id",
+			expectError: true,
+		},
 	}
 
 	for _, testCase := range tests {

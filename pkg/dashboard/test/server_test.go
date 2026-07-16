@@ -191,6 +191,40 @@ type functionTestSuite struct {
 	dashboardTestSuite
 }
 
+func (suite *functionTestSuite) TestGetAllRejectsMaliciousFunctionName() {
+	// Malicious name from advisory PoC - contains shell injection payload.
+	// Validation should reject before reaching the platform (no mock.On needed).
+	expectedStatusCode := http.StatusBadRequest
+
+	suite.sendRequest(
+		"GET",
+		"/api/functions",
+		map[string]string{
+			headers.FunctionNamespace: "test-namespace",
+			headers.FunctionName:      `x";sleep 5;"`,
+		},
+		nil,
+		&expectedStatusCode,
+		nil,
+	)
+}
+
+func (suite *functionTestSuite) TestGetByIDRejectsMaliciousFunctionName() {
+	// Same payload injected via URL path segment.
+	expectedStatusCode := http.StatusBadRequest
+
+	suite.sendRequest(
+		"GET",
+		`/api/functions/x%22%3Bsleep%205%3B%22`, // URL-encoded: x";sleep 5;"
+		map[string]string{
+			headers.FunctionNamespace: "test-namespace",
+		},
+		nil,
+		&expectedStatusCode,
+		nil,
+	)
+}
+
 func (suite *functionTestSuite) TestCreateDeploymentError() {
 
 	// mock a failure before the function is updated (e.g. during project fetching)

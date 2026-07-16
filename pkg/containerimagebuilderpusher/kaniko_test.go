@@ -19,14 +19,64 @@ limitations under the License.
 package containerimagebuilderpusher
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type KanikoTestSuite struct {
 	suite.Suite
 	kaniko *Kaniko
+}
+
+func (suite *KanikoTestSuite) TestCreateContainerBuildBundleSuccess() {
+	tempDir := suite.T().TempDir()
+	contextDir := suite.T().TempDir()
+
+	testFile := fmt.Sprintf("%s/test.txt", contextDir)
+	suite.Require().NoError(os.WriteFile(testFile, []byte("test"), 0644))
+
+	logger, err := nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+
+	k := &Kaniko{
+		logger:               logger,
+		builderConfiguration: &ContainerBuilderConfiguration{},
+	}
+
+	bundleFilename, assetPath, err := k.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(bundleFilename)
+	suite.Require().FileExists(assetPath)
+	defer os.Remove(assetPath) // nolint: errcheck
+}
+
+func (suite *KanikoTestSuite) TestCreateContainerBuildBundleSafeFromShellInjection() {
+	tempDir := suite.T().TempDir()
+
+	// contextDir with a semicolon-injected shell command
+	markerFile := fmt.Sprintf("%s/kaniko-injection-marker-%d", os.TempDir(), time.Now().UnixNano())
+	injectionPayload := fmt.Sprintf("/nonexistent-dir; touch %s", markerFile)
+
+	logger, err := nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+
+	k := &Kaniko{
+		logger:               logger,
+		builderConfiguration: &ContainerBuilderConfiguration{},
+	}
+
+	_, _, err = k.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
+	suite.Require().Error(err, "Expected tar to fail on non-existent contextDir")
+
+	_, statErr := os.Stat(markerFile)
+	suite.Require().True(os.IsNotExist(statErr),
+		"Shell injection marker was created — injection succeeded via shell execution")
 }
 
 func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPodLabels() {
