@@ -213,8 +213,7 @@ type ProjectsLeader struct {
 	ProjectSync2PCEnabled bool `json:"projectSync2PCEnabled,omitempty"`
 
 	// SyncOnStartup, when true, performs a single project sync from the leader on startup instead of (or in
-	// addition to) the periodic interval loop. Useful for mlrun deployments where Nuclio should recover
-	// project state after a system hiccup without continuously polling the leader.
+	// addition to) the periodic interval loop.
 	SyncOnStartup bool `json:"syncOnStartup,omitempty"`
 }
 

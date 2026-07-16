@@ -75,7 +75,6 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupRunsOnce() {
 	suite.mockLeaderProjectsClient.
 		On("GetUpdatedAfter", mock.Anything, nilTime).
 		Return([]platform.Project{}, nil).
-		Run(func(args mock.Arguments) { close(syncDone) }).
 		Once()
 
 	suite.mockInternalProjectsClient.
@@ -83,6 +82,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupRunsOnce() {
 			Meta: platform.ProjectMeta{Namespace: namespace},
 		}).
 		Return([]platform.Project{}, nil).
+		Run(func(args mock.Arguments) { close(syncDone) }).
 		Once()
 
 	synchronizer := suite.newSynchronizer("0", true, []string{namespace})
@@ -90,10 +90,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupRunsOnce() {
 	err := synchronizer.Start()
 	suite.Require().NoError(err)
 
-	suite.waitForChannel(syncDone, "startup sync to call GetUpdatedAfter")
-
-	// allow the rest of syncOnce to complete
-	time.Sleep(100 * time.Millisecond)
+	suite.waitForChannel(syncDone, "startup sync to call internal projects client")
 
 	suite.mockLeaderProjectsClient.AssertExpectations(suite.T())
 	suite.mockInternalProjectsClient.AssertExpectations(suite.T())
