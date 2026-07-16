@@ -98,9 +98,11 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
 			"autoScaleMetrics":                autoScaleMetrics,
-			"disableDefaultHttpTrigger":       fsr.getPlatform().GetDisableDefaultHttpTrigger(),
-			"defaultProxyLogsSource":          fsr.getPlatform().GetDefaultProxyLogsSource(),
-			"functionAuthenticationEnabled":   fsr.getPlatform().IsFunctionAuthenticationEnabled(),
+			"disableDefaultHttpTrigger": fsr.getPlatform().GetDisableDefaultHttpTrigger(),
+			"defaultProxyLogsSource":    fsr.getPlatform().GetDefaultProxyLogsSource(),
+			"featureFlags": map[string]interface{}{
+				"functionAuthenticationEnabled": fsr.getPlatform().IsFunctionAuthenticationEnabled(),
+			},
 		},
 	}
 
