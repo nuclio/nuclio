@@ -17,6 +17,7 @@ limitations under the License.
 package elastic
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -86,7 +87,14 @@ func getVersionFromSearchEngineWithRetries(
 	retryInterval time.Duration,
 	timeout time.Duration,
 ) (*versionInfo, error) {
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: config.SSLVerificationMode == "none",
+			},
+		},
+	}
 	var versionInfoInstance *versionInfo
 	var err error
 
