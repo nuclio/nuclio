@@ -1069,6 +1069,9 @@ func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
 }
 
 func (ap *Platform) IsFunctionAuthenticationEnabled() bool {
+	if ap.Config.Authentication == nil {
+		return false
+	}
 	return ap.Config.Authentication.FunctionAuthenticationEnabled
 }
 

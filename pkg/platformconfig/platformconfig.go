@@ -66,7 +66,7 @@ type Config struct {
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
 	ServiceAccountConfig      ServiceAccountConfig             `json:"serviceAccount,omitempty"`
-	Authentication            Authentication                   `json:"authentication,omitempty"`
+	Authentication            *Authentication                  `json:"authentication,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -113,6 +113,9 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 func (c *Config) EnrichPlatformConfig() error {
 	defaultPlatformConfiguration := GetDefaultPlatformConfiguration()
+
+	// enrich authentication configuration
+	c.enrichAuthentication()
 
 	// enrich opa configuration
 	c.enrichOpaConfig()
@@ -555,6 +558,18 @@ func (c *Config) enrichLocalPlatform() {
 
 	if c.Local.FunctionContainersGracefulTerminationTimeout == 0 {
 		c.Local.FunctionContainersGracefulTerminationTimeout = time.Second * 10
+	}
+}
+
+func (c *Config) enrichAuthentication() {
+	if c.Authentication != nil {
+		return
+	}
+
+	// backward compatibility: populate from IngressConfig when Authentication is not explicitly set
+	c.Authentication = &Authentication{
+		AuthURL:   c.IngressConfig.IguazioAuthURL,
+		SignInURL: c.IngressConfig.IguazioSignInURL,
 	}
 }
 

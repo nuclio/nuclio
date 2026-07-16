@@ -492,6 +492,6 @@ type Authentication struct {
 	// AuthURL is the back-end auth-check endpoint URL.
 	AuthURL string `json:"authURL,omitempty"`
 
-	// AuthSignin is the sign-in redirect URL.
-	AuthSignin string `json:"authSignin,omitempty"`
+	// SignInURL is the sign-in redirect URL.
+	SignInURL string `json:"signInURL,omitempty"`
 }
