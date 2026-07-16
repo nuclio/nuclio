@@ -3715,9 +3715,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
     },
     "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
 	"disableDefaultHttpTrigger": false,
-	"featureFlags": {
-		"functionAuthenticationEnabled": false
-	},
+    "functionAuthenticationEnabled": false,
     "defaultFunctionPodResources": {
         "requests": {},
         "limits": {}
