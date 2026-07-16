@@ -562,14 +562,8 @@ func (c *Config) enrichLocalPlatform() {
 }
 
 func (c *Config) enrichAuthentication() {
-	if c.Authentication != nil {
-		return
-	}
-
-	// backward compatibility: populate from IngressConfig when Authentication is not explicitly set
-	c.Authentication = &Authentication{
-		AuthURL:   c.IngressConfig.IguazioAuthURL,
-		SignInURL: c.IngressConfig.IguazioSignInURL,
+	if c.Authentication == nil {
+		c.Authentication = &Authentication{}
 	}
 }
 
