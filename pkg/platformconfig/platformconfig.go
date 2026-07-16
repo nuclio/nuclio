@@ -66,10 +66,7 @@ type Config struct {
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
 	ServiceAccountConfig      ServiceAccountConfig             `json:"serviceAccount,omitempty"`
-
-	// FunctionAuthenticationEnabled gates behind-Service function-level authentication.
-	// When false (default) functions keep today's ingress-level authentication.
-	FunctionAuthenticationEnabled bool `json:"functionAuthenticationEnabled,omitempty"`
+	FeatureFlags              FeatureFlags                     `json:"featureFlags,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -218,6 +215,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	c.enrichElasticSearchConfig()
 	c.enrichRuntimeBaseImages()
 	c.enrichProjectsLeaderConfig()
+	c.enrichFeatureFlags()
 
 	return nil
 }
@@ -642,6 +640,12 @@ func (c *Config) enrichRuntimeBaseImages() {
 		if _, exists := c.RuntimeBaseImages[runtimeName]; !exists {
 			c.RuntimeBaseImages[runtimeName] = defaultBaseImage
 		}
+	}
+}
+
+func (c *Config) enrichFeatureFlags() {
+	if c.FeatureFlags == nil {
+		c.FeatureFlags = FeatureFlags{}
 	}
 }
 

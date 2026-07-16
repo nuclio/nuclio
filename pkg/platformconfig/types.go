@@ -481,3 +481,11 @@ func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp
 	}
 	return sfc.SensitiveFieldsRegex
 }
+
+// FeatureFlags holds feature flags that can be toggled via platform configuration.
+type FeatureFlags struct {
+
+	// FunctionAuthenticationEnabled gates behind-Service function-level authentication.
+	// When false (default) functions keep ingress-level authentication.
+	FunctionAuthenticationEnabled bool `json:"functionAuthenticationEnabled,omitempty"`
+}
