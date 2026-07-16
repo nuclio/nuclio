@@ -66,7 +66,7 @@ type Config struct {
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
 	ServiceAccountConfig      ServiceAccountConfig             `json:"serviceAccount,omitempty"`
-	FeatureFlags              FeatureFlags                     `json:"featureFlags,omitempty"`
+	Authentication            Authentication                   `json:"authentication,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
