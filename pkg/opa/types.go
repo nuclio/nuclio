@@ -26,12 +26,15 @@ const (
 	DefaultRequestTimeout       = 10
 	DefaultPermissionQueryPath  = "/v1/data/iguazio/authz/allow"
 	DefaultPermissionFilterPath = "/v1/data/iguazio/authz/filter_allowed"
-
-	IguazioV4ResourcePrefix   = "/resources"
-	IguazioV4ManagementPrefix = "/mgmt"
 )
 
 type Config struct {
 	*opaclient.Config
-	AuthKind auth.Kind `json:"authKind,omitempty"`
+	AuthKind                auth.Kind              `json:"authKind,omitempty"`
+	AuthorizationNamespaces AuthorizationNamespace `json:"authorizationNamespaces"`
+}
+
+type AuthorizationNamespace struct {
+	Resources  string `json:"resources,omitempty"`
+	Management string `json:"management,omitempty"`
 }
