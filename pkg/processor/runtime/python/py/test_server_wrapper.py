@@ -219,7 +219,8 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         # the discard response must carry the no-ack marker header so stream triggers
         # do not commit the offset and the event is redelivered instead of silently lost
-        self.assertIs(True, response['headers']['X-Nuclio-Stream-Event-Discarded'])
+        from wrapper_common import Constants
+        self.assertIs(True, response['headers'][Constants.stream_event_discarded_header])
 
     async def _send_events(self, events, single_connection=True):
         data = []
