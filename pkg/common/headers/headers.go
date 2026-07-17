@@ -91,7 +91,7 @@ const (
 	// discarded (never handed to the handler) because the worker was draining during a
 	// function restart or stream rebalance. Stream triggers (kafka, v3iostream) treat it
 	// as a no-ack so the event's offset is not committed and it is redelivered once the
-	// worker is back, preserving at-least-once delivery (NUC-855). It is an internal signal
+	// worker is back, preserving at-least-once delivery. It is an internal signal
 	// set by the wrapper, never by user handler code, which is why it is kept separate from
 	// the user-facing StreamNoAck header.
 	StreamEventDiscarded = "X-Nuclio-Stream-Event-Discarded"

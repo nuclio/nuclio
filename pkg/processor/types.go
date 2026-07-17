@@ -41,7 +41,7 @@ func (s StreamNoAckError) Error() string {
 // rebalance). Such events must not be acked, otherwise the stream trigger commits their
 // offset and they are silently lost. The wrapper signals this via the StreamEventDiscarded
 // response header; stream triggers convert it into a StreamNoAckError so the event is
-// redelivered once the worker is back, preserving at-least-once delivery (NUC-855).
+// redelivered once the worker is back, preserving at-least-once delivery
 func EventDiscardedDuringDrain(response nuclio.ProcessingResult) bool {
 	if response == nil {
 		return false
