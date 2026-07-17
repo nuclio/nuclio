@@ -184,6 +184,9 @@ type Platform interface {
 	// GetDisableDefaultHttpTrigger returns if creation of default http trigger is disabled
 	GetDisableDefaultHttpTrigger() bool
 
+	// IsFunctionAuthenticationEnabled returns whether behind-Service function authentication is enabled
+	IsFunctionAuthenticationEnabled() bool
+
 	// GetAllowedAuthenticationModes returns allowed authentication modes
 	GetAllowedAuthenticationModes() []string
 

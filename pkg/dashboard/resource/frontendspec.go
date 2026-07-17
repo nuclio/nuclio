@@ -100,6 +100,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"autoScaleMetrics":                autoScaleMetrics,
 			"disableDefaultHttpTrigger":       fsr.getPlatform().GetDisableDefaultHttpTrigger(),
 			"defaultProxyLogsSource":          fsr.getPlatform().GetDefaultProxyLogsSource(),
+			"functionAuthenticationEnabled":   fsr.getPlatform().IsFunctionAuthenticationEnabled(),
 		},
 	}
 

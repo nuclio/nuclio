@@ -3692,6 +3692,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Once()
 
 	suite.mockPlatform.
+		On("IsFunctionAuthenticationEnabled").
+		Return(false).
+		Once()
+
+	suite.mockPlatform.
 		On("GetDefaultProxyLogsSource").
 		Return(platform.ProxyLogsSourceK8s).
 		Once()
@@ -3744,6 +3749,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
     },
     "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
 	"disableDefaultHttpTrigger": false,
+    "functionAuthenticationEnabled": false,
     "defaultFunctionPodResources": {
         "requests": {},
         "limits": {}

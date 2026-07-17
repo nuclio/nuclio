@@ -485,3 +485,17 @@ func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp
 	}
 	return sfc.SensitiveFieldsRegex
 }
+
+// Authentication holds authentication-related platform configuration.
+type Authentication struct {
+
+	// FunctionAuthenticationEnabled gates behind-Service function-level authentication.
+	// When false (default) functions keep ingress-level authentication.
+	FunctionAuthenticationEnabled bool `json:"functionAuthenticationEnabled,omitempty"`
+
+	// AuthURL is the back-end auth-check endpoint URL.
+	AuthURL string `json:"authURL,omitempty"`
+
+	// SignInURL is the sign-in redirect URL.
+	SignInURL string `json:"signInURL,omitempty"`
+}

@@ -1068,6 +1068,13 @@ func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
 	return ap.Config.DisableDefaultHTTPTrigger
 }
 
+func (ap *Platform) IsFunctionAuthenticationEnabled() bool {
+	if ap.Config.Authentication == nil {
+		return false
+	}
+	return ap.Config.Authentication.FunctionAuthenticationEnabled
+}
+
 // GetAllowedAuthenticationModes returns allowed authentication modes
 func (ap *Platform) GetAllowedAuthenticationModes() []string {
 	return nil

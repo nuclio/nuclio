@@ -322,6 +322,11 @@ func (mp *Platform) GetDisableDefaultHttpTrigger() bool {
 	return args.Get(0).(bool)
 }
 
+func (mp *Platform) IsFunctionAuthenticationEnabled() bool {
+	args := mp.Called()
+	return args.Get(0).(bool)
+}
+
 func (mp *Platform) GetAllowedAuthenticationModes() []string {
 	args := mp.Called()
 	return args.Get(0).([]string)
