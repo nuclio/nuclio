@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -72,16 +73,80 @@ func newJobRunner(builderName string,
 	}, nil
 }
 
-// resolvePodLabels returns a copy of labels, or nil if labels is empty.
-func resolvePodLabels(labels map[string]string) map[string]string {
-	if len(labels) == 0 {
-		return nil
+// GetKind returns the backend name this jobRunner was constructed for (e.g. "kaniko", "buildah").
+func (r *jobRunner) GetKind() string {
+	return r.builderName
+}
+
+// GetDefaultRegistryCredentialsSecretName returns the secret with credentials to push/pull from the
+// docker registry. Shared across backends: they all read the same builderConfiguration field.
+func (r *jobRunner) GetDefaultRegistryCredentialsSecretName() string {
+	return r.builderConfiguration.DefaultRegistryCredentialsSecretName
+}
+
+// GetBaseImageRegistry returns the base image registry.
+func (r *jobRunner) GetBaseImageRegistry(registry string) string {
+	return r.builderConfiguration.DefaultBaseRegistryURL
+}
+
+// GetRegistryKind returns the registry kind (onCluster, offCluster, or empty if not specified).
+func (r *jobRunner) GetRegistryKind() string {
+	return r.builderConfiguration.RegistryKind
+}
+
+// GetOnbuildImageRegistry returns the onbuild base registry.
+func (r *jobRunner) GetOnbuildImageRegistry(registry string) string {
+	return r.builderConfiguration.DefaultOnbuildRegistryURL
+}
+
+// GetOnbuildStages builds the multistage-build FROM directives for onbuildArtifacts. Pure function of
+// its argument, shared across backends.
+func (r *jobRunner) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
+	onbuildStages := make([]string, 0, len(onbuildArtifacts))
+	stage := 0
+
+	for _, artifact := range onbuildArtifacts {
+		if artifact.ExternalImage {
+			continue
+		}
+
+		stage++
+		if len(artifact.Name) == 0 {
+			artifact.Name = fmt.Sprintf("onbuildStage-%d", stage)
+		}
+
+		baseImage := fmt.Sprintf("FROM %s AS %s", artifact.Image, artifact.Name)
+		onbuildDockerfileContents := fmt.Sprintf("%s\nARG NUCLIO_LABEL\nARG NUCLIO_ARCH\n", baseImage)
+		if strings.TrimSpace(artifact.StageCommands) != "" {
+			onbuildDockerfileContents += artifact.StageCommands + "\n"
+		}
+
+		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
 	}
-	resolved := make(map[string]string, len(labels))
-	for key, value := range labels {
-		resolved[key] = value
+
+	return onbuildStages, nil
+}
+
+// TransformOnbuildArtifactPaths changes onbuild artifact paths depending on the type of the builder
+// used. Pure function of its argument, shared across backends.
+func (r *jobRunner) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
+	stagedArtifactPaths := make(map[string]string)
+	for _, artifact := range onbuildArtifacts {
+		for source, destination := range artifact.Paths {
+			var transformedSource string
+			if artifact.ExternalImage {
+
+				// External image as stage
+				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Image, source)
+			} else {
+
+				// Previously built stage
+				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Name, source)
+			}
+			stagedArtifactPaths[transformedSource] = destination
+		}
 	}
-	return resolved
+	return stagedArtifactPaths, nil
 }
 
 // createContainerBuildBundle tars contextDir and symlinks the result into

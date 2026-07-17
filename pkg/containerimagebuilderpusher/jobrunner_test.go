@@ -80,22 +80,6 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 		"Shell injection marker was created — injection succeeded via shell execution")
 }
 
-func (suite *JobRunnerTestSuite) TestResolvePodLabelsCopiesAndIsolatesFromConfig() {
-	configLabels := map[string]string{"azure.workload.identity/use": "true"}
-
-	resolved := resolvePodLabels(configLabels)
-	suite.Equal("true", resolved["azure.workload.identity/use"])
-
-	// Mutating the returned map must not leak back into the shared config map.
-	resolved["mutated"] = "yes"
-	_, leaked := configLabels["mutated"]
-	suite.False(leaked, "resolvePodLabels must return a copy; mutation leaked into the source map")
-}
-
-func (suite *JobRunnerTestSuite) TestResolvePodLabelsReturnsNilWhenNoLabelsConfigured() {
-	suite.Nil(resolvePodLabels(nil))
-}
-
 func TestJobRunnerTestSuite(t *testing.T) {
 	suite.Run(t, new(JobRunnerTestSuite))
 }

@@ -25,7 +25,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -50,10 +49,6 @@ func NewKaniko(logger logger.Logger,
 	}
 
 	return &Kaniko{jobRunner: jr}, nil
-}
-
-func (k *Kaniko) GetKind() string {
-	return kanikoKind
 }
 
 func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
@@ -106,69 +101,6 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 		buildOptions.BuildTimeoutSeconds,
 		buildOptions.ReadinessTimeoutSeconds,
 		buildOptions.BuildLogger)
-}
-
-func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
-	onbuildStages := make([]string, 0, len(onbuildArtifacts))
-	stage := 0
-
-	for _, artifact := range onbuildArtifacts {
-		if artifact.ExternalImage {
-			continue
-		}
-
-		stage++
-		if len(artifact.Name) == 0 {
-			artifact.Name = fmt.Sprintf("onbuildStage-%d", stage)
-		}
-
-		baseImage := fmt.Sprintf("FROM %s AS %s", artifact.Image, artifact.Name)
-		onbuildDockerfileContents := fmt.Sprintf("%s\nARG NUCLIO_LABEL\nARG NUCLIO_ARCH\n", baseImage)
-		if strings.TrimSpace(artifact.StageCommands) != "" {
-			onbuildDockerfileContents += artifact.StageCommands + "\n"
-		}
-
-		onbuildStages = append(onbuildStages, onbuildDockerfileContents)
-	}
-
-	return onbuildStages, nil
-}
-
-func (k *Kaniko) GetDefaultRegistryCredentialsSecretName() string {
-	return k.builderConfiguration.DefaultRegistryCredentialsSecretName
-}
-
-func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-	stagedArtifactPaths := make(map[string]string)
-	for _, artifact := range onbuildArtifacts {
-		for source, destination := range artifact.Paths {
-			var transformedSource string
-			if artifact.ExternalImage {
-
-				// Using external image as "stage"
-				// Example: COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf
-				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Image, source)
-			} else {
-
-				// Using previously build image with index `artifactIndex` as "stage"
-				transformedSource = fmt.Sprintf("--from=%s %s", artifact.Name, source)
-			}
-			stagedArtifactPaths[transformedSource] = destination
-		}
-	}
-	return stagedArtifactPaths, nil
-}
-
-func (k *Kaniko) GetBaseImageRegistry(registry string) string {
-	return k.builderConfiguration.DefaultBaseRegistryURL
-}
-
-func (k *Kaniko) GetRegistryKind() string {
-	return k.builderConfiguration.RegistryKind
-}
-
-func (k *Kaniko) GetOnbuildImageRegistry(registry string) string {
-	return k.builderConfiguration.DefaultOnbuildRegistryURL
 }
 
 func (k *Kaniko) compileJobSpec(ctx context.Context,
@@ -239,7 +171,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      jobName,
 					Namespace: namespace,
-					Labels:    resolvePodLabels(k.builderConfiguration.KanikoPodLabels),
+					Labels:    common.CopyStringMapOrNil(k.builderConfiguration.KanikoPodLabels),
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

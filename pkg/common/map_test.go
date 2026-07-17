@@ -58,6 +58,23 @@ func (ts *MapTestSuite) TestMapStringInterfaceGetOrDefault() {
 	ts.Require().Equal(true, vb)
 }
 
+func (ts *MapTestSuite) TestCopyStringMapOrNilCopiesAndIsolatesFromSource() {
+	source := map[string]string{"azure.workload.identity/use": "true"}
+
+	copied := CopyStringMapOrNil(source)
+	ts.Equal("true", copied["azure.workload.identity/use"])
+
+	// Mutating the returned map must not leak back into the source map.
+	copied["mutated"] = "yes"
+	_, leaked := source["mutated"]
+	ts.False(leaked, "CopyStringMapOrNil must return a copy; mutation leaked into the source map")
+}
+
+func (ts *MapTestSuite) TestCopyStringMapOrNilReturnsNilWhenEmpty() {
+	ts.Nil(CopyStringMapOrNil(nil))
+	ts.Nil(CopyStringMapOrNil(map[string]string{}))
+}
+
 func TestMapTestSuite(t *testing.T) {
 	suite.Run(t, new(MapTestSuite))
 }
