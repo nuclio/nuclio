@@ -23,28 +23,29 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/auth/factory"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 const validToken = "valid-token"
 
-// authURLStub stands in for the auth-url (GetSelf): it admits a single valid bearer token and records
+// authURLStub stands in for the auth-url: it admits a single valid bearer token and records
 // what the sidecar forwarded.
 type authURLStub struct {
-	server          *httptest.Server
-	callCount       int
-	lastKind        string
-	lastOriginalURI string
+	server    *httptest.Server
+	callCount int
+	lastKind  string
 }
 
 func (s *authURLStub) close() {
@@ -67,7 +68,6 @@ func (suite *AuthProxyTestSuite) newAuthURLStub() *authURLStub {
 	stub.server = httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		stub.callCount++
 		stub.lastKind = request.Header.Get(headers.IguazioAuthenticatorKind)
-		stub.lastOriginalURI = request.Header.Get(headers.OriginalURI)
 
 		// admit only the actual valid credential, regardless of the declared authenticator kind
 		if request.Header.Get(headers.AuthorizationHeader) == "Bearer "+validToken {
@@ -80,13 +80,6 @@ func (suite *AuthProxyTestSuite) newAuthURLStub() *authURLStub {
 	return stub
 }
 
-func (suite *AuthProxyTestSuite) newAuth(verificationURL string) authpkg.Auth {
-	authConfig := authpkg.NewConfig(authpkg.KindIguazioV4)
-	authConfig.Iguazio.VerificationURL = verificationURL
-	authConfig.Iguazio.Timeout = AuthTimeout
-	return factory.NewAuth(suite.logger, authConfig)
-}
-
 func (suite *AuthProxyTestSuite) authenticatedRequest(token string) *http.Request {
 	request := httptest.NewRequest(http.MethodGet, "http://function.nuclio/some/path?q=1", nil)
 	if token != "" {
@@ -95,16 +88,31 @@ func (suite *AuthProxyTestSuite) authenticatedRequest(token string) *http.Reques
 	return request
 }
 
-// TestModeNoneAllows verifies none mode admits without calling the auth-url.
-func (suite *AuthProxyTestSuite) TestModeNoneAllows() {
-	stub := suite.newAuthURLStub()
-	defer stub.close()
+func (suite *AuthProxyTestSuite) authenticatedRequestFor(token, funcName string) *http.Request {
+	request := suite.authenticatedRequest(token)
+	request.Header.Set(headers.TargetFunctionName, funcName)
+	return request
+}
 
-	authenticator := NewStaticAuthenticator(suite.logger, suite.newAuth(stub.server.URL), "", Settings{Mode: ModeNone})
+// newHTTPTriggerFunction builds a NuclioFunction whose only HTTP trigger carries the given attributes.
+func newHTTPTriggerFunction(name, namespace string, attrs map[string]interface{}) *nuclioio.NuclioFunction {
+	return &nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: functionconfig.Spec{
+			Triggers: map[string]functionconfig.Trigger{
+				"http": {Kind: "http", Attributes: attrs},
+			},
+		},
+	}
+}
+
+// TestModeNoneAllows verifies none mode admits without calling the auth-url.
+// validateConfiguration permits an empty authURL for ModeNone, so the test reflects that.
+func (suite *AuthProxyTestSuite) TestModeNoneAllows() {
+	authenticator := NewReverseProxyAuthenticator(suite.logger, "", "", FunctionAuthConfig{Mode: ModeNone})
 
 	recorder := httptest.NewRecorder()
 	suite.Require().True(authenticator.Authenticate(recorder, suite.authenticatedRequest("")))
-	suite.Require().Equal(0, stub.callCount)
 }
 
 // TestModeAPI verifies api mode: valid credential is admitted (with identity headers), invalid/missing is 401.
@@ -112,7 +120,7 @@ func (suite *AuthProxyTestSuite) TestModeAPI() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator := NewStaticAuthenticator(suite.logger, suite.newAuth(stub.server.URL), "", Settings{Mode: ModeAPI})
+	authenticator := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", FunctionAuthConfig{Mode: ModeAPI})
 
 	suite.Run("valid is admitted with identity headers", func() {
 		request := suite.authenticatedRequest(validToken)
@@ -142,8 +150,7 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	const signinURL = "https://signin.example.com/oauth2/start"
-	authenticator := NewStaticAuthenticator(suite.logger, suite.newAuth(stub.server.URL), signinURL, Settings{Mode: ModeBrowser})
+	authenticator := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, testSigninURL, FunctionAuthConfig{Mode: ModeBrowser})
 
 	suite.Run("invalid redirects to sign-in with rd", func() {
 		recorder := httptest.NewRecorder()
@@ -161,21 +168,18 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 }
 
 // TestModeBasicAuth verifies basicAuth is verified locally, never via the auth-url.
+// validateConfiguration permits an empty authURL for ModeBasicAuth, so the test reflects that.
 func (suite *AuthProxyTestSuite) TestModeBasicAuth() {
-	stub := suite.newAuthURLStub()
-	defer stub.close()
-
-	authenticator := NewStaticAuthenticator(suite.logger,
-		suite.newAuth(stub.server.URL),
+	authenticator := NewReverseProxyAuthenticator(suite.logger,
 		"",
-		Settings{Mode: ModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"})
+		"",
+		FunctionAuthConfig{Mode: ModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"})
 
 	suite.Run("valid credentials admitted locally", func() {
 		request := suite.authenticatedRequest("")
 		request.SetBasicAuth("user", "pass")
 		recorder := httptest.NewRecorder()
 		suite.Require().True(authenticator.Authenticate(recorder, request))
-		suite.Require().Equal(0, stub.callCount)
 	})
 
 	suite.Run("invalid credentials rejected with 401", func() {
@@ -184,7 +188,6 @@ func (suite *AuthProxyTestSuite) TestModeBasicAuth() {
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, request))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
-		suite.Require().Equal(0, stub.callCount)
 	})
 }
 
@@ -194,7 +197,7 @@ func (suite *AuthProxyTestSuite) TestAuthenticatorKindForwardedAndCannotBypass()
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator := NewStaticAuthenticator(suite.logger, suite.newAuth(stub.server.URL), "", Settings{Mode: ModeAPI})
+	authenticator := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", FunctionAuthConfig{Mode: ModeAPI})
 
 	suite.Run("kind forwarded on valid credential", func() {
 		request := suite.authenticatedRequest(validToken)
@@ -221,7 +224,7 @@ func (suite *AuthProxyTestSuite) TestFailClosedOnUpstreamError() {
 		}))
 		defer errorServer.Close()
 
-		authenticator := NewStaticAuthenticator(suite.logger, suite.newAuth(errorServer.URL), "", Settings{Mode: ModeAPI})
+		authenticator := NewReverseProxyAuthenticator(suite.logger, errorServer.URL, "", FunctionAuthConfig{Mode: ModeAPI})
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
@@ -230,68 +233,82 @@ func (suite *AuthProxyTestSuite) TestFailClosedOnUpstreamError() {
 	suite.Run("transport error to auth-url", func() {
 
 		// nothing is listening here -> connection refused
-		authenticator := NewStaticAuthenticator(suite.logger, suite.newAuth("http://127.0.0.1:1"), "", Settings{Mode: ModeAPI})
+		authenticator := NewReverseProxyAuthenticator(suite.logger, "http://127.0.0.1:1", "", FunctionAuthConfig{Mode: ModeAPI})
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
 	})
 }
 
-// TestCRDAuthenticatorResolvesSettings verifies the authOnly provider resolves the mode from the target
-// function's CRD (name from header, namespace from startup config).
-func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesSettings() {
+// TestCRDAuthenticatorResolvesFunctionAuthConfig verifies the authOnly provider resolves the mode from the
+// target function's CRD (name from header, namespace from startup config).
+func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesFunctionAuthConfig() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	const namespace = "nuclio"
+	const passwordRef = functionconfig.ReferencePrefix + "/spec/triggers/http/attributes/authentication/basicauth/password"
 
-	apiFunction := &nuclioio.NuclioFunction{
-		ObjectMeta: metav1.ObjectMeta{Name: "api-func", Namespace: namespace},
-		Spec: functionconfig.Spec{
-			Triggers: map[string]functionconfig.Trigger{
-				"http": {
-					Kind:       "http",
-					Attributes: map[string]interface{}{"authenticationMode": ModeAPI},
-				},
-			},
+	apiFunction := newHTTPTriggerFunction("api-func", testNamespace, map[string]interface{}{
+		"authenticationMode": ModeAPI,
+	})
+	basicAuthFunction := newHTTPTriggerFunction("basic-func", testNamespace, map[string]interface{}{
+		"authenticationMode": ModeBasicAuth,
+		"authentication": map[string]interface{}{
+			"basicAuth": map[string]interface{}{"username": "user", "password": "pass"},
+		},
+	})
+	// a basicAuth function whose password is scrubbed: the CRD holds a $ref placeholder and the real
+	// value lives in the function's dedicated Secret, which the authenticator must restore before comparing
+	scrubbedFunction := newHTTPTriggerFunction("scrubbed-func", testNamespace, map[string]interface{}{
+		"authenticationMode": ModeBasicAuth,
+		"authentication": map[string]interface{}{
+			"basicAuth": map[string]interface{}{"username": "user", "password": passwordRef},
+		},
+	})
+
+	// the function's dedicated Secret holds the real password keyed by the encoded $ref (Data, not
+	// StringData, since the fake clientset doesn't convert StringData)
+	keyEncoder := functionconfig.NewScrubber(suite.logger, nil, nil)
+	functionSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nuclio-scrubbed-func",
+			Namespace: testNamespace,
+			Labels:    map[string]string{common.NuclioResourceLabelKeyFunctionName: "scrubbed-func"},
+		},
+		Data: map[string][]byte{
+			keyEncoder.EncodeSecretKey(passwordRef): []byte("s3cret"),
 		},
 	}
-	basicAuthFunction := &nuclioio.NuclioFunction{
-		ObjectMeta: metav1.ObjectMeta{Name: "basic-func", Namespace: namespace},
-		Spec: functionconfig.Spec{
-			Triggers: map[string]functionconfig.Trigger{
-				"http": {
-					Kind: "http",
-					Attributes: map[string]interface{}{
-						"authenticationMode": ModeBasicAuth,
-						"authentication": map[string]interface{}{
-							"basicAuth": map[string]interface{}{
-								"username": "user",
-								"password": "pass",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
 
-	nuclioClientSet := nuclioiofake.NewSimpleClientset(apiFunction, basicAuthFunction)
-	authenticator := NewCRDAuthenticator(suite.logger, suite.newAuth(stub.server.URL), "", nuclioClientSet, namespace)
+	kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset(functionSecret))
+	nuclioClientSet := nuclioiofake.NewSimpleClientset(apiFunction, basicAuthFunction, scrubbedFunction)
+	authenticator := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", nuclioClientSet, kubeClientSet, testNamespace)
 
 	suite.Run("api function resolved and valid credential admitted", func() {
-		request := suite.authenticatedRequest(validToken)
-		request.Header.Set(headers.TargetFunctionName, "api-func")
+		recorder := httptest.NewRecorder()
+		suite.Require().True(authenticator.Authenticate(recorder, suite.authenticatedRequestFor(validToken, "api-func")))
+	})
+
+	suite.Run("basicAuth function resolved and verified locally", func() {
+		request := suite.authenticatedRequestFor("", "basic-func")
+		request.SetBasicAuth("user", "pass")
 		recorder := httptest.NewRecorder()
 		suite.Require().True(authenticator.Authenticate(recorder, request))
 	})
 
-	suite.Run("basicAuth function resolved and verified locally", func() {
-		request := suite.authenticatedRequest("")
-		request.Header.Set(headers.TargetFunctionName, "basic-func")
-		request.SetBasicAuth("user", "pass")
+	suite.Run("scrubbed basicAuth password restored from secret and verified", func() {
+		request := suite.authenticatedRequestFor("", "scrubbed-func")
+		request.SetBasicAuth("user", "s3cret")
 		recorder := httptest.NewRecorder()
 		suite.Require().True(authenticator.Authenticate(recorder, request))
+	})
+
+	suite.Run("scrubbed basicAuth rejects wrong password", func() {
+		request := suite.authenticatedRequestFor("", "scrubbed-func")
+		request.SetBasicAuth("user", "wrong")
+		recorder := httptest.NewRecorder()
+		suite.Require().False(authenticator.Authenticate(recorder, request))
+		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
 	})
 
 	suite.Run("missing target function header fails closed", func() {
@@ -301,10 +318,24 @@ func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesSettings() {
 	})
 
 	suite.Run("unknown function fails closed", func() {
-		request := suite.authenticatedRequest(validToken)
-		request.Header.Set(headers.TargetFunctionName, "does-not-exist")
 		recorder := httptest.NewRecorder()
-		suite.Require().False(authenticator.Authenticate(recorder, request))
+		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequestFor(validToken, "does-not-exist")))
+		suite.Require().Equal(http.StatusForbidden, recorder.Code)
+	})
+
+	// bindRequest yields the DLX-facing TargetAuthenticator: the function name is passed explicitly
+	// rather than resolved from the request header, and the caller stays HTTP-agnostic.
+	concreteAuth := authenticator.(*authOnlyAuthenticator)
+	suite.Run("AuthenticateTarget resolves by explicit function name", func() {
+		request := suite.authenticatedRequest(validToken)
+		recorder := httptest.NewRecorder()
+		suite.Require().True(concreteAuth.bindRequest(recorder, request).AuthenticateTarget("api-func"))
+	})
+
+	suite.Run("AuthenticateTarget fails closed for unknown function", func() {
+		request := suite.authenticatedRequest(validToken)
+		recorder := httptest.NewRecorder()
+		suite.Require().False(concreteAuth.bindRequest(recorder, request).AuthenticateTarget("does-not-exist"))
 		suite.Require().Equal(http.StatusForbidden, recorder.Code)
 	})
 }
