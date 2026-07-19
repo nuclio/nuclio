@@ -17,28 +17,43 @@ limitations under the License.
 package app
 
 import (
-	"github.com/nuclio/nuclio/pkg/auth"
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 
 	// register logger sinks (stdout, appinsights) into the loggersink registry via init()
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
-// Run creates and starts the auth-proxy server for the given mode.
-func Run(mode auth.ProxyMode,
-	listenPort int,
-	upstreamURL string,
-	authURL string,
-	signinURL string,
-	platformConfigurationPath string) error {
-	if err := validateConfiguration(listenPort, upstreamURL, authURL, signinURL); err != nil {
+// Config holds the auth-proxy sidecar configuration.
+type Config struct {
+	Mode               authpkg.ProxyMode
+	ListenPort         int
+	UpstreamURL        string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
+	AuthURL            string // the URL of the auth service to which requests are sent for authentication
+	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
+	AuthMode           string
+	BasicAuthUsername  string
+	BasicAuthPassword  string
+	Namespace          string
+	KubeconfigPath     string
+	PlatformConfigPath string
+}
+
+// Run creates and starts the auth-proxy server for the given configuration.
+func Run(config *Config) error {
+	if err := validateConfiguration(config); err != nil {
 		return errors.Wrap(err, "Invalid auth-proxy configuration")
 	}
 
-	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
+	platformConfiguration, err := platformconfig.NewPlatformConfig(config.PlatformConfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get platform configuration")
 	}
@@ -48,32 +63,141 @@ func Run(mode auth.ProxyMode,
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	server, err := newServer(rootLogger, mode, listenPort, upstreamURL, authURL, signinURL)
+	authenticator, err := newAuthenticator(rootLogger, config)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create auth-proxy server")
+		return errors.Wrap(err, "Failed to create authenticator")
 	}
+
+	handler, err := newHandler(rootLogger,
+		config.Mode,
+		config.UpstreamURL,
+		authenticator)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create handler")
+	}
+
+	listenAddress, err := resolveListenAddress(config.Mode, config.ListenPort)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve listen address")
+	}
+
+	server := newServer(rootLogger, listenAddress, handler)
 	if err := server.start(); err != nil {
 		return errors.Wrap(err, "Failed to start auth-proxy server")
 	}
 	select {}
 }
 
-func validateConfiguration(listenPort int, upstreamURL string, authURL string, signinURL string) error {
-	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if listenPort < 1 || listenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", listenPort)
+// newAuthenticator builds the topology-appropriate authenticator; each constructor wires its own
+// shared decision core (auth-url validator, sign-in URL) from the config.
+func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authenticator, error) {
+	switch config.Mode {
+	case authpkg.ProxyModeReverseProxy:
+		return authproxy.NewReverseProxyAuthenticator(rootLogger,
+			config.AuthURL,
+			config.SigninURL,
+			resolveStaticFunctionAuthConfig(config)), nil
+	case authpkg.ProxyModeAuthOnly:
+		clientConfig, err := common.GetClientConfig(config.KubeconfigPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get client configuration")
+		}
+		nuclioClientSet, err := nuclioioclient.NewForConfig(clientConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create nuclio client set")
+		}
+		kubeClientSet, err := kubeclient.NewClientWithRetryFromConfig(clientConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create kube client set")
+		}
+		return authproxy.NewAuthOnlyAuthenticator(rootLogger,
+			config.AuthURL,
+			config.SigninURL,
+			nuclioClientSet,
+			kubeClientSet,
+			config.Namespace), nil
+	default:
+		return nil, errors.Errorf("Unknown auth-proxy mode: %s", config.Mode)
+	}
+}
+
+// resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
+// mode the username/password come from the config (the password is injected from a Secret via secretKeyRef).
+func resolveStaticFunctionAuthConfig(config *Config) authproxy.FunctionAuthConfig {
+	mode := authproxy.AuthenticationMode(config.AuthMode)
+	if mode == "" {
+		mode = authproxy.ModeNone
 	}
 
-	if upstreamURL == "" {
+	return authproxy.FunctionAuthConfig{
+		Mode:              mode,
+		BasicAuthUsername: config.BasicAuthUsername,
+		BasicAuthPassword: config.BasicAuthPassword,
+	}
+}
+
+func validateConfiguration(config *Config) error {
+	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
+	if config.ListenPort < 1 || config.ListenPort > 65535 {
+		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
+	}
+
+	switch config.Mode {
+	case authpkg.ProxyModeReverseProxy:
+		return validateReverseProxyConfiguration(config)
+	case authpkg.ProxyModeAuthOnly:
+		return validateAuthOnlyConfiguration(config)
+	default:
+		return errors.Errorf("Unknown auth-proxy mode: %s", config.Mode)
+	}
+}
+
+func validateReverseProxyConfiguration(config *Config) error {
+	if config.UpstreamURL == "" {
 		return errors.New("Upstream URL must be provided")
 	}
 
-	if authURL == "" {
-		return errors.New("Auth URL must be provided")
+	switch authproxy.AuthenticationMode(config.AuthMode) {
+	case authproxy.ModeAPI:
+		if config.AuthURL == "" {
+			return errors.New("Auth URL must be provided for 'api' authentication mode")
+		}
+	case authproxy.ModeBrowser:
+		if config.AuthURL == "" {
+			return errors.New("Auth URL must be provided for 'browser' authentication mode")
+		}
+		if config.SigninURL == "" {
+			return errors.New("Sign-in URL must be provided for 'browser' authentication mode")
+		}
+	case authproxy.ModeBasicAuth:
+		if config.BasicAuthUsername == "" {
+			return errors.New("Basic-auth username must be provided for 'basicAuth' authentication mode")
+		}
+		if config.BasicAuthPassword == "" {
+			return errors.New("Basic-auth password must be provided for 'basicAuth' authentication mode")
+		}
+	case authproxy.ModeNone, "":
+
+		// no additional requirements
+	default:
+		return errors.Errorf("Unknown authentication mode: %s", config.AuthMode)
 	}
 
-	if signinURL == "" {
-		return errors.New("Redirect URL must be provided")
+	return nil
+}
+
+func validateAuthOnlyConfiguration(config *Config) error {
+
+	// authOnly resolves the mode per request from the CRD, so any mode is possible and auth-url /
+	// sign-in URL / namespace must all be available
+	if config.Namespace == "" {
+		return errors.New("Namespace must be provided in authOnly mode")
+	}
+	if config.AuthURL == "" {
+		return errors.New("Auth URL must be provided in authOnly mode")
+	}
+	if config.SigninURL == "" {
+		return errors.New("Sign-in URL must be provided in authOnly mode")
 	}
 
 	return nil
