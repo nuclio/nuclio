@@ -35,6 +35,10 @@ const (
 	VerifyExternalRegistry              = "X-Nuclio-Verify-External-Registry"
 	AutofixFunctionConfiguration        = "X-Nuclio-Autofix-Function-Configuration"
 
+	// TargetFunctionName identifies the function an auth-proxy (authOnly mode) request targets,
+	// so a single DLX-side sidecar can resolve the right function's authentication config.
+	TargetFunctionName = "X-Nuclio-Target-Function-Name"
+
 	// Project headers
 	ProjectName           = "X-Nuclio-Project-Name"
 	ProjectNamespace      = "X-Nuclio-Project-Namespace"
