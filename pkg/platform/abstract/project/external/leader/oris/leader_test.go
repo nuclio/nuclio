@@ -21,10 +21,12 @@ package oris
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -153,6 +155,57 @@ func (suite *LeaderTestSuite) TestResolveGetProjectResponse() {
 	suite.Require().Equal(map[string]string{"note": "first"}, firstConfig.Meta.Annotations)
 	suite.Require().Equal("jsmith", firstConfig.Spec.Owner)
 	suite.Require().Equal("first project", firstConfig.Spec.Description)
+}
+
+func (suite *LeaderTestSuite) TestHandleCreateResponseErr() {
+	testCases := []struct {
+		name         string
+		body         []byte
+		response     *http.Response
+		expectErrStr string
+	}{
+		{
+			name:         "UnmarshalFailure",
+			body:         []byte(`not-json`),
+			response:     &http.Response{StatusCode: http.StatusBadRequest},
+			expectErrStr: "Failed to unmarshal response body",
+		},
+		{
+			name: "ErrorMessagePresent",
+			body: func() []byte {
+				b, _ := json.Marshal(OrisProject{Status: OrisProjectStatus{ErrorMessage: "some error", StatusCode: http.StatusBadRequest}})
+				return b
+			}(),
+			response:     &http.Response{StatusCode: http.StatusBadRequest},
+			expectErrStr: "some error",
+		},
+		{
+			name: "ErrorMessagePresentNilResponse",
+			body: func() []byte {
+				b, _ := json.Marshal(OrisProject{Status: OrisProjectStatus{ErrorMessage: "some error"}})
+				return b
+			}(),
+			response:     nil,
+			expectErrStr: "Failed to get response from leader, response is nil",
+		},
+		{
+			name: "NoErrorMessage",
+			body: func() []byte {
+				b, _ := json.Marshal(OrisProject{Metadata: OrisProjectMetadata{Name: "test-project"}})
+				return b
+			}(),
+			response:     &http.Response{StatusCode: http.StatusOK},
+			expectErrStr: "Failed to send request to leader",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			err := suite.leaderOps.HandleCreateResponseErr(context.TODO(), testCase.body, testCase.response, errors.New(""))
+			suite.Require().Error(err)
+			suite.Require().Equal(testCase.expectErrStr, err.Error())
+		})
+	}
 }
 
 func (suite *LeaderTestSuite) TestParseJobStatusResponse() {

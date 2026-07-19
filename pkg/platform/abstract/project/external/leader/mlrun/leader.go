@@ -86,7 +86,7 @@ func (l *LeaderOps) ResolveGetProjectResponse(_ bool, body []byte) ([]platform.P
 }
 
 func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
-	return fmt.Sprintf("%s/%s/%s", apiAddress, string(leaderCommon.APIVersionV1), "projects")
+	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, "")
 }
 
 func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {

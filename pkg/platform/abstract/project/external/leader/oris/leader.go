@@ -87,7 +87,15 @@ func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
 func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
 	var projectResponse OrisProject
 
-	if unmarshalErr := json.Unmarshal(responseBody, &projectResponse); unmarshalErr == nil && projectResponse.Status.ErrorMessage != "" {
+	if unmarshalErr := json.Unmarshal(responseBody, &projectResponse); unmarshalErr != nil {
+		l.logger.WarnWithCtx(ctx,
+			"Failed to unmarshal leader error response body",
+			"err", err,
+			"unmarshalErr", unmarshalErr)
+		return errors.Wrap(unmarshalErr, "Failed to unmarshal response body")
+	}
+
+	if projectResponse.Status.ErrorMessage != "" {
 		l.logger.ErrorWithCtx(ctx,
 			"Create project has failed",
 			"err", err,
