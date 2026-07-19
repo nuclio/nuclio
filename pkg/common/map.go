@@ -141,6 +141,19 @@ func GetStringToStringMapOrEmpty(m map[string]string) map[string]string {
 	return m
 }
 
+// CopyStringMapOrNil returns a shallow copy of m, or nil if m is empty. The copy means mutating the
+// result never leaks back into m.
+func CopyStringMapOrNil(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return nil
+	}
+	copied := make(map[string]string, len(m))
+	for key, value := range m {
+		copied[key] = value
+	}
+	return copied
+}
+
 // GetAttributeRecursivelyFromMapStringInterface iterates over the attributes slice and recursively searches the map,
 // returning the last attribute in the slice
 func GetAttributeRecursivelyFromMapStringInterface(mapStringInterface map[string]interface{}, attributes []string) map[string]interface{} {
