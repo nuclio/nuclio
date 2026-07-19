@@ -296,7 +296,7 @@ func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
 
 func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 	url := suite.leaderOps.GenerateGetUpdatedAfterRequestURL("test")
-	suite.Require().Equal("test/projects", url)
+	suite.Require().Equal("test/v1/projects", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {

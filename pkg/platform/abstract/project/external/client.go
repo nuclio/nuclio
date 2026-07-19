@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mlrun"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/oris"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -224,6 +225,11 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 	case platformconfig.ProjectsLeaderKindIguazio:
 		skipTLSVerification = true
 		leaderOps = iguazio.NewLeaderOps(parentLogger)
+
+	// oris projects leader
+	case platformconfig.ProjectsLeaderKindOris:
+		skipTLSVerification = true
+		leaderOps = oris.NewLeaderOps(parentLogger, namespace)
 
 	case platformconfig.ProjectsLeaderKindMock:
 		leaderOps = mock.NewLeaderOps()

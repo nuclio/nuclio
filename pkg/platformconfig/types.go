@@ -193,6 +193,7 @@ type ProjectsLeaderKind string
 const (
 	ProjectsLeaderKindIguazio ProjectsLeaderKind = "iguazio"
 	ProjectsLeaderKindMlrun   ProjectsLeaderKind = "mlrun"
+	ProjectsLeaderKindOris    ProjectsLeaderKind = "oris"
 	ProjectsLeaderKindMock    ProjectsLeaderKind = "mock"
 )
 
