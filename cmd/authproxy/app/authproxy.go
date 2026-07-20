@@ -81,7 +81,8 @@ func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authe
 		return authproxy.NewReverseProxyAuthenticator(rootLogger,
 			config.AuthURL,
 			config.SigninURL,
-			resolveStaticFunctionAuthConfig(config)), nil
+			config.AuthKind,
+			resolveStaticFunctionAuthConfig(config))
 	case authpkg.ProxyModeAuthOnly:
 		clientConfig, err := common.GetClientConfig(config.KubeconfigPath)
 		if err != nil {
@@ -98,9 +99,10 @@ func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authe
 		return authproxy.NewAuthOnlyAuthenticator(rootLogger,
 			config.AuthURL,
 			config.SigninURL,
+			config.AuthKind,
 			nuclioClientSet,
 			kubeClientSet,
-			config.Namespace), nil
+			config.Namespace)
 	default:
 		return nil, errors.Errorf("Unknown auth-proxy mode: %s", config.Mode)
 	}

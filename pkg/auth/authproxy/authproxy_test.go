@@ -23,6 +23,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -62,7 +63,8 @@ func (suite *AuthProxyTestSuite) SetupTest() {
 // TestModeNoneAllows verifies none mode admits without calling the auth-url.
 // validateConfiguration permits an empty authURL for ModeNone, so the test reflects that.
 func (suite *AuthProxyTestSuite) TestModeNoneAllows() {
-	authenticator := NewReverseProxyAuthenticator(suite.logger, "", "", FunctionAuthConfig{Mode: ModeNone})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, "", "", authpkg.KindIguazioV4, FunctionAuthConfig{Mode: ModeNone})
+	suite.Require().NoError(err)
 
 	recorder := httptest.NewRecorder()
 	suite.Require().True(authenticator.Authenticate(recorder, suite.authenticatedRequest("")))
@@ -73,7 +75,8 @@ func (suite *AuthProxyTestSuite) TestModeAPI() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", FunctionAuthConfig{Mode: ModeAPI})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", authpkg.KindIguazioV4, FunctionAuthConfig{Mode: ModeAPI})
+	suite.Require().NoError(err)
 
 	suite.Run("valid is admitted with identity headers", func() {
 		request := suite.authenticatedRequest(validToken)
@@ -103,7 +106,8 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, testSigninURL, FunctionAuthConfig{Mode: ModeBrowser})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, testSigninURL, authpkg.KindIguazioV4, FunctionAuthConfig{Mode: ModeBrowser})
+	suite.Require().NoError(err)
 
 	suite.Run("invalid redirects to sign-in with rd", func() {
 		recorder := httptest.NewRecorder()
@@ -123,10 +127,12 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 // TestModeBasicAuth verifies basicAuth is verified locally, never via the auth-url.
 // validateConfiguration permits an empty authURL for ModeBasicAuth, so the test reflects that.
 func (suite *AuthProxyTestSuite) TestModeBasicAuth() {
-	authenticator := NewReverseProxyAuthenticator(suite.logger,
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger,
 		"",
 		"",
+		authpkg.KindIguazioV4,
 		FunctionAuthConfig{Mode: ModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"})
+	suite.Require().NoError(err)
 
 	suite.Run("valid credentials admitted locally", func() {
 		request := suite.authenticatedRequest("")
@@ -150,7 +156,8 @@ func (suite *AuthProxyTestSuite) TestAuthenticatorKindForwardedAndCannotBypass()
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", FunctionAuthConfig{Mode: ModeAPI})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", authpkg.KindIguazioV4, FunctionAuthConfig{Mode: ModeAPI})
+	suite.Require().NoError(err)
 
 	suite.Run("kind forwarded on valid credential", func() {
 		request := suite.authenticatedRequest(validToken)
@@ -177,7 +184,8 @@ func (suite *AuthProxyTestSuite) TestFailClosedOnUpstreamError() {
 		}))
 		defer errorServer.Close()
 
-		authenticator := NewReverseProxyAuthenticator(suite.logger, errorServer.URL, "", FunctionAuthConfig{Mode: ModeAPI})
+		authenticator, err := NewReverseProxyAuthenticator(suite.logger, errorServer.URL, "", authpkg.KindIguazioV4, FunctionAuthConfig{Mode: ModeAPI})
+		suite.Require().NoError(err)
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
@@ -186,7 +194,8 @@ func (suite *AuthProxyTestSuite) TestFailClosedOnUpstreamError() {
 	suite.Run("transport error to auth-url", func() {
 
 		// nothing is listening here -> connection refused
-		authenticator := NewReverseProxyAuthenticator(suite.logger, "http://127.0.0.1:1", "", FunctionAuthConfig{Mode: ModeAPI})
+		authenticator, err := NewReverseProxyAuthenticator(suite.logger, "http://127.0.0.1:1", "", authpkg.KindIguazioV4, FunctionAuthConfig{Mode: ModeAPI})
+		suite.Require().NoError(err)
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
@@ -235,7 +244,8 @@ func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesFunctionAuthConfig(
 
 	kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset(functionSecret))
 	nuclioClientSet := nuclioiofake.NewSimpleClientset(apiFunction, basicAuthFunction, scrubbedFunction)
-	authenticator := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", nuclioClientSet, kubeClientSet, testNamespace)
+	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+	suite.Require().NoError(err)
 
 	suite.Run("api function resolved and valid credential admitted", func() {
 		recorder := httptest.NewRecorder()

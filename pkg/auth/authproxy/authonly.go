@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/http"
 
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -52,6 +53,13 @@ type boundAuthenticator struct {
 	request        *http.Request
 }
 
+// AuthenticateTarget sets the target-function header and delegates to Authenticate, so the DLX needs
+// only the function name — the same code path as an inbound HTTP request to the /auth endpoint.
+func (b *boundAuthenticator) AuthenticateTarget(functionName string) bool {
+	b.request.Header.Set(headers.TargetFunctionName, functionName)
+	return b.Authenticate(b.responseWriter, b.request)
+}
+
 // NewAuthOnlyAuthenticator creates an authenticator that resolves auth config per request from the function
 // CRD. It is used both by the sidecar /auth endpoint (via Authenticate) and, bound to a request, by the
 // in-process DLX (via AuthenticateTarget). The kube client is used to restore scrubbed credentials
@@ -59,19 +67,24 @@ type boundAuthenticator struct {
 func NewAuthOnlyAuthenticator(parentLogger logger.Logger,
 	authURL string,
 	signinURL string,
+	authKind authpkg.Kind,
 	nuclioClientSet nuclioioclient.Interface,
 	kubeClientSet kubeclient.Client,
-	namespace string) Authenticator {
+	namespace string) (Authenticator, error) {
 	parentLogger.InfoWith("Creating auth-only authenticator", "authURL", authURL, "signinURL", signinURL, "namespace", namespace)
+	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract authenticator")
+	}
 	return &authOnlyAuthenticator{
-		abstractAuthenticator: newAbstractAuthenticator(parentLogger, authURL, signinURL),
+		abstractAuthenticator: abstract,
 		nuclioClientSet:       nuclioClientSet,
 
 		// sensitive-field regexes are only needed for scrubbing; restoring just replaces $ref:
 		// placeholders from the function's Secret, so nil is fine here
 		scrubber:  functionconfig.NewScrubber(parentLogger, nil, kubeClientSet),
 		namespace: namespace,
-	}
+	}, nil
 }
 
 // Authenticate resolves the target function from the request header, then authenticates against it.
@@ -85,12 +98,6 @@ func (a *authOnlyAuthenticator) Authenticate(responseWriter http.ResponseWriter,
 		return false
 	}
 	return a.authenticateTarget(responseWriter, request, functionName)
-}
-
-// AuthenticateTarget authenticates the bound request against the named target function. The DLX passes
-// only the function name; the request/response were captured at bind time.
-func (b *boundAuthenticator) AuthenticateTarget(functionName string) bool {
-	return b.authenticateTarget(b.responseWriter, b.request, functionName)
 }
 
 // bindRequest returns a TargetAuthenticator bound to the given request/response, so AuthenticateTarget

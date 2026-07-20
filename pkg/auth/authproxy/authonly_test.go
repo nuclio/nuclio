@@ -23,6 +23,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -87,7 +88,8 @@ func (suite *AuthOnlyTestSuite) TestBrowserModeResolvedFromCRD() {
 
 	kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset())
 	nuclioClientSet := nuclioiofake.NewSimpleClientset(browserFunction)
-	authenticator := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, testSigninURL, nuclioClientSet, kubeClientSet, testNamespace)
+	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, testSigninURL, authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+	suite.Require().NoError(err)
 
 	suite.Run("invalid credential redirects to sign-in with rd", func() {
 		request := suite.authenticatedRequest("bad-token")
@@ -179,7 +181,8 @@ func (suite *AuthOnlyTestSuite) TestModeResolvedFromCRD() {
 
 			kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset())
 			nuclioClientSet := nuclioiofake.NewSimpleClientset(testCase.function)
-			authenticator := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, signinURL, nuclioClientSet, kubeClientSet, testNamespace)
+			authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, signinURL, authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+			suite.Require().NoError(err)
 
 			request := suite.authenticatedRequest(testCase.token)
 			request.Header.Set(headers.TargetFunctionName, testCase.function.Name)
@@ -203,7 +206,8 @@ func (suite *AuthOnlyTestSuite) TestGetAuthSpecFunctionNotFound() {
 	// no functions registered in the fake client
 	kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset())
 	nuclioClientSet := nuclioiofake.NewSimpleClientset()
-	authenticator := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", nuclioClientSet, kubeClientSet, testNamespace)
+	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+	suite.Require().NoError(err)
 
 	request := suite.authenticatedRequest(validToken)
 	request.Header.Set(headers.TargetFunctionName, "does-not-exist")

@@ -36,6 +36,7 @@ type Config struct {
 	Namespace          string
 	KubeconfigPath     string
 	PlatformConfigPath string
+	AuthKind           authpkg.Kind // auth kind used for API/browser authentication
 }
 
 func validateConfiguration(config *Config) error {

@@ -19,6 +19,9 @@ package authproxy
 import (
 	"net/http"
 
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -33,12 +36,17 @@ type reverseProxyAuthenticator struct {
 func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	authURL string,
 	signinURL string,
-	authConfig FunctionAuthConfig) Authenticator {
+	authKind authpkg.Kind,
+	authConfig FunctionAuthConfig) (Authenticator, error) {
 	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authConfig", authConfig)
-	return &reverseProxyAuthenticator{
-		abstractAuthenticator: newAbstractAuthenticator(parentLogger, authURL, signinURL),
-		authConfig:            authConfig,
+	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create reverse-proxy authenticator")
 	}
+	return &reverseProxyAuthenticator{
+		abstractAuthenticator: abstract,
+		authConfig:            authConfig,
+	}, nil
 }
 
 func (a *reverseProxyAuthenticator) Authenticate(responseWriter http.ResponseWriter, request *http.Request) bool {

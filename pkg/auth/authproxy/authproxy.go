@@ -31,26 +31,24 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth/factory"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
-// newAbstractAuthenticator builds the shared decision logic. authURL is guaranteed non-empty by the
-// caller for any mode that delegates to the auth-url (api/browser); basicAuth/none modes never reach
-// callAuthURL so the auth instance is effectively unused for them.
-func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL string) *abstractAuthenticator {
-	return &abstractAuthenticator{
-		logger:    parentLogger,
-		auth:      newAuthInstance(parentLogger, authURL),
-		signinURL: signinURL,
+// newAuthInstance creates an auth client for the given kind, configured against authURL.
+// Returns an error for kinds that do not use Iguazio-style URL verification (e.g. KindNop).
+func newAuthInstance(parentLogger logger.Logger, authURL string, authKind authpkg.Kind) (authpkg.Auth, error) {
+	authConfig := authpkg.NewConfig(authKind)
+	switch authKind {
+	case authpkg.KindIguazio, authpkg.KindIguazioV4:
+		if authConfig.Iguazio == nil {
+			return nil, errors.Errorf("auth kind %q does not support URL-based verification", authKind)
+		}
+		authConfig.Iguazio.VerificationURL = authURL
+		authConfig.Iguazio.Timeout = AuthTimeout
+	default:
 	}
-}
-
-// newAuthInstance builds the auth-url validator.
-func newAuthInstance(parentLogger logger.Logger, authURL string) authpkg.Auth {
-	authConfig := authpkg.NewConfig(authpkg.KindIguazioV4)
-	authConfig.Iguazio.VerificationURL = authURL
-	authConfig.Iguazio.Timeout = AuthTimeout
-	return factory.NewAuth(parentLogger, authConfig)
+	return factory.NewAuth(parentLogger, authConfig), nil
 }
 
 // abstractAuthenticator holds the shared authentication logic embedded by every topology. Given a resolved
@@ -58,7 +56,26 @@ func newAuthInstance(parentLogger logger.Logger, authURL string) authpkg.Auth {
 type abstractAuthenticator struct {
 	logger    logger.Logger
 	auth      authpkg.Auth
-	signinURL string
+	signinURL *url.URL
+}
+
+// newAbstractAuthenticator builds the shared decision logic. authURL is guaranteed non-empty by the
+// caller for any mode that delegates to the auth-url (api/browser); basicAuth/none modes never reach
+// callAuthURL so the auth instance is effectively unused for them.
+func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL string, authKind authpkg.Kind) (*abstractAuthenticator, error) {
+	parsed, err := url.Parse(signinURL)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse sign-in URL")
+	}
+	authInstance, err := newAuthInstance(parentLogger, authURL, authKind)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create auth instance")
+	}
+	return &abstractAuthenticator{
+		logger:    parentLogger,
+		auth:      authInstance,
+		signinURL: parsed,
+	}, nil
 }
 
 // decide applies the verdict for the resolved authConfig, writing the rejection response itself on failure.
@@ -118,7 +135,7 @@ func (a *abstractAuthenticator) callAuthURL(responseWriter http.ResponseWriter, 
 // reject writes the mode-appropriate rejection response.
 func (a *abstractAuthenticator) reject(responseWriter http.ResponseWriter, request *http.Request, browser bool) {
 	if browser {
-		a.logger.InfoWith("redirecting to sign-in URL", "path", request.URL.Path, "signinURL", a.signinURL)
+		a.logger.InfoWith("redirecting to sign-in URL", "path", request.URL.Path, "signinURL", a.signinURL.String())
 		http.Redirect(responseWriter, request, a.buildSigninRedirect(request), http.StatusFound)
 		return
 	}
@@ -142,15 +159,13 @@ func (a *abstractAuthenticator) applyIdentityHeaders(request *http.Request, sess
 }
 
 // buildSigninRedirect returns the sign-in URL with the original request URL attached as the rd query param.
+// The URL is parsed once at construction time; here we clone it to avoid mutating the cached value.
 func (a *abstractAuthenticator) buildSigninRedirect(request *http.Request) string {
-	parsed, err := url.Parse(a.signinURL)
-	if err != nil {
-		return a.signinURL
-	}
-	query := parsed.Query()
+	cloned := *a.signinURL
+	query := cloned.Query()
 	query.Set("rd", originalURL(request))
-	parsed.RawQuery = query.Encode()
-	return parsed.String()
+	cloned.RawQuery = query.Encode()
+	return cloned.String()
 }
 
 // originalURL reconstructs the externally requested URL for use as the rd= redirect target.
