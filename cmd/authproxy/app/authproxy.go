@@ -32,21 +32,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
-// Config holds the auth-proxy sidecar configuration.
-type Config struct {
-	Mode               authpkg.ProxyMode
-	ListenPort         int
-	UpstreamURL        string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
-	AuthURL            string // the URL of the auth service to which requests are sent for authentication
-	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
-	AuthMode           string
-	BasicAuthUsername  string
-	BasicAuthPassword  string
-	Namespace          string
-	KubeconfigPath     string
-	PlatformConfigPath string
-}
-
 // Run creates and starts the auth-proxy server for the given configuration.
 func Run(config *Config) error {
 	if err := validateConfiguration(config); err != nil {
@@ -134,71 +119,4 @@ func resolveStaticFunctionAuthConfig(config *Config) authproxy.FunctionAuthConfi
 		BasicAuthUsername: config.BasicAuthUsername,
 		BasicAuthPassword: config.BasicAuthPassword,
 	}
-}
-
-func validateConfiguration(config *Config) error {
-	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if config.ListenPort < 1 || config.ListenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
-	}
-
-	switch config.Mode {
-	case authpkg.ProxyModeReverseProxy:
-		return validateReverseProxyConfiguration(config)
-	case authpkg.ProxyModeAuthOnly:
-		return validateAuthOnlyConfiguration(config)
-	default:
-		return errors.Errorf("Unknown auth-proxy mode: %s", config.Mode)
-	}
-}
-
-func validateReverseProxyConfiguration(config *Config) error {
-	if config.UpstreamURL == "" {
-		return errors.New("Upstream URL must be provided")
-	}
-
-	switch authproxy.AuthenticationMode(config.AuthMode) {
-	case authproxy.ModeAPI:
-		if config.AuthURL == "" {
-			return errors.New("Auth URL must be provided for 'api' authentication mode")
-		}
-	case authproxy.ModeBrowser:
-		if config.AuthURL == "" {
-			return errors.New("Auth URL must be provided for 'browser' authentication mode")
-		}
-		if config.SigninURL == "" {
-			return errors.New("Sign-in URL must be provided for 'browser' authentication mode")
-		}
-	case authproxy.ModeBasicAuth:
-		if config.BasicAuthUsername == "" {
-			return errors.New("Basic-auth username must be provided for 'basicAuth' authentication mode")
-		}
-		if config.BasicAuthPassword == "" {
-			return errors.New("Basic-auth password must be provided for 'basicAuth' authentication mode")
-		}
-	case authproxy.ModeNone, "":
-
-		// no additional requirements
-	default:
-		return errors.Errorf("Unknown authentication mode: %s", config.AuthMode)
-	}
-
-	return nil
-}
-
-func validateAuthOnlyConfiguration(config *Config) error {
-
-	// authOnly resolves the mode per request from the CRD, so any mode is possible and auth-url /
-	// sign-in URL / namespace must all be available
-	if config.Namespace == "" {
-		return errors.New("Namespace must be provided in authOnly mode")
-	}
-	if config.AuthURL == "" {
-		return errors.New("Auth URL must be provided in authOnly mode")
-	}
-	if config.SigninURL == "" {
-		return errors.New("Sign-in URL must be provided in authOnly mode")
-	}
-
-	return nil
 }

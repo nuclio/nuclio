@@ -48,10 +48,6 @@ type authURLStub struct {
 	lastKind  string
 }
 
-func (s *authURLStub) close() {
-	s.server.Close()
-}
-
 type AuthProxyTestSuite struct {
 	suite.Suite
 	logger logger.Logger
@@ -61,49 +57,6 @@ func (suite *AuthProxyTestSuite) SetupTest() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("authproxy-test")
 	suite.Require().NoError(err)
-}
-
-func (suite *AuthProxyTestSuite) newAuthURLStub() *authURLStub {
-	stub := &authURLStub{}
-	stub.server = httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		stub.callCount++
-		stub.lastKind = request.Header.Get(headers.IguazioAuthenticatorKind)
-
-		// admit only the actual valid credential, regardless of the declared authenticator kind
-		if request.Header.Get(headers.AuthorizationHeader) == "Bearer "+validToken {
-			responseWriter.WriteHeader(http.StatusOK)
-			_, _ = responseWriter.Write([]byte(`{"metadata":{"username":"alice","id":"user-1"}}`))
-			return
-		}
-		responseWriter.WriteHeader(http.StatusUnauthorized)
-	}))
-	return stub
-}
-
-func (suite *AuthProxyTestSuite) authenticatedRequest(token string) *http.Request {
-	request := httptest.NewRequest(http.MethodGet, "http://function.nuclio/some/path?q=1", nil)
-	if token != "" {
-		request.Header.Set(headers.AuthorizationHeader, "Bearer "+token)
-	}
-	return request
-}
-
-func (suite *AuthProxyTestSuite) authenticatedRequestFor(token, funcName string) *http.Request {
-	request := suite.authenticatedRequest(token)
-	request.Header.Set(headers.TargetFunctionName, funcName)
-	return request
-}
-
-// newHTTPTriggerFunction builds a NuclioFunction whose only HTTP trigger carries the given attributes.
-func newHTTPTriggerFunction(name, namespace string, attrs map[string]interface{}) *nuclioio.NuclioFunction {
-	return &nuclioio.NuclioFunction{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec: functionconfig.Spec{
-			Triggers: map[string]functionconfig.Trigger{
-				"http": {Kind: "http", Attributes: attrs},
-			},
-		},
-	}
 }
 
 // TestModeNoneAllows verifies none mode admits without calling the auth-url.
@@ -338,6 +291,53 @@ func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesFunctionAuthConfig(
 		suite.Require().False(concreteAuth.bindRequest(recorder, request).AuthenticateTarget("does-not-exist"))
 		suite.Require().Equal(http.StatusForbidden, recorder.Code)
 	})
+}
+
+func (s *authURLStub) close() {
+	s.server.Close()
+}
+
+func (suite *AuthProxyTestSuite) newAuthURLStub() *authURLStub {
+	stub := &authURLStub{}
+	stub.server = httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		stub.callCount++
+		stub.lastKind = request.Header.Get(headers.IguazioAuthenticatorKind)
+
+		// admit only the actual valid credential, regardless of the declared authenticator kind
+		if request.Header.Get(headers.AuthorizationHeader) == "Bearer "+validToken {
+			responseWriter.WriteHeader(http.StatusOK)
+			_, _ = responseWriter.Write([]byte(`{"metadata":{"username":"alice","id":"user-1"}}`))
+			return
+		}
+		responseWriter.WriteHeader(http.StatusUnauthorized)
+	}))
+	return stub
+}
+
+func (suite *AuthProxyTestSuite) authenticatedRequest(token string) *http.Request {
+	request := httptest.NewRequest(http.MethodGet, "http://function.nuclio/some/path?q=1", nil)
+	if token != "" {
+		request.Header.Set(headers.AuthorizationHeader, "Bearer "+token)
+	}
+	return request
+}
+
+func (suite *AuthProxyTestSuite) authenticatedRequestFor(token, funcName string) *http.Request {
+	request := suite.authenticatedRequest(token)
+	request.Header.Set(headers.TargetFunctionName, funcName)
+	return request
+}
+
+// newHTTPTriggerFunction builds a NuclioFunction whose only HTTP trigger carries the given attributes.
+func newHTTPTriggerFunction(name, namespace string, attrs map[string]interface{}) *nuclioio.NuclioFunction {
+	return &nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: functionconfig.Spec{
+			Triggers: map[string]functionconfig.Trigger{
+				"http": {Kind: "http", Attributes: attrs},
+			},
+		},
+	}
 }
 
 func TestAuthProxyTestSuite(t *testing.T) {
