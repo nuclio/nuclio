@@ -171,7 +171,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      jobName,
 					Namespace: namespace,
-					Labels:    common.CopyStringMapOrNil(k.builderConfiguration.KanikoPodLabels),
+					Labels:    common.CopyStringMapOrNil(k.builderConfiguration.PodLabels),
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

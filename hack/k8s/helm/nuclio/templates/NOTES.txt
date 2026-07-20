@@ -14,3 +14,31 @@
   kubectl -n {{ .Release.Namespace }} port-forward $(kubectl get pods -n {{ .Release.Namespace }} -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') {{ .Values.dashboard.servicePort }}:{{ .Values.dashboard.servicePort }}
   and visit http://localhost:{{ .Values.dashboard.servicePort }} to use nuclio
 {{- end }}
+{{- if .Values.dashboard.kaniko.jobDeletionTimeout }}
+
+  WARNING: dashboard.kaniko.jobDeletionTimeout is deprecated, use dashboard.build.jobDeletionTimeout instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.insecurePushRegistry }}
+
+  WARNING: dashboard.kaniko.insecurePushRegistry is deprecated, use dashboard.build.insecurePushRegistry instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.insecurePullRegistry }}
+
+  WARNING: dashboard.kaniko.insecurePullRegistry is deprecated, use dashboard.build.insecurePullRegistry instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.registryProviderSecretName }}
+
+  WARNING: dashboard.kaniko.registryProviderSecretName is deprecated, use dashboard.build.registryProviderSecretName instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.defaultServiceAccount }}
+
+  WARNING: dashboard.kaniko.defaultServiceAccount is deprecated, use dashboard.build.defaultServiceAccount instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.podLabels }}
+
+  WARNING: dashboard.kaniko.podLabels is deprecated, use dashboard.build.podLabels instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.initContainerImage }}
+
+  WARNING: dashboard.kaniko.initContainerImage is deprecated, use dashboard.build.initContainerImage instead.
+{{- end }}

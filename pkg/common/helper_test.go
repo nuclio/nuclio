@@ -800,6 +800,66 @@ func (suite *ContainsPathTraversalTestSuite) TestContainsPathTraversal() {
 	}
 }
 
+type EnvWithLegacyKeyTestSuite struct {
+	suite.Suite
+}
+
+func (suite *EnvWithLegacyKeyTestSuite) TestGetEnvOrDefaultStringWithLegacyKey() {
+	for _, testCase := range []struct {
+		name        string
+		value       string
+		legacyValue string
+		setValue    bool
+		setLegacy   bool
+		expected    string
+	}{
+		{name: "NeitherSet", expected: "default"},
+		{name: "OnlyLegacySet", setLegacy: true, legacyValue: "legacy", expected: "legacy"},
+		{name: "OnlyNewSet", setValue: true, value: "new", expected: "new"},
+		{name: "BothSetNewWins", setValue: true, value: "new", setLegacy: true, legacyValue: "legacy", expected: "new"},
+	} {
+		suite.Run(testCase.name, func() {
+			if testCase.setValue {
+				suite.T().Setenv("TEST_NEW_KEY", testCase.value)
+			}
+			if testCase.setLegacy {
+				suite.T().Setenv("TEST_LEGACY_KEY", testCase.legacyValue)
+			}
+
+			suite.Equal(testCase.expected,
+				GetEnvOrDefaultStringWithLegacyKey("TEST_NEW_KEY", "TEST_LEGACY_KEY", "default"))
+		})
+	}
+}
+
+func (suite *EnvWithLegacyKeyTestSuite) TestGetEnvOrDefaultBoolWithLegacyKey() {
+	for _, testCase := range []struct {
+		name        string
+		value       string
+		legacyValue string
+		setValue    bool
+		setLegacy   bool
+		expected    bool
+	}{
+		{name: "NeitherSet", expected: false},
+		{name: "OnlyLegacySet", setLegacy: true, legacyValue: "true", expected: true},
+		{name: "OnlyNewSet", setValue: true, value: "true", expected: true},
+		{name: "BothSetNewWins", setValue: true, value: "false", setLegacy: true, legacyValue: "true", expected: false},
+	} {
+		suite.Run(testCase.name, func() {
+			if testCase.setValue {
+				suite.T().Setenv("TEST_NEW_BOOL_KEY", testCase.value)
+			}
+			if testCase.setLegacy {
+				suite.T().Setenv("TEST_LEGACY_BOOL_KEY", testCase.legacyValue)
+			}
+
+			suite.Equal(testCase.expected,
+				GetEnvOrDefaultBoolWithLegacyKey("TEST_NEW_BOOL_KEY", "TEST_LEGACY_BOOL_KEY", false))
+		})
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -812,4 +872,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(MiscTestSuite))
 	suite.Run(t, new(IsPathWithinDirTestSuite))
 	suite.Run(t, new(ContainsPathTraversalTestSuite))
+	suite.Run(t, new(EnvWithLegacyKeyTestSuite))
 }

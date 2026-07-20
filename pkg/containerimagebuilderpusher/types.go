@@ -86,12 +86,36 @@ type ContainerBuilderConfiguration struct {
 	PushImagesRetries                    int
 	ImageFSExtractionRetries             int
 
-	// KanikoPodLabels are labels to set on the metadata of the kaniko build
-	// pod template. Used, for example, to opt the pod into the Azure
-	// Workload Identity webhook (azure.workload.identity/use: "true") so
-	// kaniko can authenticate to ACR via federated tokens on identity-based
-	// installs.
-	KanikoPodLabels map[string]string
+	// PodLabels are labels to set on the metadata of the build job pod
+	// template, for either backend. Used, for example, to opt the pod into
+	// the Azure Workload Identity webhook (azure.workload.identity/use:
+	// "true") so it can authenticate to ACR via federated tokens on
+	// identity-based installs.
+	PodLabels map[string]string
+
+	BuildahImage           string
+	BuildahImagePullPolicy string
+
+	// BuildahRootlessMode selects how the buildah container gets the
+	// capabilities it needs to build images without running as root:
+	// "caps" (default, SETUID/SETGID capabilities) or "hostusers"
+	// (kubelet-owned user namespace, requires a modern k8s/containerd).
+	BuildahRootlessMode string
+
+	// BuildahStorageDriver is buildah's `--storage-driver` value: "overlay"
+	// (default) or "vfs" (fallback for kernels/filesystems without overlay
+	// support; has a per-layer performance penalty).
+	BuildahStorageDriver string
+
+	// BuildahIsolation is buildah's `--isolation` value: "chroot" (default,
+	// no SYS_ADMIN needed) or "oci" (real namespace isolation per RUN step,
+	// needs SYS_ADMIN or a user namespace).
+	BuildahIsolation string
+
+	// AzureCLIImage and GCloudCLIImage are the vendor CLI images used by the
+	// registryhelpers azure/gcp providers to mint registry tokens.
+	AzureCLIImage  string
+	GCloudCLIImage string
 }
 
 func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) {
@@ -112,8 +136,8 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 			"amazon/aws-cli:2.17.16")
 	}
 	if containerBuilderConfiguration.RegistryProviderSecretName == "" {
-		containerBuilderConfiguration.RegistryProviderSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME",
-			"")
+		containerBuilderConfiguration.RegistryProviderSecretName = common.GetEnvOrDefaultStringWithLegacyKey(
+			"NUCLIO_BUILD_REGISTRY_PROVIDER_AUTH_SECRET_NAME", "NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME", "")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
@@ -125,13 +149,13 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	}
 	if containerBuilderConfiguration.JobPrefix == "" {
 		containerBuilderConfiguration.JobPrefix = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_JOB_NAME_PREFIX",
-			"kanikojob")
+			"buildjob")
 	}
 
 	containerBuilderConfiguration.InsecurePushRegistry =
-		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
+		common.GetEnvOrDefaultBoolWithLegacyKey("NUCLIO_BUILD_INSECURE_PUSH_REGISTRY", "NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
 	containerBuilderConfiguration.InsecurePullRegistry =
-		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
+		common.GetEnvOrDefaultBoolWithLegacyKey("NUCLIO_BUILD_INSECURE_PULL_REGISTRY", "NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
 
 	containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
@@ -164,19 +188,66 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 		return nil, errors.Wrap(err, "Failed to resolve number of push images retries")
 	}
 
-	jobDeletionTimeout := common.GetEnvOrDefaultString("NUCLIO_KANIKO_JOB_DELETION_TIMEOUT", "30m")
+	jobDeletionTimeout := common.GetEnvOrDefaultStringWithLegacyKey(
+		"NUCLIO_BUILD_JOB_DELETION_TIMEOUT", "NUCLIO_KANIKO_JOB_DELETION_TIMEOUT", "30m")
 	containerBuilderConfiguration.JobDeletionTimeout, err = time.ParseDuration(jobDeletionTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse job deletion timeout duration")
 	}
 
-	containerBuilderConfiguration.DefaultServiceAccount = common.GetEnvOrDefaultString("NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT",
-		"")
+	containerBuilderConfiguration.DefaultServiceAccount = common.GetEnvOrDefaultStringWithLegacyKey(
+		"NUCLIO_BUILD_DEFAULT_SERVICE_ACCOUNT", "NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT", "")
 
-	if rawPodLabels := common.GetEnvOrDefaultString("NUCLIO_KANIKO_POD_LABELS", ""); rawPodLabels != "" {
-		if err := json.Unmarshal([]byte(rawPodLabels), &containerBuilderConfiguration.KanikoPodLabels); err != nil {
-			return nil, errors.Wrap(err, "Failed to parse NUCLIO_KANIKO_POD_LABELS as JSON object")
+	if rawPodLabels := common.GetEnvOrDefaultStringWithLegacyKey(
+		"NUCLIO_BUILD_POD_LABELS", "NUCLIO_KANIKO_POD_LABELS", ""); rawPodLabels != "" {
+		if err := json.Unmarshal([]byte(rawPodLabels), &containerBuilderConfiguration.PodLabels); err != nil {
+			return nil, errors.Wrap(err, "Failed to parse pod labels as JSON object")
 		}
+	}
+
+	if containerBuilderConfiguration.BuildahImage == "" {
+		containerBuilderConfiguration.BuildahImage = common.GetEnvOrDefaultString("NUCLIO_BUILDAH_CONTAINER_IMAGE",
+			"quay.io/buildah/stable:v1.43.1")
+	}
+	if containerBuilderConfiguration.BuildahImagePullPolicy == "" {
+		containerBuilderConfiguration.BuildahImagePullPolicy = common.GetEnvOrDefaultString(
+			"NUCLIO_BUILDAH_CONTAINER_IMAGE_PULL_POLICY", "IfNotPresent")
+	}
+
+	if containerBuilderConfiguration.BuildahRootlessMode == "" {
+		containerBuilderConfiguration.BuildahRootlessMode = common.GetEnvOrDefaultString("NUCLIO_BUILDAH_ROOTLESS_MODE",
+			"caps")
+	}
+	if containerBuilderConfiguration.BuildahRootlessMode != "caps" && containerBuilderConfiguration.BuildahRootlessMode != "hostusers" {
+		return nil, errors.Errorf("Invalid buildah rootless mode: %s (must be \"caps\" or \"hostusers\")",
+			containerBuilderConfiguration.BuildahRootlessMode)
+	}
+
+	if containerBuilderConfiguration.BuildahStorageDriver == "" {
+		containerBuilderConfiguration.BuildahStorageDriver = common.GetEnvOrDefaultString("NUCLIO_BUILDAH_STORAGE_DRIVER",
+			"overlay")
+	}
+	if containerBuilderConfiguration.BuildahStorageDriver != "overlay" && containerBuilderConfiguration.BuildahStorageDriver != "vfs" {
+		return nil, errors.Errorf("Invalid buildah storage driver: %s (must be \"overlay\" or \"vfs\")",
+			containerBuilderConfiguration.BuildahStorageDriver)
+	}
+
+	if containerBuilderConfiguration.BuildahIsolation == "" {
+		containerBuilderConfiguration.BuildahIsolation = common.GetEnvOrDefaultString("NUCLIO_BUILDAH_ISOLATION",
+			"chroot")
+	}
+	if containerBuilderConfiguration.BuildahIsolation != "chroot" && containerBuilderConfiguration.BuildahIsolation != "oci" {
+		return nil, errors.Errorf("Invalid buildah isolation: %s (must be \"chroot\" or \"oci\")",
+			containerBuilderConfiguration.BuildahIsolation)
+	}
+
+	if containerBuilderConfiguration.AzureCLIImage == "" {
+		containerBuilderConfiguration.AzureCLIImage = common.GetEnvOrDefaultString("NUCLIO_AZURE_CLI_CONTAINER_IMAGE",
+			"mcr.microsoft.com/azure-cli:2.88.0")
+	}
+	if containerBuilderConfiguration.GCloudCLIImage == "" {
+		containerBuilderConfiguration.GCloudCLIImage = common.GetEnvOrDefaultString("NUCLIO_GCLOUD_CLI_CONTAINER_IMAGE",
+			"google/cloud-sdk:576.0.0-slim")
 	}
 
 	return &containerBuilderConfiguration, nil

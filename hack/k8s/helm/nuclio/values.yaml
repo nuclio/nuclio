@@ -170,7 +170,7 @@ dashboard:
   externalIPAddresses: []
   imageNamePrefixTemplate: ""
 
-  # Supported container builders: "kaniko", "docker"
+  # Supported container builders: "kaniko", "buildah", "docker"
   containerBuilderKind: "docker"
 
   # Mount an emptyDir at /tmp so the embedded builder can write build temp
@@ -185,10 +185,11 @@ dashboard:
     interval: 5s
     maxConsecutiveErrors: 5
 
-  kaniko:
+  # Settings shared by every in-cluster build backend
+  build:
 
-    #  Set to a repository url for storing cached layers
-    cacheRepo: ""
+    # How long to wait before deleting the build job
+    jobDeletionTimeout: 30m
 
     # Set this flag to push images to a plain HTTP registry
     insecurePushRegistry: false
@@ -196,10 +197,14 @@ dashboard:
     # Set this flag to pull images from a plain HTTP registry
     insecurePullRegistry: false
 
-    image:
-      repository: gcr.io/kaniko-project/executor
-      tag: v1.23.2
-      pullPolicy: IfNotPresent
+    # auth secret to attach to the build pod for off cluster registries
+    registryProviderSecretName: ""
+
+    # the default service account to use for the build pod, if not specified otherwise
+    defaultServiceAccount: ""
+
+    # Additional labels added to the build pod template.metadata.labels
+    podLabels: {}
 
     initContainerImage:
       busybox:
@@ -208,9 +213,22 @@ dashboard:
       awscli:
         repository: amazon/aws-cli
         tag: 2.17.16
+      azurecli:
+        repository: mcr.microsoft.com/azure-cli
+        tag: "2.65.0"
+      gcloudcli:
+        repository: google/cloud-sdk
+        tag: 497.0.0-slim
 
-    # How long to wait before deleting the build job
-    jobDeletionTimeout: 30m
+  kaniko:
+
+    #  Set to a repository url for storing cached layers
+    cacheRepo: ""
+
+    image:
+      repository: gcr.io/kaniko-project/executor
+      tag: v1.23.2
+      pullPolicy: IfNotPresent
 
     # How many times to retry pushing images to registry
     pushImagesRetries: 3
@@ -218,25 +236,24 @@ dashboard:
     # The number of retries that should happen for the extracting an image filesystem
     imageFSExtractionRetries: 3
 
-    # auth secret to attach to kaniko pod for off cluster registries
-    # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
-    registryProviderSecretName: ""
+  buildah:
 
-    # the default service account to use for kaniko pod, if not specified otherwise
-    defaultServiceAccount: ""
+    # "caps" (default, SETUID/SETGID capabilities) or "hostusers"
+    # (kubelet-owned user namespace, requires k8s/containerd support)
+    rootlessMode: "caps"
 
-    # Additional labels added to the kaniko build pod template.metadata.labels.
-    # The dashboard passes these through to the kaniko Job it creates at
-    # runtime (so they can't be set on the chart-rendered manifests).
-    # Example use: { "azure.workload.identity/use": "true" } to activate
-    # Azure Workload Identity token injection for ACR push on AKS.
-    #
-    # Note: if `registry.secretName` / `registry.credentials` is also set,
-    # the resulting docker-config secret is mounted at /kaniko/.docker
-    # and takes precedence over any federated token a workload identity
-    # would provide. See "Using Kaniko with cloud workload identity" in
-    # docs/setup/k8s/running-in-production-k8s.md.
-    podLabels: {}
+    # "overlay" (default) or "vfs" (fallback for kernels/filesystems
+    # without overlay support; has a per-layer performance penalty)
+    storageDriver: "overlay"
+
+    # "chroot" (default, no SYS_ADMIN needed) or "oci" (real namespace
+    # isolation per RUN step, needs SYS_ADMIN or a user namespace)
+    isolation: "chroot"
+
+    image:
+      repository: quay.io/buildah/stable
+      tag: v1.37.5
+      pullPolicy: IfNotPresent
 
   # use to configure node port
   nodePort:

@@ -68,7 +68,7 @@ func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPo
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Equal(testCase.expected, config.KanikoPodLabels)
+			suite.Equal(testCase.expected, config.PodLabels)
 		})
 	}
 }

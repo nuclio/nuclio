@@ -146,8 +146,8 @@ func NewServer(parentLogger logger.Logger,
 			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
 		}
 	case "kaniko":
-		if common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE",
-			"local") == common.LocalPlatformName {
+		if common.GetEnvOrDefaultStringWithLegacyKey("NUCLIO_DASHBOARD_SERVE_BUILD_ARTIFACTS_MODE",
+			"NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE", "local") == common.LocalPlatformName {
 
 			// allow dashboard server to handle request to get kaniko artifacts for function builds
 			// this is useful when running dashboard locally. in production, nginx will handle this

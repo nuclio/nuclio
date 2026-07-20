@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -411,6 +412,24 @@ func GetEnvOrDefaultString(key string, defaultValue string) string {
 
 func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
+}
+
+// GetEnvOrDefaultStringWithLegacyKey resolves key, falling back to legacyKey, logging a deprecation
+// warning if legacyKey is actually used.
+func GetEnvOrDefaultStringWithLegacyKey(key, legacyKey, defaultValue string) string {
+	if _, ok := os.LookupEnv(key); ok {
+		return GetEnvOrDefaultString(key, defaultValue)
+	}
+	if _, ok := os.LookupEnv(legacyKey); ok {
+		log.Printf("%s is deprecated, use %s instead", legacyKey, key)
+	}
+	return GetEnvOrDefaultString(legacyKey, defaultValue)
+}
+
+// GetEnvOrDefaultBoolWithLegacyKey is the bool counterpart of GetEnvOrDefaultStringWithLegacyKey.
+func GetEnvOrDefaultBoolWithLegacyKey(key, legacyKey string, defaultValue bool) bool {
+	return strings.ToLower(GetEnvOrDefaultStringWithLegacyKey(key, legacyKey,
+		strconv.FormatBool(defaultValue))) == "true"
 }
 
 func GetEnvOrDefaultInt(key string, defaultValue int) int {
