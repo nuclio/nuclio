@@ -49,11 +49,9 @@ type Authenticator interface {
 	Authenticate(responseWriter http.ResponseWriter, request *http.Request) bool
 }
 
-// TargetAuthenticator authenticates a request against an explicitly named target function. It embeds
-// Authenticator (used by the sidecar /auth endpoint, which resolves the target from the request) and
-// adds the HTTP-agnostic entry point used in-process by the DLX, which passes only the name of the
-// function it is about to scale up. The implementation binds the underlying request/response behind the
-// scenes. On a false result the mode-appropriate rejection has already been written.
+// TargetAuthenticator extends Authenticator for callers that operate in authOnly mode and know the target
+// function by name rather than by inspecting the request. AuthenticateTarget sets the target header and
+// delegates to Authenticate, keeping the caller HTTP-agnostic.
 type TargetAuthenticator interface {
 	Authenticator
 	AuthenticateTarget(functionName string) bool

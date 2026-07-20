@@ -93,7 +93,7 @@ func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, reque
 	default:
 		a.logger.WarnWith("Unknown authentication mode, failing closed",
 			"mode", authConfig.Mode)
-		http.Error(responseWriter, "Forbidden", http.StatusForbidden)
+		http.Error(responseWriter, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return false
 	}
 }
@@ -108,7 +108,7 @@ func (a *abstractAuthenticator) verifyBasicAuth(responseWriter http.ResponseWrit
 	}
 
 	responseWriter.Header().Set("WWW-Authenticate", `Basic realm="Authentication Required"`)
-	http.Error(responseWriter, "Unauthorized", http.StatusUnauthorized)
+	http.Error(responseWriter, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	return false
 }
 
@@ -139,7 +139,7 @@ func (a *abstractAuthenticator) reject(responseWriter http.ResponseWriter, reque
 		http.Redirect(responseWriter, request, a.buildSigninRedirect(request), http.StatusFound)
 		return
 	}
-	http.Error(responseWriter, "Unauthorized", http.StatusUnauthorized)
+	http.Error(responseWriter, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 // applyIdentityHeaders forwards the authenticated identity to the upstream on the request headers.
@@ -173,7 +173,7 @@ func (a *abstractAuthenticator) buildSigninRedirect(request *http.Request) strin
 // over HTTPS regardless of the proxy or ingress in front.
 func originalURL(request *http.Request) string {
 	host := request.Host
-	if forwardedHost := request.Header.Get("X-Forwarded-Host"); forwardedHost != "" {
+	if forwardedHost := request.Header.Get(headers.ForwardHost); forwardedHost != "" {
 		host = forwardedHost
 	}
 	return fmt.Sprintf("https://%s%s", host, request.URL.RequestURI())

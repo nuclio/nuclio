@@ -40,9 +40,8 @@ type Config struct {
 }
 
 func validateConfiguration(config *Config) error {
-	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if config.ListenPort < 1 || config.ListenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
+	if err := validatePorts(config); err != nil {
+		return errors.Wrap(err, "Invalid port configuration")
 	}
 
 	switch config.Mode {
@@ -97,6 +96,20 @@ func validateAuthOnlyConfiguration(config *Config) error {
 	}
 	if config.SigninURL == "" {
 		return errors.New("Sign-in URL must be provided in authOnly mode")
+	}
+
+	return nil
+}
+
+func validatePorts(config *Config) error {
+	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
+	if config.ListenPort < 1 || config.ListenPort > 65535 {
+		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
+	}
+
+	// ports 1 through 1023 are known as privileged ports or well-known ports, so we should avoid using them
+	if config.ListenPort < 1024 {
+		return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", config.ListenPort)
 	}
 
 	return nil

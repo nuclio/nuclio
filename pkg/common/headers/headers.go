@@ -84,6 +84,7 @@ const (
 	AuthorizationHeader      = "authorization"
 	CookieHeader             = "Cookie"
 	IguazioAuthenticatorKind = "X-IGZ-Authenticator-Kind"
+	ForwardHost              = "X-Forwarded-Host"
 
 	// Others
 	Logs           = "X-Nuclio-Logs"
