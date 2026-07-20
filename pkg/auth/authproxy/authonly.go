@@ -196,5 +196,14 @@ func functionAuthConfigFromAttributes(attributes map[string]interface{}) (Functi
 		authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
 	}
 
+	if mode == ModeBasicAuth {
+		if authConfig.BasicAuthUsername == "" {
+			return FunctionAuthConfig{}, errors.New("Basic-auth username must be provided")
+		}
+		if authConfig.BasicAuthPassword == "" {
+			return FunctionAuthConfig{}, errors.New("Basic-auth password must be provided")
+		}
+	}
+
 	return authConfig, nil
 }

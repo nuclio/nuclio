@@ -17,12 +17,8 @@ limitations under the License.
 package app
 
 import (
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
-	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -73,39 +69,16 @@ func Run(config *Config) error {
 	select {}
 }
 
-// newAuthenticator builds the topology-appropriate authenticator; each constructor wires its own
-// shared decision core (auth-url validator, sign-in URL) from the config.
+// newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.
 func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authenticator, error) {
-	switch config.Mode {
-	case authpkg.ProxyModeReverseProxy:
-		return authproxy.NewReverseProxyAuthenticator(rootLogger,
-			config.AuthURL,
-			config.SigninURL,
-			config.AuthKind,
-			resolveStaticFunctionAuthConfig(config))
-	case authpkg.ProxyModeAuthOnly:
-		clientConfig, err := common.GetClientConfig(config.KubeconfigPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get client configuration")
-		}
-		nuclioClientSet, err := nuclioioclient.NewForConfig(clientConfig)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create nuclio client set")
-		}
-		kubeClientSet, err := kubeclient.NewClientWithRetryFromConfig(clientConfig)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create kube client set")
-		}
-		return authproxy.NewAuthOnlyAuthenticator(rootLogger,
-			config.AuthURL,
-			config.SigninURL,
-			config.AuthKind,
-			nuclioClientSet,
-			kubeClientSet,
-			config.Namespace)
-	default:
-		return nil, errors.Errorf("Unknown auth-proxy mode: %s", config.Mode)
-	}
+	return authproxy.NewAuthenticator(rootLogger,
+		config.Mode,
+		config.AuthURL,
+		config.SigninURL,
+		config.AuthKind,
+		resolveStaticFunctionAuthConfig(config),
+		config.KubeconfigPath,
+		config.Namespace)
 }
 
 // resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
