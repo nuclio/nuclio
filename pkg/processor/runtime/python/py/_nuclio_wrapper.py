@@ -21,6 +21,7 @@ import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 from wrapper_common import (
+    Constants,
     WrapperFatalException,
     EventSocketDisconnected,
     EventSocketException,
@@ -104,8 +105,13 @@ class Wrapper(AbstractWrapper):
                     self._logger.debug_with('Event has been discarded', event=event)
 
                     # respond with an error so the processor does not block forever waiting for
-                    # a response to the discarded event (its default event timeout is infinite)
-                    await self._write_response_error('Event discarded: worker drained', self._event_sock)
+                    # a response to the discarded event (its default event timeout is infinite).
+                    # the discard marker header tells stream triggers not to ack it, so it is
+                    # redelivered once the worker is back instead of being silently lost (NUC-855).
+                    await self._write_response_error(
+                        'Event discarded: worker drained',
+                        self._event_sock,
+                        headers={Constants.stream_event_discarded_header: True})
 
                 # allow event to be garbage collected by deleting the reference
                 del event
@@ -159,9 +165,9 @@ class Wrapper(AbstractWrapper):
             'attributes': {'ready': 'true'}
         })
 
-    async def _write_response_error(self, body, sock=None):
+    async def _write_response_error(self, body, sock=None, headers=None):
         sock = self._event_sock if not sock else sock
-        await super()._write_response_error(body=body, sock=sock)
+        await super()._write_response_error(body=body, sock=sock, headers=headers)
 
     async def _handle_event(self, event, sock=None):
         sock = self._event_sock if not sock else sock

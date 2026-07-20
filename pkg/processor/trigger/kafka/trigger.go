@@ -501,6 +501,17 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 				"err", processErr)
 		}
 
+		// an event the worker discarded while draining (function restart / rebalance) was never
+		// handed to the handler, so it must not be acked - otherwise its offset is committed and
+		// the message is silently lost. Convert it to a no-ack so it is redelivered once the
+		// worker is back. This is enforced regardless of the explicit-ack mode.
+		if processErr == nil && processor.EventDiscardedDuringDrain(response) {
+			k.Logger.DebugWith("Event discarded during drain, will not ack",
+				"partition", submittedEvent.event.kafkaMessage.Partition,
+				"offset", submittedEvent.event.kafkaMessage.Offset)
+			processErr = processor.StreamNoAckError{}
+		}
+
 		switch k.configuration.ExplicitAckMode {
 		case functionconfig.ExplicitAckModeEnable:
 
