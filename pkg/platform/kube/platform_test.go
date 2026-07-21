@@ -40,7 +40,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	mocks2 "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/mocks"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -2400,19 +2399,19 @@ func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
 func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication() {
 	for _, testCase := range []struct {
 		name               string
-		authenticationMode ingress.AuthenticationMode
+		authenticationMode auth.AuthenticationMode
 		annotations        map[string]string
 		expectError        bool
 	}{
 		{
 			name:               "Valid iguazio authentication with empty annotations",
-			authenticationMode: ingress.AuthenticationModeIguazio,
+			authenticationMode: auth.AuthenticationModeIguazio,
 			annotations:        map[string]string{},
 			expectError:        false,
 		},
 		{
 			name:               "Valid not iguazio authentication mode with overrides",
-			authenticationMode: ingress.AuthenticationModeNone,
+			authenticationMode: auth.AuthenticationModeNone,
 			annotations: map[string]string{
 				annotations.NginxProxyBodySize: "100",
 			},
@@ -2420,7 +2419,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication
 		},
 		{
 			name:               "Iguazio authentication with overrides",
-			authenticationMode: ingress.AuthenticationModeIguazio,
+			authenticationMode: auth.AuthenticationModeIguazio,
 			annotations: map[string]string{
 				annotations.NginxAuthResponseHeaders: "test-header",
 				annotations.NginxProxyBodySize:       "100",
@@ -2434,7 +2433,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication
 		},
 		{
 			name:               "Iguazio authentication with a different annotation",
-			authenticationMode: ingress.AuthenticationModeIguazio,
+			authenticationMode: auth.AuthenticationModeIguazio,
 			annotations: map[string]string{
 				"test-annotation": "test-value",
 			},
@@ -3628,7 +3627,7 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 		Spec: platform.APIGatewaySpec{
 			Name:               "default-name",
 			Host:               "default-host",
-			AuthenticationMode: ingress.AuthenticationModeNone,
+			AuthenticationMode: auth.AuthenticationModeNone,
 			Upstreams: []platform.APIGatewayUpstreamSpec{
 				{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,

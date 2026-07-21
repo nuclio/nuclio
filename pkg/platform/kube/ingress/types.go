@@ -64,4 +64,3 @@ type DexAuth struct {
 	Oauth2ProxyURL               string `json:"oauth2ProxyUrl,omitempty"`
 	RedirectUnauthorizedToSignIn bool   `json:"redirectUnauthorizedToSignIn,omitempty"`
 }
-
