@@ -25,18 +25,18 @@ import (
 
 // Config holds the auth-proxy sidecar configuration.
 type Config struct {
-	Mode               authpkg.ProxyMode
-	ListenPort         int
-	UpstreamURL        string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
-	AuthURL            string // the URL of the auth service to which requests are sent for authentication
-	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
-	AuthMode           string
-	BasicAuthUsername  string
-	BasicAuthPassword  string
-	Namespace          string
-	KubeconfigPath     string
-	PlatformConfigPath string
-	AuthKind           authpkg.Kind // auth kind used for API/browser authentication
+	Mode                  authpkg.ProxyMode
+	ListenPort            int
+	UpstreamURL           string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
+	AuthURL               string // the URL of the auth service to which requests are sent for authentication
+	SigninURL             string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
+	AuthMode              string
+	BasicAuthUsername     string
+	BasicAuthPasswordPath string // path to a Secret-volume file; read, hashed, and zeroed by resolveStaticFunctionAuthConfig
+	Namespace             string
+	KubeconfigPath        string
+	PlatformConfigPath    string
+	AuthKind              authpkg.Kind // auth kind used for API/browser authentication
 }
 
 func validateConfiguration(config *Config) error {
@@ -75,8 +75,8 @@ func validateReverseProxyConfiguration(config *Config) error {
 		if config.BasicAuthUsername == "" {
 			return errors.New("Basic-auth username must be provided for 'basicAuth' authentication mode")
 		}
-		if config.BasicAuthPassword == "" {
-			return errors.New("Basic-auth password must be provided for 'basicAuth' authentication mode")
+		if config.BasicAuthPasswordPath == "" {
+			return errors.New("Basic-auth password path must be provided for 'basicAuth' authentication mode")
 		}
 	case authproxy.ModeNone, "":
 		// no additional requirements

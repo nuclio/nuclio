@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -126,13 +127,22 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 
 // TestModeBasicAuth verifies basicAuth is verified locally, never via the auth-url.
 // validateConfiguration permits an empty authURL for ModeBasicAuth, so the test reflects that.
+// The caller (app layer) is responsible for hashing before constructing; the constructor receives
+// only the hash, never the plaintext.
 func (suite *AuthProxyTestSuite) TestModeBasicAuth() {
+	hash, err := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
+	suite.Require().NoError(err)
+
 	authenticator, err := NewReverseProxyAuthenticator(suite.logger,
 		"",
 		"",
 		authpkg.KindIguazioV4,
-		FunctionAuthConfig{Mode: ModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"})
+		FunctionAuthConfig{Mode: ModeBasicAuth, BasicAuthUsername: "user", BasicAuthPasswordHash: hash})
 	suite.Require().NoError(err)
+
+	rpa := authenticator.(*reverseProxyAuthenticator)
+	suite.Require().Empty(rpa.authConfig.BasicAuthPassword, "plaintext must never be stored in FunctionAuthConfig")
+	suite.Require().NotEmpty(rpa.authConfig.BasicAuthPasswordHash, "bcrypt hash must be present")
 
 	suite.Run("valid credentials admitted locally", func() {
 		request := suite.authenticatedRequest("")
@@ -141,11 +151,25 @@ func (suite *AuthProxyTestSuite) TestModeBasicAuth() {
 		suite.Require().True(authenticator.Authenticate(recorder, request))
 	})
 
-	suite.Run("invalid credentials rejected with 401", func() {
+	suite.Run("wrong password rejected with 401", func() {
 		request := suite.authenticatedRequest("")
 		request.SetBasicAuth("user", "wrong")
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, request))
+		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
+	})
+
+	suite.Run("wrong username rejected with 401", func() {
+		request := suite.authenticatedRequest("")
+		request.SetBasicAuth("other", "pass")
+		recorder := httptest.NewRecorder()
+		suite.Require().False(authenticator.Authenticate(recorder, request))
+		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
+	})
+
+	suite.Run("missing credentials rejected with 401", func() {
+		recorder := httptest.NewRecorder()
+		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest("")))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
 	})
 }
@@ -269,6 +293,14 @@ func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesFunctionAuthConfig(
 	suite.Run("scrubbed basicAuth rejects wrong password", func() {
 		request := suite.authenticatedRequestFor("", "scrubbed-func")
 		request.SetBasicAuth("user", "wrong")
+		recorder := httptest.NewRecorder()
+		suite.Require().False(authenticator.Authenticate(recorder, request))
+		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
+	})
+
+	suite.Run("basicAuth rejects wrong username", func() {
+		request := suite.authenticatedRequestFor("", "basic-func")
+		request.SetBasicAuth("other", "pass")
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, request))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)

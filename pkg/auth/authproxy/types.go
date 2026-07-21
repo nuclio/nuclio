@@ -39,10 +39,10 @@ const (
 type FunctionAuthConfig struct {
 	Mode              AuthenticationMode
 	BasicAuthUsername string
-	BasicAuthPassword string // plaintext input; cleared after hashing in reverseProxy mode
+	BasicAuthPassword string // plaintext; used in authOnly mode where the password is resolved from the function CRD/Secret at request time
 
-	// BasicAuthPasswordHash is the bcrypt hash of BasicAuthPassword. Set by NewReverseProxyAuthenticator
-	// so the plaintext is never held in memory for the pod's lifetime.
+	// BasicAuthPasswordHash holds the bcrypt hash of the password. Set by the app layer before the
+	// reverseProxyAuthenticator is constructed, so plaintext never enters the struct in that topology.
 	BasicAuthPasswordHash []byte
 }
 

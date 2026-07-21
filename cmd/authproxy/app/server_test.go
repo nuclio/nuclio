@@ -22,14 +22,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // fakeAuthenticator is a test double for authproxy.Authenticator; it records calls and, on reject,
@@ -202,4 +205,66 @@ func (suite *ServerTestSuite) doRequest(handler http.Handler, path string) (int,
 
 func TestServerTestSuite(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
+}
+
+// ResolveStaticConfigTestSuite covers resolveStaticFunctionAuthConfig: the app-layer function that reads
+// the Secret-volume file, bcrypt-hashes the password, and clears the path so plaintext never persists.
+type ResolveStaticConfigTestSuite struct {
+	suite.Suite
+}
+
+func (suite *ResolveStaticConfigTestSuite) TestHappyPath() {
+	f := suite.writeTempPassword("s3cret")
+	defer os.Remove(f)
+
+	cfg := &Config{AuthMode: string(authproxy.ModeBasicAuth), BasicAuthUsername: "user", BasicAuthPasswordPath: f}
+	result, err := resolveStaticFunctionAuthConfig(cfg)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(authproxy.ModeBasicAuth, result.Mode)
+	suite.Require().Equal("user", result.BasicAuthUsername)
+	suite.Require().NoError(bcrypt.CompareHashAndPassword(result.BasicAuthPasswordHash, []byte("s3cret")))
+	suite.Require().Empty(cfg.BasicAuthPasswordPath, "path must be cleared after reading")
+}
+
+// TestWhitespaceTrimming verifies that a trailing newline (common in Secret files) is stripped before hashing.
+func (suite *ResolveStaticConfigTestSuite) TestWhitespaceTrimming() {
+	f := suite.writeTempPassword("s3cret\n")
+	defer os.Remove(f)
+
+	cfg := &Config{AuthMode: string(authproxy.ModeBasicAuth), BasicAuthUsername: "user", BasicAuthPasswordPath: f}
+	result, err := resolveStaticFunctionAuthConfig(cfg)
+	suite.Require().NoError(err)
+
+	suite.Require().NoError(bcrypt.CompareHashAndPassword(result.BasicAuthPasswordHash, []byte("s3cret")),
+		"hash must verify against trimmed password, not password+newline")
+	suite.Require().Error(bcrypt.CompareHashAndPassword(result.BasicAuthPasswordHash, []byte("s3cret\n")),
+		"hash must not verify against untrimmed password")
+}
+
+func (suite *ResolveStaticConfigTestSuite) TestMissingFile() {
+	cfg := &Config{AuthMode: string(authproxy.ModeBasicAuth), BasicAuthUsername: "user", BasicAuthPasswordPath: "/nonexistent/path/password"}
+	_, err := resolveStaticFunctionAuthConfig(cfg)
+	suite.Require().Error(err)
+	suite.Require().Contains(err.Error(), "Failed to read basic-auth password file")
+}
+
+func (suite *ResolveStaticConfigTestSuite) TestNoPasswordPath() {
+	cfg := &Config{AuthMode: string(authproxy.ModeBasicAuth), BasicAuthUsername: "user"}
+	result, err := resolveStaticFunctionAuthConfig(cfg)
+	suite.Require().NoError(err)
+	suite.Require().Nil(result.BasicAuthPasswordHash)
+}
+
+func (suite *ResolveStaticConfigTestSuite) writeTempPassword(content string) string {
+	f, err := os.CreateTemp("", "basic-auth-password-*")
+	suite.Require().NoError(err)
+	_, err = f.WriteString(content)
+	suite.Require().NoError(err)
+	suite.Require().NoError(f.Close())
+	return f.Name()
+}
+
+func TestResolveStaticConfigTestSuite(t *testing.T) {
+	suite.Run(t, new(ResolveStaticConfigTestSuite))
 }

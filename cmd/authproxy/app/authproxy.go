@@ -17,12 +17,16 @@ limitations under the License.
 package app
 
 import (
+	"os"
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/crypto/bcrypt"
 
 	// register logger sinks (stdout, appinsights) into the loggersink registry via init()
 	_ "github.com/nuclio/nuclio/pkg/sinks"
@@ -71,27 +75,46 @@ func Run(config *Config) error {
 
 // newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.
 func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authenticator, error) {
+	staticConfig, err := resolveStaticFunctionAuthConfig(config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve static function auth config")
+	}
 	return authproxy.NewAuthenticator(rootLogger,
 		config.Mode,
 		config.AuthURL,
 		config.SigninURL,
 		config.AuthKind,
-		resolveStaticFunctionAuthConfig(config),
+		staticConfig,
 		config.KubeconfigPath,
 		config.Namespace)
 }
 
-// resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
-// mode the username/password come from the config (the password is injected from a Secret via secretKeyRef).
-func resolveStaticFunctionAuthConfig(config *Config) authproxy.FunctionAuthConfig {
+// resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology.
+// For basicAuth mode it reads the password from the Secret-volume file, bcrypt-hashes it, and stores
+// only the hash in FunctionAuthConfig so plaintext never enters that struct.
+func resolveStaticFunctionAuthConfig(config *Config) (authproxy.FunctionAuthConfig, error) {
 	mode := authproxy.AuthenticationMode(config.AuthMode)
 	if mode == "" {
 		mode = authproxy.ModeNone
 	}
 
-	return authproxy.FunctionAuthConfig{
+	functionAuthConfig := authproxy.FunctionAuthConfig{
 		Mode:              mode,
 		BasicAuthUsername: config.BasicAuthUsername,
-		BasicAuthPassword: config.BasicAuthPassword,
 	}
+
+	if config.BasicAuthPasswordPath != "" {
+		data, err := os.ReadFile(config.BasicAuthPasswordPath)
+		if err != nil {
+			return authproxy.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read basic-auth password file '%s'", config.BasicAuthPasswordPath)
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(strings.TrimSpace(string(data))), bcrypt.DefaultCost)
+		if err != nil {
+			return authproxy.FunctionAuthConfig{}, errors.Wrap(err, "Failed to hash basic-auth password")
+		}
+		functionAuthConfig.BasicAuthPasswordHash = hash
+		config.BasicAuthPasswordPath = ""
+	}
+
+	return functionAuthConfig, nil
 }
