@@ -42,7 +42,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -3070,7 +3069,7 @@ func (suite *apiGatewayTestSuite) TestGetDetailSuccessful() {
 						Percentage: 20,
 					},
 				},
-				AuthenticationMode: ingress.AuthenticationModeBasicAuth,
+				AuthenticationMode: auth.AuthenticationModeBasicAuth,
 				Authentication: &platform.APIGatewayAuthenticationSpec{
 					BasicAuth: &platform.BasicAuth{
 						Username: "user1",
@@ -3181,7 +3180,7 @@ func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
 			Percentage: 20,
 		},
 	}
-	returnedAPIGateway1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
+	returnedAPIGateway1.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeBasicAuth
 	returnedAPIGateway1.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
 		BasicAuth: &platform.BasicAuth{
 			Username: "user1",
@@ -3663,8 +3662,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		},
 		InactivityWindowPresets: []string{"1m", "2m"},
 	}
-	allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone),
-		string(ingress.AuthenticationModeBasicAuth)}
+	allowedAuthenticationModes := []string{string(auth.AuthenticationModeNone),
+		string(auth.AuthenticationModeBasicAuth)}
 
 	suite.mockPlatform.
 		On("GetExternalIPAddresses").

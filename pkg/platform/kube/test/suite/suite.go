@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -758,7 +759,7 @@ func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string
 			},
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
-				AuthenticationMode: ingress.AuthenticationModeNone,
+				AuthenticationMode: auth.AuthenticationModeNone,
 				Upstreams:          upstreams,
 			},
 		},

@@ -21,6 +21,17 @@ import (
 	"time"
 )
 
+// AuthenticationMode is the authentication mode for API gateways and ingress resources.
+type AuthenticationMode string
+
+const (
+	AuthenticationModeNone      AuthenticationMode = "none"
+	AuthenticationModeBasicAuth AuthenticationMode = "basicAuth"
+	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
+	AuthenticationModeOauth2    AuthenticationMode = "oauth2"
+	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
+)
+
 type Kind string
 
 const (

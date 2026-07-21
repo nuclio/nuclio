@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
@@ -363,26 +364,26 @@ func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[st
 	var err error
 
 	switch spec.AuthenticationMode {
-	case AuthenticationModeNone:
+	case auth.AuthenticationModeNone:
 		// do nothing
-	case AuthenticationModeBasicAuth:
+	case auth.AuthenticationModeBasicAuth:
 		authIngressAnnotations, basicAuthSecret, err = m.compileBasicAuthAnnotationsAndSecret(ctx, spec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get basic auth annotations")
 		}
-	case AuthenticationModeAccessKey:
+	case auth.AuthenticationModeAccessKey:
 
 		// relevant when running on iguazio platform
 		authIngressAnnotations, err = m.compileIguazioSessionVerificationAnnotations()
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
 		}
-	case AuthenticationModeOauth2:
+	case auth.AuthenticationModeOauth2:
 		authIngressAnnotations, err = m.compileDexAuthAnnotations(spec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
 		}
-	case AuthenticationModeIguazio:
+	case auth.AuthenticationModeIguazio:
 		authIngressAnnotations, err = m.compileIguazioAuthAnnotations()
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get SSO auth annotations")

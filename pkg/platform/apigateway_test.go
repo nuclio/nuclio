@@ -22,8 +22,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -53,7 +53,7 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 	apiGatewayConfig := &APIGatewayConfig{Meta: APIGatewayMeta{}, Spec: APIGatewaySpec{
 		Host:               "host.com",
 		Name:               "test-scrubber",
-		AuthenticationMode: ingress.AuthenticationModeBasicAuth,
+		AuthenticationMode: auth.AuthenticationModeBasicAuth,
 		Authentication: &APIGatewayAuthenticationSpec{BasicAuth: &BasicAuth{
 			Username: "test",
 			Password: "my-password",

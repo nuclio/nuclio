@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/rs/xid"
@@ -219,14 +219,14 @@ func (suite *apiGatewayInvokeTestSuite) SetupSuite() {
 }
 
 func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeBasicAuth() {
-	suite.testInvoke(ingress.AuthenticationModeBasicAuth)
+	suite.testInvoke(auth.AuthenticationModeBasicAuth)
 }
 
 func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeNone() {
-	suite.testInvoke(ingress.AuthenticationModeNone)
+	suite.testInvoke(auth.AuthenticationModeNone)
 }
 
-func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.AuthenticationMode) {
+func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode auth.AuthenticationMode) {
 	functionName := suite.deployFunction()
 
 	// use nutctl to delete the function when we're done
@@ -249,7 +249,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	}
 
 	// fill basic auth args depending on authentication mode
-	if authenticationMode == ingress.AuthenticationModeBasicAuth {
+	if authenticationMode == auth.AuthenticationModeBasicAuth {
 		namedArgs["basic-auth-username"] = basicAuthUsername
 		namedArgs["basic-auth-password"] = basicAuthPassword
 	}
@@ -280,7 +280,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	// we retry as it takes some time for apigw resource create function ingress
 	err = common.RetryUntilSuccessful(90*time.Second, 1*time.Second, func() bool {
 		request := createHTTPRequest()
-		if authenticationMode == ingress.AuthenticationModeBasicAuth {
+		if authenticationMode == auth.AuthenticationModeBasicAuth {
 			request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
 		}
 		responseBody, statusCode, err := suite.invokeHTTPRequest(request)
@@ -289,14 +289,14 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	suite.Require().NoError(err)
 
 	// test scenarios where auth is given, but bad credentials were given
-	if authenticationMode != ingress.AuthenticationModeNone {
+	if authenticationMode != auth.AuthenticationModeNone {
 
 		// create request
 		request := createHTTPRequest()
 
 		// fill request request with credentials correspondingly to its ingress auth mode
 		switch authenticationMode {
-		case ingress.AuthenticationModeBasicAuth:
+		case auth.AuthenticationModeBasicAuth:
 			request.SetBasicAuth(basicAuthUsername, "bad-credentials")
 		default:
 			suite.Require().Failf("Must implement a scenario where a test would fail for ingress %s",
