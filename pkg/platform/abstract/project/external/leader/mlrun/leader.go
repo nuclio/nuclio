@@ -21,26 +21,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
+	leaderabstract "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/abstract"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type APIVersion string
-
-const (
-	APIVersionV1 APIVersion = "v1"
-	APIVersionV2 APIVersion = "v2"
-)
-
 type LeaderOps struct {
+	*leaderabstract.LeaderOps
 	logger logger.Logger
 	// namespace is used to enrich the MLRun responses, which omit the namespace
 	namespace             string
@@ -49,6 +41,7 @@ type LeaderOps struct {
 
 func NewLeaderOps(parentLogger logger.Logger, namespace string, projectSync2PCEnabled bool) *LeaderOps {
 	return &LeaderOps{
+		LeaderOps:             leaderabstract.NewLeaderOps(),
 		logger:                parentLogger.GetChild("mlrun"),
 		namespace:             namespace,
 		projectSync2PCEnabled: projectSync2PCEnabled,
@@ -92,13 +85,8 @@ func (l *LeaderOps) ResolveGetProjectResponse(_ bool, body []byte) ([]platform.P
 	return projects.ToProjectList(l.namespace), nil
 }
 
-func (l *LeaderOps) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
-	// MLRun does not have async job handling, so this is a placeholder
-	return nil, false
-}
-
 func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
-	return fmt.Sprintf("%s/%s/%s", apiAddress, APIVersionV1, "projects")
+	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, "")
 }
 
 func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
@@ -119,18 +107,8 @@ func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (l *LeaderOps) GetJobIdUrl(_, _ string) string {
-	// MLRun does not have async job handling, so this is a placeholder
-	return ""
-}
-
-func (l *LeaderOps) IsJobCompleted(_ context.Context, _ leaderCommon.JobResponse, _ string) error {
-	// MLRun does not have async job handling, so this is a placeholder
-	return nil
-}
-
 func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
-	return l.projectRequestURL(apiAddress, projectName, APIVersionV1)
+	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
 
 func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
@@ -142,20 +120,16 @@ func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 }
 
 func (l *LeaderOps) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
-	url := fmt.Sprintf("%s/%s/projects", apiAddress, APIVersionV1)
-	if projectName != "" {
-		url += fmt.Sprintf("/%s", projectName)
-	}
-	return url
+	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
 
 func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
 	// TODO - for now there is no filter addition to the URL, should be added when MLRun supports updated_at
-	return fmt.Sprintf("%s/%s", apiAddress, "projects")
+	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, "")
 }
 
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
-	return l.projectRequestURL(apiAddress, projectName, APIVersionV2)
+	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV2, projectName)
 }
 
 // EvaluateLeaderRequest is the entry point for every project write that originates from MLRun.
@@ -222,22 +196,6 @@ func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, labels map[string]s
 // evaluation is an unconditional pass-through, so the Get would be wasted.
 func (l *LeaderOps) ProjectSync2PCEnabled() bool {
 	return l.projectSync2PCEnabled
-}
-
-func (l *LeaderOps) ShouldWaitForCreateCompletion() bool { return false }
-
-func (l *LeaderOps) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie { return nil }
-
-func (l *LeaderOps) GetJobRequestFilter(_ *time.Time) string { return "" }
-
-func (l *LeaderOps) GetAuthSessionCookie(_ auth.Session) *http.Cookie { return nil }
-
-func (l *LeaderOps) AddAuthSessionHeaders(headers map[string]string, authSession auth.Session) {
-	headers["authorization"] = authSession.CompileAuthorizationHeader()
-}
-
-func (l *LeaderOps) projectRequestURL(apiAddress, projectName string, version APIVersion) string {
-	return fmt.Sprintf("%s/%s/%s/%s", apiAddress, version, "projects", projectName)
 }
 
 // validateProvision validates the Provision step (sync-status=creating in request labels).

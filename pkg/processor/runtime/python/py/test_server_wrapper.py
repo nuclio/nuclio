@@ -217,6 +217,11 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         self.assertEqual(500, response['status_code'])
         self.assertIn('discarded', response['body'])
 
+        # the discard response must carry the no-ack marker header so stream triggers
+        # do not commit the offset and the event is redelivered instead of silently lost
+        from wrapper_common import Constants
+        self.assertIs(True, response['headers'][Constants.stream_event_discarded_header])
+
     async def _send_events(self, events, single_connection=True):
         data = []
         if single_connection:

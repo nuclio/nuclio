@@ -25,6 +25,7 @@ import asyncio
 import selectors
 
 from wrapper_common import (
+    Constants,
     EventSocketDisconnected,
     WrapperFatalException,
     EventSocketException,
@@ -168,8 +169,13 @@ class AsyncWrapper(AbstractWrapper):
                     self._logger.debug("Event discarded")
 
                     # respond with an error so the processor does not block forever waiting for
-                    # a response to the discarded event (its default event timeout is infinite)
-                    await self._write_response_error('Event discarded: worker drained', sock)
+                    # a response to the discarded event (its default event timeout is infinite).
+                    # the discard marker header tells stream triggers not to ack it, so it is
+                    # redelivered once the worker is back instead of being silently lost (NUC-855).
+                    await self._write_response_error(
+                        'Event discarded: worker drained',
+                        sock,
+                        headers={Constants.stream_event_discarded_header: True})
 
                 # Release event reference
                 del event

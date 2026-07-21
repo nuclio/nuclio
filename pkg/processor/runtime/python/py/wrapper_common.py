@@ -47,6 +47,12 @@ class Constants:
     drain_signal = signal.SIGUSR2
     continue_signal = signal.SIGCONT
 
+    # response header set on an event discarded while draining, telling the stream trigger
+    # not to ack it so it is redelivered instead of silently lost (NUC-855). Must match the
+    # Go constant headers.StreamEventDiscarded exactly (case-sensitive) since the trigger
+    # matches the header key verbatim.
+    stream_event_discarded_header = 'X-Nuclio-Stream-Event-Discarded'
+
 
 class WrapperFatalException(Exception):
     """
@@ -380,14 +386,17 @@ class AbstractWrapper(object):
         self._logger.error_with(error_message, exc=str(exc), traceback=traceback.format_exc())
         await self._write_response_error(encoded_error_response or error_message, sock)
 
-    async def _write_response_error(self, body, sock):
+    async def _write_response_error(self, body, sock, headers=None):
         try:
-            encoded_response = self._json_encoder.encode({
+            response = {
                 'body': body,
                 'body_encoding': 'text',
                 'content_type': 'text/plain',
                 'status_code': 500,
-            })
+            }
+            if headers:
+                response['headers'] = headers
+            encoded_response = self._json_encoder.encode(response)
 
             # try write the formatted exception back to processor
             await self._write_packet_to_processor(sock, 'r' + encoded_response)
