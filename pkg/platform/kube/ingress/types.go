@@ -16,7 +16,11 @@ limitations under the License.
 
 package ingress
 
-import networkingv1 "k8s.io/api/networking/v1"
+import (
+	"github.com/nuclio/nuclio/pkg/auth"
+
+	networkingv1 "k8s.io/api/networking/v1"
+)
 
 type Spec struct {
 	Name                 string
@@ -28,7 +32,7 @@ type Spec struct {
 	PathType             *networkingv1.PathType
 	ServiceName          string
 	ServicePort          int
-	AuthenticationMode   AuthenticationMode
+	AuthenticationMode   auth.AuthenticationMode
 	Authentication       *Authentication
 	WhitelistIPAddresses []string
 	SSLPassthrough       bool
@@ -61,12 +65,3 @@ type DexAuth struct {
 	RedirectUnauthorizedToSignIn bool   `json:"redirectUnauthorizedToSignIn,omitempty"`
 }
 
-type AuthenticationMode string
-
-const (
-	AuthenticationModeNone      AuthenticationMode = "none"
-	AuthenticationModeBasicAuth AuthenticationMode = "basicAuth"
-	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
-	AuthenticationModeOauth2    AuthenticationMode = "oauth2"
-	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
-)

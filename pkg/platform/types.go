@@ -539,7 +539,7 @@ type APIGatewaySpec struct {
 	Name               string                        `json:"name,omitempty"`
 	Description        string                        `json:"description,omitempty"`
 	Path               string                        `json:"path,omitempty"`
-	AuthenticationMode ingress.AuthenticationMode    `json:"authenticationMode,omitempty"`
+	AuthenticationMode auth.AuthenticationMode `json:"authenticationMode,omitempty"`
 	Authentication     *APIGatewayAuthenticationSpec `json:"authentication,omitempty"`
 	Upstreams          []APIGatewayUpstreamSpec      `json:"upstreams,omitempty"`
 }

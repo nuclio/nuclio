@@ -20,9 +20,9 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
@@ -172,13 +172,13 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 
 			// enrich authentication mode
 			if commandeer.authenticationMode != "" {
-				commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationMode(commandeer.authenticationMode)
+				commandeer.apiGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationMode(commandeer.authenticationMode)
 			} else {
-				commandeer.apiGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+				commandeer.apiGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeNone
 			}
 
 			// enrich basic-auth spec if it was specified
-			if commandeer.apiGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth {
+			if commandeer.apiGatewayConfig.Spec.AuthenticationMode == auth.AuthenticationModeBasicAuth {
 				if commandeer.basicAuthUsername == "" || commandeer.basicAuthPassword == "" {
 					return errors.New("Basic auth username and password must be specified")
 				}

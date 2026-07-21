@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
@@ -1437,7 +1437,7 @@ func (p *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 }
 
 func (p *Platform) GetAllowedAuthenticationModes() []string {
-	allowedAuthenticationModes := []string{string(ingress.AuthenticationModeNone), string(ingress.AuthenticationModeBasicAuth)}
+	allowedAuthenticationModes := []string{string(auth.AuthenticationModeNone), string(auth.AuthenticationModeBasicAuth)}
 	if len(p.Config.IngressConfig.AllowedAuthenticationModes) > 0 {
 		allowedAuthenticationModes = p.Config.IngressConfig.AllowedAuthenticationModes
 	}
@@ -2542,7 +2542,7 @@ func (p *Platform) validateProbeSpec(probe *v1.Probe) error {
 
 func (p *Platform) validateAPIGatewayAuthentication(apiGatewayConfig *platform.APIGatewayConfig) error {
 	switch apiGatewayConfig.Spec.AuthenticationMode {
-	case ingress.AuthenticationModeIguazio:
+	case auth.AuthenticationModeIguazio:
 		// In iguazio authentication mode, overriding the authentication's annotations is restricted by design
 		// As the parameters optimized for the Iguazio tokens
 		restrictedAnnotations := annotations.GetIguazioAuthenticationModeAnnotations()

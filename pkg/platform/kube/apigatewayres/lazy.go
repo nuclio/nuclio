@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -239,13 +240,13 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	}
 
 	switch apiGateway.Spec.AuthenticationMode {
-	case ingress.AuthenticationModeNone:
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeNone
-	case ingress.AuthenticationModeBasicAuth:
+	case auth.AuthenticationModeNone:
+		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeNone
+	case auth.AuthenticationModeBasicAuth:
 		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.BasicAuth == nil {
 			return nil, errors.New("Basic auth specified but missing basic auth spec")
 		}
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
+		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeBasicAuth
 		commonIngressSpec.Authentication = &ingress.Authentication{
 			BasicAuth: &ingress.BasicAuth{
 				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
@@ -253,17 +254,17 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
 			},
 		}
-	case ingress.AuthenticationModeOauth2:
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeOauth2
+	case auth.AuthenticationModeOauth2:
+		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeOauth2
 		if apiGateway.Spec.Authentication != nil && apiGateway.Spec.Authentication.DexAuth != nil {
 			commonIngressSpec.Authentication = &ingress.Authentication{
 				DexAuth: apiGateway.Spec.Authentication.DexAuth,
 			}
 		}
-	case ingress.AuthenticationModeAccessKey:
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeAccessKey
-	case ingress.AuthenticationModeIguazio:
-		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeIguazio
+	case auth.AuthenticationModeAccessKey:
+		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeAccessKey
+	case auth.AuthenticationModeIguazio:
+		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeIguazio
 	default:
 		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
 	}

@@ -43,7 +43,7 @@ import (
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform/kube/test/kubectlclient"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
@@ -758,7 +758,7 @@ func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string
 			},
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
-				AuthenticationMode: ingress.AuthenticationModeNone,
+				AuthenticationMode: auth.AuthenticationModeNone,
 				Upstreams:          upstreams,
 			},
 		},
