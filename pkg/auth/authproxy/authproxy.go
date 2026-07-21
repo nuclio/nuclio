@@ -135,7 +135,7 @@ func (a *abstractAuthenticator) callAuthURL(responseWriter http.ResponseWriter, 
 // reject writes the mode-appropriate rejection response.
 func (a *abstractAuthenticator) reject(responseWriter http.ResponseWriter, request *http.Request, browser bool) {
 	if browser {
-		a.logger.InfoWith("redirecting to sign-in URL", "path", request.URL.Path, "signinURL", a.signinURL.String())
+		a.logger.InfoWith("Redirecting to sign-in URL", "path", request.URL.Path, "signinURL", a.signinURL.String())
 		http.Redirect(responseWriter, request, a.buildSigninRedirect(request), http.StatusFound)
 		return
 	}

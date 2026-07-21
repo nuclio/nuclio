@@ -140,7 +140,7 @@ func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName st
 
 	authConfig, err := functionAuthConfigFromSpec(&function.Spec)
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read function %s auth config", functionName)
+		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read auth config for function %s", functionName)
 	}
 
 	// the scrubber is only needed for basicAuth: it replaces $ref: placeholders with the real
