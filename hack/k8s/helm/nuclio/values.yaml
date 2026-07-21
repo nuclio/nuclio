@@ -252,7 +252,7 @@ dashboard:
 
     image:
       repository: quay.io/buildah/stable
-      tag: v1.37.5
+      tag: v1.43.1
       pullPolicy: IfNotPresent
 
   # use to configure node port

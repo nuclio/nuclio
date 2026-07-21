@@ -35,12 +35,12 @@ func NewBuildah(logger logger.Logger,
 	kubeClientSet kube.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Buildah, error) {
 
-	jr, err := newJobRunner(buildahKind, logger, kubeClientSet, builderConfiguration)
+	jobRunner, err := newJobRunner(buildahKind, logger, kubeClientSet, builderConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create buildah job runner")
 	}
 
-	return &Buildah{jobRunner: jr}, nil
+	return &Buildah{jobRunner: jobRunner}, nil
 }
 
 func (b *Buildah) BuildAndPushContainerImage(ctx context.Context,

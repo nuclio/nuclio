@@ -43,12 +43,12 @@ func NewKaniko(logger logger.Logger,
 	kubeClientSet kube.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
 
-	jr, err := newJobRunner(kanikoKind, logger, kubeClientSet, builderConfiguration)
+	jobRunner, err := newJobRunner(kanikoKind, logger, kubeClientSet, builderConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create kaniko job runner")
 	}
 
-	return &Kaniko{jobRunner: jr}, nil
+	return &Kaniko{jobRunner: jobRunner}, nil
 }
 
 func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
