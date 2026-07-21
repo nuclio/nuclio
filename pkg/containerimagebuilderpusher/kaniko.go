@@ -150,7 +150,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	}
 	jobName := k.compileJobName(ctx, buildOptions.Image)
 
-	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
+	assetsURL := fmt.Sprintf("http://%s:8070/build/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
 	serviceAccount, err := k.enrichAndValidateServiceAccount(ctx, buildOptions, namespace)

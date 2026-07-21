@@ -76,7 +76,7 @@ spec:
         volumeMounts:
         {{- if .Values.dashboard.writableTmpVolume }}
         # Writable scratch space for the embedded builder (build temp dirs,
-        # /tmp/kaniko-builds bundles, fetched function templates). Required
+        # /tmp/nuclio-builds bundles, fetched function templates). Required
         # when readOnlyRootFilesystem is enabled on the dashboard container.
         - name: tmp
           mountPath: /tmp

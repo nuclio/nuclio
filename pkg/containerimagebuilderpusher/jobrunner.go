@@ -41,6 +41,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const nuclioBuildsDir = "/tmp/nuclio-builds"
+
 // jobRunner holds the generic Kubernetes-Job-lifecycle machinery shared by every backend.
 type jobRunner struct {
 	builderName          string
@@ -150,14 +152,12 @@ func (r *jobRunner) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Art
 }
 
 // createContainerBuildBundle tars contextDir and symlinks the result into
-// /tmp/<builderName>-builds (a directory served over HTTP by the dashboard),
-// so the build Job's fetch-bundle init container can retrieve it.
+// a directory served over HTTP by the dashboard, so the build Job's
+// fetch-bundle init container can retrieve it.
 func (r *jobRunner) createContainerBuildBundle(ctx context.Context,
 	image string,
 	contextDir string,
 	tempDir string) (string, string, error) {
-
-	buildDir := fmt.Sprintf("/tmp/%s-builds", r.builderName)
 
 	// Create temp directory to store compressed container build bundle
 	buildContainerBundleDir := path.Join(tempDir, "tar")
@@ -189,12 +189,12 @@ func (r *jobRunner) createContainerBuildBundle(ctx context.Context,
 	}
 
 	// we need 755 permission to allow running nuclio function with non-root SecurityContext
-	if err := os.MkdirAll(buildDir, 0755); err != nil {
+	if err := os.MkdirAll(nuclioBuildsDir, 0755); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to ensure directory")
 	}
 
 	// Create symlink to bundle tar file in nginx serving directory
-	assetPath := path.Join(buildDir, path.Base(tarFile.Name()))
+	assetPath := path.Join(nuclioBuildsDir, path.Base(tarFile.Name()))
 	r.logger.DebugWithCtx(ctx,
 		"Creating symlink to bundle tar",
 		"tarFileName", tarFile.Name(),

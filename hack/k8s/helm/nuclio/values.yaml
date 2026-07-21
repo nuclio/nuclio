@@ -174,7 +174,7 @@ dashboard:
   containerBuilderKind: "docker"
 
   # Mount an emptyDir at /tmp so the embedded builder can write build temp
-  # dirs, /tmp/kaniko-builds bundles and fetched function templates. Enable
+  # dirs, /tmp/nuclio-builds bundles and fetched function templates. Enable
   # this whenever the dashboard container runs with readOnlyRootFilesystem: true
   # (otherwise the dashboard writes directly to its rootfs /tmp).
   writableTmpVolume: false
