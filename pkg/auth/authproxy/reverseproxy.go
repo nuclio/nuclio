@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // reverseProxyAuthenticator serves the running-function (reverseProxy) topology: its auth config is
@@ -38,7 +39,17 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	signinURL string,
 	authKind authpkg.Kind,
 	authConfig FunctionAuthConfig) (Authenticator, error) {
-	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authConfig", authConfig)
+	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authMode", authConfig.Mode)
+
+	// If basicAuth is configured, the plaintext password is hashed with bcrypt and discarded so it is never held in memory
+	if authConfig.BasicAuthPassword != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(authConfig.BasicAuthPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to hash basic-auth password")
+		}
+		authConfig.BasicAuthPasswordHash = hash
+		authConfig.BasicAuthPassword = ""
+	}
 	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create reverse-proxy authenticator")

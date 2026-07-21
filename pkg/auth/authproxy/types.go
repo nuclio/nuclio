@@ -39,7 +39,11 @@ const (
 type FunctionAuthConfig struct {
 	Mode              AuthenticationMode
 	BasicAuthUsername string
-	BasicAuthPassword string
+	BasicAuthPassword string // plaintext input; cleared after hashing in reverseProxy mode
+
+	// BasicAuthPasswordHash is the bcrypt hash of BasicAuthPassword. Set by NewReverseProxyAuthenticator
+	// so the plaintext is never held in memory for the pod's lifetime.
+	BasicAuthPasswordHash []byte
 }
 
 // Authenticator authenticates an incoming request, resolving the target function from the request itself.

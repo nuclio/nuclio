@@ -33,6 +33,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // newAuthInstance creates an auth client for the given kind, configured against authURL.
@@ -99,12 +100,20 @@ func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, reque
 }
 
 // verifyBasicAuth checks HTTP Basic credentials locally (never delegated to the auth-url).
+// reverseProxy mode: (when a bcrypt hash is present) the incoming password is verified against it.
+// authOnly mode: (where the password is ephemeral) a constant-time string comparison is used.
 func (a *abstractAuthenticator) verifyBasicAuth(responseWriter http.ResponseWriter, request *http.Request, authConfig FunctionAuthConfig) bool {
 	username, password, ok := request.BasicAuth()
-	if ok &&
-		subtle.ConstantTimeCompare([]byte(username), []byte(authConfig.BasicAuthUsername)) == 1 &&
-		subtle.ConstantTimeCompare([]byte(password), []byte(authConfig.BasicAuthPassword)) == 1 {
-		return true
+	if ok && subtle.ConstantTimeCompare([]byte(username), []byte(authConfig.BasicAuthUsername)) == 1 {
+		var passwordMatch bool
+		if authConfig.BasicAuthPasswordHash != nil {
+			passwordMatch = bcrypt.CompareHashAndPassword(authConfig.BasicAuthPasswordHash, []byte(password)) == nil
+		} else {
+			passwordMatch = subtle.ConstantTimeCompare([]byte(password), []byte(authConfig.BasicAuthPassword)) == 1
+		}
+		if passwordMatch {
+			return true
+		}
 	}
 
 	responseWriter.Header().Set("WWW-Authenticate", `Basic realm="Authentication Required"`)
