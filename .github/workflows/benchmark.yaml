@@ -84,7 +84,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           cache: true
           go-version-file: go.mod
