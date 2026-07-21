@@ -21,6 +21,7 @@ import (
 	"sort"
 	"time"
 
+	auth "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
@@ -499,4 +500,8 @@ type Authentication struct {
 
 	// SignInURL is the sign-in redirect URL.
 	SignInURL string `json:"signInURL,omitempty"`
+
+	// AuthKind is the auth client kind used by the auth-proxy sidecar for API/browser authentication.
+	// Defaults to the value set in the OPA config (Opa.AuthKind).
+	AuthKind auth.Kind `json:"authKind,omitempty"`
 }

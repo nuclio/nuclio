@@ -252,6 +252,13 @@ func (a *AbstractAuth) buildIdentityRequest(authParams *AuthParameters) (*http.R
 		req.Header.Set(headers.CookieHeader, authParams.cookieHeader)
 	}
 
+	// forward the caller's authenticator kind so the endpoint validates the actual credential
+	// with the right validator (e.g. "sa" for a service-account token); the endpoint still
+	// validates the credential itself, so a forged kind cannot bypass the check.
+	if authParams.authenticatorKind != "" {
+		req.Header.Set(headers.IguazioAuthenticatorKind, authParams.authenticatorKind)
+	}
+
 	return req, nil
 }
 

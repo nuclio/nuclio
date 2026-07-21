@@ -61,12 +61,18 @@ func (a *Auth) GetAuthParameters(request *http.Request, options *authpkg.Options
 
 	authCookiesOnlyHeaderValue := common.CookiesToHeaderValue([]*http.Cookie{oauth2Cookie})
 
-	return iguazio.NewAuthParameters(
+	authParameters := iguazio.NewAuthParameters(
 		ctx,
 		authorizationHeader,
 		authCookiesOnlyHeaderValue,
 		a.GetConfig().Iguazio.VerificationURL,
-		true), nil
+		true)
+
+	// forward the caller's authenticator kind to the verification endpoint
+	// so it validates the actual credential with the right validator
+	authParameters.SetAuthenticatorKind(request.Header.Get(headers.IguazioAuthenticatorKind))
+
+	return authParameters, nil
 }
 
 func (a *Auth) ValidateResponse(response *http.Response) error {

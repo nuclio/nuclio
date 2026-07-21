@@ -114,9 +114,6 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 func (c *Config) EnrichPlatformConfig() error {
 	defaultPlatformConfiguration := GetDefaultPlatformConfiguration()
 
-	// enrich authentication configuration
-	c.enrichAuthentication()
-
 	// enrich opa configuration
 	c.enrichOpaConfig()
 
@@ -218,6 +215,7 @@ func (c *Config) EnrichPlatformConfig() error {
 	c.enrichElasticSearchConfig()
 	c.enrichRuntimeBaseImages()
 	c.enrichProjectsLeaderConfig()
+	c.enrichAuthentication()
 
 	return nil
 }
@@ -564,6 +562,9 @@ func (c *Config) enrichLocalPlatform() {
 func (c *Config) enrichAuthentication() {
 	if c.Authentication == nil {
 		c.Authentication = &Authentication{}
+	}
+	if c.Authentication.AuthKind == "" {
+		c.Authentication.AuthKind = c.Opa.AuthKind
 	}
 }
 

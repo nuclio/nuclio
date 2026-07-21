@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/authproxy/app"
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
@@ -33,15 +34,29 @@ func main() {
 	upstreamURL := flag.String("upstream-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_UPSTREAM_URL", "http://127.0.0.1:6080"), "URL of the upstream service (processor) to forward requests to")
 	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint")
 	signinURL := flag.String("signin-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_SIGNIN_URL", ""), "URL unauthenticated browser requests are redirected to sign-in")
+	authMode := flag.String("auth-mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_MODE", string(authproxy.ModeNone)), "Authentication mode for reverseProxy: none, api, browser or basicAuth")
+	basicAuthUsername := flag.String("basic-auth-username", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_BASIC_AUTH_USERNAME", ""), "Basic-auth username (used only when auth-mode=basicAuth)")
+	basicAuthPassword := flag.String("basic-auth-password", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_BASIC_AUTH_PASSWORD", ""), "Basic-auth password, injected from a Secret via secretKeyRef (used only when auth-mode=basicAuth)")
+	namespace := flag.String("namespace", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_NAMESPACE", ""), "Namespace of the target functions")
+	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
+	authKind := flag.String("auth-kind", auth.KindNop, "Authentication kind for API/browser authentication (e.g. iguazio, iguazio-v4, nop)")
 	flag.Parse()
 
-	if err := app.Run(auth.ProxyMode(*mode),
-		*listenPort,
-		*upstreamURL,
-		*authURL,
-		*signinURL,
-		*platformConfigurationPath); err != nil {
+	if err := app.Run(&app.Config{
+		Mode:               auth.ProxyMode(*mode),
+		ListenPort:         *listenPort,
+		UpstreamURL:        *upstreamURL,
+		AuthURL:            *authURL,
+		SigninURL:          *signinURL,
+		AuthMode:           *authMode,
+		BasicAuthUsername:  *basicAuthUsername,
+		BasicAuthPassword:  *basicAuthPassword,
+		Namespace:          *namespace,
+		KubeconfigPath:     *kubeconfigPath,
+		PlatformConfigPath: *platformConfigurationPath,
+		AuthKind:           auth.Kind(*authKind),
+	}); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 		os.Exit(1)
 	}

@@ -17,28 +17,24 @@ limitations under the License.
 package app
 
 import (
-	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 
 	// register logger sinks (stdout, appinsights) into the loggersink registry via init()
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
-// Run creates and starts the auth-proxy server for the given mode.
-func Run(mode auth.ProxyMode,
-	listenPort int,
-	upstreamURL string,
-	authURL string,
-	signinURL string,
-	platformConfigurationPath string) error {
-	if err := validateConfiguration(listenPort, upstreamURL, authURL, signinURL); err != nil {
+// Run creates and starts the auth-proxy server for the given configuration.
+func Run(config *Config) error {
+	if err := validateConfiguration(config); err != nil {
 		return errors.Wrap(err, "Invalid auth-proxy configuration")
 	}
 
-	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
+	platformConfiguration, err := platformconfig.NewPlatformConfig(config.PlatformConfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get platform configuration")
 	}
@@ -48,33 +44,54 @@ func Run(mode auth.ProxyMode,
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	server, err := newServer(rootLogger, mode, listenPort, upstreamURL, authURL, signinURL)
+	authenticator, err := newAuthenticator(rootLogger, config)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create auth-proxy server")
+		return errors.Wrap(err, "Failed to create authenticator")
 	}
+
+	handler, err := newHandler(rootLogger,
+		config.Mode,
+		config.UpstreamURL,
+		authenticator)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create handler")
+	}
+
+	listenAddress, err := resolveListenAddress(config.Mode, config.ListenPort)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve listen address")
+	}
+
+	server := newServer(rootLogger, listenAddress, handler)
 	if err := server.start(); err != nil {
 		return errors.Wrap(err, "Failed to start auth-proxy server")
 	}
 	select {}
 }
 
-func validateConfiguration(listenPort int, upstreamURL string, authURL string, signinURL string) error {
-	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if listenPort < 1 || listenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", listenPort)
+// newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.
+func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authenticator, error) {
+	return authproxy.NewAuthenticator(rootLogger,
+		config.Mode,
+		config.AuthURL,
+		config.SigninURL,
+		config.AuthKind,
+		resolveStaticFunctionAuthConfig(config),
+		config.KubeconfigPath,
+		config.Namespace)
+}
+
+// resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
+// mode the username/password come from the config (the password is injected from a Secret via secretKeyRef).
+func resolveStaticFunctionAuthConfig(config *Config) authproxy.FunctionAuthConfig {
+	mode := authproxy.AuthenticationMode(config.AuthMode)
+	if mode == "" {
+		mode = authproxy.ModeNone
 	}
 
-	if upstreamURL == "" {
-		return errors.New("Upstream URL must be provided")
+	return authproxy.FunctionAuthConfig{
+		Mode:              mode,
+		BasicAuthUsername: config.BasicAuthUsername,
+		BasicAuthPassword: config.BasicAuthPassword,
 	}
-
-	if authURL == "" {
-		return errors.New("Auth URL must be provided")
-	}
-
-	if signinURL == "" {
-		return errors.New("Redirect URL must be provided")
-	}
-
-	return nil
 }
