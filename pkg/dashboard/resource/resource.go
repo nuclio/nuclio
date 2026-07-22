@@ -119,6 +119,24 @@ func (r *resource) newPermissionOptions(request *http.Request, raiseForbidden bo
 	return opaclient.PermissionOptions{
 		MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(r.getCtxSession(ctx)),
 		RaiseForbidden:      raiseForbidden,
-		OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+		OverrideHeaderValue: r.getTrustedProjectsRoleHeader(request),
 	}
+}
+
+// getTrustedProjectsRoleHeader returns the X-Projects-Role header value only if safe to forward
+// into PermissionOptions.OverrideHeaderValue: either the deployment hasn't migrated off the Iguazio
+// header-trust model, or it has and the caller's session matches the configured leader identity.
+func (r *resource) getTrustedProjectsRoleHeader(request *http.Request) string {
+	headerValue := request.Header.Get(headers.ProjectsRole)
+	if headerValue == "" {
+		return ""
+	}
+
+	projectsLeader := r.getDashboard().GetPlatformConfiguration().ProjectsLeader
+	if !projectsLeader.TrustsLeaderOrigin(r.getCtxSession(request.Context())) {
+		r.Logger.WarnWithCtx(request.Context(), "Dropping untrusted X-Projects-Role header value", "claimedProjectsRole", headerValue)
+		return ""
+	}
+
+	return headerValue
 }

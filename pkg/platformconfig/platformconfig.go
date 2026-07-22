@@ -214,7 +214,9 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
 	c.enrichRuntimeBaseImages()
-	c.enrichProjectsLeaderConfig()
+	if err := c.enrichProjectsLeaderConfig(); err != nil {
+		return errors.Wrap(err, "Failed to enrich projects leader configuration")
+	}
 	c.enrichAuthentication()
 
 	return nil
@@ -528,9 +530,9 @@ func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding)
 	return LoggerSinksWithLevel, nil
 }
 
-func (c *Config) enrichProjectsLeaderConfig() {
+func (c *Config) enrichProjectsLeaderConfig() error {
 	if c.ProjectsLeader == nil {
-		return
+		return nil
 	}
 
 	// ProjectSync2PCEnabled is opt-in; default to false so existing deployments that
@@ -538,6 +540,14 @@ func (c *Config) enrichProjectsLeaderConfig() {
 	if !c.ProjectsLeader.ProjectSync2PCEnabled {
 		c.ProjectsLeader.ProjectSync2PCEnabled = DefaultProjectSync2PCEnabled
 	}
+
+	// Oris leader-origin calls are verified against LeaderIdentity (see ProjectsLeader.TrustsLeaderOrigin);
+	// an unset LeaderIdentity would make every leader-origin call fail closed with no clear cause.
+	if c.ProjectsLeader.Kind == ProjectsLeaderKindOris && c.ProjectsLeader.LeaderIdentity == "" {
+		return errors.New("projectsLeader.leaderIdentity is required when projectsLeader.kind is \"oris\"")
+	}
+
+	return nil
 }
 
 func (c *Config) enrichLocalPlatform() {

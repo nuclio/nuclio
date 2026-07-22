@@ -19,6 +19,7 @@ package external
 import (
 	"context"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -97,10 +98,9 @@ func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjec
 
 // Create routes the request through 2PC evaluation when the request originates from the
 // leader and the caller has not opted out via x-mlrun-force-sync; otherwise (non-leader
-// origin) the request is forwarded to the external leader HTTP client. The X-Projects-Role
-// header is retained for IG3 compatibility.
+// origin) the request is forwarded to the external leader HTTP client.
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
-	if createProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
+	if c.isLeaderOriginRequest(createProjectOptions.RequestOrigin, createProjectOptions.AuthSession) {
 		if !createProjectOptions.SkipLeaderEvaluation {
 			shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
 				createProjectOptions.ProjectConfig.Meta.Name,
@@ -125,7 +125,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 
 // Update follows the same routing rules as Create.
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
-	if updateProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
+	if c.isLeaderOriginRequest(updateProjectOptions.RequestOrigin, updateProjectOptions.AuthSession) {
 		if !updateProjectOptions.SkipLeaderEvaluation {
 			shouldApply, existingProject, err := c.evaluateLeaderRequestWithCRD(ctx,
 				updateProjectOptions.ProjectConfig.Meta.Name,
@@ -150,7 +150,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 
 // Delete follows the same routing rules as Create.
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	if deleteProjectOptions.RequestOrigin == c.platformConfiguration.ProjectsLeader.Kind {
+	if c.isLeaderOriginRequest(deleteProjectOptions.RequestOrigin, deleteProjectOptions.AuthSession) {
 		if !deleteProjectOptions.SkipLeaderEvaluation {
 			shouldApply, _, err := c.evaluateLeaderRequestWithCRD(ctx,
 				deleteProjectOptions.Meta.Name,
@@ -171,6 +171,21 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	}
 
 	return platform.ErrSuccessfulDeleteProjectLeader
+}
+
+// isLeaderOriginRequest decides whether a project write should be treated as leader-origin
+// (write directly) or forwarded to the leader. For a legacy (mlrun/iguazio/mock) leader this is
+// the claimed X-Projects-Role header, unchanged. For an Oris leader the header plays no role at
+// all — even the real leader's own requests are recognized purely by session identity — so a
+// spoofed header can no longer get a request into the leader-origin branch. A caller that fails
+// verification simply falls through to the existing forward-to-leader path, same as any other
+// non-leader-origin caller.
+func (c *Client) isLeaderOriginRequest(requestOrigin platformconfig.ProjectsLeaderKind, session auth.Session) bool {
+	projectsLeader := c.platformConfiguration.ProjectsLeader
+	if projectsLeader.Kind != platformconfig.ProjectsLeaderKindOris {
+		return requestOrigin == projectsLeader.Kind
+	}
+	return projectsLeader.TrustsLeaderOrigin(session)
 }
 
 // evaluateLeaderRequestWithCRD runs the full 2PC evaluation pipeline for a leader-origin

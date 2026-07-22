@@ -1971,6 +1971,78 @@ func (suite *projectTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
 }
 
+// TestCreateDropsUntrustedProjectsRoleHeader proves that once a deployment has an Oris leader
+// configured, an X-Projects-Role header from a caller whose session doesn't match the configured
+// leader identity is dropped rather than forwarded into OverrideHeaderValue (closing the bypass
+// NUC-795 left open) — the request still succeeds via normal per-caller OPA authorization.
+func (suite *projectTestSuite) TestCreateDropsUntrustedProjectsRoleHeader() {
+	suite.dashboardServer.GetPlatformConfiguration().ProjectsLeader = &platformconfig.ProjectsLeader{
+		Kind:           platformconfig.ProjectsLeaderKindOris,
+		LeaderIdentity: "orca-sa",
+	}
+
+	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
+		suite.Require().Empty(createProjectOptions.PermissionOptions.OverrideHeaderValue)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateProject", mock.Anything, mock.MatchedBy(verifyCreateProject)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/projects",
+		map[string]string{headers.ProjectsRole: "iguazio"},
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+// TestCreateKeepsProjectsRoleHeaderWhenNoLeaderConfigured proves zero behavior change for
+// deployments that haven't configured a ProjectsLeader at all (today's typical case): the header
+// is still forwarded verbatim into OverrideHeaderValue.
+func (suite *projectTestSuite) TestCreateKeepsProjectsRoleHeaderWhenNoLeaderConfigured() {
+	suite.dashboardServer.GetPlatformConfiguration().ProjectsLeader = nil
+
+	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
+		suite.Require().Equal("iguazio", createProjectOptions.PermissionOptions.OverrideHeaderValue)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateProject", mock.Anything, mock.MatchedBy(verifyCreateProject)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/projects",
+		map[string]string{headers.ProjectsRole: "iguazio"},
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *projectTestSuite) TestUpdateSuccessful() {
 
 	// verify

@@ -22,6 +22,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	leadermock "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
@@ -130,6 +131,138 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 
 	err := suite.Delete(suite.ctx, &deleteProjectOptions)
 	suite.Require().NoError(err)
+}
+
+// TestOrisLeaderCreateForwardsMismatchedSession proves the header plays no role for an Oris
+// leader: even though RequestOrigin claims "oris" (as if from a spoofed or stale header), a
+// caller whose session doesn't match LeaderIdentity is not rejected outright — it falls through
+// to the same forward-to-leader path as any ordinary user request.
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderCreateForwardsMismatchedSession() {
+	client := suite.newOrisClient("oris-sa")
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindOris,
+		AuthSession:   &iguazio.AbstractSession{Username: "someone-else"},
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(nil).
+		Once()
+
+	_, err := client.Create(suite.ctx, &createProjectOptions)
+	suite.Require().ErrorIs(err, platform.ErrSuccessfulCreateProjectLeader)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Create", mock.Anything, mock.Anything)
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything)
+}
+
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderCreateForwardsNilSession() {
+	client := suite.newOrisClient("oris-sa")
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindOris,
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(nil).
+		Once()
+
+	_, err := client.Create(suite.ctx, &createProjectOptions)
+	suite.Require().ErrorIs(err, platform.ErrSuccessfulCreateProjectLeader)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Create", mock.Anything, mock.Anything)
+}
+
+// TestOrisLeaderCreateIgnoresHeaderForMatchingSession proves the header is equally irrelevant
+// in the other direction: a matching session is treated as leader-origin even when RequestOrigin
+// carries no claim at all (empty, as if the caller never sent X-Projects-Role).
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderCreateIgnoresHeaderForMatchingSession() {
+	client := suite.newOrisClient("oris-sa")
+	createProjectOptions := platform.CreateProjectOptions{
+		AuthSession: &iguazio.AbstractSession{Username: "oris-sa"},
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
+	suite.mockInternalProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(&platform.AbstractProject{}, nil).
+		Once()
+
+	_, err := client.Create(suite.ctx, &createProjectOptions)
+	suite.Require().NoError(err)
+
+	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "Create", mock.Anything, mock.Anything)
+}
+
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderCreateAllowsMatchingSession() {
+	client := suite.newOrisClient("oris-sa")
+	createProjectOptions := platform.CreateProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindOris,
+		AuthSession:   &iguazio.AbstractSession{Username: "oris-sa"},
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.expectGetExistingProject("test-func")
+	suite.expectEvaluateLeaderRequest(true)
+	suite.mockInternalProjectsClient.
+		On("Create", suite.ctx, &createProjectOptions).
+		Return(&platform.AbstractProject{}, nil).
+		Once()
+
+	_, err := client.Create(suite.ctx, &createProjectOptions)
+	suite.Require().NoError(err)
+}
+
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderUpdateForwardsMismatchedSession() {
+	client := suite.newOrisClient("oris-sa")
+	updateProjectOptions := platform.UpdateProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindOris,
+		AuthSession:   &iguazio.AbstractSession{Username: "someone-else"},
+		ProjectConfig: platform.ProjectConfig{
+			Meta: platform.ProjectMeta{Name: "test-func"},
+		},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("Update", suite.ctx, &updateProjectOptions).
+		Return(nil).
+		Once()
+
+	_, err := client.Update(suite.ctx, &updateProjectOptions)
+	suite.Require().ErrorIs(err, platform.ErrSuccessfulUpdateProjectLeader)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Update", mock.Anything, mock.Anything)
+}
+
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderDeleteForwardsMismatchedSession() {
+	client := suite.newOrisClient("oris-sa")
+	deleteProjectOptions := platform.DeleteProjectOptions{
+		RequestOrigin: platformconfig.ProjectsLeaderKindOris,
+		AuthSession:   &iguazio.AbstractSession{Username: "someone-else"},
+		Meta:          platform.ProjectMeta{Name: "test-func"},
+	}
+
+	suite.mockLeaderProjectsClient.
+		On("Delete", suite.ctx, &deleteProjectOptions).
+		Return(nil).
+		Once()
+
+	err := client.Delete(suite.ctx, &deleteProjectOptions)
+	suite.Require().ErrorIs(err, platform.ErrSuccessfulDeleteProjectLeader)
+
+	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Delete", mock.Anything, mock.Anything)
 }
 
 // TestLeaderCreateSkipsEvaluationWhen2PCDisabled covers the short-circuit path: when
@@ -348,6 +481,21 @@ func (suite *ExternalProjectClientTestSuite) assertLeaderEvaluationSkipped() {
 	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "ProjectSync2PCEnabled")
 	suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything)
 	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "EvaluateLeaderRequest", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// newOrisClient builds a Client configured with an Oris leader requiring the given
+// LeaderIdentity, reusing the suite's mocked internal/leader clients.
+func (suite *ExternalProjectClientTestSuite) newOrisClient(leaderIdentity string) *Client {
+	return &Client{
+		platformConfiguration: &platformconfig.Config{
+			ProjectsLeader: &platformconfig.ProjectsLeader{
+				Kind:           platformconfig.ProjectsLeaderKindOris,
+				LeaderIdentity: leaderIdentity,
+			},
+		},
+		internalClient: suite.mockInternalProjectsClient,
+		leaderClient:   suite.mockLeaderProjectsClient,
+	}
 }
 
 func TestExternalProjectClientTestSuite(t *testing.T) {
