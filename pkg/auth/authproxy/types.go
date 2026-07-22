@@ -19,25 +19,17 @@ package authproxy
 import (
 	"net/http"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/auth"
 )
 
 // AuthTimeout bounds a single auth-url call on the data path so the sidecar fails
 // closed quickly instead of inheriting pkg/auth's long (up to 60s) retry window.
 const AuthTimeout = 10 * time.Second
 
-// AuthenticationMode is the function level authentication mode
-type AuthenticationMode string
-
-const (
-	ModeNone      AuthenticationMode = "none"
-	ModeAPI       AuthenticationMode = "api"
-	ModeBrowser   AuthenticationMode = "browser"
-	ModeBasicAuth AuthenticationMode = "basicAuth"
-)
-
 // FunctionAuthConfig is the authentication configuration resolved for a single function.
 type FunctionAuthConfig struct {
-	Mode              AuthenticationMode
+	Mode              auth.AuthenticationMode
 	BasicAuthUsername string
 	BasicAuthPassword string // plaintext input; cleared after hashing in reverseProxy mode
 

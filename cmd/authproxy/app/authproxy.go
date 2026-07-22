@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -84,9 +85,9 @@ func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authe
 // resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
 // mode the username/password come from the config (the password is injected from a Secret via secretKeyRef).
 func resolveStaticFunctionAuthConfig(config *Config) authproxy.FunctionAuthConfig {
-	mode := authproxy.AuthenticationMode(config.AuthMode)
+	mode := auth.AuthenticationMode(config.AuthMode)
 	if mode == "" {
-		mode = authproxy.ModeNone
+		mode = auth.AuthenticationModeNone
 	}
 
 	return authproxy.FunctionAuthConfig{
