@@ -83,7 +83,7 @@ func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL str
 func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig FunctionAuthConfig) bool {
 	switch authConfig.Mode {
 	case ModeNone:
-		a.logger.InfoWith("Authentication disabled, allowing request", "path", request.URL.Path)
+		a.logger.Info("Authentication disabled, allowing request")
 		return true
 	case ModeBasicAuth:
 		return a.verifyBasicAuth(responseWriter, request, authConfig)
@@ -144,7 +144,7 @@ func (a *abstractAuthenticator) callAuthURL(responseWriter http.ResponseWriter, 
 // reject writes the mode-appropriate rejection response.
 func (a *abstractAuthenticator) reject(responseWriter http.ResponseWriter, request *http.Request, browser bool) {
 	if browser {
-		a.logger.InfoWith("Redirecting to sign-in URL", "path", request.URL.Path, "signinURL", a.signinURL.String())
+		a.logger.InfoWith("Redirecting to sign-in URL", "signinURL", a.signinURL.String())
 		http.Redirect(responseWriter, request, a.buildSigninRedirect(request), http.StatusFound)
 		return
 	}
