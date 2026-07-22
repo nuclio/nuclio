@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -155,7 +156,7 @@ func (suite *lazyTestSuite) getTestAPIGateway(primaryFunctionConfig, canaryFunct
 		Spec: platform.APIGatewaySpec{
 			Host:               "some-host.com",
 			Name:               "test-name",
-			AuthenticationMode: ingress.AuthenticationModeBasicAuth,
+			AuthenticationMode: auth.AuthenticationModeBasicAuth,
 			Authentication: &platform.APIGatewayAuthenticationSpec{
 				BasicAuth: &platform.BasicAuth{
 					Username: "moshe",

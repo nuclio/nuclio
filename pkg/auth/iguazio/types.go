@@ -49,6 +49,10 @@ type AuthParameters struct {
 	cookieHeader        string
 	verificationURL     string
 	isJwtToken          bool
+
+	// forwarded to the verification endpoint so it can select the right
+	// validator (e.g. "sa" for a service-account token). Optional.
+	authenticatorKind string
 }
 
 func NewAuthParameters(ctx context.Context, authorizationHeader, cookieHeader, verificationURL string, isJwtToken bool) *AuthParameters {
@@ -71,6 +75,13 @@ func (a *AuthParameters) GenerateCacheKey() ([32]byte, error) {
 
 func (a *AuthParameters) GetAuthorizationHeader() string {
 	return a.authorizationHeader
+}
+
+// SetAuthenticatorKind sets the X-IGZ-Authenticator-Kind value to forward to the verification endpoint.
+func (a *AuthParameters) SetAuthenticatorKind(authenticatorKind string) {
+	if authenticatorKind != "" {
+		a.authenticatorKind = authenticatorKind
+	}
 }
 
 // TimeUntilExpiration parses the JWT access token from the Authorization header,

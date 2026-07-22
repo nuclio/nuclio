@@ -109,7 +109,7 @@ jobs:
             echo "NUCLIO_LABEL=latest (build images and nuctl)."
           fi
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           cache: true
           go-version-file: go.mod

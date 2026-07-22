@@ -25,11 +25,34 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
+
+// fakeAuthenticator is a test double for authproxy.Authenticator; it records calls and, on reject,
+// writes a fixed status like the real authenticator does.
+type fakeAuthenticator struct {
+	authorized bool
+	rejectCode int
+	calls      int
+}
+
+func (f *fakeAuthenticator) Authenticate(responseWriter http.ResponseWriter, _ *http.Request) bool {
+	f.calls++
+	if f.authorized {
+		return true
+	}
+	responseWriter.WriteHeader(f.rejectCode)
+	return false
+}
+
+type upstreamStub struct {
+	server *httptest.Server
+	hits   int
+}
 
 type ServerTestSuite struct {
 	suite.Suite
@@ -42,8 +65,8 @@ func (suite *ServerTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-// TestModeListenAddress verifies the only difference between the modes: reverseProxy is exposed on the
-// configurable port, authOnly is bound to loopback (reachable only from within the pod).
+// TestModeListenAddress verifies the only listen-address difference between the modes: reverseProxy is
+// exposed on the configurable port, authOnly is bound to loopback (reachable only from within the pod).
 func (suite *ServerTestSuite) TestModeListenAddress() {
 	for _, testCase := range []struct {
 		name                  string
@@ -54,45 +77,127 @@ func (suite *ServerTestSuite) TestModeListenAddress() {
 		{name: "authOnly is loopback", mode: auth.ProxyModeAuthOnly, expectedListenAddress: "127.0.0.1:8080"},
 	} {
 		suite.Run(testCase.name, func() {
-			server, err := newServer(suite.logger, testCase.mode, 8080, "http://127.0.0.1:8080", "", "")
+			handler, err := newHandler(suite.logger,
+				testCase.mode,
+				"http://127.0.0.1:6080",
+				&fakeAuthenticator{authorized: true})
 			suite.Require().NoError(err)
+
+			listenAddress, err := resolveListenAddress(testCase.mode, 8080)
+			suite.Require().NoError(err)
+
+			server := newServer(suite.logger, listenAddress, handler)
 			suite.Require().Equal(testCase.expectedListenAddress, server.httpServer.Addr)
 		})
 	}
 }
 
-// TestAuthOnlyHandlerRouting verifies only /auth is served (reserved for NUC-837); any other path 404s.
-func (suite *ServerTestSuite) TestAuthOnlyHandlerRouting() {
-	handlerServer := httptest.NewServer(newAuthOnlyHandler(suite.logger))
-	defer handlerServer.Close()
-
-	for _, testCase := range []struct {
-		name               string
-		path               string
-		expectedStatusCode int
-	}{
-		{name: "auth endpoint reserved for NUC-837", path: "/auth", expectedStatusCode: http.StatusNotImplemented},
-		{name: "root not routed", path: "/", expectedStatusCode: http.StatusNotFound},
-		{name: "arbitrary path not routed", path: "/invoke", expectedStatusCode: http.StatusNotFound},
-	} {
-		suite.Run(testCase.name, func() {
-			response, err := http.Get(handlerServer.URL + testCase.path)
-			suite.Require().NoError(err)
-			defer func(Body io.ReadCloser) {
-				if err := Body.Close(); err != nil {
-					suite.logger.WarnWith("Failed to close response body", "err", err)
-				}
-			}(response.Body)
-
-			suite.Require().Equal(testCase.expectedStatusCode, response.StatusCode)
-		})
-	}
-}
-
 func (suite *ServerTestSuite) TestUnknownModeRejected() {
-	_, err := newServer(suite.logger, "unknown-mode", 8080, "http://127.0.0.1:6080", "", "")
+	_, err := newHandler(suite.logger,
+		"unknown-mode",
+		"http://127.0.0.1:6080",
+		&fakeAuthenticator{authorized: true})
 	suite.Require().Error(err)
 	suite.Require().Contains(err.Error(), "Unknown auth-proxy mode")
+
+	_, err = resolveListenAddress("unknown-mode", 8080)
+	suite.Require().Error(err)
+	suite.Require().Contains(err.Error(), "Unknown auth-proxy mode")
+}
+
+// TestReverseProxyForwardsWhenAuthorized verifies an authorized request is proxied to the upstream.
+func (suite *ServerTestSuite) TestReverseProxyForwardsWhenAuthorized() {
+	upstream := suite.newTestUpstreamStub()
+	defer upstream.server.Close()
+
+	authenticator := &fakeAuthenticator{authorized: true}
+	handler, err := newReverseProxyHandler(suite.logger, upstream.server.URL, authenticator)
+	suite.Require().NoError(err)
+
+	statusCode, body := suite.doRequest(handler, "/invoke")
+	suite.Require().Equal(http.StatusOK, statusCode)
+	suite.Require().Equal("upstream-response", body)
+	suite.Require().Equal(1, upstream.hits)
+	suite.Require().Equal(1, authenticator.calls)
+}
+
+// TestReverseProxyRejectsWhenUnauthorized verifies a rejected request never reaches the upstream.
+func (suite *ServerTestSuite) TestReverseProxyRejectsWhenUnauthorized() {
+	upstream := suite.newTestUpstreamStub()
+	defer upstream.server.Close()
+
+	authenticator := &fakeAuthenticator{authorized: false, rejectCode: http.StatusUnauthorized}
+	handler, err := newReverseProxyHandler(suite.logger, upstream.server.URL, authenticator)
+	suite.Require().NoError(err)
+
+	statusCode, _ := suite.doRequest(handler, "/invoke")
+	suite.Require().Equal(http.StatusUnauthorized, statusCode)
+	suite.Require().Equal(0, upstream.hits)
+}
+
+// TestReverseProxyReadinessAllowlisted verifies the readiness probe is proxied unauthenticated.
+func (suite *ServerTestSuite) TestReverseProxyReadinessAllowlisted() {
+	upstream := suite.newTestUpstreamStub()
+	defer upstream.server.Close()
+
+	authenticator := &fakeAuthenticator{authorized: false, rejectCode: http.StatusUnauthorized}
+	handler, err := newReverseProxyHandler(suite.logger, upstream.server.URL, authenticator)
+	suite.Require().NoError(err)
+
+	statusCode, _ := suite.doRequest(handler, httptrigger.InternalHealthPath)
+	suite.Require().Equal(http.StatusOK, statusCode)
+	suite.Require().Equal(1, upstream.hits)
+
+	// the authenticator must not be consulted for the readiness probe
+	suite.Require().Equal(0, authenticator.calls)
+}
+
+// TestAuthOnlyHandler verifies /auth returns 200 when authorized, the reject code otherwise, and 404 elsewhere.
+func (suite *ServerTestSuite) TestAuthOnlyHandler() {
+	suite.Run("authorized returns 200", func() {
+		handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: true})
+		statusCode, _ := suite.doRequest(handler, "/auth")
+		suite.Require().Equal(http.StatusOK, statusCode)
+	})
+
+	suite.Run("unauthorized returns the reject code", func() {
+		handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: false, rejectCode: http.StatusUnauthorized})
+		statusCode, _ := suite.doRequest(handler, "/auth")
+		suite.Require().Equal(http.StatusUnauthorized, statusCode)
+	})
+
+	suite.Run("other paths are not routed", func() {
+		handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: true})
+		statusCode, _ := suite.doRequest(handler, "/invoke")
+		suite.Require().Equal(http.StatusNotFound, statusCode)
+	})
+}
+
+func (suite *ServerTestSuite) newTestUpstreamStub() *upstreamStub {
+	stub := &upstreamStub{}
+	stub.server = httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, _ *http.Request) {
+		stub.hits++
+		responseWriter.WriteHeader(http.StatusOK)
+		_, _ = responseWriter.Write([]byte("upstream-response"))
+	}))
+	return stub
+}
+
+func (suite *ServerTestSuite) doRequest(handler http.Handler, path string) (int, string) {
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	response, err := http.Get(server.URL + path)
+	suite.Require().NoError(err)
+	defer func(body io.ReadCloser) {
+		if err := body.Close(); err != nil {
+			suite.logger.WarnWith("Failed to close response body", "err", err)
+		}
+	}(response.Body)
+
+	body, err := io.ReadAll(response.Body)
+	suite.Require().NoError(err)
+	return response.StatusCode, string(body)
 }
 
 func TestServerTestSuite(t *testing.T) {

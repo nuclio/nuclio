@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -52,7 +53,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	}
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeOauth2
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Require().NotContains(ingress.Annotations, annotations.NginxAuthSignIn)
 			suite.Require().Contains(ingress.Annotations[annotations.NginxAuthURL], configOauth2ProxyURL)
@@ -62,7 +63,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 
 		overrideOauth2ProxyURL := "override-oauth2-url"
 		createAPIGatewayOptions = suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeOauth2
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
 			DexAuth: &ingress.DexAuth{
 				Oauth2ProxyURL:               overrideOauth2ProxyURL,
@@ -115,7 +116,7 @@ def handler(context, event):
 		suite.Require().NotNil(deployResult)
 
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeIguazio
+		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeIguazio
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = apiGatewayHost
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Logger.InfoWith("Created ingress object", " ingress", ingress)
@@ -179,13 +180,13 @@ func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		// create first api gateway on top of given function
 		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
-		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeNone
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "nuclio-host1.com"
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
 			// create second api gateway on top of the same function
 			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
-			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeNone
 			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "nuclio-host2.com"
 
 			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
@@ -312,7 +313,7 @@ func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		// create an api gateway on top of the function with a specific port to the sidecar
 		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = auth.AuthenticationModeNone
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "nuclio-host1.com"
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.Upstreams[0].Port = sidecarPort
 

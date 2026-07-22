@@ -14,6 +14,9 @@
       - `somethingPath`: The full location of a resource, which can be _either_ a file or directory (e.g., `/a/b/c` or `/a/b/c/example.go`). If the resource can _only_ be a dir, use `somethingDir`
       - `somethingFile`: The file object of something
       - `somethingFileContents`: The result of reading the file, i.e., with ReadAll
+    - Put variable args at the end of error and log messages. This keeps the static prefix consistent, making it easy to grep in logs and code
+      - `errors.Wrapf(err, "Failed to read auth config for function %s", functionName)` ✓
+      - `errors.Wrapf(err, "Failed to read function %s auth config", functionName)` ✗
   - Testing
     - Use testify and testify suites (see existing examples)
     - Assert with `suite.Require().<assertion>`

@@ -19,8 +19,12 @@ package app
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -28,80 +32,109 @@ import (
 
 // server fronts a function or the DLX.
 type server struct {
-	logger      logger.Logger
-	httpServer  *http.Server
-	upstreamURL string
-	authURL     string
-	signinURL   string
+	logger     logger.Logger
+	httpServer *http.Server
 }
 
-// newServer builds the auth-proxy for the given mode. The mode decides only where it listens and what it
-// serves: reverseProxy is exposed to the cluster on a configurable port and forwards to the processor;
-// authOnly is reachable only from within the pod (loopback) and serves the DLX /auth endpoint.
-func newServer(parentLogger logger.Logger,
-	mode auth.ProxyMode,
-	listenPort int,
-	upstreamURL string,
-	authURL string,
-	signinURL string) (*server, error) {
-
-	var listenAddress string
-	var handler http.Handler
-
-	switch mode {
-	case auth.ProxyModeReverseProxy:
-		listenAddress = fmt.Sprintf(":%d", listenPort)
-		handler = newReverseProxyHandler(parentLogger)
-	case auth.ProxyModeAuthOnly:
-		listenAddress = fmt.Sprintf("127.0.0.1:%d", listenPort)
-		handler = newAuthOnlyHandler(parentLogger)
-	default:
-		return nil, errors.Errorf("Unknown auth-proxy mode: %s", mode)
-	}
-
+// newServer wraps an HTTP server around a ready handler bound to listenAddress.
+func newServer(parentLogger logger.Logger, listenAddress string, handler http.Handler) *server {
 	return &server{
 		logger: parentLogger,
 		httpServer: &http.Server{
 			Addr:    listenAddress,
 			Handler: handler,
 		},
-		upstreamURL: upstreamURL,
-		authURL:     authURL,
-		signinURL:   signinURL,
-	}, nil
+	}
+}
+
+// newHandler builds the HTTP handler for the given mode: reverseProxy authenticates each request and
+// forwards it to the processor; authOnly serves the DLX /auth endpoint.
+func newHandler(parentLogger logger.Logger,
+	mode auth.ProxyMode,
+	upstreamURL string,
+	authenticator authproxy.Authenticator) (http.Handler, error) {
+
+	switch mode {
+	case auth.ProxyModeReverseProxy:
+		handler, err := newReverseProxyHandler(parentLogger, upstreamURL, authenticator)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create reverse-proxy handler")
+		}
+		return handler, nil
+	case auth.ProxyModeAuthOnly:
+		return newAuthOnlyHandler(authenticator), nil
+	default:
+		return nil, errors.Errorf("Unknown auth-proxy mode: %s", mode)
+	}
+}
+
+// resolveListenAddress returns the address the given mode listens on: reverseProxy is exposed to the
+// cluster on listenPort; authOnly is reachable only from within the pod (loopback).
+func resolveListenAddress(mode auth.ProxyMode, listenPort int) (string, error) {
+	switch mode {
+	case auth.ProxyModeReverseProxy:
+		return fmt.Sprintf(":%d", listenPort), nil
+	case auth.ProxyModeAuthOnly:
+		return fmt.Sprintf("127.0.0.1:%d", listenPort), nil
+	default:
+		return "", errors.Errorf("Unknown auth-proxy mode: %s", mode)
+	}
 }
 
 func (s *server) start() error {
-	s.logger.InfoWith("Starting auth-proxy",
-		"listenAddress", s.httpServer.Addr,
-		"upstreamURL", s.upstreamURL,
-		"authURL", s.authURL,
-		"signinURL", s.signinURL)
+	s.logger.InfoWith("Starting auth-proxy", "listenAddress", s.httpServer.Addr)
 
-	if err := s.httpServer.ListenAndServe(); err != nil {
+	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return errors.Wrap(err, "Auth-proxy server failed to start")
 	}
 
 	return nil
 }
 
-// newReverseProxyHandler serves the running-function topology. It does not forward requests upstream yet:
-// authenticating and proxying to the processor over loopback is implemented in NUC-828 / NUC-837.
-func newReverseProxyHandler(logger logger.Logger) http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, _ *http.Request) {
-		logger.Warn("reverseProxy forwarding is not yet implemented")
-		responseWriter.WriteHeader(http.StatusNotImplemented)
-	})
+// newReverseProxyHandler serves the running-function topology: it authenticates each request and, on
+// success, reverse-proxies it to the processor over loopback. The readiness probe is allowlisted.
+func newReverseProxyHandler(parentLogger logger.Logger,
+	upstreamURL string,
+	authenticator authproxy.Authenticator) (http.Handler, error) {
+
+	target, err := url.Parse(upstreamURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse upstream URL")
+	}
+
+	reverseProxy := httputil.NewSingleHostReverseProxy(target)
+	reverseProxy.ErrorHandler = func(responseWriter http.ResponseWriter, request *http.Request, err error) {
+		parentLogger.WarnWithCtx(request.Context(),
+			"Failed to proxy request to upstream",
+			"err", err.Error())
+		responseWriter.WriteHeader(http.StatusBadGateway)
+	}
+
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+
+		// readiness probe is allowlisted (unauthenticated) so the kubelet can reach the processor
+		if request.URL.Path == httptrigger.InternalHealthPath {
+			reverseProxy.ServeHTTP(responseWriter, request)
+			return
+		}
+
+		// on reject the authenticator already wrote the response
+		if !authenticator.Authenticate(responseWriter, request) {
+			return
+		}
+
+		reverseProxy.ServeHTTP(responseWriter, request)
+	}), nil
 }
 
-// newAuthOnlyHandler serves the DLX /auth decision endpoint. Only /auth is routed; any other path
-// returns 404, pinning the endpoint surface now so the NUC-837 decision logic slots into /auth.
-func newAuthOnlyHandler(logger logger.Logger) http.Handler {
+// newAuthOnlyHandler serves the DLX /auth decision endpoint. Only /auth is routed; any other path 404s.
+// It returns 200 when authorized; on reject the authenticator already wrote the 401/302/403 response.
+func newAuthOnlyHandler(authenticator authproxy.Authenticator) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, _ *http.Request) {
-		//TODO: implement authOnly decision as part of NUC-837
-		logger.Warn("authOnly mode was requested but is not yet implemented")
-		responseWriter.WriteHeader(http.StatusNotImplemented)
+	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, request *http.Request) {
+		if authenticator.Authenticate(responseWriter, request) {
+			responseWriter.WriteHeader(http.StatusOK)
+		}
 	})
 	return mux
 }
