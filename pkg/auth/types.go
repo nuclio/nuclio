@@ -30,6 +30,8 @@ const (
 	AuthenticationModeAccessKey AuthenticationMode = "accessKey"
 	AuthenticationModeOauth2    AuthenticationMode = "oauth2"
 	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
+	AuthenticationModeAPI       AuthenticationMode = "api"
+	AuthenticationModeBrowser   AuthenticationMode = "browser"
 )
 
 type Kind string

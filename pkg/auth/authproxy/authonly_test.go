@@ -23,7 +23,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -83,12 +83,12 @@ func (suite *AuthOnlyTestSuite) TestBrowserModeResolvedFromCRD() {
 	defer stub.close()
 
 	browserFunction := newHTTPTriggerFunction("browser-func", testNamespace, map[string]interface{}{
-		"authenticationMode": ModeBrowser,
+		"authenticationMode": auth.AuthenticationModeBrowser,
 	})
 
 	kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset())
 	nuclioClientSet := nuclioiofake.NewSimpleClientset(browserFunction)
-	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, testSigninURL, authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, testSigninURL, auth.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
 	suite.Require().NoError(err)
 
 	suite.Run("invalid credential redirects to sign-in with rd", func() {
@@ -130,7 +130,7 @@ func (suite *AuthOnlyTestSuite) TestModeResolvedFromCRD() {
 		{
 			name: "none mode allows without auth-url call",
 			function: newHTTPTriggerFunction("none-func", testNamespace, map[string]interface{}{
-				"authenticationMode": ModeNone,
+				"authenticationMode": auth.AuthenticationModeNone,
 			}),
 			expectedAllowed:      true,
 			expectedAuthURLCalls: 0,
@@ -147,7 +147,7 @@ func (suite *AuthOnlyTestSuite) TestModeResolvedFromCRD() {
 		{
 			name: "api mode admits valid token",
 			function: newHTTPTriggerFunction("api-func", testNamespace, map[string]interface{}{
-				"authenticationMode": ModeAPI,
+				"authenticationMode": auth.AuthenticationModeAPI,
 			}),
 			token:                validToken,
 			expectedAllowed:      true,
@@ -156,7 +156,7 @@ func (suite *AuthOnlyTestSuite) TestModeResolvedFromCRD() {
 		{
 			name: "browser mode admits valid token",
 			function: newHTTPTriggerFunction("browser-func", testNamespace, map[string]interface{}{
-				"authenticationMode": ModeBrowser,
+				"authenticationMode": auth.AuthenticationModeBrowser,
 			}),
 			token:                validToken,
 			expectedAllowed:      true,
@@ -165,7 +165,7 @@ func (suite *AuthOnlyTestSuite) TestModeResolvedFromCRD() {
 		{
 			name: "basicAuth mode admits valid credentials without auth-url call",
 			function: newHTTPTriggerFunction("basic-func", testNamespace, map[string]interface{}{
-				"authenticationMode": ModeBasicAuth,
+				"authenticationMode": auth.AuthenticationModeBasicAuth,
 				"authentication": map[string]interface{}{
 					"basicAuth": map[string]interface{}{"username": "user", "password": "pass"},
 				},
@@ -181,7 +181,7 @@ func (suite *AuthOnlyTestSuite) TestModeResolvedFromCRD() {
 
 			kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset())
 			nuclioClientSet := nuclioiofake.NewSimpleClientset(testCase.function)
-			authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, signinURL, authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+			authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, signinURL, auth.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
 			suite.Require().NoError(err)
 
 			request := suite.authenticatedRequest(testCase.token)
@@ -206,7 +206,7 @@ func (suite *AuthOnlyTestSuite) TestGetAuthSpecFunctionNotFound() {
 	// no functions registered in the fake client
 	kubeClientSet := kubeclient.NewClientWithRetryFromClient(k8sfake.NewClientset())
 	nuclioClientSet := nuclioiofake.NewSimpleClientset()
-	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", authpkg.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
+	authenticator, err := NewAuthOnlyAuthenticator(suite.logger, stub.server.URL, "", auth.KindIguazioV4, nuclioClientSet, kubeClientSet, testNamespace)
 	suite.Require().NoError(err)
 
 	request := suite.authenticatedRequest(validToken)

@@ -20,7 +20,7 @@ import (
 	"context"
 	"net/http"
 
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -67,7 +67,7 @@ func (b *boundAuthenticator) AuthenticateTarget(functionName string) bool {
 func NewAuthOnlyAuthenticator(parentLogger logger.Logger,
 	authURL string,
 	signinURL string,
-	authKind authpkg.Kind,
+	authKind auth.Kind,
 	nuclioClientSet nuclioioclient.Interface,
 	kubeClientSet kubeclient.Client,
 	namespace string) (Authenticator, error) {
@@ -145,7 +145,7 @@ func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName st
 
 	// the scrubber is only needed for basicAuth: it replaces $ref: placeholders with the real
 	// credentials stored in the function's dedicated Secret; other modes have no sensitive fields
-	if authConfig.Mode != ModeBasicAuth {
+	if authConfig.Mode != auth.AuthenticationModeBasicAuth {
 		return authConfig, nil
 	}
 
@@ -171,7 +171,7 @@ func functionAuthConfigFromSpec(spec *functionconfig.Spec) (FunctionAuthConfig, 
 	}
 
 	// no HTTP trigger -> nothing to authenticate
-	return FunctionAuthConfig{Mode: ModeNone}, nil
+	return FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil
 }
 
 // functionAuthConfigFromAttributes decodes authenticationMode + authentication.basicAuth from an HTTP
@@ -185,9 +185,9 @@ func functionAuthConfigFromAttributes(attributes map[string]interface{}) (Functi
 		return FunctionAuthConfig{}, errors.Wrap(err, "Failed to decode HTTP trigger attributes")
 	}
 
-	mode := AuthenticationMode(decoded.AuthenticationMode)
+	mode := auth.AuthenticationMode(decoded.AuthenticationMode)
 	if mode == "" {
-		mode = ModeNone
+		mode = auth.AuthenticationModeNone
 	}
 
 	authConfig := FunctionAuthConfig{Mode: mode}
@@ -196,7 +196,7 @@ func functionAuthConfigFromAttributes(attributes map[string]interface{}) (Functi
 		authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
 	}
 
-	if mode == ModeBasicAuth {
+	if mode == auth.AuthenticationModeBasicAuth {
 		if authConfig.BasicAuthUsername == "" {
 			return FunctionAuthConfig{}, errors.New("Basic-auth username must be provided")
 		}
