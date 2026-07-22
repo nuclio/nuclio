@@ -2315,15 +2315,15 @@ func (ap *Platform) queryOPAPermissions(ctx context.Context,
 }
 
 func (ap *Platform) getOPAResourcesPrefix() string {
-	if ap.IsAuthKindIguazioV4() {
-		return opa.IguazioV4ResourcePrefix
+	if ap.Config.Opa.AuthorizationNamespaces.Resources != "" {
+		return fmt.Sprintf("/%s", ap.Config.Opa.AuthorizationNamespaces.Resources)
 	}
 	return ""
 }
 
 func (ap *Platform) getOPAManagementPrefix() string { // nolint: unused
-	if ap.IsAuthKindIguazioV4() {
-		return opa.IguazioV4ManagementPrefix
+	if ap.Config.Opa.AuthorizationNamespaces.Management != "" {
+		return fmt.Sprintf("/%s", ap.Config.Opa.AuthorizationNamespaces.Management)
 	}
 	return ""
 }

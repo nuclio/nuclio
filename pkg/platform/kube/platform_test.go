@@ -168,8 +168,12 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 func (suite *KubePlatformTestSuite) withAuthKind(kind auth.Kind) {
 	previous := suite.abstractPlatform.Config.Opa.AuthKind
 	suite.abstractPlatform.Config.Opa.AuthKind = kind
+	suite.abstractPlatform.Config.Opa.AuthorizationNamespaces.Resources = "resources"
+	suite.abstractPlatform.Config.Opa.AuthorizationNamespaces.Management = "mgmt"
 	suite.T().Cleanup(func() {
 		suite.abstractPlatform.Config.Opa.AuthKind = previous
+		suite.abstractPlatform.Config.Opa.AuthorizationNamespaces.Resources = ""
+		suite.abstractPlatform.Config.Opa.AuthorizationNamespaces.Management = ""
 	})
 }
 
