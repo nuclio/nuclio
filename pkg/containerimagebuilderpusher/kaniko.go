@@ -33,7 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const kanikoKind = "kaniko"
+const KanikoKind = "kaniko"
 
 type Kaniko struct {
 	*jobRunner
@@ -43,7 +43,7 @@ func NewKaniko(logger logger.Logger,
 	kubeClientSet kube.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
 
-	jobRunner, err := newJobRunner(kanikoKind, logger, kubeClientSet, builderConfiguration)
+	jobRunner, err := newJobRunner(KanikoKind, logger, kubeClientSet, builderConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create kaniko job runner")
 	}
@@ -115,7 +115,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		fmt.Sprintf("--destination=%s", common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)),
 		fmt.Sprintf("--push-retry=%d", k.builderConfiguration.PushImagesRetries),
-		fmt.Sprintf("--image-fs-extract-retry=%d", k.builderConfiguration.ImageFSExtractionRetries),
+		fmt.Sprintf("--image-fs-extract-retry=%d", k.builderConfiguration.Kaniko.ImageFSExtractionRetries),
 	}
 
 	if !buildOptions.NoCache {
@@ -177,8 +177,8 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 					Containers: []v1.Container{
 						{
 							Name:            "kaniko-executor",
-							Image:           k.builderConfiguration.KanikoImage,
-							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
+							Image:           k.builderConfiguration.Kaniko.Image,
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
 							Args:            buildArgs,
 							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
 							Resources:       buildOptions.Resources,
@@ -188,7 +188,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 						{
 							Name:            "fetch-bundle",
 							Image:           k.builderConfiguration.BusyBoxImage,
-							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
 							Command: []string{
 								"/bin/sh",
 							},
@@ -202,7 +202,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 						{
 							Name:            "extract-bundle",
 							Image:           k.builderConfiguration.BusyBoxImage,
-							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
 							Command: []string{
 								"tar",
 								"-xvf",
@@ -290,7 +290,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	initContainer := v1.Container{
 		Name:            "create-repos",
 		Image:           k.builderConfiguration.AWSCLIImage,
-		ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
+		ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
 		Command: []string{
 			"/bin/sh",
 		},

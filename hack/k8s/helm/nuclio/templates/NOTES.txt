@@ -42,3 +42,11 @@
 
   WARNING: dashboard.kaniko.initContainerImage is deprecated, use dashboard.build.initContainerImage instead.
 {{- end }}
+{{- if .Values.dashboard.kaniko.cacheRepo }}
+
+  WARNING: dashboard.kaniko.cacheRepo is deprecated, use dashboard.build.cacheRepo instead.
+{{- end }}
+{{- if .Values.dashboard.kaniko.pushImagesRetries }}
+
+  WARNING: dashboard.kaniko.pushImagesRetries is deprecated, use dashboard.build.pushImagesRetries instead.
+{{- end }}

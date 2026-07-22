@@ -28,6 +28,7 @@ import (
 	authfactory "github.com/nuclio/nuclio/pkg/auth/factory"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -141,11 +142,11 @@ func NewServer(parentLogger logger.Logger,
 
 	// try to load docker keys, ignoring errors
 	switch containerBuilderKind {
-	case "docker":
+	case containerimagebuilderpusher.DockerKind:
 		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
 			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
 		}
-	case "kaniko", "buildah":
+	case containerimagebuilderpusher.KanikoKind, containerimagebuilderpusher.BuildahKind:
 		if common.GetEnvOrDefaultStringWithLegacyKey("NUCLIO_DASHBOARD_SERVE_BUILD_ARTIFACTS_MODE",
 			"NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE", "local") == common.LocalPlatformName {
 
@@ -426,7 +427,7 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 
 func createDockerClient(parentLogger logger.Logger, containerBuilderKind string) (
 	dockerclient.Client, error) {
-	if containerBuilderKind == "docker" {
+	if containerBuilderKind == containerimagebuilderpusher.DockerKind {
 		return dockerclient.NewShellClient(parentLogger, nil)
 	}
 

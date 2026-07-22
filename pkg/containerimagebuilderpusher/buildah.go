@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/logger"
 )
 
-const buildahKind = "buildah"
+const BuildahKind = "buildah"
 
 type Buildah struct {
 	*jobRunner
@@ -35,7 +35,7 @@ func NewBuildah(logger logger.Logger,
 	kubeClientSet kube.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Buildah, error) {
 
-	jobRunner, err := newJobRunner(buildahKind, logger, kubeClientSet, builderConfiguration)
+	jobRunner, err := newJobRunner(BuildahKind, logger, kubeClientSet, builderConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create buildah job runner")
 	}

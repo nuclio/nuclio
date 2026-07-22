@@ -114,8 +114,8 @@ spec:
           value: "{{ $busybox.repository }}:{{ $busybox.tag }}"
         - name: NUCLIO_AWS_CLI_CONTAINER_IMAGE
           value: "{{ $awscli.repository }}:{{ $awscli.tag }}"
-        - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
-          value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
+        - name: NUCLIO_BUILD_PUSH_IMAGES_RETRIES
+          value: {{ .Values.dashboard.kaniko.pushImagesRetries | default .Values.dashboard.build.pushImagesRetries | quote }}
         - name: NUCLIO_KANIKO_IMAGE_FS_EXTRACTION_RETRIES
           value: {{ .Values.dashboard.kaniko.imageFSExtractionRetries | quote }}
         - name: NUCLIO_AUTH_KIND
@@ -195,9 +195,9 @@ spec:
         - name: NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL
           value: {{ .Values.registry.dependantImageRegistryURL }}
         {{- end }}
-        {{- if .Values.dashboard.kaniko.cacheRepo }}
-        - name: NUCLIO_DASHBOARD_KANIKO_CACHE_REPO
-          value: {{ .Values.dashboard.kaniko.cacheRepo }}
+        {{- if or .Values.dashboard.kaniko.cacheRepo .Values.dashboard.build.cacheRepo }}
+        - name: NUCLIO_BUILD_CACHE_REPO
+          value: {{ .Values.dashboard.kaniko.cacheRepo | default .Values.dashboard.build.cacheRepo }}
         {{- end }}
         {{- if or .Values.dashboard.kaniko.defaultServiceAccount .Values.dashboard.build.defaultServiceAccount }}
         - name: NUCLIO_BUILD_DEFAULT_SERVICE_ACCOUNT

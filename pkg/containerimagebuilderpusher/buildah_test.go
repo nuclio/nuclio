@@ -45,13 +45,13 @@ func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesRoot
 				suite.T().Setenv("NUCLIO_BUILDAH_ROOTLESS_MODE", testCase.envValue)
 			}
 
-			config, err := NewContainerBuilderConfiguration()
+			config, err := NewContainerBuilderConfiguration(nil)
 			if testCase.expectErr {
 				suite.Require().Error(err)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Equal(testCase.expected, config.BuildahRootlessMode)
+			suite.Equal(testCase.expected, config.Buildah.RootlessMode)
 		})
 	}
 }
@@ -73,13 +73,13 @@ func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesStor
 				suite.T().Setenv("NUCLIO_BUILDAH_STORAGE_DRIVER", testCase.envValue)
 			}
 
-			config, err := NewContainerBuilderConfiguration()
+			config, err := NewContainerBuilderConfiguration(nil)
 			if testCase.expectErr {
 				suite.Require().Error(err)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Equal(testCase.expected, config.BuildahStorageDriver)
+			suite.Equal(testCase.expected, config.Buildah.StorageDriver)
 		})
 	}
 }
@@ -101,13 +101,13 @@ func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesIsol
 				suite.T().Setenv("NUCLIO_BUILDAH_ISOLATION", testCase.envValue)
 			}
 
-			config, err := NewContainerBuilderConfiguration()
+			config, err := NewContainerBuilderConfiguration(nil)
 			if testCase.expectErr {
 				suite.Require().Error(err)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Equal(testCase.expected, config.BuildahIsolation)
+			suite.Equal(testCase.expected, config.Buildah.Isolation)
 		})
 	}
 }

@@ -206,6 +206,12 @@ dashboard:
     # Additional labels added to the build pod template.metadata.labels
     podLabels: {}
 
+    #  Set to a repository url for storing cached layers
+    cacheRepo: ""
+
+    # How many times to retry pushing images to registry
+    pushImagesRetries: 3
+
     initContainerImage:
       busybox:
         repository: busybox
@@ -222,16 +228,10 @@ dashboard:
 
   kaniko:
 
-    #  Set to a repository url for storing cached layers
-    cacheRepo: ""
-
     image:
       repository: gcr.io/kaniko-project/executor
       tag: v1.23.2
       pullPolicy: IfNotPresent
-
-    # How many times to retry pushing images to registry
-    pushImagesRetries: 3
 
     # The number of retries that should happen for the extracting an image filesystem
     imageFSExtractionRetries: 3
