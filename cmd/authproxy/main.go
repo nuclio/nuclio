@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/authproxy/app"
 	"github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
@@ -34,7 +33,7 @@ func main() {
 	upstreamURL := flag.String("upstream-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_UPSTREAM_URL", "http://127.0.0.1:6080"), "URL of the upstream service (processor) to forward requests to")
 	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint")
 	signinURL := flag.String("signin-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_SIGNIN_URL", ""), "URL unauthenticated browser requests are redirected to sign-in")
-	authMode := flag.String("auth-mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_MODE", string(authproxy.ModeNone)), "Authentication mode for reverseProxy: none, api, browser or basicAuth")
+	authMode := flag.String("auth-mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_MODE", string(auth.AuthenticationModeNone)), "Authentication mode for reverseProxy: none, api, browser or basicAuth")
 	basicAuthUsername := flag.String("basic-auth-username", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_BASIC_AUTH_USERNAME", ""), "Basic-auth username (used only when auth-mode=basicAuth)")
 	basicAuthPassword := flag.String("basic-auth-password", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_BASIC_AUTH_PASSWORD", ""), "Basic-auth password, injected from a Secret via secretKeyRef (used only when auth-mode=basicAuth)")
 	namespace := flag.String("namespace", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_NAMESPACE", ""), "Namespace of the target functions")

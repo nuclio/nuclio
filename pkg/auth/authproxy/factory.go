@@ -17,7 +17,7 @@ limitations under the License.
 package authproxy
 
 import (
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
@@ -31,18 +31,18 @@ import (
 // nuclioClientSet, kubeClientSet, and namespace are required.
 func NewAuthenticator(
 	parentLogger logger.Logger,
-	mode authpkg.ProxyMode,
+	mode auth.ProxyMode,
 	authURL string,
 	signinURL string,
-	authKind authpkg.Kind,
+	authKind auth.Kind,
 	staticAuthConfig FunctionAuthConfig,
 	kubeconfigPath string,
 	namespace string,
 ) (Authenticator, error) {
 	switch mode {
-	case authpkg.ProxyModeReverseProxy:
+	case auth.ProxyModeReverseProxy:
 		return NewReverseProxyAuthenticator(parentLogger, authURL, signinURL, authKind, staticAuthConfig)
-	case authpkg.ProxyModeAuthOnly:
+	case auth.ProxyModeAuthOnly:
 		clientConfig, err := common.GetClientConfig(kubeconfigPath)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get client configuration")
