@@ -135,7 +135,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 
 // TestOrisLeaderCreateForwardsMismatchedSession proves the header plays no role for an Oris
 // leader: even though RequestOrigin claims "oris" (as if from a spoofed or stale header), a
-// caller whose session doesn't match LeaderIdentity is not rejected outright — it falls through
+// caller whose session doesn't match Leader Identity is not rejected outright — it falls through
 // to the same forward-to-leader path as any ordinary user request.
 func (suite *ExternalProjectClientTestSuite) TestOrisLeaderCreateForwardsMismatchedSession() {
 	client := suite.newOrisClient("oris-sa")
@@ -484,13 +484,13 @@ func (suite *ExternalProjectClientTestSuite) assertLeaderEvaluationSkipped() {
 }
 
 // newOrisClient builds a Client configured with an Oris leader requiring the given
-// LeaderIdentity, reusing the suite's mocked internal/leader clients.
+// Identity, reusing the suite's mocked internal/leader clients.
 func (suite *ExternalProjectClientTestSuite) newOrisClient(leaderIdentity string) *Client {
 	return &Client{
 		platformConfiguration: &platformconfig.Config{
 			ProjectsLeader: &platformconfig.ProjectsLeader{
-				Kind:           platformconfig.ProjectsLeaderKindOris,
-				LeaderIdentity: leaderIdentity,
+				Kind:     platformconfig.ProjectsLeaderKindOris,
+				Identity: leaderIdentity,
 			},
 		},
 		internalClient: suite.mockInternalProjectsClient,

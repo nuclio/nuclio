@@ -35,7 +35,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1106,12 +1106,12 @@ func (suite *PlatformConfigTestSuite) TestTrustsLeaderOrigin() {
 			expected:       true,
 		}, {
 			name:           "mlrun kind trusts unconditionally, even with a nil session",
-			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindMlrun, LeaderIdentity: "orca-sa"},
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindMlrun, Identity: "orca-sa"},
 			session:        nil,
 			expected:       true,
 		}, {
 			name:           "iguazio kind trusts unconditionally, even with a mismatched session",
-			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindIguazio, LeaderIdentity: "orca-sa"},
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindIguazio, Identity: "orca-sa"},
 			session:        mismatchedSession,
 			expected:       true,
 		}, {
@@ -1121,21 +1121,21 @@ func (suite *PlatformConfigTestSuite) TestTrustsLeaderOrigin() {
 			expected:       true,
 		}, {
 			name:           "oris kind with matching session is trusted",
-			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, LeaderIdentity: "orca-sa"},
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
 			session:        matchingSession,
 			expected:       true,
 		}, {
 			name:           "oris kind with mismatched session is rejected",
-			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, LeaderIdentity: "orca-sa"},
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
 			session:        mismatchedSession,
 			expected:       false,
 		}, {
 			name:           "oris kind with nil session is rejected",
-			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, LeaderIdentity: "orca-sa"},
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
 			session:        nil,
 			expected:       false,
 		}, {
-			name:           "oris kind with empty LeaderIdentity is rejected even given a session",
+			name:           "oris kind with empty Identity is rejected even given a session",
 			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris},
 			session:        matchingSession,
 			expected:       false,
@@ -1147,16 +1147,16 @@ func (suite *PlatformConfigTestSuite) TestTrustsLeaderOrigin() {
 	}
 }
 
-func (suite *PlatformConfigTestSuite) TestEnrichProjectsLeaderConfigOrisRequiresLeaderIdentity() {
+func (suite *PlatformConfigTestSuite) TestEnrichAndValidateProjectsLeaderConfigOrisRequiresIdentity() {
 	config := &Config{
 		ProjectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris},
 	}
 	suite.Require().Error(config.EnrichPlatformConfig())
 }
 
-func (suite *PlatformConfigTestSuite) TestEnrichProjectsLeaderConfigOrisWithLeaderIdentity() {
+func (suite *PlatformConfigTestSuite) TestEnrichAndValidateProjectsLeaderConfigOrisWithIdentity() {
 	config := &Config{
-		ProjectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, LeaderIdentity: "orca-sa"},
+		ProjectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
 	}
 	err := config.EnrichPlatformConfig()
 	suite.Require().NoError(err)

@@ -52,10 +52,10 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	opaclient "github.com/nuclio/opa-client"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 )
@@ -1977,8 +1977,8 @@ func (suite *projectTestSuite) TestCreateNoNamespace() {
 // NUC-795 left open) — the request still succeeds via normal per-caller OPA authorization.
 func (suite *projectTestSuite) TestCreateDropsUntrustedProjectsRoleHeader() {
 	suite.dashboardServer.GetPlatformConfiguration().ProjectsLeader = &platformconfig.ProjectsLeader{
-		Kind:           platformconfig.ProjectsLeaderKindOris,
-		LeaderIdentity: "orca-sa",
+		Kind:     platformconfig.ProjectsLeaderKindOris,
+		Identity: "orca-sa",
 	}
 
 	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
