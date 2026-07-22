@@ -76,7 +76,7 @@ spec:
         volumeMounts:
         {{- if .Values.dashboard.writableTmpVolume }}
         # Writable scratch space for the embedded builder (build temp dirs,
-        # /tmp/kaniko-builds bundles, fetched function templates). Required
+        # /tmp/nuclio-builds bundles, fetched function templates). Required
         # when readOnlyRootFilesystem is enabled on the dashboard container.
         - name: tmp
           mountPath: /tmp
@@ -103,13 +103,19 @@ spec:
         resources:
           {{ toYaml .Values.dashboard.resources | nindent 11 }}
         {{- end }}
+        {{- $legacyBusybox := dig "initContainerImage" "busybox" (dict) .Values.dashboard.kaniko }}
+        {{- $busybox := .Values.dashboard.build.initContainerImage.busybox }}
+        {{- if $legacyBusybox }}{{- $busybox = $legacyBusybox }}{{- end }}
+        {{- $legacyAwscli := dig "initContainerImage" "awscli" (dict) .Values.dashboard.kaniko }}
+        {{- $awscli := .Values.dashboard.build.initContainerImage.awscli }}
+        {{- if $legacyAwscli }}{{- $awscli = $legacyAwscli }}{{- end }}
         env:
         - name: NUCLIO_BUSYBOX_CONTAINER_IMAGE
-          value: {{ .Values.dashboard.kaniko.initContainerImage.busybox.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.busybox.tag}}
+          value: "{{ $busybox.repository }}:{{ $busybox.tag }}"
         - name: NUCLIO_AWS_CLI_CONTAINER_IMAGE
-          value: {{ .Values.dashboard.kaniko.initContainerImage.awscli.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.awscli.tag}}
-        - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
-          value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
+          value: "{{ $awscli.repository }}:{{ $awscli.tag }}"
+        - name: NUCLIO_BUILD_PUSH_IMAGES_RETRIES
+          value: {{ .Values.dashboard.kaniko.pushImagesRetries | default .Values.dashboard.build.pushImagesRetries | quote }}
         - name: NUCLIO_KANIKO_IMAGE_FS_EXTRACTION_RETRIES
           value: {{ .Values.dashboard.kaniko.imageFSExtractionRetries | quote }}
         - name: NUCLIO_AUTH_KIND
@@ -140,8 +146,22 @@ spec:
           value: {{ .Values.dashboard.kaniko.image.repository }}:{{ .Values.dashboard.kaniko.image.tag }}
         - name: NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY
           value: {{ .Values.dashboard.kaniko.image.pullPolicy }}
-        - name: NUCLIO_KANIKO_JOB_DELETION_TIMEOUT
-          value: {{ .Values.dashboard.kaniko.jobDeletionTimeout | quote }}
+        - name: NUCLIO_BUILD_JOB_DELETION_TIMEOUT
+          value: {{ .Values.dashboard.kaniko.jobDeletionTimeout | default .Values.dashboard.build.jobDeletionTimeout | quote }}
+        - name: NUCLIO_BUILDAH_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.buildah.image.repository }}:{{ .Values.dashboard.buildah.image.tag }}
+        - name: NUCLIO_BUILDAH_CONTAINER_IMAGE_PULL_POLICY
+          value: {{ .Values.dashboard.buildah.image.pullPolicy }}
+        - name: NUCLIO_BUILDAH_ROOTLESS_MODE
+          value: {{ .Values.dashboard.buildah.rootlessMode }}
+        - name: NUCLIO_BUILDAH_STORAGE_DRIVER
+          value: {{ .Values.dashboard.buildah.storageDriver }}
+        - name: NUCLIO_BUILDAH_ISOLATION
+          value: {{ .Values.dashboard.buildah.isolation }}
+        - name: NUCLIO_AZURE_CLI_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.build.initContainerImage.azurecli.repository }}:{{ .Values.dashboard.build.initContainerImage.azurecli.tag }}
+        - name: NUCLIO_GCLOUD_CLI_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.build.initContainerImage.gcloudcli.repository }}:{{ .Values.dashboard.build.initContainerImage.gcloudcli.tag }}
         {{- if and .Values.dashboard.elasticSearchApiKey.secretName .Values.dashboard.elasticSearchApiKey.secretKey }}
         - name: NUCLIO_ELASTIC_SEARCH_API_KEY
           valueFrom:
@@ -155,12 +175,12 @@ spec:
               name: {{ .Values.dashboard.elasticSearchPassword.secretName }}
               key: {{ .Values.dashboard.elasticSearchPassword.secretKey }}
         {{- end }}
-        {{- if .Values.dashboard.kaniko.insecurePushRegistry }}
-        - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
+        {{- if or .Values.dashboard.kaniko.insecurePushRegistry .Values.dashboard.build.insecurePushRegistry }}
+        - name: NUCLIO_BUILD_INSECURE_PUSH_REGISTRY
           value: "true"
         {{- end }}
-        {{- if .Values.dashboard.kaniko.insecurePullRegistry }}
-        - name: NUCLIO_KANIKO_INSECURE_PULL_REGISTRY
+        {{- if or .Values.dashboard.kaniko.insecurePullRegistry .Values.dashboard.build.insecurePullRegistry }}
+        - name: NUCLIO_BUILD_INSECURE_PULL_REGISTRY
           value: "true"
         {{- end }}
         {{- if .Values.registry.defaultBaseRegistryURL }}
@@ -175,17 +195,17 @@ spec:
         - name: NUCLIO_DASHBOARD_DEPENDANT_IMAGE_REGISTRY_URL
           value: {{ .Values.registry.dependantImageRegistryURL }}
         {{- end }}
-        {{- if .Values.dashboard.kaniko.cacheRepo }}
-        - name: NUCLIO_DASHBOARD_KANIKO_CACHE_REPO
-          value: {{ .Values.dashboard.kaniko.cacheRepo }}
+        {{- if or .Values.dashboard.kaniko.cacheRepo .Values.dashboard.build.cacheRepo }}
+        - name: NUCLIO_BUILD_CACHE_REPO
+          value: {{ .Values.dashboard.kaniko.cacheRepo | default .Values.dashboard.build.cacheRepo }}
         {{- end }}
-        {{- if .Values.dashboard.kaniko.defaultServiceAccount }}
-        - name: NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT
-          value: {{ .Values.dashboard.kaniko.defaultServiceAccount }}
+        {{- if or .Values.dashboard.kaniko.defaultServiceAccount .Values.dashboard.build.defaultServiceAccount }}
+        - name: NUCLIO_BUILD_DEFAULT_SERVICE_ACCOUNT
+          value: {{ .Values.dashboard.kaniko.defaultServiceAccount | default .Values.dashboard.build.defaultServiceAccount }}
         {{- end }}
-        {{- if .Values.dashboard.kaniko.podLabels }}
-        - name: NUCLIO_KANIKO_POD_LABELS
-          value: {{ .Values.dashboard.kaniko.podLabels | toJson | quote }}
+        {{- if or .Values.dashboard.kaniko.podLabels .Values.dashboard.build.podLabels }}
+        - name: NUCLIO_BUILD_POD_LABELS
+          value: {{ (.Values.dashboard.kaniko.podLabels | default .Values.dashboard.build.podLabels) | toJson | quote }}
         {{- end }}
         {{- if .Values.registry.runRegistryURL }}
         - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
@@ -224,9 +244,9 @@ spec:
         - name: NUCLIO_REGISTRY_KIND
           value: {{ .Values.registry.kind }}
         {{- end }}
-        {{- if .Values.dashboard.kaniko.registryProviderSecretName }}
-        - name: NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME
-          value: {{ .Values.dashboard.kaniko.registryProviderSecretName | quote }}
+        {{- if or .Values.dashboard.kaniko.registryProviderSecretName .Values.dashboard.build.registryProviderSecretName }}
+        - name: NUCLIO_BUILD_REGISTRY_PROVIDER_AUTH_SECRET_NAME
+          value: {{ .Values.dashboard.kaniko.registryProviderSecretName | default .Values.dashboard.build.registryProviderSecretName | quote }}
         {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ template "nuclio.externalIPAddresses" . }}

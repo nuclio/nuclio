@@ -62,13 +62,13 @@ func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPo
 				suite.T().Setenv("NUCLIO_KANIKO_POD_LABELS", testCase.envValue)
 			}
 
-			config, err := NewContainerBuilderConfiguration()
+			config, err := NewContainerBuilderConfiguration(nil)
 			if testCase.expectErr {
 				suite.Require().Error(err)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Equal(testCase.expected, config.KanikoPodLabels)
+			suite.Equal(testCase.expected, config.PodLabels)
 		})
 	}
 }
