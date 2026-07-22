@@ -1517,13 +1517,13 @@ func (p *Platform) InitializeContainerBuilder() error {
 
 	// create container builder
 	switch containerBuilderConfiguration.Kind {
-	case "kaniko":
+	case containerimagebuilderpusher.KanikoKind:
 		p.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(p.Logger,
 			p.consumer.KubeClientSet, containerBuilderConfiguration)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create a kaniko builder")
 		}
-	case "buildah":
+	case containerimagebuilderpusher.BuildahKind:
 		p.ContainerBuilder, err = containerimagebuilderpusher.NewBuildah(p.Logger,
 			p.consumer.KubeClientSet, containerBuilderConfiguration)
 		if err != nil {
