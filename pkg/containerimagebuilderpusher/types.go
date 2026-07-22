@@ -197,7 +197,7 @@ func NewContainerBuilderConfiguration(existing *ContainerBuilderConfiguration) (
 		containerBuilderConfiguration.Kaniko.ImageFSExtractionRetries, err =
 			strconv.Atoi(common.GetEnvOrDefaultString("NUCLIO_KANIKO_IMAGE_FS_EXTRACTION_RETRIES", "3"))
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to resolve number of push images retries")
+			return nil, errors.Wrap(err, "Failed to resolve number of image filesystem extraction retries")
 		}
 	}
 
