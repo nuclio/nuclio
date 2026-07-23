@@ -308,6 +308,40 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 	}
 }
 
+func (suite *ShellClientTestSuite) TestGetContainersEscapesLabelFilterInjection() {
+
+	// on the local platform a remote, unauthenticated client controls the function namespace,
+	// which flows into the `nuclio.io/namespace` label value passed here. it must be shell-escaped
+	// before interpolation into `docker ps --filter`, otherwise a double quote breaks out of the
+	// filter token and injects arbitrary shell run as root in the dashboard container (GHSA-2893-rq73-w22x).
+	var capturedArgs []interface{}
+	suite.mockedCmdRunner.
+		On("Run",
+			mock.Anything,
+			"docker ps --quiet %s %s %s %s",
+			mock.MatchedBy(func(vars []interface{}) bool {
+				capturedArgs = vars
+				return true
+			})).
+		Return(cmdrunner.RunResult{
+			Output: "",
+		}, nil).
+		Once()
+
+	_, err := suite.shellClient.GetContainers(&GetContainerOptions{
+		Labels: map[string]string{"nuclio.io/namespace": `n";touch /tmp/pwned;echo "`},
+	})
+	suite.Require().NoError(err)
+
+	// the whole label filter must be a single shell-quoted token; the metacharacters stay
+	// literal inside the quotes instead of terminating the docker ps command
+	labelFilterArgument := capturedArgs[3].(string)
+	suite.Require().Contains(labelFilterArgument,
+		`--filter 'label=nuclio.io/namespace=n";touch /tmp/pwned;echo "'`)
+
+	suite.mockedCmdRunner.AssertExpectations(suite.T())
+}
+
 func TestShellRunnerTestSuite(t *testing.T) {
 	suite.Run(t, new(ShellClientTestSuite))
 }
