@@ -18,14 +18,26 @@ package containerimagebuilderpusher
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
 )
 
-const BuildahKind = "buildah"
+const (
+	BuildahKind = "buildah"
+
+	buildahAuthDir    = "/var/lib/containers/auth"
+	buildahAuthFile   = buildahAuthDir + "/config.json"
+	buildahAuthVolume = "authdir"
+)
 
 type Buildah struct {
 	*jobRunner
@@ -46,5 +58,168 @@ func NewBuildah(logger logger.Logger,
 func (b *Buildah) BuildAndPushContainerImage(ctx context.Context,
 	buildOptions *BuildOptions,
 	namespace string) error {
-	return errors.New("Buildah build/push is not implemented yet")
+	bundleFilename, assetPath, err := b.createContainerBuildBundle(ctx,
+		buildOptions.Image,
+		buildOptions.ContextDir,
+		buildOptions.TempDir)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create container build bundle")
+	}
+
+	// Remove bundle file from assets once we are done
+	defer os.Remove(assetPath) // nolint: errcheck
+
+	// Generate job spec
+	jobSpec, err := b.compileJobSpec(ctx, namespace, buildOptions, bundleFilename)
+	if err != nil {
+		return errors.Wrap(err, "Failed to compile buildah job spec")
+	}
+
+	return b.submitAndWait(ctx, namespace, buildOptions, jobSpec)
+}
+
+func (b *Buildah) compileJobSpec(ctx context.Context,
+	namespace string,
+	buildOptions *BuildOptions,
+	bundleFilename string) (*batchv1.Job, error) {
+
+	buildahContainer := b.compileBuildahContainer(buildOptions)
+
+	jobSpec, err := b.compileBaseJobSpec(ctx,
+		namespace,
+		buildOptions,
+		bundleFilename,
+		buildahContainer,
+		b.builderConfiguration.Buildah.ImagePullPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	podSpec := &jobSpec.Spec.Template.Spec
+	podSpec.SecurityContext = buildOptions.SecurityContext
+	b.configureAuthVolume(buildOptions, podSpec)
+	b.configureRootlessMode(podSpec)
+
+	return jobSpec, nil
+}
+
+// configureAuthVolume mounts the registry auth secret (if any) into the buildah container.
+// TODO: will be extended to support Cloud registry credentials & multiple secrets in the next PR.
+func (b *Buildah) configureAuthVolume(buildOptions *BuildOptions, podSpec *v1.PodSpec) {
+	if buildOptions.SecretName == "" {
+		return
+	}
+
+	authFolderVolumeMount := v1.VolumeMount{
+		Name:      buildahAuthVolume,
+		MountPath: buildahAuthDir,
+	}
+
+	podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
+		Name: authFolderVolumeMount.Name,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: buildOptions.SecretName,
+				Items:      []v1.KeyToPath{{Key: ".dockerconfigjson", Path: "config.json"}},
+			},
+		},
+	})
+	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, authFolderVolumeMount)
+}
+
+// configureRootlessMode wires the buildah container's security context per Buildah.RootlessMode.
+func (b *Buildah) configureRootlessMode(podSpec *v1.PodSpec) {
+	if b.builderConfiguration.Buildah.RootlessMode == "hostusers" {
+		hostUsers := false
+		podSpec.HostUsers = &hostUsers
+		return
+	}
+
+	allowPrivilegeEscalation := true
+	podSpec.Containers[0].SecurityContext = &v1.SecurityContext{
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{"SETUID", "SETGID"},
+		},
+		AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+	}
+}
+
+func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Container {
+
+	tmpFolderVolumeMount := v1.VolumeMount{
+		Name:      "tmp",
+		MountPath: "/tmp",
+	}
+
+	destination := common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)
+
+	envVars := []v1.EnvVar{
+		{
+			Name:  "REGISTRY_AUTH_FILE",
+			Value: buildahAuthFile,
+		},
+	}
+
+	// envRef avoids shell injection of free-text values into the command line.
+	envRef := func(value string) string {
+		name := fmt.Sprintf("BUILDAH_ARG_%d", len(envVars))
+		envVars = append(envVars, v1.EnvVar{Name: name, Value: value})
+		return fmt.Sprintf(`"$%s"`, name)
+	}
+
+	buildArgs := []string{
+		"--layers",
+		fmt.Sprintf("--storage-driver=%s", envRef(b.builderConfiguration.Buildah.StorageDriver)),
+		fmt.Sprintf("--isolation=%s", envRef(b.builderConfiguration.Buildah.Isolation)),
+		fmt.Sprintf("--file=%s", envRef(buildOptions.DockerfileInfo.DockerfilePath)),
+		fmt.Sprintf("--tag=%s", envRef(destination)),
+	}
+
+	if b.builderConfiguration.InsecurePullRegistry {
+		buildArgs = append(buildArgs, "--tls-verify=false")
+	}
+
+	if b.builderConfiguration.CacheRepo != "" {
+		buildArgs = append(buildArgs,
+			fmt.Sprintf("--cache-to=%s", envRef(b.builderConfiguration.CacheRepo)),
+			fmt.Sprintf("--cache-from=%s", envRef(b.builderConfiguration.CacheRepo)))
+	}
+
+	if buildOptions.NoCache {
+		buildArgs = append(buildArgs, "--no-cache")
+	}
+
+	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
+		buildArg := fmt.Sprintf("%s=%s", buildArgName, buildArgValue)
+		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s", envRef(buildArg)))
+	}
+
+	// Add the build context directory as last positional argument
+	buildArgs = append(buildArgs, envRef(buildOptions.ContextDir))
+
+	pushArgs := []string{
+		fmt.Sprintf("--storage-driver=%s", envRef(b.builderConfiguration.Buildah.StorageDriver)),
+		fmt.Sprintf("--retry=%d", b.builderConfiguration.PushImagesRetries),
+	}
+
+	if b.builderConfiguration.InsecurePushRegistry {
+		pushArgs = append(pushArgs, "--tls-verify=false")
+	}
+
+	pushArgs = append(pushArgs, envRef(destination), fmt.Sprintf("docker://%s", envRef(destination)))
+
+	budCmd := "buildah bud " + strings.Join(buildArgs, " ")
+	pushCmd := "buildah push " + strings.Join(pushArgs, " ")
+	buildahCommand := strings.Join([]string{"set -eu", budCmd, pushCmd}, "\n")
+
+	return v1.Container{
+		Name:            "buildah",
+		Image:           b.builderConfiguration.Buildah.Image,
+		ImagePullPolicy: v1.PullPolicy(b.builderConfiguration.Buildah.ImagePullPolicy),
+		Command:         []string{"/bin/sh"},
+		Args:            []string{"-c", buildahCommand},
+		Env:             envVars,
+		VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
+		Resources:       buildOptions.Resources,
+	}
 }

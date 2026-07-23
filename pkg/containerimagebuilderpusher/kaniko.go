@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
@@ -30,7 +29,6 @@ import (
 	"github.com/nuclio/logger"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const KanikoKind = "kaniko"
@@ -70,37 +68,8 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 	if err != nil {
 		return errors.Wrap(err, "Failed to compile kaniko job spec")
 	}
-	// create job
-	k.logger.DebugWithCtx(ctx,
-		"Creating job",
-		"namespace", namespace,
-		"jobSpec", jobSpec,
-		"timeoutSeconds", buildOptions.BuildTimeoutSeconds,
-	)
-	job, err := k.kubeClientSet.CreateJob(ctx, namespace, jobSpec)
-	if err != nil {
-		return errors.Wrap(err, "Failed to publish kaniko job")
-	}
 
-	// Cleanup after 30 minutes, allowing to dev to inspect job / pod information before getting deleted
-	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
-
-		// Create a detached context to avoid cancellation of the deletion process
-		detachedCtx := context.WithoutCancel(ctx)
-		if err := k.deleteJob(detachedCtx, namespace, job.Name); err != nil {
-			k.logger.WarnWithCtx(ctx,
-				"Failed to delete job",
-				"err", err.Error())
-		}
-	})
-
-	// Wait for kaniko to finish
-	return k.waitForJobCompletion(ctx,
-		namespace,
-		job.Name,
-		buildOptions.BuildTimeoutSeconds,
-		buildOptions.ReadinessTimeoutSeconds,
-		buildOptions.BuildLogger)
+	return k.submitAndWait(ctx, namespace, buildOptions, jobSpec)
 }
 
 func (k *Kaniko) compileJobSpec(ctx context.Context,
@@ -108,8 +77,29 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	buildOptions *BuildOptions,
 	bundleFilename string) (*batchv1.Job, error) {
 
-	completions := int32(1)
-	backoffLimit := int32(0)
+	kanikoContainer := k.compileKanikoContainer(buildOptions)
+
+	jobSpec, err := k.compileBaseJobSpec(ctx,
+		namespace,
+		buildOptions,
+		bundleFilename,
+		kanikoContainer,
+		k.builderConfiguration.Kaniko.ImagePullPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	k.configureSecretVolumeMount(buildOptions, jobSpec)
+	return jobSpec, nil
+}
+
+func (k *Kaniko) compileKanikoContainer(buildOptions *BuildOptions) v1.Container {
+
+	tmpFolderVolumeMount := v1.VolumeMount{
+		Name:      "tmp",
+		MountPath: "/tmp",
+	}
+
 	buildArgs := []string{
 		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfileInfo.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
@@ -144,98 +134,14 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", buildArgName, buildArgValue))
 	}
 
-	tmpFolderVolumeMount := v1.VolumeMount{
-		Name:      "tmp",
-		MountPath: "/tmp",
+	return v1.Container{
+		Name:            "kaniko-executor",
+		Image:           k.builderConfiguration.Kaniko.Image,
+		ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
+		Args:            buildArgs,
+		VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
+		Resources:       buildOptions.Resources,
 	}
-	jobName := k.compileJobName(ctx, buildOptions.Image)
-
-	assetsURL := fmt.Sprintf("http://%s:8070/build/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
-	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
-
-	serviceAccount, err := k.enrichAndValidateServiceAccount(ctx, buildOptions, namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich and validate service account")
-	}
-
-	kanikoJobSpec := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: namespace,
-		},
-		Spec: batchv1.JobSpec{
-			Completions:           &completions,
-			ActiveDeadlineSeconds: &buildOptions.BuildTimeoutSeconds,
-			BackoffLimit:          &backoffLimit,
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      jobName,
-					Namespace: namespace,
-					Labels:    common.CopyStringMapOrNil(k.builderConfiguration.PodLabels),
-				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:            "kaniko-executor",
-							Image:           k.builderConfiguration.Kaniko.Image,
-							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
-							Args:            buildArgs,
-							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
-							Resources:       buildOptions.Resources,
-						},
-					},
-					InitContainers: []v1.Container{
-						{
-							Name:            "fetch-bundle",
-							Image:           k.builderConfiguration.BusyBoxImage,
-							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
-							Command: []string{
-								"/bin/sh",
-							},
-							Args: []string{
-								"-c",
-								getAssetCommand,
-							},
-							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
-							Resources:    buildOptions.Resources,
-						},
-						{
-							Name:            "extract-bundle",
-							Image:           k.builderConfiguration.BusyBoxImage,
-							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.Kaniko.ImagePullPolicy),
-							Command: []string{
-								"tar",
-								"-xvf",
-								fmt.Sprintf("%s/%s", tmpFolderVolumeMount.MountPath, bundleFilename),
-								"-C",
-								"/",
-							},
-							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
-							Resources:    buildOptions.Resources,
-						},
-					},
-					Volumes: []v1.Volume{
-						{
-							Name: tmpFolderVolumeMount.Name,
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
-					},
-					RestartPolicy:      v1.RestartPolicyNever,
-					NodeSelector:       buildOptions.NodeSelector,
-					NodeName:           buildOptions.NodeName,
-					Affinity:           buildOptions.Affinity,
-					PriorityClassName:  buildOptions.PriorityClassName,
-					Tolerations:        buildOptions.Tolerations,
-					ServiceAccountName: serviceAccount,
-				},
-			},
-		},
-	}
-
-	k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
-	return kanikoJobSpec, nil
 }
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
