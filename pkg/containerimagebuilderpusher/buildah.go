@@ -144,6 +144,14 @@ func (b *Buildah) configureRootlessMode(podSpec *v1.PodSpec) {
 	}
 }
 
+// stripImageTag strips the trailing ":tag" from an image reference, leaving the bare repo path.
+func stripImageTag(image string) string {
+	if lastSlash, lastColon := strings.LastIndex(image, "/"), strings.LastIndex(image, ":"); lastColon > lastSlash {
+		return image[:lastColon]
+	}
+	return image
+}
+
 func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Container {
 
 	tmpFolderVolumeMount := v1.VolumeMount{
@@ -179,14 +187,18 @@ func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Contain
 		buildArgs = append(buildArgs, "--tls-verify=false")
 	}
 
-	if b.builderConfiguration.CacheRepo != "" {
-		buildArgs = append(buildArgs,
-			fmt.Sprintf("--cache-to=%s", envRef(b.builderConfiguration.CacheRepo)),
-			fmt.Sprintf("--cache-from=%s", envRef(b.builderConfiguration.CacheRepo)))
-	}
-
 	if buildOptions.NoCache {
 		buildArgs = append(buildArgs, "--no-cache")
+	} else {
+		cacheRepo := b.builderConfiguration.CacheRepo
+		if cacheRepo == "" {
+			// Mirror Kaniko's default cache repo when none is configured
+			cacheRepo = stripImageTag(destination) + "/cache"
+		}
+		envCacheRepo := envRef(cacheRepo)
+		buildArgs = append(buildArgs,
+			fmt.Sprintf("--cache-to=%s", envCacheRepo),
+			fmt.Sprintf("--cache-from=%s", envCacheRepo))
 	}
 
 	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
