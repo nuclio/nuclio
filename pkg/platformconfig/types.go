@@ -217,6 +217,19 @@ type ProjectsLeader struct {
 	// SyncOnStartup, when true, performs a single project sync from the leader on startup instead of (or in
 	// addition to) the periodic interval loop.
 	SyncOnStartup bool `json:"syncOnStartup,omitempty"`
+
+	// Identity is the authenticated username the leader is expected to present on leader-origin calls.
+	Identity string `json:"identity,omitempty"`
+}
+
+// TrustsLeaderOrigin reports whether a caller presenting the given session should be trusted as
+// leader-origin. Kinds other than ProjectsLeaderKindOris keep trusting the legacy X-Projects-Role header unconditionally.
+// Oris requires session.GetUsername() to match Leader Identity. A nil receiver, nil session, or empty Leader dentity all fail closed.
+func (pl *ProjectsLeader) TrustsLeaderOrigin(session auth.Session) bool {
+	if pl == nil || pl.Kind != ProjectsLeaderKindOris {
+		return true
+	}
+	return pl.Identity != "" && session != nil && session.GetUsername() == pl.Identity
 }
 
 type PlatformKubeConfig struct {

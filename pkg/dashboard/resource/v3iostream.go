@@ -103,7 +103,7 @@ func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.F
 		AuthSession: vsr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: vsr.getTrustedProjectsRoleHeader(request),
 		},
 	}
 
@@ -188,7 +188,7 @@ func (vsr *v3ioStreamResource) validateRequest(request *http.Request) error {
 		AuthSession: vsr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: vsr.getTrustedProjectsRoleHeader(request),
 		},
 	}); err != nil {
 		return nuclio.NewErrUnauthorized("Unauthorized to read project")

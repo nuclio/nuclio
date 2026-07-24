@@ -680,6 +680,14 @@ platform: {}
 #         - name: "nuclio_processor_handled_events_total"
 #           template: |-
 #             add_here_your_prometheus_query
+#
+# projectsLeader:
+#   kind: // one of iguazio, mlrun, oris, mock
+#   apiAddress: // the leader's API address
+#   synchronizationInterval: // the periodic project synchronization interval (0 to disable)
+#   projectSync2PCEnabled: // true to enable two-phase-commit validation for leader-origin project requests
+#   syncOnStartup: // true to perform a single project sync from the leader on startup instead of (or in addition to) the periodic interval loop
+#   identity: // required for Oris leader-origin calls
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
