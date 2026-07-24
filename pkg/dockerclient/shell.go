@@ -659,21 +659,22 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 		stoppedContainersArgument = "--all "
 	}
 
+	// filter values are interpolated into a command run via /bin/sh -c, so shell-quote each
+	// filter token as a single arg — label values in particular carry unvalidated namespaces
 	nameFilterArgument := ""
 	if options.Name != "" {
-		nameFilterArgument = fmt.Sprintf(`--filter "name=^/%s$" `, options.Name)
+		nameFilterArgument = fmt.Sprintf("--filter %s ", common.Quote(fmt.Sprintf("name=^/%s$", options.Name)))
 	}
 
 	idFilterArgument := ""
 	if options.ID != "" {
-		idFilterArgument = fmt.Sprintf(`--filter "id=%s"`, options.ID)
+		idFilterArgument = fmt.Sprintf("--filter %s", common.Quote(fmt.Sprintf("id=%s", options.ID)))
 	}
 
 	labelFilterArgument := ""
 	for labelName, labelValue := range options.Labels {
-		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `,
-			labelName,
-			labelValue)
+		labelFilterArgument += fmt.Sprintf("--filter %s ",
+			common.Quote(fmt.Sprintf("label=%s=%s", labelName, labelValue)))
 	}
 
 	runResult, err := c.runCommand(nil,

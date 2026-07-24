@@ -308,6 +308,7 @@ func (suite *ShellClientTestSuite) TestRunFailValidation() {
 	}
 }
 
+
 func (suite *ShellClientTestSuite) TestGetContainersEscapesLabelFilterInjection() {
 
 	// on the local platform a remote, unauthenticated client controls the function namespace,
