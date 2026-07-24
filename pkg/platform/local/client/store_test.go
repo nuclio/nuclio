@@ -23,9 +23,22 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// capturingDockerClient records the command handed to ExecInContainer so tests can assert
+// what would actually run in the local-storage container
+type capturingDockerClient struct {
+	*dockerclient.MockDockerClient
+	executedCommands []string
+}
+
+func (c *capturingDockerClient) ExecInContainer(containerID string, execOptions *dockerclient.ExecOptions) error {
+	c.executedCommands = append(c.executedCommands, execOptions.Command)
+	return nil
+}
 
 // TestGetResourcesNamedPathIsQuoted verifies that a resource path derived from
 // a malicious function name is shell-quoted before being used in a command,
@@ -44,4 +57,35 @@ func TestGetResourcesNamedPathIsQuoted(t *testing.T) {
 	// shell metacharacters, neutralising them.
 	quoted := common.Quote(resourcePath)
 	assert.True(t, strings.HasPrefix(quoted, "'"), "expected path to be single-quoted, got: %s", quoted)
+}
+
+// TestGetResourcesRejectsInjectedNamespace verifies that the list-all path rejects a namespace
+// carrying shell metacharacters before any command runs. The namespace is attacker-controlled via
+// the X-Nuclio-*-Namespace headers and is interpolated into `/bin/sh -c "/bin/cat <path>"`; the
+// GHSA-jx7q-cpg6-669g fix quoted only the named-resource path, leaving this one exploitable
+// (GHSA-mq8w-f7w8-5rgg).
+func TestGetResourcesRejectsInjectedNamespace(t *testing.T) {
+	dockerClient := &capturingDockerClient{MockDockerClient: &dockerclient.MockDockerClient{}}
+	s := &Store{dockerClient: dockerClient}
+
+	// list-all path (empty resource name)
+	err := s.getResources(functionsDir, `x" || touch /tmp/pwned #`, "", func([]byte) error { return nil })
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "k8s naming convention")
+	assert.Empty(t, dockerClient.executedCommands, "no shell command must run for an invalid namespace")
+}
+
+// TestGetResourcesListsValidNamespace verifies a well-formed namespace still reaches the
+// list-all command unharmed.
+func TestGetResourcesListsValidNamespace(t *testing.T) {
+	dockerClient := &capturingDockerClient{MockDockerClient: &dockerclient.MockDockerClient{}}
+	s := &Store{dockerClient: dockerClient}
+
+	err := s.getResources(functionsDir, "mynamespace", "", func([]byte) error { return nil })
+
+	assert.NoError(t, err)
+	assert.Len(t, dockerClient.executedCommands, 1)
+	assert.Contains(t, dockerClient.executedCommands[0], "/bin/cat")
+	assert.Contains(t, dockerClient.executedCommands[0], "mynamespace")
 }
