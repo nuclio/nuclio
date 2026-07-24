@@ -171,7 +171,11 @@ func (suite *BuildahTestSuite) TestCompileJobSpecAuthVolumeWithSecret() {
 
 	podSpec := jobSpec.Spec.Template.Spec
 	suite.Len(podSpec.Volumes, 2)
-	suite.Len(podSpec.Containers[0].VolumeMounts, 2)
+	suite.Require().Len(podSpec.Containers[0].VolumeMounts, 2)
+
+	authMount := podSpec.Containers[0].VolumeMounts[1]
+	suite.Equal(buildahAuthVolume, authMount.Name)
+	suite.True(authMount.ReadOnly, "auth secret mount must be read-only")
 }
 
 func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesRootlessMode() {

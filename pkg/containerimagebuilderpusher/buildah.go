@@ -113,6 +113,7 @@ func (b *Buildah) configureAuthVolume(buildOptions *BuildOptions, podSpec *v1.Po
 	authFolderVolumeMount := v1.VolumeMount{
 		Name:      buildahAuthVolume,
 		MountPath: buildahAuthDir,
+		ReadOnly:  true,
 	}
 
 	podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
@@ -218,7 +219,8 @@ func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Contain
 		pushArgs = append(pushArgs, "--tls-verify=false")
 	}
 
-	pushArgs = append(pushArgs, envRef(destination), fmt.Sprintf("docker://%s", envRef(destination)))
+	envDestination := envRef(destination)
+	pushArgs = append(pushArgs, envDestination, fmt.Sprintf("docker://%s", envDestination))
 
 	budCmd := "buildah bud " + strings.Join(buildArgs, " ")
 	pushCmd := "buildah push " + strings.Join(pushArgs, " ")

@@ -209,7 +209,7 @@ func (r *jobRunner) bundleFetchInitContainers(bundleFilename string,
 	resources v1.ResourceRequirements) []v1.Container {
 
 	assetsURL := fmt.Sprintf("http://%s:8070/build/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
-	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
+	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; sleep 2; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
 	return []v1.Container{
 		{
@@ -351,8 +351,11 @@ func (r *jobRunner) submitAndWait(ctx context.Context,
 // compileJobNamePrefix returns a name prefix for use as the job's ObjectMeta.GenerateName
 func (r *jobRunner) compileJobNamePrefix(image string) string {
 
+	image = strings.ReplaceAll(strings.ToLower(image), ":", "-")
+	image = strings.ReplaceAll(image, "/", "-")
+
 	invalidJobNameChars := regexp.MustCompile(`[^a-z0-9.-]`)
-	functionName := strings.Trim(invalidJobNameChars.ReplaceAllString(strings.ToLower(image), ""), ".-")
+	functionName := strings.Trim(invalidJobNameChars.ReplaceAllString(image, ""), ".-")
 
 	jobNamePrefix := fmt.Sprintf("nuclio-%s.%s-", r.builderConfiguration.JobPrefix, functionName)
 
@@ -361,7 +364,7 @@ func (r *jobRunner) compileJobNamePrefix(image string) string {
 	// cut can never leave a dangling "." or "-" that k8s's GenerateName validation would reject.
 	const generatedSuffixLen = 5
 	if maxLen := 63 - generatedSuffixLen; len(jobNamePrefix) > maxLen {
-		jobNamePrefix = jobNamePrefix[:maxLen-1] + "-"
+		jobNamePrefix = strings.TrimRight(jobNamePrefix[:maxLen-1], ".-") + "-"
 	}
 
 	return jobNamePrefix

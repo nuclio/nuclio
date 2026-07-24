@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,6 +79,64 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 	_, statErr := os.Stat(markerFile)
 	suite.Require().True(os.IsNotExist(statErr),
 		"Shell injection marker was created — injection succeeded via shell execution")
+}
+
+func (suite *JobRunnerTestSuite) TestCompileJobNamePrefix() {
+	for _, testCase := range []struct {
+		name           string
+		jobPrefix      string
+		image          string
+		expectedPrefix string
+	}{
+		{
+			name:           "ShortNameNoTruncation",
+			jobPrefix:      "buildjob",
+			image:          "my-func:latest",
+			expectedPrefix: "nuclio-buildjob.my-func-latest-",
+		},
+		{
+			name:           "SanitizesInvalidChars",
+			jobPrefix:      "buildjob",
+			image:          "Registry.Example.Com/My_Func:v1.2",
+			expectedPrefix: "nuclio-buildjob.registry.example.com-myfunc-v1.2-",
+		},
+		{
+			name:           "TruncatesLongNameGenerically",
+			jobPrefix:      "buildjob",
+			image:          strings.Repeat("x", 80) + ":latest",
+			expectedPrefix: "nuclio-buildjob." + strings.Repeat("x", 41) + "-",
+		},
+		{
+			name:           "TruncationLandsOnDot",
+			jobPrefix:      "buildjob",
+			image:          strings.Repeat("a", 40) + "." + strings.Repeat("b", 40) + ":latest",
+			expectedPrefix: "nuclio-buildjob." + strings.Repeat("a", 40) + "-",
+		},
+		{
+			name:           "TruncationLandsOnDash",
+			jobPrefix:      "buildjob",
+			image:          strings.Repeat("a", 40) + "-" + strings.Repeat("b", 40) + ":latest",
+			expectedPrefix: "nuclio-buildjob." + strings.Repeat("a", 40) + "-",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			logger, err := nucliozap.NewNuclioZapTest("test")
+			suite.Require().NoError(err)
+
+			r := &jobRunner{
+				builderName: "test",
+				logger:      logger,
+				builderConfiguration: &ContainerBuilderConfiguration{
+					JobPrefix: testCase.jobPrefix,
+				},
+			}
+
+			prefix := r.compileJobNamePrefix(testCase.image)
+
+			suite.Equal(testCase.expectedPrefix, prefix)
+			suite.LessOrEqual(len(prefix), 58, "must leave room for k8s's 5-char GenerateName suffix")
+		})
+	}
 }
 
 func TestJobRunnerTestSuite(t *testing.T) {
