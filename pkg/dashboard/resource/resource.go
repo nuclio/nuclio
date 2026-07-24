@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -119,6 +120,30 @@ func (r *resource) newPermissionOptions(request *http.Request, raiseForbidden bo
 	return opaclient.PermissionOptions{
 		MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(r.getCtxSession(ctx)),
 		RaiseForbidden:      raiseForbidden,
-		OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+		OverrideHeaderValue: r.getTrustedProjectsRoleHeader(request),
 	}
+}
+
+// getTrustedProjectsRoleHeader resolves the value to forward into PermissionOptions.OverrideHeaderValue.
+// For an Oris leader, the legacy X-Projects-Role header plays no role at all: trust is decided purely
+// from the caller's session, and a trusted caller gets the OPA-configured override value regardless of
+// what (if anything) it sent in the header — otherwise a genuinely-trusted leader whose header doesn't
+// happen to match the configured secret would still be denied the bypass. Legacy leader kinds (and no
+// leader configured) keep echoing the raw header, unchanged.
+func (r *resource) getTrustedProjectsRoleHeader(request *http.Request) string {
+	platformConfiguration := r.getDashboard().GetPlatformConfiguration()
+	projectsLeader := platformConfiguration.ProjectsLeader
+
+	if projectsLeader == nil || projectsLeader.Kind != platformconfig.ProjectsLeaderKindOris {
+		return request.Header.Get(headers.ProjectsRole)
+	}
+
+	if !projectsLeader.TrustsLeaderOrigin(r.getCtxSession(request.Context())) {
+		return ""
+	}
+
+	if platformConfiguration.Opa == nil {
+		return ""
+	}
+	return platformConfiguration.Opa.OverrideHeaderValue
 }
