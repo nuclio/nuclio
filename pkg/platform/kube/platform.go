@@ -1437,6 +1437,10 @@ func (p *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 }
 
 func (p *Platform) GetAllowedAuthenticationModes() []string {
+	if p.IsFunctionAuthenticationEnabled() {
+		return p.Config.Authentication.GetAllowedFunctionAuthenticationModes()
+	}
+
 	allowedAuthenticationModes := []string{string(auth.AuthenticationModeNone), string(auth.AuthenticationModeBasicAuth)}
 	if len(p.Config.IngressConfig.AllowedAuthenticationModes) > 0 {
 		allowedAuthenticationModes = p.Config.IngressConfig.AllowedAuthenticationModes
