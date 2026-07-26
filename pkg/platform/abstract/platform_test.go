@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -2742,6 +2743,126 @@ func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functio
 	expectedBriefErrorsMessageFileBytes, err := os.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
 	suite.Require().NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichHTTPTriggerAuthenticationMode() {
+	for _, testCase := range []struct {
+		name         string
+		flagEnabled  bool
+		defaultMode  auth.AuthenticationMode
+		attributes   map[string]interface{}
+		expectedMode interface{}
+	}{
+		{
+			name:         "flag off does not stamp",
+			flagEnabled:  false,
+			defaultMode:  auth.AuthenticationModeAPI,
+			attributes:   map[string]interface{}{},
+			expectedMode: nil,
+		},
+		{
+			name:         "flag on stamps default when absent",
+			flagEnabled:  true,
+			defaultMode:  "api",
+			attributes:   map[string]interface{}{},
+			expectedMode: auth.AuthenticationModeAPI,
+		},
+		{
+			name:         "explicit mode preserved",
+			flagEnabled:  true,
+			defaultMode:  "api",
+			attributes:   map[string]interface{}{"authenticationMode": "basicAuth"},
+			expectedMode: "basicAuth",
+		},
+		{
+			name:         "empty default not stamped",
+			flagEnabled:  true,
+			defaultMode:  "",
+			attributes:   map[string]interface{}{},
+			expectedMode: nil,
+		},
+		{
+			name:         "none default not stamped",
+			flagEnabled:  true,
+			defaultMode:  "none",
+			attributes:   map[string]interface{}{},
+			expectedMode: nil,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: testCase.flagEnabled,
+				DefaultAuthenticationMode:     testCase.defaultMode,
+			}
+			defer func() { suite.Platform.Config.Authentication = nil }()
+
+			trigger := functionconfig.Trigger{Kind: "http", Name: "http0", Attributes: testCase.attributes}
+			functionConfig := functionconfig.NewConfig()
+			suite.Platform.enrichHTTPTriggerAuthenticationMode(suite.ctx, "http0", &trigger, functionConfig)
+
+			suite.Require().Equal(testCase.expectedMode, trigger.Attributes["authenticationMode"])
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() {
+	for _, testCase := range []struct {
+		name        string
+		flagEnabled bool
+		attributes  map[string]interface{}
+		expectError bool
+	}{
+		{
+			name:        "flag off ignores attributes",
+			flagEnabled: false,
+			attributes:  map[string]interface{}{"authenticationMode": "bogus"},
+		},
+		{
+			name:        "valid mode",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{"authenticationMode": "api"},
+		},
+		{
+			name:        "invalid mode rejected",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{"authenticationMode": "bogus"},
+			expectError: true,
+		},
+		{
+			name:        "basicAuth without credentials rejected",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{"authenticationMode": "basicAuth"},
+			expectError: true,
+		},
+		{
+			name:        "basicAuth with credentials",
+			flagEnabled: true,
+			attributes: map[string]interface{}{
+				"authenticationMode": "basicAuth",
+				"authentication": map[string]interface{}{
+					"basicAuth": map[string]interface{}{
+						"username": "user",
+						"password": "pass",
+					},
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: testCase.flagEnabled,
+			}
+			defer func() { suite.Platform.Config.Authentication = nil }()
+
+			trigger := functionconfig.Trigger{Kind: "http", Name: "http0", Attributes: testCase.attributes}
+			err := suite.Platform.validateHTTPTriggerAuthentication("http0", &trigger)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {

@@ -1163,6 +1163,51 @@ func (suite *PlatformConfigTestSuite) TestEnrichAndValidateProjectsLeaderConfigO
 	suite.Require().Equal(DefaultProjectSync2PCEnabled, config.ProjectsLeader.ProjectSync2PCEnabled)
 }
 
+func (suite *PlatformConfigTestSuite) TestEnrichAuthenticationDefaultMode() {
+	for _, testCase := range []struct {
+		name         string
+		config       *Config
+		expectedMode auth.AuthenticationMode
+	}{
+		{name: "none", config: &Config{}, expectedMode: "none"},
+		{name: "api enrich", config: &Config{Authentication: &Authentication{DefaultAuthenticationMode: "api"}}, expectedMode: "api"},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().NoError(testCase.config.EnrichPlatformConfig())
+			suite.Require().NotNil(testCase.config.Authentication)
+			suite.Require().Equal(testCase.expectedMode, testCase.config.Authentication.DefaultAuthenticationMode)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultAuthenticationMode() {
+	for _, testCase := range []struct {
+		name        string
+		mode        auth.AuthenticationMode
+		expectError bool
+	}{
+		{name: "none", mode: "none"},
+		{name: "api", mode: "api"},
+		{name: "browser", mode: "browser"},
+		{name: "basicAuth", mode: "basicAuth"},
+		{name: "invalid", mode: "bogus", expectError: true},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication:    &Authentication{DefaultAuthenticationMode: testCase.mode},
+			}
+			err := config.ValidatePlatformConfig()
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "authentication config")
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
 func TestPlatformConfigTestSuite(t *testing.T) {
 	suite.Run(t, new(PlatformConfigTestSuite))
 }

@@ -371,6 +371,46 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretNameWithFlexVolume() {
 	}
 }
 
+func (suite *ScrubberTestSuite) TestScrubHTTPTriggerBasicAuthPassword() {
+	functionConfig := &Config{
+		Spec: Spec{
+			Triggers: map[string]Trigger{
+				"http": {
+					Kind: "http",
+					Attributes: map[string]interface{}{
+						"authenticationMode": "basicAuth",
+						"authentication": map[string]interface{}{
+							"basicAuth": map[string]interface{}{
+								"username": "user",
+								"password": "s3cr3t",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	scrubbedInterface, _, secretMap, err := suite.scrubber.Scrub(suite.ctx, functionConfig, "name", "namespace")
+	suite.Require().NoError(err)
+	scrubbedFunctionConfig := GetFunctionConfigFromInterface(scrubbedInterface)
+
+	scrubbedAuth := scrubbedFunctionConfig.Spec.Triggers["http"].
+		Attributes["authentication"].(map[string]interface{})["basicAuth"].(map[string]interface{})
+
+	// password becomes a $ref, username is untouched
+	suite.Require().Contains(scrubbedAuth["password"], ReferencePrefix)
+	suite.Require().Equal("user", scrubbedAuth["username"])
+	suite.Require().NotEmpty(secretMap)
+
+	restoredInterface, err := suite.scrubber.Restore(scrubbedFunctionConfig, secretMap)
+	suite.Require().NoError(err)
+	restoredFunctionConfig := GetFunctionConfigFromInterface(restoredInterface)
+	restoredAuth := restoredFunctionConfig.Spec.Triggers["http"].
+		Attributes["authentication"].(map[string]interface{})["basicAuth"].(map[string]interface{})
+	suite.Require().Equal("s3cr3t", restoredAuth["password"])
+}
+
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
 // this is implemented here to avoid a circular dependency between platformconfig and functionconfig
 func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
@@ -391,6 +431,8 @@ func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp 
 		"^/Spec/Triggers/.+/Password$",
 		// Nested path in any map element
 		"^/Spec/Triggers/.+/Attributes/password$",
+		// HTTP function-level basic auth password
+		"^/spec/triggers/.+/attributes/authentication/basicauth/password$",
 
 		// Annotations
 		"^/metadata/annotations/nuclio\\.io/kafka-ca-cert$",
