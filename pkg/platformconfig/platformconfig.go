@@ -432,13 +432,14 @@ func (c *Config) validateAuthentication() error {
 		return errors.New("Authentication config is nil after enrichment")
 	}
 	mode := string(c.Authentication.DefaultAuthenticationMode)
-	for _, valid := range c.Authentication.GetAllowedFunctionAuthenticationModes() {
+	authModes := c.Authentication.GetAllowedFunctionAuthenticationModes()
+	for _, valid := range authModes {
 		if mode == valid {
 			return nil
 		}
 	}
 	return errors.Errorf("Invalid default authentication mode, must be one of %s: %s",
-		strings.Join(c.Authentication.GetAllowedFunctionAuthenticationModes(), ", "), mode)
+		strings.Join(authModes, ", "), mode)
 }
 
 func (c *Config) validateRuntimeBaseImages() error {
