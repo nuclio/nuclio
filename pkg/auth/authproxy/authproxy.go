@@ -53,7 +53,7 @@ func newAuthInstance(parentLogger logger.Logger, authURL string, authKind auth.K
 }
 
 // abstractAuthenticator holds the shared authentication logic embedded by every topology. Given a resolved
-// FunctionAuthConfig it verifies basicAuth locally, calls the auth-url for api/browser, and always fails closed on error.
+// auth.FunctionAuthConfig it verifies basicAuth locally, calls the auth-url for api/browser, and always fails closed on error.
 type abstractAuthenticator struct {
 	logger    logger.Logger
 	auth      auth.Auth
@@ -80,7 +80,7 @@ func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL str
 }
 
 // decide applies the verdict for the resolved authConfig, writing the rejection response itself on failure.
-func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig FunctionAuthConfig) bool {
+func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig) bool {
 	switch authConfig.Mode {
 	case auth.AuthenticationModeNone:
 		a.logger.Info("Authentication disabled, allowing request")
@@ -102,7 +102,7 @@ func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, reque
 // verifyBasicAuth checks HTTP Basic credentials locally (never delegated to the auth-url).
 // reverseProxy mode: (when a bcrypt hash is present) the incoming password is verified against it.
 // authOnly mode: (where the password is ephemeral) a constant-time string comparison is used.
-func (a *abstractAuthenticator) verifyBasicAuth(responseWriter http.ResponseWriter, request *http.Request, authConfig FunctionAuthConfig) bool {
+func (a *abstractAuthenticator) verifyBasicAuth(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig) bool {
 	username, password, ok := request.BasicAuth()
 	if ok && subtle.ConstantTimeCompare([]byte(username), []byte(authConfig.BasicAuthUsername)) == 1 {
 		var passwordMatch bool
