@@ -19,6 +19,7 @@ package platformconfig
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -419,7 +420,25 @@ func (c *Config) ValidatePlatformConfig() error {
 		return errors.Wrap(err, "Failed to validate Elasticsearch config")
 	}
 
+	if err := c.validateAuthentication(); err != nil {
+		return errors.Wrap(err, "Failed to validate authentication config")
+	}
+
 	return nil
+}
+
+func (c *Config) validateAuthentication() error {
+	if c.Authentication == nil {
+		return errors.New("Authentication config is nil after enrichment")
+	}
+	mode := string(c.Authentication.DefaultAuthenticationMode)
+	for _, valid := range c.Authentication.GetAllowedFunctionAuthenticationModes() {
+		if mode == valid {
+			return nil
+		}
+	}
+	return errors.Errorf("Invalid default authentication mode, must be one of %s: %s",
+		strings.Join(c.Authentication.GetAllowedFunctionAuthenticationModes(), ", "), mode)
 }
 
 func (c *Config) validateRuntimeBaseImages() error {
@@ -575,6 +594,9 @@ func (c *Config) enrichAuthentication() {
 	}
 	if c.Authentication.AuthKind == "" {
 		c.Authentication.AuthKind = c.Opa.AuthKind
+	}
+	if c.Authentication.DefaultAuthenticationMode == "" {
+		c.Authentication.DefaultAuthenticationMode = auth.AuthenticationModeNone
 	}
 }
 
