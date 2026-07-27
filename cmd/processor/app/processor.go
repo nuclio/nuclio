@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path"
 	"sync"
 	"syscall"
 	"time"
@@ -320,7 +319,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 	// initialize scrubber, we don't care about sensitive fields and kubeClientSet
 	scrubber := functionconfig.NewScrubber(p.logger, nil, nil)
 
-	secretsMap, err := p.getSecretsMap(scrubber)
+	secretsMap, err := scrubber.LoadSecretsMap()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get secrets map")
 	}
@@ -337,42 +336,6 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 	}
 
 	return functionconfig.GetFunctionConfigFromInterface(restoredFunctionConfig), nil
-}
-
-func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string]string, error) {
-
-	// the env var is mainly for testing
-	filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
-	if filePath == "" {
-		filePath = functionconfig.FunctionSecretMountPath
-	}
-
-	contentPath := path.Join(filePath, functionconfig.SecretContentKey)
-
-	// check if a secret is mounted
-	if _, err := os.Stat(contentPath); err != nil {
-		p.logger.WarnWith("Failed to check if secret file exists",
-			"path", contentPath,
-			"err", err)
-		if os.IsNotExist(err) {
-			return nil, errors.New("Secret is not mounted to function pod")
-		}
-		return nil, errors.Wrap(err, "Failed to check if secret file exists")
-	}
-
-	p.logger.Debug("Secret is mounted to function pod, restoring function config")
-
-	// read secret content from file
-	encodedSecret, err := os.ReadFile(contentPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read function secret")
-	}
-
-	if string(encodedSecret) == "" {
-		return map[string]string{}, nil
-	}
-
-	return scrubber.DecodeSecretsMapContent(string(encodedSecret))
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
