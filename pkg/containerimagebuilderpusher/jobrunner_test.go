@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,18 @@ import (
 
 type JobRunnerTestSuite struct {
 	suite.Suite
+	jobRunner *jobRunner
+}
+
+func (suite *JobRunnerTestSuite) SetupTest() {
+	logger, err := nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+
+	suite.jobRunner = &jobRunner{
+		builderName:          "test",
+		logger:               logger,
+		builderConfiguration: &ContainerBuilderConfiguration{},
+	}
 }
 
 func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSuccess() {
@@ -40,16 +53,7 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSuccess() {
 	testFile := fmt.Sprintf("%s/test.txt", contextDir)
 	suite.Require().NoError(os.WriteFile(testFile, []byte("test"), 0644))
 
-	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err)
-
-	r := &jobRunner{
-		builderName:          "test",
-		logger:               logger,
-		builderConfiguration: &ContainerBuilderConfiguration{},
-	}
-
-	bundleFilename, assetPath, err := r.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
+	bundleFilename, assetPath, err := suite.jobRunner.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(bundleFilename)
 	suite.Require().FileExists(assetPath)
@@ -63,21 +67,61 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 	markerFile := fmt.Sprintf("%s/kaniko-injection-marker-%d", os.TempDir(), time.Now().UnixNano())
 	injectionPayload := fmt.Sprintf("/nonexistent-dir; touch %s", markerFile)
 
-	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err)
-
-	r := &jobRunner{
-		builderName:          "test",
-		logger:               logger,
-		builderConfiguration: &ContainerBuilderConfiguration{},
-	}
-
-	_, _, err = r.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
+	_, _, err := suite.jobRunner.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
 	suite.Require().Error(err, "Expected tar to fail on non-existent contextDir")
 
 	_, statErr := os.Stat(markerFile)
 	suite.Require().True(os.IsNotExist(statErr),
 		"Shell injection marker was created — injection succeeded via shell execution")
+}
+
+func (suite *JobRunnerTestSuite) TestCompileJobNamePrefix() {
+	for _, testCase := range []struct {
+		name           string
+		jobPrefix      string
+		image          string
+		expectedPrefix string
+	}{
+		{
+			name:           "ShortNameNoTruncation",
+			jobPrefix:      "buildjob",
+			image:          "my-func:latest",
+			expectedPrefix: "nuclio-buildjob.my-func-latest-",
+		},
+		{
+			name:           "SanitizesInvalidChars",
+			jobPrefix:      "buildjob",
+			image:          "Registry.Example.Com/My_Func:v1.2",
+			expectedPrefix: "nuclio-buildjob.registry.example.com-myfunc-v1.2-",
+		},
+		{
+			name:           "TruncatesLongNameGenerically",
+			jobPrefix:      "buildjob",
+			image:          strings.Repeat("x", 80) + ":latest",
+			expectedPrefix: "nuclio-buildjob." + strings.Repeat("x", 41) + "-",
+		},
+		{
+			name:           "TruncationLandsOnDot",
+			jobPrefix:      "buildjob",
+			image:          strings.Repeat("a", 40) + "." + strings.Repeat("b", 40) + ":latest",
+			expectedPrefix: "nuclio-buildjob." + strings.Repeat("a", 40) + "-",
+		},
+		{
+			name:           "TruncationLandsOnDash",
+			jobPrefix:      "buildjob",
+			image:          strings.Repeat("a", 40) + "-" + strings.Repeat("b", 40) + ":latest",
+			expectedPrefix: "nuclio-buildjob." + strings.Repeat("a", 40) + "-",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.jobRunner.builderConfiguration.JobPrefix = testCase.jobPrefix
+
+			prefix := suite.jobRunner.compileJobNamePrefix(testCase.image)
+
+			suite.Equal(testCase.expectedPrefix, prefix)
+			suite.LessOrEqual(len(prefix), 58, "must leave room for k8s's 5-char GenerateName suffix")
+		})
+	}
 }
 
 func TestJobRunnerTestSuite(t *testing.T) {

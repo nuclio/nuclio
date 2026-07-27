@@ -36,6 +36,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +50,6 @@ type jobRunner struct {
 	kubeClientSet        kube.Client
 	logger               logger.Logger
 	builderConfiguration *ContainerBuilderConfiguration
-	jobNameRegex         *regexp.Regexp
 }
 
 // newJobRunner constructs a jobRunner for the backend named builderName (e.g. "kaniko", "buildah").
@@ -62,16 +62,11 @@ func newJobRunner(builderName string,
 		return nil, errors.New("Missing builder configuration")
 	}
 
-	// Valid job name is composed of a DNS-1123 subdomains which in turn must contain only lower case
-	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com')
-	jobNameRegex := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
-
 	return &jobRunner{
 		builderName:          builderName,
 		logger:               parentLogger.GetChild(builderName),
 		kubeClientSet:        kubeClientSet,
 		builderConfiguration: builderConfiguration,
-		jobNameRegex:         jobNameRegex,
 	}, nil
 }
 
@@ -207,31 +202,173 @@ func (r *jobRunner) createContainerBuildBundle(ctx context.Context,
 	return path.Base(tarFile.Name()), assetPath, nil
 }
 
-func (r *jobRunner) compileJobName(ctx context.Context, image string) string {
+// bundleFetchInitContainers returns the fetch-bundle and extract-bundle init containers shared by every backend.
+func (r *jobRunner) bundleFetchInitContainers(bundleFilename string,
+	initContainerPullPolicy string,
+	tmpFolderVolumeMount v1.VolumeMount,
+	resources v1.ResourceRequirements) []v1.Container {
 
-	functionName := strings.ReplaceAll(image, "/", "")
-	functionName = strings.ReplaceAll(functionName, ":", "")
-	functionName = strings.ReplaceAll(functionName, "-", "")
-	randomSuffix := common.GenerateRandomString(10, common.SmallLettersAndNumbers)
-	nuclioPrefix := "nuclio-"
+	assetsURL := fmt.Sprintf("http://%s:8070/build/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
+	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; sleep 2; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
-	// Truncate function name so the job name won't exceed k8s limit of 63
-	functionNameLimit := 63 - (len(r.builderConfiguration.JobPrefix) + len(randomSuffix) + len(nuclioPrefix) + 2)
-	if len(functionName) > functionNameLimit {
-		functionName = functionName[0:functionNameLimit]
+	return []v1.Container{
+		{
+			Name:            "fetch-bundle",
+			Image:           r.builderConfiguration.BusyBoxImage,
+			ImagePullPolicy: v1.PullPolicy(initContainerPullPolicy),
+			Command: []string{
+				"/bin/sh",
+			},
+			Args: []string{
+				"-c",
+				getAssetCommand,
+			},
+			VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
+			Resources:    resources,
+		},
+		{
+			Name:            "extract-bundle",
+			Image:           r.builderConfiguration.BusyBoxImage,
+			ImagePullPolicy: v1.PullPolicy(initContainerPullPolicy),
+			Command: []string{
+				"tar",
+				"-xvf",
+				fmt.Sprintf("%s/%s", tmpFolderVolumeMount.MountPath, bundleFilename),
+				"-C",
+				"/",
+			},
+			VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
+			Resources:    resources,
+		},
+	}
+}
+
+// compileBaseJobSpec assembles the Job/Pod skeleton shared by every backend; callers splice in any
+// backend-specific volumes/init-containers/podspec tweaks afterwards.
+func (r *jobRunner) compileBaseJobSpec(ctx context.Context,
+	namespace string,
+	buildOptions *BuildOptions,
+	bundleFilename string,
+	mainContainer v1.Container,
+	initContainerPullPolicy string) (*batchv1.Job, error) {
+
+	completions := int32(1)
+	backoffLimit := int32(0)
+
+	tmpFolderVolumeMount := v1.VolumeMount{
+		Name:      "tmp",
+		MountPath: "/tmp",
 	}
 
-	jobName := fmt.Sprintf("%s%s.%s.%s", nuclioPrefix, r.builderConfiguration.JobPrefix, functionName, randomSuffix)
+	jobNamePrefix := r.compileJobNamePrefix(buildOptions.Image)
 
-	// Fallback
-	if !r.jobNameRegex.MatchString(jobName) {
-		r.logger.DebugWithCtx(ctx,
-			"Job name does not match k8s regex. Won't use function name",
-			"jobName", jobName)
-		jobName = fmt.Sprintf("%s.%s", r.builderConfiguration.JobPrefix, randomSuffix)
+	serviceAccount, err := r.enrichAndValidateServiceAccount(ctx, buildOptions, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to enrich and validate service account")
 	}
 
-	return jobName
+	// mainContainer is expected to already mount tmpFolderVolumeMount (it needs the bundle contents).
+	podSpec := v1.PodSpec{
+		Containers: []v1.Container{mainContainer},
+		InitContainers: r.bundleFetchInitContainers(bundleFilename,
+			initContainerPullPolicy,
+			tmpFolderVolumeMount,
+			buildOptions.Resources),
+		Volumes: []v1.Volume{
+			{
+				Name: tmpFolderVolumeMount.Name,
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		RestartPolicy:      v1.RestartPolicyNever,
+		NodeSelector:       buildOptions.NodeSelector,
+		NodeName:           buildOptions.NodeName,
+		Affinity:           buildOptions.Affinity,
+		PriorityClassName:  buildOptions.PriorityClassName,
+		Tolerations:        buildOptions.Tolerations,
+		ServiceAccountName: serviceAccount,
+		SecurityContext:    buildOptions.SecurityContext,
+	}
+
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: jobNamePrefix,
+			Namespace:    namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Completions:           &completions,
+			ActiveDeadlineSeconds: &buildOptions.BuildTimeoutSeconds,
+			BackoffLimit:          &backoffLimit,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace,
+					Labels:    common.CopyStringMapOrNil(r.builderConfiguration.PodLabels),
+				},
+				Spec: podSpec,
+			},
+		},
+	}, nil
+}
+
+// submitAndWait creates jobSpec, schedules its delayed deletion, and waits for it to complete.
+func (r *jobRunner) submitAndWait(ctx context.Context,
+	namespace string,
+	buildOptions *BuildOptions,
+	jobSpec *batchv1.Job) error {
+
+	r.logger.DebugWithCtx(ctx,
+		"Creating job",
+		"namespace", namespace,
+		"jobSpec", jobSpec,
+		"timeoutSeconds", buildOptions.BuildTimeoutSeconds,
+	)
+	job, err := r.kubeClientSet.CreateJob(ctx, namespace, jobSpec)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to publish %s job", r.builderName)
+	}
+
+	// Cleanup after JobDeletionTimeout, allowing the dev to inspect job/pod information before deletion
+	defer time.AfterFunc(r.builderConfiguration.JobDeletionTimeout, func() {
+
+		// Detached context so ctx cancellation doesn't skip the deletion
+		detachedCtx := context.WithoutCancel(ctx)
+		if err := r.deleteJob(detachedCtx, namespace, job.Name); err != nil {
+			r.logger.WarnWithCtx(ctx,
+				"Failed to delete job",
+				"err", err.Error())
+		}
+	})
+
+	return r.waitForJobCompletion(ctx,
+		namespace,
+		job.Name,
+		buildOptions.BuildTimeoutSeconds,
+		buildOptions.ReadinessTimeoutSeconds,
+		buildOptions.BuildLogger)
+}
+
+// compileJobNamePrefix returns a name prefix for use as the job's ObjectMeta.GenerateName
+func (r *jobRunner) compileJobNamePrefix(image string) string {
+
+	image = strings.ReplaceAll(strings.ToLower(image), ":", "-")
+	image = strings.ReplaceAll(image, "/", "-")
+
+	invalidJobNameChars := regexp.MustCompile(`[^a-z0-9.-]`)
+	functionName := strings.Trim(invalidJobNameChars.ReplaceAllString(image, ""), ".-")
+
+	jobNamePrefix := fmt.Sprintf("nuclio-%s.%s-", r.builderConfiguration.JobPrefix, functionName)
+
+	// k8s appends a 5-char random suffix directly onto GenerateName. Truncate so the resulting
+	// job name won't exceed the k8s limit of 63, reserving the last char for a forced "-" so the
+	// cut can never leave a dangling "." or "-" that k8s's GenerateName validation would reject.
+	const generatedSuffixLen = 5
+	if maxLen := 63 - generatedSuffixLen; len(jobNamePrefix) > maxLen {
+		jobNamePrefix = strings.TrimRight(jobNamePrefix[:maxLen-1], ".-") + "-"
+	}
+
+	return jobNamePrefix
 }
 
 func (r *jobRunner) waitForJobCompletion(ctx context.Context,
