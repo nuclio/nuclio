@@ -30,8 +30,7 @@ type Config struct {
 	AuthURL            string // the URL of the auth service to which requests are sent for authentication
 	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
 	AuthMode           string
-	BasicAuthUsername  string
-	BasicAuthPassword  string
+	FunctionConfigPath string // path to the mounted function config; credentials are read from it when auth-mode=basicAuth
 	Namespace          string
 	KubeconfigPath     string
 	PlatformConfigPath string
@@ -71,11 +70,8 @@ func validateReverseProxyConfiguration(config *Config) error {
 			return errors.New("Sign-in URL must be provided for 'browser' authentication mode")
 		}
 	case auth.AuthenticationModeBasicAuth:
-		if config.BasicAuthUsername == "" {
-			return errors.New("Basic-auth username must be provided for 'basicAuth' authentication mode")
-		}
-		if config.BasicAuthPassword == "" {
-			return errors.New("Basic-auth password must be provided for 'basicAuth' authentication mode")
+		if config.FunctionConfigPath == "" {
+			return errors.New("Function config path must be provided for 'basicAuth' authentication mode")
 		}
 	case auth.AuthenticationModeNone, "":
 		// no additional requirements
