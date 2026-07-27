@@ -521,11 +521,11 @@ type Authentication struct {
 	AuthKind auth.Kind `json:"authKind,omitempty"`
 
 	// AllowedModes lists the function-level authentication modes the platform permits.
-	AllowedModes []string `json:"allowedAuthenticationModes,omitempty"`
+	AllowedModes []string `json:"allowedModes,omitempty"`
 
 	// DefaultMode is the platform-wide default function-level authentication mode
 	// stamped onto an HTTP trigger when it does not set one explicitly.
-	DefaultMode auth.AuthenticationMode `json:"defaultAuthenticationMode,omitempty"`
+	DefaultMode auth.AuthenticationMode `json:"defaultMode,omitempty"`
 }
 
 // GetAllowedFunctionAuthenticationModes returns the allowed function-level authentication modes.
