@@ -332,10 +332,14 @@ func (s *Store) getResources(resourceDir string,
 
 	// the namespace is user-supplied (e.g. via the X-Nuclio-*-Namespace headers) and gets
 	// interpolated into a shell command below; reject anything that isn't a valid k8s name so
-	// shell metacharacters can never reach the command line (CWE-78)
-	if errorMessages := validation.IsQualifiedName(resourceNamespace); len(errorMessages) != 0 {
-		return nuclio.NewErrBadRequest("Namespace doesn't conform to k8s naming convention. Errors: " +
-			strings.Join(errorMessages, ", "))
+	// shell metacharacters can never reach the command line (CWE-78). An empty namespace is the
+	// unset/default case (never attacker-supplied — the headers only inject a non-empty value),
+	// so it is left to the existing default-namespace handling.
+	if resourceNamespace != "" {
+		if errorMessages := validation.IsQualifiedName(resourceNamespace); len(errorMessages) != 0 {
+			return nuclio.NewErrBadRequest("Namespace doesn't conform to k8s naming convention. Errors: " +
+				strings.Join(errorMessages, ", "))
+		}
 	}
 
 	var commandStdout, resourcePath string

@@ -89,3 +89,16 @@ func TestGetResourcesListsValidNamespace(t *testing.T) {
 	assert.Contains(t, dockerClient.executedCommands[0], "/bin/cat")
 	assert.Contains(t, dockerClient.executedCommands[0], "mynamespace")
 }
+
+// TestGetResourcesAllowsEmptyNamespace guards against over-validation: an empty namespace is the
+// unset/default case (used internally, e.g. to lazily initialize the local-storage reader) and must
+// not be rejected — only attacker-supplied non-empty namespaces are validated.
+func TestGetResourcesAllowsEmptyNamespace(t *testing.T) {
+	dockerClient := &capturingDockerClient{MockDockerClient: &dockerclient.MockDockerClient{}}
+	s := &Store{dockerClient: dockerClient}
+
+	err := s.getResources(functionsDir, "", "", func([]byte) error { return nil })
+
+	assert.NoError(t, err)
+	assert.Len(t, dockerClient.executedCommands, 1, "an empty namespace must still reach the list command")
+}
