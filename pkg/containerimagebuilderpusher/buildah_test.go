@@ -65,7 +65,6 @@ func (suite *BuildahTestSuite) SetupTest() {
 	}
 }
 
-
 func (suite *BuildahTestSuite) TestCompileBuildahContainerTLSVerifyFlags() {
 	for _, testCase := range []struct {
 		name                 string

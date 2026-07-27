@@ -554,6 +554,14 @@ func CompileImageName(registryURL string, imageName string) string {
 	return strings.TrimSuffix(registryURL, "/") + "/" + imageName
 }
 
+// StripImageTag strips the trailing ":tag" from an image reference, leaving the bare repo path.
+func StripImageTag(image string) string {
+	if lastSlash, lastColon := strings.LastIndex(image, "/"), strings.LastIndex(image, ":"); lastColon > lastSlash {
+		return image[:lastColon]
+	}
+	return image
+}
+
 func AnyPositiveInSliceInt64(numbers []int64) bool {
 	for _, number := range numbers {
 		if number >= 0 {

@@ -144,14 +144,6 @@ func (b *Buildah) configureRootlessMode(podSpec *v1.PodSpec) {
 	}
 }
 
-// stripImageTag strips the trailing ":tag" from an image reference, leaving the bare repo path.
-func stripImageTag(image string) string {
-	if lastSlash, lastColon := strings.LastIndex(image, "/"), strings.LastIndex(image, ":"); lastColon > lastSlash {
-		return image[:lastColon]
-	}
-	return image
-}
-
 // compileBuildahBudArgs assembles the "buildah bud" argument list.
 func (b *Buildah) compileBuildahBudArgs(buildOptions *BuildOptions, destination string, envRef func(string) string) []string {
 	buildArgs := []string{
@@ -172,7 +164,7 @@ func (b *Buildah) compileBuildahBudArgs(buildOptions *BuildOptions, destination 
 		cacheRepo := b.builderConfiguration.CacheRepo
 		if cacheRepo == "" {
 			// Mirror Kaniko's default cache repo when none is configured
-			cacheRepo = stripImageTag(destination) + "/cache"
+			cacheRepo = common.StripImageTag(destination) + "/cache"
 		}
 		envCacheRepo := envRef(cacheRepo)
 		buildArgs = append(buildArgs,

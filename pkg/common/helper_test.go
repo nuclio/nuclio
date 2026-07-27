@@ -860,6 +860,43 @@ func (suite *EnvWithLegacyKeyTestSuite) TestGetEnvOrDefaultBoolWithLegacyKey() {
 	}
 }
 
+type StripImageTagTestSuite struct {
+	suite.Suite
+}
+
+func (suite *StripImageTagTestSuite) TestStripImageTag() {
+	for _, testCase := range []struct {
+		name     string
+		image    string
+		expected string
+	}{
+		{
+			name:     "tagAfterSlash",
+			image:    "registry.example.com/my-func:latest",
+			expected: "registry.example.com/my-func",
+		},
+		{
+			name:     "tagWithoutRegistry",
+			image:    "my-func:some-tag",
+			expected: "my-func",
+		},
+		{
+			name:     "noTag",
+			image:    "registry.example.com/my-func",
+			expected: "registry.example.com/my-func",
+		},
+		{
+			name:     "portInHostNoTag",
+			image:    "registry.example.com:5000/my-func",
+			expected: "registry.example.com:5000/my-func",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expected, StripImageTag(testCase.image))
+		})
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -873,4 +910,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(IsPathWithinDirTestSuite))
 	suite.Run(t, new(ContainsPathTraversalTestSuite))
 	suite.Run(t, new(EnvWithLegacyKeyTestSuite))
+	suite.Run(t, new(StripImageTagTestSuite))
 }
