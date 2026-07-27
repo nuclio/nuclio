@@ -32,6 +32,18 @@ import (
 
 type JobRunnerTestSuite struct {
 	suite.Suite
+	jobRunner *jobRunner
+}
+
+func (suite *JobRunnerTestSuite) SetupTest() {
+	logger, err := nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+
+	suite.jobRunner = &jobRunner{
+		builderName:          "test",
+		logger:               logger,
+		builderConfiguration: &ContainerBuilderConfiguration{},
+	}
 }
 
 func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSuccess() {
@@ -41,16 +53,7 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSuccess() {
 	testFile := fmt.Sprintf("%s/test.txt", contextDir)
 	suite.Require().NoError(os.WriteFile(testFile, []byte("test"), 0644))
 
-	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err)
-
-	r := &jobRunner{
-		builderName:          "test",
-		logger:               logger,
-		builderConfiguration: &ContainerBuilderConfiguration{},
-	}
-
-	bundleFilename, assetPath, err := r.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
+	bundleFilename, assetPath, err := suite.jobRunner.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(bundleFilename)
 	suite.Require().FileExists(assetPath)
@@ -64,16 +67,7 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 	markerFile := fmt.Sprintf("%s/kaniko-injection-marker-%d", os.TempDir(), time.Now().UnixNano())
 	injectionPayload := fmt.Sprintf("/nonexistent-dir; touch %s", markerFile)
 
-	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err)
-
-	r := &jobRunner{
-		builderName:          "test",
-		logger:               logger,
-		builderConfiguration: &ContainerBuilderConfiguration{},
-	}
-
-	_, _, err = r.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
+	_, _, err := suite.jobRunner.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
 	suite.Require().Error(err, "Expected tar to fail on non-existent contextDir")
 
 	_, statErr := os.Stat(markerFile)
@@ -120,18 +114,9 @@ func (suite *JobRunnerTestSuite) TestCompileJobNamePrefix() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			logger, err := nucliozap.NewNuclioZapTest("test")
-			suite.Require().NoError(err)
+			suite.jobRunner.builderConfiguration.JobPrefix = testCase.jobPrefix
 
-			r := &jobRunner{
-				builderName: "test",
-				logger:      logger,
-				builderConfiguration: &ContainerBuilderConfiguration{
-					JobPrefix: testCase.jobPrefix,
-				},
-			}
-
-			prefix := r.compileJobNamePrefix(testCase.image)
+			prefix := suite.jobRunner.compileJobNamePrefix(testCase.image)
 
 			suite.Equal(testCase.expectedPrefix, prefix)
 			suite.LessOrEqual(len(prefix), 58, "must leave room for k8s's 5-char GenerateName suffix")

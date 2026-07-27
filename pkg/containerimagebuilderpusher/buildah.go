@@ -96,7 +96,6 @@ func (b *Buildah) compileJobSpec(ctx context.Context,
 	}
 
 	podSpec := &jobSpec.Spec.Template.Spec
-	podSpec.SecurityContext = buildOptions.SecurityContext
 	b.configureAuthVolume(buildOptions, podSpec)
 	b.configureRootlessMode(podSpec)
 
@@ -153,29 +152,8 @@ func stripImageTag(image string) string {
 	return image
 }
 
-func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Container {
-
-	tmpFolderVolumeMount := v1.VolumeMount{
-		Name:      "tmp",
-		MountPath: "/tmp",
-	}
-
-	destination := common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)
-
-	envVars := []v1.EnvVar{
-		{
-			Name:  "REGISTRY_AUTH_FILE",
-			Value: buildahAuthFile,
-		},
-	}
-
-	// envRef avoids shell injection of free-text values into the command line.
-	envRef := func(value string) string {
-		name := fmt.Sprintf("BUILDAH_ARG_%d", len(envVars))
-		envVars = append(envVars, v1.EnvVar{Name: name, Value: value})
-		return fmt.Sprintf(`"$%s"`, name)
-	}
-
+// compileBuildahBudArgs assembles the "buildah bud" argument list.
+func (b *Buildah) compileBuildahBudArgs(buildOptions *BuildOptions, destination string, envRef func(string) string) []string {
 	buildArgs := []string{
 		"--layers",
 		fmt.Sprintf("--storage-driver=%s", envRef(b.builderConfiguration.Buildah.StorageDriver)),
@@ -207,9 +185,13 @@ func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Contain
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s", envRef(buildArg)))
 	}
 
-	// Add the build context directory as last positional argument
 	buildArgs = append(buildArgs, envRef(buildOptions.ContextDir))
 
+	return buildArgs
+}
+
+// compileBuildahPushArgs assembles the "buildah push" argument list.
+func (b *Buildah) compileBuildahPushArgs(destination string, envRef func(string) string) []string {
 	pushArgs := []string{
 		fmt.Sprintf("--storage-driver=%s", envRef(b.builderConfiguration.Buildah.StorageDriver)),
 		fmt.Sprintf("--retry=%d", b.builderConfiguration.PushImagesRetries),
@@ -221,6 +203,35 @@ func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Contain
 
 	envDestination := envRef(destination)
 	pushArgs = append(pushArgs, envDestination, fmt.Sprintf("docker://%s", envDestination))
+
+	return pushArgs
+}
+
+func (b *Buildah) compileBuildahContainer(buildOptions *BuildOptions) v1.Container {
+
+	tmpFolderVolumeMount := v1.VolumeMount{
+		Name:      "tmp",
+		MountPath: "/tmp",
+	}
+
+	destination := common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)
+
+	envVars := []v1.EnvVar{
+		{
+			Name:  "REGISTRY_AUTH_FILE",
+			Value: buildahAuthFile,
+		},
+	}
+
+	// envRef avoids shell injection of free-text values into the command line.
+	envRef := func(value string) string {
+		name := fmt.Sprintf("BUILDAH_ARG_%d", len(envVars))
+		envVars = append(envVars, v1.EnvVar{Name: name, Value: value})
+		return fmt.Sprintf(`"$%s"`, name)
+	}
+
+	buildArgs := b.compileBuildahBudArgs(buildOptions, destination, envRef)
+	pushArgs := b.compileBuildahPushArgs(destination, envRef)
 
 	budCmd := "buildah bud " + strings.Join(buildArgs, " ")
 	pushCmd := "buildah push " + strings.Join(pushArgs, " ")

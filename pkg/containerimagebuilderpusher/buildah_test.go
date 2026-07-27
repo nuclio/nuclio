@@ -31,6 +31,11 @@ import (
 	"k8s.io/api/core/v1"
 )
 
+var (
+	budTLSVerifyRegexp  = regexp.MustCompile(`buildah bud[^\n]*--tls-verify=false`)
+	pushTLSVerifyRegexp = regexp.MustCompile(`buildah push[^\n]*--tls-verify=false`)
+)
+
 type BuildahTestSuite struct {
 	suite.Suite
 	logger  logger.Logger
@@ -60,16 +65,6 @@ func (suite *BuildahTestSuite) SetupTest() {
 	}
 }
 
-func (suite *BuildahTestSuite) newBuildOptions() *BuildOptions {
-	return &BuildOptions{
-		Image:       "my-func:latest",
-		ContextDir:  "/some/context",
-		RegistryURL: "registry.example.com",
-		DockerfileInfo: &runtime.ProcessorDockerfileInfo{
-			DockerfilePath: "/some/context/Dockerfile",
-		},
-	}
-}
 
 func (suite *BuildahTestSuite) TestCompileBuildahContainerTLSVerifyFlags() {
 	for _, testCase := range []struct {
@@ -107,8 +102,8 @@ func (suite *BuildahTestSuite) TestCompileBuildahContainerTLSVerifyFlags() {
 			suite.Require().Len(container.Args, 2)
 			command := container.Args[1]
 
-			budTLSVerify := regexp.MustCompile(`buildah bud[^\n]*--tls-verify=false`).MatchString(command)
-			pushTLSVerify := regexp.MustCompile(`buildah push[^\n]*--tls-verify=false`).MatchString(command)
+			budTLSVerify := budTLSVerifyRegexp.MatchString(command)
+			pushTLSVerify := pushTLSVerifyRegexp.MatchString(command)
 
 			suite.Equal(testCase.expectPullTLSVerify, budTLSVerify)
 			suite.Equal(testCase.expectPushTLSVerify, pushTLSVerify)
@@ -259,6 +254,17 @@ func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesIsol
 			suite.Require().NoError(err)
 			suite.Equal(testCase.expected, config.Buildah.Isolation)
 		})
+	}
+}
+
+func (suite *BuildahTestSuite) newBuildOptions() *BuildOptions {
+	return &BuildOptions{
+		Image:       "my-func:latest",
+		ContextDir:  "/some/context",
+		RegistryURL: "registry.example.com",
+		DockerfileInfo: &runtime.ProcessorDockerfileInfo{
+			DockerfilePath: "/some/context/Dockerfile",
+		},
 	}
 }
 
