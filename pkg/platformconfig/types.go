@@ -520,19 +520,24 @@ type Authentication struct {
 	// Defaults to the value set in the OPA config (Opa.AuthKind).
 	AuthKind auth.Kind `json:"authKind,omitempty"`
 
-	// AllowedAuthenticationModes lists the function-level authentication modes the platform permits.
-	AllowedAuthenticationModes []string `json:"allowedAuthenticationModes,omitempty"`
+	// AllowedModes lists the function-level authentication modes the platform permits.
+	AllowedModes []string `json:"allowedAuthenticationModes,omitempty"`
 
-	// DefaultAuthenticationMode is the platform-wide default function-level authentication mode
+	// DefaultMode is the platform-wide default function-level authentication mode
 	// stamped onto an HTTP trigger when it does not set one explicitly.
-	DefaultAuthenticationMode auth.AuthenticationMode `json:"defaultAuthenticationMode,omitempty"`
+	DefaultMode auth.AuthenticationMode `json:"defaultAuthenticationMode,omitempty"`
 }
 
 // GetAllowedFunctionAuthenticationModes returns the allowed function-level authentication modes.
-// Returns AllowedAuthenticationModes when configured; otherwise the built-in default set.
+// Returns AllowedModes when configured; otherwise the built-in default set.
 func (a *Authentication) GetAllowedFunctionAuthenticationModes() []string {
-	if len(a.AllowedAuthenticationModes) > 0 {
-		return a.AllowedAuthenticationModes
+	if len(a.AllowedModes) > 0 {
+		return a.AllowedModes
 	}
-	return []string{"none", "api", "browser", "basicAuth"}
+	return []string{
+		string(auth.AuthenticationModeNone),
+		string(auth.AuthenticationModeAPI),
+		string(auth.AuthenticationModeBrowser),
+		string(auth.AuthenticationModeBasicAuth),
+	}
 }

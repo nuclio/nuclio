@@ -2481,7 +2481,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetAllowedAuthenticationModesWit
 			name: "function auth enabled, config values",
 			config: &platformconfig.Config{Authentication: &platformconfig.Authentication{
 				FunctionAuthenticationEnabled: true,
-				AllowedAuthenticationModes:    []string{"test1", "test2"},
+				AllowedModes:                  []string{"test1", "test2"},
 			}},
 			expectedResult: []string{"test1", "test2"},
 		},

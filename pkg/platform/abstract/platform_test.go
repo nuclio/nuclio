@@ -2763,16 +2763,16 @@ func (suite *AbstractPlatformTestSuite) TestEnrichHTTPTriggerAuthenticationMode(
 		{
 			name:         "flag on stamps default when absent",
 			flagEnabled:  true,
-			defaultMode:  "api",
+			defaultMode:  auth.AuthenticationModeAPI,
 			attributes:   map[string]interface{}{},
 			expectedMode: auth.AuthenticationModeAPI,
 		},
 		{
 			name:         "explicit mode preserved",
 			flagEnabled:  true,
-			defaultMode:  "api",
-			attributes:   map[string]interface{}{"authenticationMode": "basicAuth"},
-			expectedMode: "basicAuth",
+			defaultMode:  auth.AuthenticationModeAPI,
+			attributes:   map[string]interface{}{auth.AttributeAuthenticationMode: auth.AuthenticationModeBasicAuth},
+			expectedMode: auth.AuthenticationModeBasicAuth,
 		},
 		{
 			name:         "empty default not stamped",
@@ -2784,7 +2784,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichHTTPTriggerAuthenticationMode(
 		{
 			name:         "none default not stamped",
 			flagEnabled:  true,
-			defaultMode:  "none",
+			defaultMode:  auth.AuthenticationModeNone,
 			attributes:   map[string]interface{}{},
 			expectedMode: nil,
 		},
@@ -2792,7 +2792,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichHTTPTriggerAuthenticationMode(
 		suite.Run(testCase.name, func() {
 			suite.Platform.Config.Authentication = &platformconfig.Authentication{
 				FunctionAuthenticationEnabled: testCase.flagEnabled,
-				DefaultAuthenticationMode:     testCase.defaultMode,
+				DefaultMode:                   testCase.defaultMode,
 			}
 			defer func() { suite.Platform.Config.Authentication = nil }()
 
@@ -2815,30 +2815,30 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 		{
 			name:        "flag off ignores attributes",
 			flagEnabled: false,
-			attributes:  map[string]interface{}{"authenticationMode": "bogus"},
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: "bogus"},
 		},
 		{
 			name:        "valid mode",
 			flagEnabled: true,
-			attributes:  map[string]interface{}{"authenticationMode": "api"},
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI)},
 		},
 		{
 			name:        "invalid mode rejected",
 			flagEnabled: true,
-			attributes:  map[string]interface{}{"authenticationMode": "bogus"},
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: "bogus"},
 			expectError: true,
 		},
 		{
 			name:        "basicAuth without credentials rejected",
 			flagEnabled: true,
-			attributes:  map[string]interface{}{"authenticationMode": "basicAuth"},
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth)},
 			expectError: true,
 		},
 		{
 			name:        "basicAuth with credentials",
 			flagEnabled: true,
 			attributes: map[string]interface{}{
-				"authenticationMode": "basicAuth",
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
 				"authentication": map[string]interface{}{
 					"basicAuth": map[string]interface{}{
 						"username": "user",

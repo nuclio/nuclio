@@ -91,6 +91,19 @@ type FunctionAuthConfig struct {
 	BasicAuthPasswordHash []byte
 }
 
+// Validate checks mode-specific required fields.
+func (c FunctionAuthConfig) Validate() error {
+	if c.Mode == AuthenticationModeBasicAuth {
+		if c.BasicAuthUsername == "" {
+			return errors.New("Basic-auth username must be provided")
+		}
+		if c.BasicAuthPassword == "" {
+			return errors.New("Basic-auth password must be provided")
+		}
+	}
+	return nil
+}
+
 // httpTriggerAuthAttrs is the decode target for the HTTP trigger's auth-related attributes.
 type httpTriggerAuthAttrs struct {
 	AuthenticationMode string `mapstructure:"authenticationMode"`
@@ -124,16 +137,13 @@ func FunctionAuthConfigFromAttributes(attributes map[string]interface{}, default
 			authConfig.BasicAuthUsername = decoded.Authentication.BasicAuth.Username
 			authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
 		}
-		if authConfig.BasicAuthUsername == "" {
-			return FunctionAuthConfig{}, errors.New("Basic-auth username must be provided")
-		}
-		if authConfig.BasicAuthPassword == "" {
-			return FunctionAuthConfig{}, errors.New("Basic-auth password must be provided")
-		}
 	default:
 		return FunctionAuthConfig{}, errors.Errorf("Unknown authentication mode: %s", decoded.AuthenticationMode)
 	}
 
+	if err := authConfig.Validate(); err != nil {
+		return FunctionAuthConfig{}, err
+	}
 	return authConfig, nil
 }
 

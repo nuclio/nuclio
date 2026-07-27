@@ -1170,17 +1170,17 @@ func (suite *PlatformConfigTestSuite) TestEnrichAuthenticationDefaultMode() {
 		expectedMode auth.AuthenticationMode
 	}{
 		{name: "none", config: &Config{}, expectedMode: "none"},
-		{name: "api enrich", config: &Config{Authentication: &Authentication{DefaultAuthenticationMode: "api"}}, expectedMode: "api"},
+		{name: "api enrich", config: &Config{Authentication: &Authentication{DefaultMode: "api"}}, expectedMode: "api"},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Require().NoError(testCase.config.EnrichPlatformConfig())
 			suite.Require().NotNil(testCase.config.Authentication)
-			suite.Require().Equal(testCase.expectedMode, testCase.config.Authentication.DefaultAuthenticationMode)
+			suite.Require().Equal(testCase.expectedMode, testCase.config.Authentication.DefaultMode)
 		})
 	}
 }
 
-func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultAuthenticationMode() {
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 	for _, testCase := range []struct {
 		name        string
 		mode        auth.AuthenticationMode
@@ -1195,7 +1195,7 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultAuthentic
 		suite.Run(testCase.name, func() {
 			config := &Config{
 				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
-				Authentication:    &Authentication{DefaultAuthenticationMode: testCase.mode},
+				Authentication:    &Authentication{DefaultMode: testCase.mode},
 			}
 			err := config.ValidatePlatformConfig()
 			if testCase.expectError {

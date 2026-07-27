@@ -431,7 +431,7 @@ func (c *Config) validateAuthentication() error {
 	if c.Authentication == nil {
 		return errors.New("Authentication config is nil after enrichment")
 	}
-	mode := string(c.Authentication.DefaultAuthenticationMode)
+	mode := string(c.Authentication.DefaultMode)
 	authModes := c.Authentication.GetAllowedFunctionAuthenticationModes()
 	for _, valid := range authModes {
 		if mode == valid {
@@ -596,8 +596,8 @@ func (c *Config) enrichAuthentication() {
 	if c.Authentication.AuthKind == "" {
 		c.Authentication.AuthKind = c.Opa.AuthKind
 	}
-	if c.Authentication.DefaultAuthenticationMode == "" {
-		c.Authentication.DefaultAuthenticationMode = auth.AuthenticationModeNone
+	if c.Authentication.DefaultMode == "" {
+		c.Authentication.DefaultMode = auth.AuthenticationModeNone
 	}
 }
 
