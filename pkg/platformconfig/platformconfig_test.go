@@ -1169,8 +1169,8 @@ func (suite *PlatformConfigTestSuite) TestEnrichAuthenticationDefaultMode() {
 		config       *Config
 		expectedMode auth.AuthenticationMode
 	}{
-		{name: "none", config: &Config{}, expectedMode: "none"},
-		{name: "api enrich", config: &Config{Authentication: &Authentication{DefaultMode: "api"}}, expectedMode: "api"},
+		{name: "none", config: &Config{}, expectedMode: auth.AuthenticationModeNone},
+		{name: "api enrich", config: &Config{Authentication: &Authentication{DefaultMode: auth.AuthenticationModeAPI}}, expectedMode: auth.AuthenticationModeAPI},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Require().NoError(testCase.config.EnrichPlatformConfig())
@@ -1186,10 +1186,10 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 		mode        auth.AuthenticationMode
 		expectError bool
 	}{
-		{name: "none", mode: "none"},
-		{name: "api", mode: "api"},
-		{name: "browser", mode: "browser"},
-		{name: "basicAuth", mode: "basicAuth"},
+		{name: "none", mode: auth.AuthenticationModeNone},
+		{name: "api", mode: auth.AuthenticationModeAPI},
+		{name: "browser", mode: auth.AuthenticationModeBrowser},
+		{name: "basicAuth rejected as default", mode: auth.AuthenticationModeBasicAuth, expectError: true},
 		{name: "invalid", mode: "bogus", expectError: true},
 	} {
 		suite.Run(testCase.name, func() {

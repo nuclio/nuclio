@@ -2470,12 +2470,12 @@ func (suite *FunctionKubePlatformTestSuite) TestGetAllowedAuthenticationModesWit
 		{
 			name:           "no function auth",
 			config:         &platformconfig.Config{Authentication: &platformconfig.Authentication{}},
-			expectedResult: []string{"basicAuth", "none"},
+			expectedResult: []string{string(auth.AuthenticationModeBasicAuth), string(auth.AuthenticationModeNone)},
 		},
 		{
 			name:           "function auth enabled, default values",
 			config:         &platformconfig.Config{Authentication: &platformconfig.Authentication{FunctionAuthenticationEnabled: true}},
-			expectedResult: []string{"api", "basicAuth", "browser", "none"},
+			expectedResult: []string{string(auth.AuthenticationModeAPI), string(auth.AuthenticationModeBasicAuth), string(auth.AuthenticationModeBrowser), string(auth.AuthenticationModeNone)},
 		},
 		{
 			name: "function auth enabled, config values",

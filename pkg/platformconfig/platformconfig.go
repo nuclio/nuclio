@@ -431,6 +431,11 @@ func (c *Config) validateAuthentication() error {
 	if c.Authentication == nil {
 		return errors.New("Authentication config is nil after enrichment")
 	}
+	// basicAuth cannot be the platform-wide default: it requires per-function credentials
+	// (username + password) that cannot be supplied at the platform config level.
+	if c.Authentication.DefaultMode == auth.AuthenticationModeBasicAuth {
+		return errors.New("Default authentication mode cannot be 'basicAuth': basicAuth requires per-function credentials")
+	}
 	mode := string(c.Authentication.DefaultMode)
 	authModes := c.Authentication.GetAllowedFunctionAuthenticationModes()
 	for _, valid := range authModes {
