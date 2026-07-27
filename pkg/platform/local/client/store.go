@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -329,6 +330,18 @@ func (s *Store) getResources(resourceDir string,
 	resourceName string,
 	rowHandler func([]byte) error) error {
 
+	// the namespace is user-supplied (e.g. via the X-Nuclio-*-Namespace headers) and gets
+	// interpolated into a shell command below; reject anything that isn't a valid k8s name so
+	// shell metacharacters can never reach the command line (CWE-78). An empty namespace is the
+	// unset/default case (never attacker-supplied — the headers only inject a non-empty value),
+	// so it is left to the existing default-namespace handling.
+	if resourceNamespace != "" {
+		if errorMessages := validation.IsQualifiedName(resourceNamespace); len(errorMessages) != 0 {
+			return nuclio.NewErrBadRequest("Namespace doesn't conform to k8s naming convention. Errors: " +
+				strings.Join(errorMessages, ", "))
+		}
+	}
+
 	var commandStdout, resourcePath string
 	var err error
 
@@ -338,9 +351,10 @@ func (s *Store) getResources(resourceDir string,
 		// Quote the path to prevent shell metacharacter injection.
 		commandStdout, _, err = s.runCommand(nil, "/bin/cat %s", common.Quote(resourcePath))
 	} else {
-		resourcePath = path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), "*")
-		// Wildcard: keep shell wrapper for glob expansion; wildcard is hardcoded, not user-supplied.
-		commandStdout, _, err = s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
+		// the wildcard must stay unquoted for glob expansion, but the namespace segment is
+		// user-supplied, so quote it (defense in depth on top of the validation above)
+		namespaceDir := s.getResourceNamespaceDir(resourceDir, resourceNamespace)
+		commandStdout, _, err = s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, common.Quote(namespaceDir)+"/*")
 	}
 	if err != nil {
 
