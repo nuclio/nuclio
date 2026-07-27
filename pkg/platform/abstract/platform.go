@@ -1972,7 +1972,7 @@ func (ap *Platform) validateHTTPTriggerAuthentication(triggerKey string, trigger
 		return nuclio.WrapErrBadRequest(errors.Wrapf(err, "Invalid function authentication for HTTP trigger %q", triggerKey))
 	}
 	if authConfig.Mode == auth.AuthenticationModeBasicAuth &&
-		authConfig.BasicAuthUsername == "" || authConfig.BasicAuthPassword == "" {
+		(authConfig.BasicAuthUsername == "" || authConfig.BasicAuthPassword == "") {
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Basic auth mode requires username and password for HTTP trigger %q", triggerKey))
 	}
 	return nil
