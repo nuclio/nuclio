@@ -19,24 +19,11 @@ package authproxy
 import (
 	"net/http"
 	"time"
-
-	"github.com/nuclio/nuclio/pkg/auth"
 )
 
 // AuthTimeout bounds a single auth-url call on the data path so the sidecar fails
 // closed quickly instead of inheriting pkg/auth's long (up to 60s) retry window.
 const AuthTimeout = 10 * time.Second
-
-// FunctionAuthConfig is the authentication configuration resolved for a single function.
-type FunctionAuthConfig struct {
-	Mode              auth.AuthenticationMode
-	BasicAuthUsername string
-	BasicAuthPassword string // plaintext input; cleared after hashing in reverseProxy mode
-
-	// BasicAuthPasswordHash is the bcrypt hash of BasicAuthPassword. Set by NewReverseProxyAuthenticator
-	// so the plaintext is never held in memory for the pod's lifetime.
-	BasicAuthPasswordHash []byte
-}
 
 // Authenticator authenticates an incoming request, resolving the target function from the request itself.
 type Authenticator interface {

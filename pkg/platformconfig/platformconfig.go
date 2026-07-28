@@ -19,6 +19,7 @@ package platformconfig
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -419,7 +420,31 @@ func (c *Config) ValidatePlatformConfig() error {
 		return errors.Wrap(err, "Failed to validate Elasticsearch config")
 	}
 
+	if err := c.validateAuthentication(); err != nil {
+		return errors.Wrap(err, "Failed to validate authentication config")
+	}
+
 	return nil
+}
+
+func (c *Config) validateAuthentication() error {
+	if c.Authentication == nil {
+		return errors.New("Authentication config is nil after enrichment")
+	}
+	// basicAuth cannot be the platform-wide default: it requires per-function credentials
+	// (username + password) that cannot be supplied at the platform config level.
+	if c.Authentication.DefaultMode == auth.AuthenticationModeBasicAuth {
+		return errors.New("Default authentication mode cannot be 'basicAuth': basicAuth requires per-function credentials")
+	}
+	mode := string(c.Authentication.DefaultMode)
+	authModes := c.Authentication.GetAllowedFunctionAuthenticationModes()
+	for _, valid := range authModes {
+		if mode == valid {
+			return nil
+		}
+	}
+	return errors.Errorf("Invalid default authentication mode, must be one of %s: %s",
+		strings.Join(authModes, ", "), mode)
 }
 
 func (c *Config) validateRuntimeBaseImages() error {
@@ -575,6 +600,9 @@ func (c *Config) enrichAuthentication() {
 	}
 	if c.Authentication.AuthKind == "" {
 		c.Authentication.AuthKind = c.Opa.AuthKind
+	}
+	if c.Authentication.DefaultMode == "" {
+		c.Authentication.DefaultMode = auth.AuthenticationModeNone
 	}
 }
 

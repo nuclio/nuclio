@@ -26,9 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -129,18 +127,18 @@ func (a *authOnlyAuthenticator) authenticateTarget(responseWriter http.ResponseW
 
 // getAuthSpec reads the target function's CRD, extracts its auth config, and (only for basicAuth)
 // restores scrubbed credentials from the function's dedicated Secret.
-func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName string) (FunctionAuthConfig, error) {
+func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName string) (auth.FunctionAuthConfig, error) {
 	function, err := a.nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(a.namespace).
 		Get(ctx, functionName, metav1.GetOptions{})
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to get function %s", functionName)
+		return auth.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to get function %s", functionName)
 	}
 
 	authConfig, err := functionAuthConfigFromSpec(&function.Spec)
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read auth config for function %s", functionName)
+		return auth.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read auth config for function %s", functionName)
 	}
 
 	// the scrubber is only needed for basicAuth: it replaces $ref: placeholders with the real
@@ -158,52 +156,18 @@ func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName st
 	}
 	restoredConfig, err := a.scrubber.RestoreFunctionConfig(ctx, functionConfig, common.KubePlatformName)
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to restore function %s secrets", functionName)
+		return auth.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to restore function %s secrets", functionName)
 	}
 
 	return functionAuthConfigFromSpec(&restoredConfig.Spec)
 }
 
 // functionAuthConfigFromSpec resolves the authentication config from the function's HTTP trigger.
-func functionAuthConfigFromSpec(spec *functionconfig.Spec) (FunctionAuthConfig, error) {
+func functionAuthConfigFromSpec(spec *functionconfig.Spec) (auth.FunctionAuthConfig, error) {
 	for _, httpTrigger := range functionconfig.GetTriggersByKind(spec.Triggers, "http") {
-		return functionAuthConfigFromAttributes(httpTrigger.Attributes)
+		return auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeNone)
 	}
 
 	// no HTTP trigger -> nothing to authenticate
-	return FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil
-}
-
-// functionAuthConfigFromAttributes decodes authenticationMode + authentication.basicAuth from an HTTP
-// trigger's free-form attributes (HLD §2.1.2), reusing the shared ingress.Authentication spec for the credentials.
-func functionAuthConfigFromAttributes(attributes map[string]interface{}) (FunctionAuthConfig, error) {
-	decoded := struct {
-		AuthenticationMode string                  `mapstructure:"authenticationMode"`
-		Authentication     *ingress.Authentication `mapstructure:"authentication"`
-	}{}
-	if err := mapstructure.Decode(attributes, &decoded); err != nil {
-		return FunctionAuthConfig{}, errors.Wrap(err, "Failed to decode HTTP trigger attributes")
-	}
-
-	mode := auth.AuthenticationMode(decoded.AuthenticationMode)
-	if mode == "" {
-		mode = auth.AuthenticationModeNone
-	}
-
-	authConfig := FunctionAuthConfig{Mode: mode}
-	if decoded.Authentication != nil && decoded.Authentication.BasicAuth != nil {
-		authConfig.BasicAuthUsername = decoded.Authentication.BasicAuth.Username
-		authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
-	}
-
-	if mode == auth.AuthenticationModeBasicAuth {
-		if authConfig.BasicAuthUsername == "" {
-			return FunctionAuthConfig{}, errors.New("Basic-auth username must be provided")
-		}
-		if authConfig.BasicAuthPassword == "" {
-			return FunctionAuthConfig{}, errors.New("Basic-auth password must be provided")
-		}
-	}
-
-	return authConfig, nil
+	return auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil
 }

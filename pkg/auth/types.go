@@ -19,6 +19,9 @@ package auth
 import (
 	"net/http"
 	"time"
+
+	"github.com/mitchellh/mapstructure"
+	"github.com/nuclio/errors"
 )
 
 // AuthenticationMode is the authentication mode for API gateways and ingress resources.
@@ -32,6 +35,9 @@ const (
 	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
 	AuthenticationModeAPI       AuthenticationMode = "api"
 	AuthenticationModeBrowser   AuthenticationMode = "browser"
+
+	// AttributeAuthenticationMode is the key for the authentication mode in HTTP trigger attributes.
+	AttributeAuthenticationMode = "authenticationMode"
 )
 
 type Kind string
@@ -70,6 +76,75 @@ func ContextKeyByKind(kind Kind) SessionContextKey {
 	default:
 		return NopContextKey
 	}
+}
+
+// Function level authentication configuration, resolved from the HTTP trigger's attributes.
+
+// FunctionAuthConfig is the authentication configuration resolved for a single function.
+type FunctionAuthConfig struct {
+	Mode              AuthenticationMode
+	BasicAuthUsername string
+	BasicAuthPassword string // plaintext input; cleared after hashing in reverseProxy mode
+
+	// BasicAuthPasswordHash is the bcrypt hash of BasicAuthPassword. Set by NewReverseProxyAuthenticator
+	// so the plaintext is never held in memory for the pod's lifetime.
+	BasicAuthPasswordHash []byte
+}
+
+// Validate checks mode-specific required fields.
+func (c FunctionAuthConfig) Validate() error {
+	if c.Mode == AuthenticationModeBasicAuth {
+		if c.BasicAuthUsername == "" {
+			return errors.New("Basic-auth username must be provided")
+		}
+		if c.BasicAuthPassword == "" {
+			return errors.New("Basic-auth password must be provided")
+		}
+	}
+	return nil
+}
+
+// httpTriggerAuthAttrs is the decode target for the HTTP trigger's auth-related attributes.
+type httpTriggerAuthAttrs struct {
+	AuthenticationMode string `mapstructure:"authenticationMode"`
+	Authentication     *struct {
+		BasicAuth *struct {
+			Username string `mapstructure:"username"`
+			Password string `mapstructure:"password"`
+		} `mapstructure:"basicAuth"`
+	} `mapstructure:"authentication"`
+}
+
+// FunctionAuthConfigFromAttributes decodes authenticationMode + authentication.basicAuth from an HTTP
+// trigger's free-form attributes.
+func FunctionAuthConfigFromAttributes(attributes map[string]interface{}, defaultMode AuthenticationMode) (FunctionAuthConfig, error) {
+	var decoded httpTriggerAuthAttrs
+	if err := mapstructure.Decode(attributes, &decoded); err != nil {
+		return FunctionAuthConfig{}, errors.Wrap(err, "Failed to decode HTTP trigger attributes")
+	}
+
+	mode := AuthenticationMode(decoded.AuthenticationMode)
+	if mode == "" {
+		mode = defaultMode
+	}
+
+	authConfig := FunctionAuthConfig{Mode: mode}
+	switch mode {
+	case AuthenticationModeNone, AuthenticationModeAPI, AuthenticationModeBrowser:
+		// known modes that don't require any additional config
+	case AuthenticationModeBasicAuth:
+		if decoded.Authentication != nil && decoded.Authentication.BasicAuth != nil {
+			authConfig.BasicAuthUsername = decoded.Authentication.BasicAuth.Username
+			authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
+		}
+	default:
+		return FunctionAuthConfig{}, errors.Errorf("Unknown authentication mode: %s", decoded.AuthenticationMode)
+	}
+
+	if err := authConfig.Validate(); err != nil {
+		return FunctionAuthConfig{}, err
+	}
+	return authConfig, nil
 }
 
 type IguazioConfig struct {

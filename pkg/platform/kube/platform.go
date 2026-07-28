@@ -1437,6 +1437,12 @@ func (p *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 }
 
 func (p *Platform) GetAllowedAuthenticationModes() []string {
+	if p.IsFunctionAuthenticationEnabled() {
+		return p.Config.Authentication.GetAllowedFunctionAuthenticationModes()
+	}
+
+	// When function-level auth is disabled, fall back to the ingress-level allowed modes so that
+	// existing API-gateway / ingress auth configuration continues to be honored without change.
 	allowedAuthenticationModes := []string{string(auth.AuthenticationModeNone), string(auth.AuthenticationModeBasicAuth)}
 	if len(p.Config.IngressConfig.AllowedAuthenticationModes) > 0 {
 		allowedAuthenticationModes = p.Config.IngressConfig.AllowedAuthenticationModes

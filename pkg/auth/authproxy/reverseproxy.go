@@ -30,7 +30,7 @@ import (
 // rendered into the pod once (per function), so every request uses the same resolved FunctionAuthConfig.
 type reverseProxyAuthenticator struct {
 	*abstractAuthenticator
-	authConfig FunctionAuthConfig
+	authConfig auth.FunctionAuthConfig
 }
 
 // NewReverseProxyAuthenticator creates an Authenticator with a fixed FunctionAuthConfig (function-pod topology).
@@ -38,7 +38,7 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	authURL string,
 	signinURL string,
 	authKind auth.Kind,
-	authConfig FunctionAuthConfig) (Authenticator, error) {
+	authConfig auth.FunctionAuthConfig) (Authenticator, error) {
 	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authMode", authConfig.Mode)
 
 	// If basicAuth is configured, the plaintext password is hashed with bcrypt and discarded so it is never held in memory

@@ -84,13 +84,13 @@ func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authe
 
 // resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
 // mode the username/password come from the config (the password is injected from a Secret via secretKeyRef).
-func resolveStaticFunctionAuthConfig(config *Config) authproxy.FunctionAuthConfig {
+func resolveStaticFunctionAuthConfig(config *Config) auth.FunctionAuthConfig {
 	mode := auth.AuthenticationMode(config.AuthMode)
 	if mode == "" {
 		mode = auth.AuthenticationModeNone
 	}
 
-	return authproxy.FunctionAuthConfig{
+	return auth.FunctionAuthConfig{
 		Mode:              mode,
 		BasicAuthUsername: config.BasicAuthUsername,
 		BasicAuthPassword: config.BasicAuthPassword,

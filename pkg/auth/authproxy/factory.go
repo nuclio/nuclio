@@ -35,7 +35,7 @@ func NewAuthenticator(
 	authURL string,
 	signinURL string,
 	authKind auth.Kind,
-	staticAuthConfig FunctionAuthConfig,
+	staticAuthConfig auth.FunctionAuthConfig,
 	kubeconfigPath string,
 	namespace string,
 ) (Authenticator, error) {
