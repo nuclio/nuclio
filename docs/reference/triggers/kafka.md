@@ -233,7 +233,7 @@ In addition to periodically committing offsets, Nuclio and Sarama "flush" the ma
 ### Explicit offset commits
 
 In some cases, the "auto-commit" feature can be problematic.
-One example are stateful functions that might need to go and consume already being received records upon the function failure.
+For example , if a stateful function fails, it might need to consume records that are already being received.
 
 For that, Nuclio offers a way to accept new events without committing them, and explicitly commit offsets of the partition, when the processing is done.
 This enables the function to receive and process more events simultaneously.
@@ -290,7 +290,7 @@ This process is handled by Sarama but requires very careful logic on the Nuclio 
 
 However, Nuclio might be busy waiting for the user's code to finish processing an event, which can take an undetermined amount of time that's out of Nuclio's control. When the `rebalanceTimeout` period elapses, Sarama exits the membership and may return only when the messages stored in the partition consumer queue are handled. This is very problematic because when this happens, it triggers another rebalancing process (a member leaving the group), which might cause this condition on another replica.
 
-To prevent this, Nuclio has a hard limit on how long it waits for handlers to complete processing the event ([`maxWaitHandlerDuringRebalance`](#rebalancing-configuration-parameters). If rebalancing occurs while a handler is still processing an event, Nuclio waits for a duration of `maxWaitHandlerDuringRebalance` before forcefully restarting the worker (in runtimes that support this, such as Python) or the replica (in runtimes that don't support worker restart, such as Golang).
+To prevent this, Nuclio has a hard limit on how long it waits for handlers to complete processing the event ([`maxWaitHandlerDuringRebalance`](#rebalancing-configuration-parameters)). If rebalancing occurs while a handler is still processing an event, Nuclio waits for a duration of `maxWaitHandlerDuringRebalance` before forcefully restarting the worker (in runtimes that support this, such as Python) or the replica (in runtimes that don't support worker restart, such as Golang).
 
 This aggressive termination helps the consumer groups stabilize in a deterministic time frame, at the expense of re-processing the message. To reduce this occurrence, consider setting a high value for the [`rebalanceTimeout`](#rebalancing-configuration-parameters) and [`maxWaitHandlerDuringRebalance`](#rebalancing-configuration-parameters) configurations.
 
