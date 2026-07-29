@@ -36,7 +36,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
@@ -293,23 +292,20 @@ func (p *Processor) Stop() {
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
-	var processorConfiguration processor.Configuration
-
-	processorConfigurationReader, err := processorconfig.NewReader()
+	functionConfig, err := functionconfig.ReadConfigFromFile(configurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create configuration file reader")
+		return nil, errors.Wrap(err, "Failed to read function configuration")
 	}
 
-	functionconfigFile, err := os.Open(configurationPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to open configuration file")
+	// EventTimeout is a processor-specific concern and not validated in the shared ReadConfigFromFile helper.
+	if functionConfig.Spec.EventTimeout != "" {
+		if _, err := functionConfig.Spec.GetEventTimeout(); err != nil {
+			return nil, errors.Wrapf(err, "Can't parse Spec.EventTimeout (%q) into time.Duration",
+				functionConfig.Spec.EventTimeout)
+		}
 	}
 
-	if err := processorConfigurationReader.Read(functionconfigFile, &processorConfiguration); err != nil {
-		return nil, errors.Wrap(err, "Failed to open configuration file")
-	}
-
-	return &processorConfiguration, nil
+	return &processor.Configuration{Config: *functionConfig}, nil
 }
 
 // restoreFunctionConfig restores a scrubbed function configuration to the original values from the

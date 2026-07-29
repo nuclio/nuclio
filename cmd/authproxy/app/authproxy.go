@@ -17,16 +17,12 @@ limitations under the License.
 package app
 
 import (
-	"os"
-
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor"
-	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -116,50 +112,39 @@ func resolveStaticFunctionAuthConfig(parentLogger logger.Logger, config *Config)
 }
 
 // readBasicAuthCredentials reads the function config from configPath, restores scrubbed values from the
-// mounted secret (when NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET is set), and extracts the basicAuth
-// username and password from the HTTP trigger. Called once at sidecar startup; the dashboard has already
-// validated that exactly one HTTP trigger with basicAuth exists.
+// mounted secret (when masking is enabled and NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET is set), and
+// extracts the basicAuth username and password from the single HTTP trigger.
 func readBasicAuthCredentials(parentLogger logger.Logger, configPath string) (string, string, error) {
-	configFile, err := os.Open(configPath)
+	functionConfig, err := functionconfig.ReadConfigFromFile(configPath)
 	if err != nil {
-		return "", "", errors.Wrap(err, "Failed to open function configuration file")
-	}
-	defer configFile.Close() // nolint: errcheck
-
-	reader, err := processorconfig.NewReader()
-	if err != nil {
-		return "", "", errors.Wrap(err, "Failed to create configuration reader")
-	}
-
-	var processorConfiguration processor.Configuration
-	if err := reader.Read(configFile, &processorConfiguration); err != nil {
 		return "", "", errors.Wrap(err, "Failed to read function configuration")
 	}
 
-	functionConfig := &processorConfiguration.Config
-
-	if restoreFromSecret := common.GetEnvOrDefaultBool(common.RestoreConfigFromSecretEnvVar, false); restoreFromSecret {
-		scrubber := functionconfig.NewScrubber(parentLogger, nil, nil)
-		secretsMap, err := scrubber.LoadSecretsMap()
-		if err != nil {
-			return "", "", errors.Wrap(err, "Failed to load secrets map")
-		}
-		if len(secretsMap) > 0 {
-			restoredInterface, err := scrubber.Restore(functionConfig, secretsMap)
+	// Sensitive fields are scrubbed to "$ref:" placeholders unless masking is explicitly disabled.
+	// Only restore from the mounted Secret when scrubbing is active; otherwise credentials are already plaintext.
+	if !functionConfig.Spec.DisableSensitiveFieldsMasking {
+		if restoreFromSecret := common.GetEnvOrDefaultBool(common.RestoreConfigFromSecretEnvVar, false); restoreFromSecret {
+			scrubber := functionconfig.NewScrubber(parentLogger, nil, nil)
+			secretsMap, err := scrubber.LoadSecretsMap()
 			if err != nil {
-				return "", "", errors.Wrap(err, "Failed to restore function config from secret")
+				return "", "", errors.Wrap(err, "Failed to load secrets map")
 			}
-			functionConfig = functionconfig.GetFunctionConfigFromInterface(restoredInterface)
-			if functionConfig == nil {
-				return "", "", errors.New("Failed to convert restored function config")
+			if len(secretsMap) > 0 {
+				restoredInterface, err := scrubber.Restore(functionConfig, secretsMap)
+				if err != nil {
+					return "", "", errors.Wrap(err, "Failed to restore function config from secret")
+				}
+				functionConfig = functionconfig.GetFunctionConfigFromInterface(restoredInterface)
+				if functionConfig == nil {
+					return "", "", errors.New("Failed to convert restored function config")
+				}
 			}
 		}
 	}
 
-	httpTriggers := functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")
-	trigger := functionconfig.GetFirstTrigger(httpTriggers)
-	if trigger == nil {
-		return "", "", errors.New("No HTTP trigger found in function config")
+	trigger, err := functionconfig.GetHTTPTrigger(functionConfig.Spec.Triggers)
+	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to get HTTP trigger from function config")
 	}
 
 	authConfig, err := auth.FunctionAuthConfigFromAttributes(trigger.Attributes, auth.AuthenticationModeBasicAuth)

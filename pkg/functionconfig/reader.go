@@ -147,6 +147,26 @@ func (r *Reader) enrichPostMergeConfig(config, codeEntryConfig *Config) {
 	}
 }
 
+// ReadConfigFromFile reads a processor config YAML at path and returns the embedded function config.
+func ReadConfigFromFile(path string) (*Config, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to open function configuration file; path: %s", path)
+	}
+	defer f.Close() // nolint: errcheck
+
+	bodyBytes, err := io.ReadAll(f)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to read function configuration file; path: %s", path)
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(bodyBytes, &cfg); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function configuration")
+	}
+	return &cfg, nil
+}
+
 // There is already validation of the function config pre merge, and validation post merge.
 // This validation function is for validation during the merge itself which is mainly to convey to the user
 // about validity of the configuration file itself, and therefore help the user understand where his problem lies.
