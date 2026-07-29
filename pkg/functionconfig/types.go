@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
@@ -329,6 +330,12 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	}
 
 	return matchingTrigger
+}
+
+// IsAuthenticationEnabled reports whether the trigger has a function-level authentication mode set.
+func IsAuthenticationEnabled(trigger *Trigger) bool {
+	mode, _ := trigger.Attributes[auth.AttributeAuthenticationMode].(string)
+	return auth.IsFunctionLevelAuthenticationMode(mode)
 }
 
 // GetHTTPTrigger returns the single HTTP trigger from triggers, or an error if there is not exactly one.

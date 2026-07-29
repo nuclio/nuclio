@@ -2224,11 +2224,41 @@ func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) er
 			return nuclio.WrapErrBadRequest(err)
 		}
 
-		if err := p.validateContainerPorts(sidecar); err != nil {
+		if err := p.validateContainerPorts(functionConfig, sidecar); err != nil {
+			return nuclio.WrapErrBadRequest(err)
+		}
+
+		if err := p.validateSidecarNameNotReserved(functionConfig, sidecar); err != nil {
 			return nuclio.WrapErrBadRequest(err)
 		}
 	}
 
+	return nil
+}
+
+// validateSidecarNameNotReserved rejects a user-supplied sidecar named abstract.AuthProxySidecarContainerName,
+// which is reserved for the platform-injected auth-proxy sidecar (see functionres.injectAuthProxySidecar).
+func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig.Config, sidecar *v1.Container) error {
+	if !p.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	//TODO - change to GetHTTPTrigger once PR#4226 will be merged
+	httpTriggers := functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")
+	var httpTrigger *functionconfig.Trigger
+	for _, trigger := range httpTriggers {
+		httpTrigger = &trigger
+		break
+	}
+
+	if httpTrigger == nil || !functionconfig.IsAuthenticationEnabled(httpTrigger) {
+		return nil
+	}
+
+	if sidecar.Name == abstract.AuthProxySidecarContainerName {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Reserved sidecar name: %s",
+			abstract.AuthProxySidecarContainerName))
+	}
 	return nil
 }
 
@@ -2254,7 +2284,7 @@ func (p *Platform) validateContainerSpec(container *v1.Container) error {
 	return nil
 }
 
-func (p *Platform) validateContainerPorts(container *v1.Container) error {
+func (p *Platform) validateContainerPorts(functionConfig *functionconfig.Config, container *v1.Container) error {
 	if container.Ports != nil {
 		portNames := make(map[string]bool)
 		portNumbers := make(map[int32]bool)
@@ -2273,6 +2303,20 @@ func (p *Platform) validateContainerPorts(container *v1.Container) error {
 				abstract.FunctionContainerMetricPort,
 			}, int(port.ContainerPort)) {
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
+			}
+
+			// when function-level auth is active, the loopback port is also reserved
+			if p.IsFunctionAuthenticationEnabled() {
+				//TODO - change to GetHTTPTrigger once PR#4226 will be merged
+				var httpTrigger *functionconfig.Trigger
+				for _, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
+					httpTrigger = &trigger
+					break
+				}
+				if httpTrigger != nil && functionconfig.IsAuthenticationEnabled(httpTrigger) &&
+					port.ContainerPort == abstract.FunctionContainerHTTPLoopbackPort {
+					return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
+				}
 			}
 
 			// validate port name exists
