@@ -15,7 +15,7 @@ require (
 	github.com/coreos/go-semver v0.3.1
 	github.com/distribution/reference v0.6.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1
-	github.com/elastic/go-elasticsearch/v9 v9.4.2
+	github.com/elastic/go-elasticsearch/v9 v9.3.4
 	github.com/fatih/color v1.19.0
 	github.com/fatih/structs v1.1.0
 	github.com/go-chi/chi/v5 v5.3.1
