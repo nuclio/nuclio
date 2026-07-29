@@ -28,6 +28,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -1402,6 +1403,105 @@ func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
 
 		deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
 	}
+	if lc.functionAuthenticationEnabled(function) {
+		lc.injectAuthProxySidecar(ctx, function, deploymentSpec, volumeMounts)
+	}
+}
+
+// functionAuthenticationEnabled reports whether the auth-proxy sidecar should be injected in front of the
+// function: gated by the platform-wide feature flag AND the function's HTTP trigger declaring a
+// function-level authenticationMode (anything other than none/unset).
+func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFunction) bool {
+	if !lc.platformConfigurationProvider.GetPlatformConfiguration().IsFunctionAuthenticationEnabled() {
+		return false
+	}
+
+	//TODO - change to GetHTTPTrigger once PR#4226 will be merged
+	httpTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
+	var httpTrigger *functionconfig.Trigger
+	for _, trigger := range httpTriggers {
+		httpTrigger = &trigger
+		break
+	}
+
+	if httpTrigger == nil {
+		return false
+	}
+
+	return functionconfig.IsAuthenticationEnabled(httpTrigger)
+}
+
+// injectAuthProxySidecar appends the platform's auth-proxy sidecar to the pod: it terminates
+// authentication for the function's traffic (the Kubernetes Service is repointed to it, see
+// populateServiceSpec) and forwards allowed requests to the processor, which by this point only listens
+// on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback).
+func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	deploymentSpec *appsv1.DeploymentSpec,
+	volumeMounts []v1.VolumeMount) {
+
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+	// functionAuthenticationEnabled already found a valid HTTP trigger + authentication mode
+	//TODO - change to GetHTTPTrigger once PR#4226 will be merged
+	httpTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
+	var httpTrigger *functionconfig.Trigger
+	for _, trigger := range httpTriggers {
+		httpTrigger = &trigger
+		break
+	}
+	if httpTrigger == nil {
+		lc.logger.WarnWithCtx(ctx, "No HTTP trigger found for function, skipping auth-proxy injection", "functionName", function.Name)
+		return
+	}
+
+	authMode, _ := httpTrigger.Attributes[auth.AttributeAuthenticationMode].(string)
+
+	args := []string{
+		fmt.Sprintf("--mode=%s", auth.ProxyModeReverseProxy),
+		fmt.Sprintf("--listen-ports=%d", abstract.FunctionContainerHTTPPort),
+		fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
+		fmt.Sprintf("--auth-mode=%s", authMode),
+	}
+	if platformConfig.Authentication.AuthURL != "" {
+		args = append(args, fmt.Sprintf("--auth-url=%s", platformConfig.Authentication.AuthURL))
+	}
+	if platformConfig.Authentication.SignInURL != "" {
+		args = append(args, fmt.Sprintf("--signin-url=%s", platformConfig.Authentication.SignInURL))
+	}
+	if platformConfig.Authentication.AuthKind != "" {
+		args = append(args, fmt.Sprintf("--auth-kind=%s", platformConfig.Authentication.AuthKind))
+	}
+
+	container := v1.Container{
+		Name:         abstract.AuthProxySidecarContainerName,
+		Image:        platformConfig.Authentication.SidecarImage,
+		Args:         args,
+		VolumeMounts: volumeMounts,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          abstract.FunctionContainerHTTPPortName,
+				ContainerPort: abstract.FunctionContainerHTTPPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+	}
+
+	// basicAuth credentials are scrubbed onto the function's own secret; the sidecar restores them itself
+	// from the mounted processor config + secret (see cmd/authproxy/app/authproxy.go:readBasicAuthCredentials),
+	// mirroring how the processor restores its own configuration.
+	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeBasicAuth {
+		container.Env = append(container.Env, v1.EnvVar{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		})
+	}
+
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+		lc.logger,
+		&container.Resources)
+
+	deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, container)
 }
 
 func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) appsv1.DeploymentStrategyType {
@@ -2447,12 +2547,17 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	if function.Spec.EnvFrom != nil {
 		container.EnvFrom = function.Spec.EnvFrom
 	}
-	container.Ports = []v1.ContainerPort{
-		{
-			Name:          abstract.FunctionContainerHTTPPortName,
-			ContainerPort: abstract.FunctionContainerHTTPPort,
-			Protocol:      v1.ProtocolTCP,
-		},
+
+	// when the auth-proxy sidecar is injected, it - not the processor - owns the main HTTP port; the
+	// processor listens only on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback)
+	if !lc.functionAuthenticationEnabled(function) {
+		container.Ports = []v1.ContainerPort{
+			{
+				Name:          abstract.FunctionContainerHTTPPortName,
+				ContainerPort: abstract.FunctionContainerHTTPPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+		}
 	}
 
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
@@ -2518,6 +2623,11 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	// create configMap contents - generate a processor configuration based on the function CR
 	configMapContents := bytes.Buffer{}
 
+	functionSpec := function.Spec
+	if lc.functionAuthenticationEnabled(function) {
+		functionSpec = rewriteHTTPTriggerURLToLoopback(functionSpec)
+	}
+
 	if err := configWriter.Write(&configMapContents, &processor.Configuration{
 		Config: functionconfig.Config{
 			Meta: functionconfig.Meta{
@@ -2526,7 +2636,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 				Labels:      functionLabels,
 				Annotations: function.Annotations,
 			},
-			Spec: function.Spec,
+			Spec: functionSpec,
 		},
 	}); err != nil {
 
@@ -2545,6 +2655,23 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	}
 
 	return nil
+}
+
+// rewriteHTTPTriggerURLToLoopback returns a copy of spec whose HTTP trigger(s) listen on the pod-local
+// loopback instead of the wildcard address, so the processor is only reachable from within the pod - i.e.
+// via the auth-proxy sidecar that fronts it (see injectAuthProxySidecar). The given spec is never mutated:
+// its Triggers map is copied before being modified.
+func rewriteHTTPTriggerURLToLoopback(spec functionconfig.Spec) functionconfig.Spec {
+	triggers := make(map[string]functionconfig.Trigger, len(spec.Triggers))
+    //TODO - change to GetHTTPTrigger once PR#4226 will be merged
+	for triggerName, trigger := range spec.Triggers {
+		if trigger.Kind == "http" {
+			trigger.URL = fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort)
+		}
+		triggers[triggerName] = trigger
+	}
+	spec.Triggers = triggers
+	return spec
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
