@@ -1966,19 +1966,6 @@ func (ap *Platform) validateHTTPTriggerAuthentication(triggerKey string, trigger
 	return nil
 }
 
-// validateHTTPTriggerAuthentication validates the HTTP trigger's function-level authentication attributes.
-// It is gated by IsFunctionAuthenticationEnabled: when the flag is off the validation is ignored.
-func (ap *Platform) validateHTTPTriggerAuthentication(triggerKey string, triggerInstance *functionconfig.Trigger) error {
-	if !ap.IsFunctionAuthenticationEnabled() {
-		return nil
-	}
-	_, err := auth.FunctionAuthConfigFromAttributes(triggerInstance.Attributes, ap.Config.Authentication.DefaultMode)
-	if err != nil {
-		return nuclio.WrapErrBadRequest(errors.Wrapf(err, "Invalid function authentication for HTTP trigger %q", triggerKey))
-	}
-	return nil
-}
-
 func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) {
 
 	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
