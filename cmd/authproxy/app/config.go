@@ -25,7 +25,7 @@ import (
 // Config holds the auth-proxy sidecar configuration.
 type Config struct {
 	Mode               auth.ProxyMode
-	ListenPort         int
+	ListenPorts        []int  // every port the auth-proxy listens on; all fan in to the same UpstreamURL
 	UpstreamURL        string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
 	AuthURL            string // the URL of the auth service to which requests are sent for authentication
 	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
@@ -97,14 +97,32 @@ func validateAuthOnlyConfiguration(config *Config) error {
 }
 
 func validatePorts(config *Config) error {
-	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if config.ListenPort < 1 || config.ListenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
+	if len(config.ListenPorts) == 0 {
+		return errors.New("At least one listen port must be provided")
 	}
 
-	// ports 1 through 1023 are known as privileged ports or well-known ports, so we should avoid using them
-	if config.ListenPort < 1024 {
-		return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", config.ListenPort)
+	// authOnly is only ever reached over a single, internal loopback address (see resolveListenAddresses)
+	if config.Mode == auth.ProxyModeAuthOnly && len(config.ListenPorts) != 1 {
+		return errors.Errorf("authOnly mode requires exactly one listen port, got %d", len(config.ListenPorts))
+	}
+
+	seenPorts := make(map[int]bool, len(config.ListenPorts))
+	for _, listenPort := range config.ListenPorts {
+
+		// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
+		if listenPort < 1 || listenPort > 65535 {
+			return errors.Errorf("Invalid listen port: %d", listenPort)
+		}
+
+		// ports 1 through 1023 are known as privileged ports or well-known ports, so we should avoid using them
+		if listenPort < 1024 {
+			return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", listenPort)
+		}
+
+		if seenPorts[listenPort] {
+			return errors.Errorf("Duplicate listen port: %d", listenPort)
+		}
+		seenPorts[listenPort] = true
 	}
 
 	return nil

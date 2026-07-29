@@ -17,6 +17,8 @@ limitations under the License.
 package app
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -60,16 +62,12 @@ func Run(config *Config) error {
 		return errors.Wrap(err, "Failed to create handler")
 	}
 
-	listenAddress, err := resolveListenAddress(config.Mode, config.ListenPort)
+	listenAddresses, err := resolveListenAddresses(config.Mode, config.ListenPorts)
 	if err != nil {
-		return errors.Wrap(err, "Failed to resolve listen address")
+		return errors.Wrap(err, "Failed to resolve listen addresses")
 	}
 
-	server := newServer(rootLogger, listenAddress, handler)
-	if err := server.start(); err != nil {
-		return errors.Wrap(err, "Failed to start auth-proxy server")
-	}
-	select {}
+	return startServers(context.Background(), rootLogger, listenAddresses, handler)
 }
 
 // newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.
