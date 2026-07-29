@@ -150,18 +150,18 @@ func readBasicAuthCredentials(parentLogger logger.Logger, configPath string) (st
 				return "", "", errors.Wrap(err, "Failed to restore function config from secret")
 			}
 			functionConfig = functionconfig.GetFunctionConfigFromInterface(restoredInterface)
+			if functionConfig == nil {
+				return "", "", errors.New("Failed to convert restored function config")
+			}
 		}
 	}
 
 	httpTriggers := functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")
-	if len(httpTriggers) == 0 {
+	trigger := functionconfig.GetFirstTrigger(httpTriggers)
+	if trigger == nil {
 		return "", "", errors.New("No HTTP trigger found in function config")
 	}
 
-	var trigger functionconfig.Trigger
-	for _, trigger = range httpTriggers {
-		break
-	}
 	authConfig, err := auth.FunctionAuthConfigFromAttributes(trigger.Attributes, auth.AuthenticationModeBasicAuth)
 	if err != nil {
 		return "", "", errors.Wrap(err, "Failed to read basicAuth credentials from HTTP trigger")

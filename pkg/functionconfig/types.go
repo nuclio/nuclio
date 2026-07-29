@@ -331,6 +331,14 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	return matchingTrigger
 }
 
+// GetFirstTrigger returns a pointer to one trigger from the map, or nil if the map is empty.
+func GetFirstTrigger(triggers map[string]Trigger) *Trigger {
+	for _, trigger := range triggers {
+		return &trigger
+	}
+	return nil
+}
+
 // GetTriggersByKinds returns a map of triggers by their kinds
 func GetTriggersByKinds(triggers map[string]Trigger, kinds []string) map[string]Trigger {
 	matchingTrigger := map[string]Trigger{}
