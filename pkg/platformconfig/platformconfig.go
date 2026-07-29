@@ -594,6 +594,15 @@ func (c *Config) enrichLocalPlatform() {
 	}
 }
 
+// IsFunctionAuthenticationEnabled reports whether the platform-wide function-level authentication
+// feature flag is enabled (gates injecting the auth-proxy sidecar in front of function pods).
+func (c *Config) IsFunctionAuthenticationEnabled() bool {
+	if c.Authentication == nil {
+		return false
+	}
+	return c.Authentication.FunctionAuthenticationEnabled
+}
+
 func (c *Config) enrichAuthentication() {
 	if c.Authentication == nil {
 		c.Authentication = &Authentication{}
