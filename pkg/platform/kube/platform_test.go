@@ -695,6 +695,22 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			},
 			shouldFailValidation: true,
 		},
+		{
+			name: "invalidReservedAuthProxySidecarName",
+			sidecars: []*v1.Container{
+				{
+					Name:  abstract.AuthProxySidecarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
