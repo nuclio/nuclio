@@ -34,8 +34,7 @@ func main() {
 	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint")
 	signinURL := flag.String("signin-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_SIGNIN_URL", ""), "URL unauthenticated browser requests are redirected to sign-in")
 	authMode := flag.String("auth-mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_MODE", string(auth.AuthenticationModeNone)), "Authentication mode for reverseProxy: none, api, browser or basicAuth")
-	basicAuthUsername := flag.String("basic-auth-username", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_BASIC_AUTH_USERNAME", ""), "Basic-auth username (used only when auth-mode=basicAuth)")
-	basicAuthPassword := flag.String("basic-auth-password", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_BASIC_AUTH_PASSWORD", ""), "Basic-auth password, injected from a Secret via secretKeyRef (used only when auth-mode=basicAuth)")
+	functionConfigPath := flag.String("function-config", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_FUNCTION_CONFIG_PATH", "/etc/nuclio/config/processor/processor.yaml"), "Path to the mounted function configuration file (used only when auth-mode=basicAuth)")
 	namespace := flag.String("namespace", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_NAMESPACE", ""), "Namespace of the target functions")
 	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
@@ -49,8 +48,7 @@ func main() {
 		AuthURL:            *authURL,
 		SigninURL:          *signinURL,
 		AuthMode:           *authMode,
-		BasicAuthUsername:  *basicAuthUsername,
-		BasicAuthPassword:  *basicAuthPassword,
+		FunctionConfigPath: *functionConfigPath,
 		Namespace:          *namespace,
 		KubeconfigPath:     *kubeconfigPath,
 		PlatformConfigPath: *platformConfigurationPath,

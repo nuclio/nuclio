@@ -19,6 +19,8 @@ package app
 import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -72,27 +74,83 @@ func Run(config *Config) error {
 
 // newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.
 func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authenticator, error) {
+	staticAuthConfig, err := resolveStaticFunctionAuthConfig(rootLogger, config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function auth config")
+	}
 	return authproxy.NewAuthenticator(rootLogger,
 		config.Mode,
 		config.AuthURL,
 		config.SigninURL,
 		config.AuthKind,
-		resolveStaticFunctionAuthConfig(config),
+		staticAuthConfig,
 		config.KubeconfigPath,
 		config.Namespace)
 }
 
 // resolveStaticFunctionAuthConfig builds the fixed auth config for the reverseProxy topology. In basicAuth
-// mode the username/password come from the config (the password is injected from a Secret via secretKeyRef).
-func resolveStaticFunctionAuthConfig(config *Config) auth.FunctionAuthConfig {
+// mode the username/password are read from the mounted function config file (restored from the secret).
+func resolveStaticFunctionAuthConfig(parentLogger logger.Logger, config *Config) (auth.FunctionAuthConfig, error) {
 	mode := auth.AuthenticationMode(config.AuthMode)
 	if mode == "" {
 		mode = auth.AuthenticationModeNone
 	}
 
+	if mode != auth.AuthenticationModeBasicAuth {
+		return auth.FunctionAuthConfig{Mode: mode}, nil
+	}
+
+	username, password, err := readBasicAuthCredentials(parentLogger, config.FunctionConfigPath)
+	if err != nil {
+		return auth.FunctionAuthConfig{}, errors.Wrap(err, "Failed to read basic-auth credentials from function config")
+	}
 	return auth.FunctionAuthConfig{
 		Mode:              mode,
-		BasicAuthUsername: config.BasicAuthUsername,
-		BasicAuthPassword: config.BasicAuthPassword,
+		BasicAuthUsername: username,
+		BasicAuthPassword: password,
+	}, nil
+}
+
+// readBasicAuthCredentials reads the function config from configPath, restores scrubbed values from the
+// mounted secret (when masking is enabled and NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET is set), and
+// extracts the basicAuth username and password from the single HTTP trigger.
+func readBasicAuthCredentials(parentLogger logger.Logger, configPath string) (string, string, error) {
+	functionConfig, err := functionconfig.ReadConfigFromFile(configPath)
+	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to read function configuration")
 	}
+
+	// Sensitive fields are scrubbed to "$ref:" placeholders unless masking is explicitly disabled.
+	// Only restore from the mounted Secret when scrubbing is active; otherwise credentials are already plaintext.
+	if !functionConfig.Spec.DisableSensitiveFieldsMasking {
+		if restoreFromSecret := common.GetEnvOrDefaultBool(common.RestoreConfigFromSecretEnvVar, false); restoreFromSecret {
+			scrubber := functionconfig.NewScrubber(parentLogger, nil, nil)
+			secretsMap, err := scrubber.LoadSecretsMap()
+			if err != nil {
+				return "", "", errors.Wrap(err, "Failed to load secrets map")
+			}
+			if len(secretsMap) == 0 {
+				return "", "", errors.New("Secrets map is empty, cannot restore masked function config credentials")
+			}
+			restoredInterface, err := scrubber.Restore(functionConfig, secretsMap)
+			if err != nil {
+				return "", "", errors.Wrap(err, "Failed to restore function config from secret")
+			}
+			functionConfig = functionconfig.GetFunctionConfigFromInterface(restoredInterface)
+			if functionConfig == nil {
+				return "", "", errors.New("Failed to convert restored function config")
+			}
+		}
+	}
+
+	trigger, err := functionconfig.GetHTTPTrigger(functionConfig.Spec.Triggers)
+	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to get HTTP trigger from function config")
+	}
+
+	authConfig, err := auth.FunctionAuthConfigFromAttributes(trigger.Attributes, auth.AuthenticationModeBasicAuth)
+	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to read basicAuth credentials from HTTP trigger")
+	}
+	return authConfig.BasicAuthUsername, authConfig.BasicAuthPassword, nil
 }

@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -194,6 +196,41 @@ func (s *Scrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error
 	}
 
 	return functionConfig, nil
+}
+
+// LoadSecretsMap reads the encoded secret from the mounted secret volume and decodes it.
+// It is the canonical implementation shared by the processor and the auth-proxy sidecar.
+func (s *Scrubber) LoadSecretsMap() (map[string]string, error) {
+	filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
+	if filePath == "" {
+		filePath = FunctionSecretMountPath
+	}
+	contentPath := path.Join(filePath, SecretContentKey)
+
+	// check if a secret is mounted
+	if _, err := os.Stat(contentPath); err != nil {
+		s.Logger.WarnWith("Failed to check if secret file exists",
+			"path", contentPath,
+			"err", err)
+		if os.IsNotExist(err) {
+			return nil, errors.New("Secret is not mounted to function pod")
+		}
+		return nil, errors.Wrap(err, "Failed to check secret file")
+	}
+
+	s.Logger.Debug("Secret is mounted to function pod, restoring function config")
+
+	// read secret content from file
+	encodedSecret, err := os.ReadFile(contentPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read function secret")
+	}
+
+	if string(encodedSecret) == "" {
+		return map[string]string{}, nil
+	}
+
+	return s.DecodeSecretsMapContent(string(encodedSecret))
 }
 
 func (s *Scrubber) createFlexVolumeSecrets(ctx context.Context,

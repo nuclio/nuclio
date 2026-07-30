@@ -164,10 +164,10 @@ func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName st
 
 // functionAuthConfigFromSpec resolves the authentication config from the function's HTTP trigger.
 func functionAuthConfigFromSpec(spec *functionconfig.Spec) (auth.FunctionAuthConfig, error) {
-	for _, httpTrigger := range functionconfig.GetTriggersByKind(spec.Triggers, "http") {
-		return auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeNone)
+	httpTrigger, err := functionconfig.GetHTTPTrigger(spec.Triggers)
+	if err != nil {
+		// no HTTP trigger - nothing to authenticate
+		return auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil
 	}
-
-	// no HTTP trigger -> nothing to authenticate
-	return auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil
+	return auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeNone)
 }

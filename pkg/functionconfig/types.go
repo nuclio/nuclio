@@ -331,6 +331,18 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	return matchingTrigger
 }
 
+// GetHTTPTrigger returns the single HTTP trigger from triggers, or an error if there is not exactly one.
+func GetHTTPTrigger(triggers map[string]Trigger) (Trigger, error) {
+	httpTriggers := GetTriggersByKind(triggers, "http")
+	if len(httpTriggers) > 1 {
+		return Trigger{}, errors.New("Expected exactly one HTTP trigger in function config")
+	}
+	for _, trigger := range triggers {
+		return trigger, nil
+	}
+	return Trigger{}, errors.New("No HTTP trigger found in function config")
+}
+
 // GetTriggersByKinds returns a map of triggers by their kinds
 func GetTriggersByKinds(triggers map[string]Trigger, kinds []string) map[string]Trigger {
 	matchingTrigger := map[string]Trigger{}
