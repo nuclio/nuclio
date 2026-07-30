@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
@@ -34,9 +35,8 @@ import (
 const (
 	BuildahKind = "buildah"
 
-	buildahAuthDir    = "/var/lib/containers/auth"
-	buildahAuthFile   = buildahAuthDir + "/config.json"
-	buildahAuthVolume = "authdir"
+	buildahAuthDir  = "/var/lib/containers/auth"
+	buildahAuthFile = buildahAuthDir + "/config.json"
 )
 
 type Buildah struct {
@@ -96,35 +96,44 @@ func (b *Buildah) compileJobSpec(ctx context.Context,
 	}
 
 	podSpec := &jobSpec.Spec.Template.Spec
-	b.configureAuthVolume(buildOptions, podSpec)
+	if err := b.configureRegistryAuthentication(ctx, namespace, buildOptions, podSpec); err != nil {
+		return nil, errors.Wrap(err, "Failed to configure registry auth volumes and init containers")
+	}
 	b.configureRootlessMode(podSpec)
+	b.configureAppArmorProfile(jobSpec)
 
 	return jobSpec, nil
 }
 
-// configureAuthVolume mounts the registry auth secret (if any) into the buildah container.
-// TODO: will be extended to support Cloud registry credentials & multiple secrets in the next PR.
-func (b *Buildah) configureAuthVolume(buildOptions *BuildOptions, podSpec *v1.PodSpec) {
-	if buildOptions.SecretName == "" {
+// configureAppArmorProfile relaxes AppArmor for the buildah container, if configured.
+func (b *Buildah) configureAppArmorProfile(jobSpec *batchv1.Job) {
+	profile := b.builderConfiguration.Buildah.AppArmorProfile
+	if profile == "" {
 		return
 	}
 
-	authFolderVolumeMount := v1.VolumeMount{
-		Name:      buildahAuthVolume,
-		MountPath: buildahAuthDir,
-		ReadOnly:  true,
+	podTemplate := &jobSpec.Spec.Template
+	if podTemplate.Annotations == nil {
+		podTemplate.Annotations = map[string]string{}
 	}
+	containerName := podTemplate.Spec.Containers[0].Name
+	podTemplate.Annotations["container.apparmor.security.beta.kubernetes.io/"+containerName] = profile
+}
 
-	podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
-		Name: authFolderVolumeMount.Name,
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{
-				SecretName: buildOptions.SecretName,
-				Items:      []v1.KeyToPath{{Key: ".dockerconfigjson", Path: "config.json"}},
-			},
-		},
-	})
-	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, authFolderVolumeMount)
+// configureRegistryAuthentication mounts the registry auth secret(s) and cloud-provider credentials
+// into the buildah container.
+func (b *Buildah) configureRegistryAuthentication(ctx context.Context, namespace string, buildOptions *BuildOptions, podSpec *v1.PodSpec) error {
+	cloudHosts := registryhelpers.NormalizeHosts(buildOptions.RegistryURL,
+		buildOptions.BaseImageRegistry,
+		buildOptions.OnbuildImageRegistry)
+
+	return b.jobRunner.configureRegistryAuthentication(ctx,
+		namespace,
+		buildOptions,
+		buildahAuthDir,
+		cloudHosts,
+		b.builderConfiguration.Buildah.ImagePullPolicy,
+		podSpec)
 }
 
 // configureRootlessMode wires the buildah container's security context per Buildah.RootlessMode.

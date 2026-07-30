@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
@@ -31,7 +31,11 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-const KanikoKind = "kaniko"
+const (
+	KanikoKind = "kaniko"
+
+	kanikoAuthDir = "/kaniko/.docker"
+)
 
 type Kaniko struct {
 	*jobRunner
@@ -89,7 +93,9 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 		return nil, err
 	}
 
-	k.configureSecretVolumeMount(buildOptions, jobSpec)
+	if err := k.configureRegistryAuthentication(ctx, namespace, buildOptions, jobSpec); err != nil {
+		return nil, errors.Wrap(err, "Failed to configure registry auth volume mount")
+	}
 	return jobSpec, nil
 }
 
@@ -144,36 +150,23 @@ func (k *Kaniko) compileKanikoContainer(buildOptions *BuildOptions) v1.Container
 	}
 }
 
-func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
-	if k.matchECRUrl(buildOptions.RegistryURL) {
+// configureRegistryAuthentication wires the registry authfile into the kaniko container. Kaniko has
+// its own bundled cloud credential helpers, hence the nil cloudHosts - no login containers needed.
+func (k *Kaniko) configureRegistryAuthentication(ctx context.Context, namespace string, buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) error {
+	if registryhelpers.IsECRHost(buildOptions.RegistryURL) {
 		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
-
-		// if SecretName is defined - configure mount with docker credentials
-	} else if len(buildOptions.SecretName) > 0 {
-
-		// configure mount with docker credentials
-		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
-				Name:      "docker-config",
-				MountPath: "/kaniko/.docker",
-				ReadOnly:  true,
-			})
-
-		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
-			Name: "docker-config",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: buildOptions.SecretName,
-					Items: []v1.KeyToPath{
-						{
-							Key:  ".dockerconfigjson",
-							Path: "config.json",
-						},
-					},
-				},
-			},
-		})
+		return nil
 	}
+
+	podSpec := &kanikoJobSpec.Spec.Template.Spec
+
+	return k.jobRunner.configureRegistryAuthentication(ctx,
+		namespace,
+		buildOptions,
+		kanikoAuthDir,
+		nil,
+		k.builderConfiguration.Kaniko.ImagePullPolicy,
+		podSpec)
 }
 
 func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
@@ -181,8 +174,8 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	// Add init container to create the main and cache repositories
 	// fail silently in order to ignore "repository already exists" errors
 	// if any other error occurs - kaniko will fail similarly
-	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
-	registryID := k.resolveAWSRegistryId(buildOptions.RegistryURL)
+	region := registryhelpers.ECRRegion(buildOptions.RegistryURL)
+	registryID := registryhelpers.ECRRegistryID(buildOptions.RegistryURL)
 	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s --registry-id %s || true"
 	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region, registryID)
 	createCacheRepo := fmt.Sprintf(createRepoTemplate,
@@ -249,18 +242,4 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 			})
 	}
 	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers, initContainer)
-}
-
-func (k *Kaniko) matchECRUrl(registryURL string) bool {
-	return strings.Contains(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
-}
-
-func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
-	return strings.Split(registryURL, ".")[3]
-}
-
-// resolveAWSRegistryId extracts the AWS account ID (registry ID) from an ECR registry URL
-// Example: "123456789012.dkr.ecr.us-east-1.amazonaws.com" -> "123456789012"
-func (k *Kaniko) resolveAWSRegistryId(registryURL string) string {
-	return strings.Split(registryURL, ".")[0]
 }

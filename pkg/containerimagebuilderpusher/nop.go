@@ -62,7 +62,3 @@ func (n Nop) GetRegistryKind() string {
 func (n Nop) GetOnbuildImageRegistry(registry string) string {
 	return ""
 }
-
-func (n Nop) GetDefaultRegistryCredentialsSecretName() string {
-	return ""
-}

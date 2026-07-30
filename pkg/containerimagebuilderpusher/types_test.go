@@ -67,6 +67,52 @@ func (suite *ContainerBuilderConfigurationTestSuite) TestNilExistingBehavesEnvOn
 	suite.Equal("from-env:latest", config.Kaniko.Image)
 }
 
+func (suite *ContainerBuilderConfigurationTestSuite) TestSecretNamesMergeSingularAndList() {
+	suite.T().Setenv("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAMES", "from-env")
+
+	existing := &ContainerBuilderConfiguration{
+		DefaultRegistryCredentialsSecretName:  "singular",
+		DefaultRegistryCredentialsSecretNames: []string{"from-list"},
+	}
+
+	config, err := NewContainerBuilderConfiguration(existing)
+	suite.Require().NoError(err)
+
+	suite.Equal([]string{"singular", "from-list", "from-env"}, config.DefaultRegistryCredentialsSecretNames)
+}
+
+func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImageDefaultsToIguazioPython() {
+	config, err := NewContainerBuilderConfiguration(nil)
+	suite.Require().NoError(err)
+
+	suite.Equal("gcr.io/iguazio/python:3.11", config.PythonImage)
+}
+
+func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImageHonorsEnv() {
+	suite.T().Setenv("NUCLIO_PYTHON_BASE_IMAGE_NAME", "custom-image:latest")
+
+	config, err := NewContainerBuilderConfiguration(nil)
+	suite.Require().NoError(err)
+
+	suite.Equal("custom-image:latest", config.PythonImage)
+}
+
+func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImagePullPolicyDefaultsToIfNotPresent() {
+	config, err := NewContainerBuilderConfiguration(nil)
+	suite.Require().NoError(err)
+
+	suite.Equal("IfNotPresent", config.PythonImagePullPolicy)
+}
+
+func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImagePullPolicyHonorsEnv() {
+	suite.T().Setenv("NUCLIO_PYTHON_BASE_IMAGE_PULL_POLICY", "Always")
+
+	config, err := NewContainerBuilderConfiguration(nil)
+	suite.Require().NoError(err)
+
+	suite.Equal("Always", config.PythonImagePullPolicy)
+}
+
 func TestContainerBuilderConfigurationTestSuite(t *testing.T) {
 	suite.Run(t, new(ContainerBuilderConfigurationTestSuite))
 }

@@ -23,12 +23,15 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 var (
@@ -49,8 +52,9 @@ func (suite *BuildahTestSuite) SetupTest() {
 
 	suite.buildah = &Buildah{
 		jobRunner: &jobRunner{
-			builderName: BuildahKind,
-			logger:      suite.logger,
+			builderName:   BuildahKind,
+			logger:        suite.logger,
+			kubeClientSet: kube.NewClientWithRetryFromClient(k8sfake.NewClientset()),
 			builderConfiguration: &ContainerBuilderConfiguration{
 				BusyBoxImage: "busybox:stable",
 				Buildah: BuildahConfig{
@@ -168,8 +172,30 @@ func (suite *BuildahTestSuite) TestCompileJobSpecAuthVolumeWithSecret() {
 	suite.Require().Len(podSpec.Containers[0].VolumeMounts, 2)
 
 	authMount := podSpec.Containers[0].VolumeMounts[1]
-	suite.Equal(buildahAuthVolume, authMount.Name)
+	suite.Equal(registryhelpers.AuthVolumeName, authMount.Name)
 	suite.True(authMount.ReadOnly, "auth secret mount must be read-only")
+}
+
+func (suite *BuildahTestSuite) TestCompileJobSpecCloudAuthLoginContainersRunBeforeMerge() {
+	suite.buildah.builderConfiguration.PythonImage = "python:test"
+
+	buildOptions := suite.newBuildOptions()
+	buildOptions.RegistryURL = "myregistry.azurecr.io"
+
+	jobSpec, err := suite.buildah.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
+	suite.Require().NoError(err)
+
+	podSpec := jobSpec.Spec.Template.Spec
+	suite.Require().Len(podSpec.InitContainers, 4)
+	loginContainer := podSpec.InitContainers[2]
+	mergeContainer := podSpec.InitContainers[3]
+	suite.Contains(loginContainer.Name, "registry-login-azure")
+	suite.Equal("merge-authfile", mergeContainer.Name)
+
+	// the login container writes its token into the dir the merge container reads it from
+	tokenDir := registryhelpers.TokenDirVolumeMount().MountPath
+	suite.Contains(loginContainer.Args[1], tokenDir)
+	suite.Contains(mergeContainer.Args, "--cloud-tokens="+tokenDir)
 }
 
 func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesRootlessMode() {

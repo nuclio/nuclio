@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
@@ -41,6 +42,8 @@ type BuildOptions struct {
 	BuildFlags                               map[string]bool
 	BuildArgs                                map[string]string
 	RegistryURL                              string
+	BaseImageRegistry                        string
+	OnbuildImageRegistry                     string
 	RepoName                                 string
 	SecretName                               string
 	OutputImageFile                          string
@@ -80,28 +83,29 @@ type BuildahConfig struct {
 	RootlessMode  string
 	StorageDriver string
 	Isolation     string
+
+	AppArmorProfile string
 }
 
 type ContainerBuilderConfiguration struct {
-	Kind                                 string
-	RegistryProviderSecretName           string
-	JobPrefix                            string
-	JobDeletionTimeout                   time.Duration
-	DefaultRegistryCredentialsSecretName string
-	DefaultBaseRegistryURL               string
-	DefaultOnbuildRegistryURL            string
-	RegistryKind                         string
-	DefaultServiceAccount                string
-	CacheRepo                            string
-	InsecurePushRegistry                 bool
-	InsecurePullRegistry                 bool
-	PushImagesRetries                    int
+	Kind                                  string
+	JobPrefix                             string
+	JobDeletionTimeout                    time.Duration
+	DefaultRegistryCredentialsSecretName  string
+	DefaultRegistryCredentialsSecretNames []string
 
-	// Images used in init containers
-	BusyBoxImage   string
-	AWSCLIImage    string
-	AzureCLIImage  string
-	GCloudCLIImage string
+	DefaultBaseRegistryURL    string
+	DefaultOnbuildRegistryURL string
+	RegistryKind              string
+	DefaultServiceAccount     string
+	CacheRepo                 string
+	InsecurePushRegistry      bool
+	InsecurePullRegistry      bool
+	PushImagesRetries         int
+
+	registryhelpers.AuthConfig
+
+	BusyBoxImage string
 
 	// PodLabels are extra labels set on the build job pod template, for either backend.
 	PodLabels map[string]string
@@ -162,6 +166,24 @@ func NewContainerBuilderConfiguration(existing *ContainerBuilderConfiguration) (
 	if containerBuilderConfiguration.DefaultRegistryCredentialsSecretName == "" {
 		containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 			common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
+	}
+
+	// merge singular + list + env list into one ordered, deduped list
+	secretNames := append([]string{}, containerBuilderConfiguration.DefaultRegistryCredentialsSecretNames...)
+	secretNames = append(secretNames, common.GetEnvOrDefaultStringSlice("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAMES", nil)...)
+	if containerBuilderConfiguration.DefaultRegistryCredentialsSecretName != "" {
+		secretNames = append([]string{containerBuilderConfiguration.DefaultRegistryCredentialsSecretName}, secretNames...)
+	}
+	containerBuilderConfiguration.DefaultRegistryCredentialsSecretNames = common.RemoveDuplicatesFromSliceString(secretNames)
+
+	if containerBuilderConfiguration.PythonImage == "" {
+		containerBuilderConfiguration.PythonImage =
+			common.GetEnvOrDefaultString("NUCLIO_PYTHON_BASE_IMAGE_NAME", "gcr.io/iguazio/python:3.11")
+	}
+
+	if containerBuilderConfiguration.PythonImagePullPolicy == "" {
+		containerBuilderConfiguration.PythonImagePullPolicy =
+			common.GetEnvOrDefaultString("NUCLIO_PYTHON_BASE_IMAGE_PULL_POLICY", "IfNotPresent")
 	}
 
 	if containerBuilderConfiguration.RegistryKind == "" {
@@ -258,6 +280,11 @@ func NewContainerBuilderConfiguration(existing *ContainerBuilderConfiguration) (
 	if containerBuilderConfiguration.Buildah.Isolation != "chroot" && containerBuilderConfiguration.Buildah.Isolation != "oci" {
 		return nil, errors.Errorf("Invalid buildah isolation: %s (must be \"chroot\" or \"oci\")",
 			containerBuilderConfiguration.Buildah.Isolation)
+	}
+
+	if containerBuilderConfiguration.Buildah.AppArmorProfile == "" {
+		containerBuilderConfiguration.Buildah.AppArmorProfile = common.GetEnvOrDefaultString(
+			"NUCLIO_BUILDAH_APPARMOR_PROFILE", "unconfined")
 	}
 
 	if containerBuilderConfiguration.AzureCLIImage == "" {

@@ -152,12 +152,18 @@ spec:
           value: {{ .Values.dashboard.buildah.image.repository }}:{{ .Values.dashboard.buildah.image.tag }}
         - name: NUCLIO_BUILDAH_CONTAINER_IMAGE_PULL_POLICY
           value: {{ .Values.dashboard.buildah.image.pullPolicy }}
+        - name: NUCLIO_PYTHON_BASE_IMAGE_NAME
+          value: {{ .Values.dashboard.build.initContainerImage.python.repository }}:{{ .Values.dashboard.build.initContainerImage.python.tag }}
+        - name: NUCLIO_PYTHON_BASE_IMAGE_PULL_POLICY
+          value: {{ .Values.dashboard.build.initContainerImage.python.pullPolicy }}
         - name: NUCLIO_BUILDAH_ROOTLESS_MODE
           value: {{ .Values.dashboard.buildah.rootlessMode }}
         - name: NUCLIO_BUILDAH_STORAGE_DRIVER
           value: {{ .Values.dashboard.buildah.storageDriver }}
         - name: NUCLIO_BUILDAH_ISOLATION
           value: {{ .Values.dashboard.buildah.isolation }}
+        - name: NUCLIO_BUILDAH_APPARMOR_PROFILE
+          value: {{ .Values.dashboard.buildah.appArmorProfile }}
         - name: NUCLIO_AZURE_CLI_CONTAINER_IMAGE
           value: {{ .Values.dashboard.build.initContainerImage.azurecli.repository }}:{{ .Values.dashboard.build.initContainerImage.azurecli.tag }}
         - name: NUCLIO_GCLOUD_CLI_CONTAINER_IMAGE
@@ -240,6 +246,10 @@ spec:
           value: {{ .Values.dashboard.monitorDockerDeamon.maxConsecutiveErrors | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
+        {{- if len .Values.registry.secretNames }}
+        - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAMES
+          value: {{ template "nuclio.registry.credentialsSecretNames" . }}
+        {{- end }}
         {{- if .Values.registry.kind }}
         - name: NUCLIO_REGISTRY_KIND
           value: {{ .Values.registry.kind }}

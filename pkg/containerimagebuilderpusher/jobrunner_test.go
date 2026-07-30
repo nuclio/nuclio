@@ -22,12 +22,18 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 type JobRunnerTestSuite struct {
@@ -75,51 +81,34 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 		"Shell injection marker was created — injection succeeded via shell execution")
 }
 
-func (suite *JobRunnerTestSuite) TestCompileJobNamePrefix() {
+// TestEnsureMergeScriptConfigMap covers the server-side-apply upsert from each initial state.
+func (suite *JobRunnerTestSuite) TestEnsureMergeScriptConfigMap() {
 	for _, testCase := range []struct {
-		name           string
-		jobPrefix      string
-		image          string
-		expectedPrefix string
+		name            string
+		existingScript  string
+		configMapExists bool
 	}{
-		{
-			name:           "ShortNameNoTruncation",
-			jobPrefix:      "buildjob",
-			image:          "my-func:latest",
-			expectedPrefix: "nuclio-buildjob.my-func-latest-",
-		},
-		{
-			name:           "SanitizesInvalidChars",
-			jobPrefix:      "buildjob",
-			image:          "Registry.Example.Com/My_Func:v1.2",
-			expectedPrefix: "nuclio-buildjob.registry.example.com-myfunc-v1.2-",
-		},
-		{
-			name:           "TruncatesLongNameGenerically",
-			jobPrefix:      "buildjob",
-			image:          strings.Repeat("x", 80) + ":latest",
-			expectedPrefix: "nuclio-buildjob." + strings.Repeat("x", 41) + "-",
-		},
-		{
-			name:           "TruncationLandsOnDot",
-			jobPrefix:      "buildjob",
-			image:          strings.Repeat("a", 40) + "." + strings.Repeat("b", 40) + ":latest",
-			expectedPrefix: "nuclio-buildjob." + strings.Repeat("a", 40) + "-",
-		},
-		{
-			name:           "TruncationLandsOnDash",
-			jobPrefix:      "buildjob",
-			image:          strings.Repeat("a", 40) + "-" + strings.Repeat("b", 40) + ":latest",
-			expectedPrefix: "nuclio-buildjob." + strings.Repeat("a", 40) + "-",
-		},
+		{name: "CreatesWhenAbsent"},
+		{name: "UpdatesWhenStale", configMapExists: true, existingScript: "stale contents"},
+		{name: "IdempotentWhenUpToDate", configMapExists: true, existingScript: registryhelpers.MergeScriptContents()},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.jobRunner.builderConfiguration.JobPrefix = testCase.jobPrefix
+			var existingObjects []k8sruntime.Object
+			if testCase.configMapExists {
+				existingObjects = append(existingObjects, &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Name: registryhelpers.MergeScriptConfigMapName, Namespace: "default"},
+					Data:       map[string]string{"merge_authfile.py": testCase.existingScript},
+				})
+			}
+			suite.jobRunner.kubeClientSet = kube.NewClientWithRetryFromClient(k8sfake.NewClientset(existingObjects...))
 
-			prefix := suite.jobRunner.compileJobNamePrefix(testCase.image)
+			suite.Require().NoError(suite.jobRunner.ensureMergeScriptConfigMap(context.Background(), "default"))
 
-			suite.Equal(testCase.expectedPrefix, prefix)
-			suite.LessOrEqual(len(prefix), 58, "must leave room for k8s's 5-char GenerateName suffix")
+			configMap, err := suite.jobRunner.kubeClientSet.GetConfigMap(context.Background(),
+				"default",
+				registryhelpers.MergeScriptConfigMapName)
+			suite.Require().NoError(err)
+			suite.Equal(registryhelpers.MergeScriptContents(), configMap.Data["merge_authfile.py"])
 		})
 	}
 }

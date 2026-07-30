@@ -25,11 +25,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -73,12 +73,6 @@ func newJobRunner(builderName string,
 // GetKind returns the backend name this jobRunner was constructed for (e.g. "kaniko", "buildah").
 func (r *jobRunner) GetKind() string {
 	return r.builderName
-}
-
-// GetDefaultRegistryCredentialsSecretName returns the secret with credentials to push/pull from the
-// docker registry. Shared across backends: they all read the same builderConfiguration field.
-func (r *jobRunner) GetDefaultRegistryCredentialsSecretName() string {
-	return r.builderConfiguration.DefaultRegistryCredentialsSecretName
 }
 
 // GetBaseImageRegistry returns the base image registry.
@@ -260,7 +254,11 @@ func (r *jobRunner) compileBaseJobSpec(ctx context.Context,
 		MountPath: "/tmp",
 	}
 
-	jobNamePrefix := r.compileJobNamePrefix(buildOptions.Image)
+	jobNamePrefix := fmt.Sprintf("nuclio-%s-", r.builderConfiguration.JobPrefix)
+	jobName, err := common.SanitizeKubernetesName(jobNamePrefix, buildOptions.Image, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to compile build job name prefix")
+	}
 
 	serviceAccount, err := r.enrichAndValidateServiceAccount(ctx, buildOptions, namespace)
 	if err != nil {
@@ -294,7 +292,7 @@ func (r *jobRunner) compileBaseJobSpec(ctx context.Context,
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: jobNamePrefix,
+			GenerateName: jobName,
 			Namespace:    namespace,
 		},
 		Spec: batchv1.JobSpec{
@@ -324,6 +322,7 @@ func (r *jobRunner) submitAndWait(ctx context.Context,
 		"jobSpec", jobSpec,
 		"timeoutSeconds", buildOptions.BuildTimeoutSeconds,
 	)
+
 	job, err := r.kubeClientSet.CreateJob(ctx, namespace, jobSpec)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to publish %s job", r.builderName)
@@ -347,28 +346,6 @@ func (r *jobRunner) submitAndWait(ctx context.Context,
 		buildOptions.BuildTimeoutSeconds,
 		buildOptions.ReadinessTimeoutSeconds,
 		buildOptions.BuildLogger)
-}
-
-// compileJobNamePrefix returns a name prefix for use as the job's ObjectMeta.GenerateName
-func (r *jobRunner) compileJobNamePrefix(image string) string {
-
-	image = strings.ReplaceAll(strings.ToLower(image), ":", "-")
-	image = strings.ReplaceAll(image, "/", "-")
-
-	invalidJobNameChars := regexp.MustCompile(`[^a-z0-9.-]`)
-	functionName := strings.Trim(invalidJobNameChars.ReplaceAllString(image, ""), ".-")
-
-	jobNamePrefix := fmt.Sprintf("nuclio-%s.%s-", r.builderConfiguration.JobPrefix, functionName)
-
-	// k8s appends a 5-char random suffix directly onto GenerateName. Truncate so the resulting
-	// job name won't exceed the k8s limit of 63, reserving the last char for a forced "-" so the
-	// cut can never leave a dangling "." or "-" that k8s's GenerateName validation would reject.
-	const generatedSuffixLen = 5
-	if maxLen := 63 - generatedSuffixLen; len(jobNamePrefix) > maxLen {
-		jobNamePrefix = strings.TrimRight(jobNamePrefix[:maxLen-1], ".-") + "-"
-	}
-
-	return jobNamePrefix
 }
 
 func (r *jobRunner) waitForJobCompletion(ctx context.Context,
@@ -688,4 +665,107 @@ func (r *jobRunner) enrichServiceAccountFromBuilderConfiguration(buildOptions *B
 		return r.builderConfiguration.DefaultServiceAccount
 	}
 	return buildOptions.FunctionServiceAccount
+}
+
+// resolveRegistryAuthSecretNames returns platform default secrets plus the function-level secret, deduped.
+func (r *jobRunner) resolveRegistryAuthSecretNames(buildOptions *BuildOptions) []string {
+	names := append([]string{}, r.builderConfiguration.DefaultRegistryCredentialsSecretNames...)
+	if buildOptions.SecretName != "" {
+		names = append(names, buildOptions.SecretName)
+	}
+	return common.RemoveDuplicatesFromSliceString(names)
+}
+
+// configureRegistryAuthentication wires the registry authfile - and, if needed, cloud-provider logins
+// and a merge-authfile init container - into podSpec. cloudHosts is nil for kaniko, which uses its
+// own bundled cloud credential helpers.
+func (r *jobRunner) configureRegistryAuthentication(ctx context.Context,
+	namespace string,
+	buildOptions *BuildOptions,
+	authFileDir string,
+	cloudHosts []string,
+	imagePullPolicy string,
+	podSpec *v1.PodSpec) error {
+
+	authVolumeMount := v1.VolumeMount{Name: registryhelpers.AuthVolumeName, MountPath: authFileDir, ReadOnly: true}
+	cloudAuth := registryhelpers.NeedsCloudLogin(cloudHosts)
+	secretNames := r.resolveRegistryAuthSecretNames(buildOptions)
+
+	if !cloudAuth {
+		// no cloud auth & no secret names, nothing to do
+		if len(secretNames) == 0 {
+			return nil
+		}
+		// no cloud auth & one secret name, create a secret volume
+		if len(secretNames) == 1 {
+			podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
+				Name: registryhelpers.AuthVolumeName,
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{
+						SecretName: secretNames[0],
+						Items:      []v1.KeyToPath{{Key: ".dockerconfigjson", Path: "config.json"}},
+					},
+				},
+			})
+			podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, authVolumeMount)
+			return nil
+		}
+	}
+
+	// cloud auth and/or multiple secrets names: use merge auth init container
+	podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
+		Name:         registryhelpers.AuthVolumeName,
+		VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
+	})
+	podSpec.Containers[0].VolumeMounts = append(podSpec.Containers[0].VolumeMounts, authVolumeMount)
+
+	if cloudAuth {
+		loginContainers, loginVolumes, err := registryhelpers.BuildLoginContainers(cloudHosts,
+			buildOptions.RegistryURL,
+			buildOptions.RepoName,
+			r.builderConfiguration.AuthConfig,
+			imagePullPolicy)
+		if err != nil {
+			return err
+		}
+		tokenDirMount := registryhelpers.TokenDirVolumeMount()
+		podSpec.Volumes = append(podSpec.Volumes, v1.Volume{
+			Name:         tokenDirMount.Name,
+			VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
+		})
+		podSpec.InitContainers = append(podSpec.InitContainers, loginContainers...)
+		podSpec.Volumes = append(podSpec.Volumes, loginVolumes...)
+	}
+
+	if err := r.ensureMergeScriptConfigMap(ctx, namespace); err != nil {
+		return err
+	}
+
+	mergeContainer, mergeVolumes := registryhelpers.BuildMergeAuthInitContainer(secretNames,
+		authFileDir,
+		cloudAuth,
+		r.builderConfiguration.AuthConfig)
+	podSpec.InitContainers = append(podSpec.InitContainers, mergeContainer)
+	podSpec.Volumes = append(podSpec.Volumes, mergeVolumes...)
+
+	return nil
+}
+
+// ensureMergeScriptConfigMap applies the namespace-shared ConfigMap carrying the embedded
+// merge_authfile.py script. Server-side apply creates or updates it in one call, needing
+// no conflict handling since every writer applies the content it embeds.
+func (r *jobRunner) ensureMergeScriptConfigMap(ctx context.Context, namespace string) error {
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      registryhelpers.MergeScriptConfigMapName,
+			Namespace: namespace,
+			Labels:    common.CopyStringMapOrNil(r.builderConfiguration.PodLabels),
+		},
+		Data: map[string]string{"merge_authfile.py": registryhelpers.MergeScriptContents()},
+	}
+
+	if _, err := r.kubeClientSet.ApplyConfigMap(ctx, namespace, configMap); err != nil {
+		return errors.Wrap(err, "Failed to apply registry auth merge script config map")
+	}
+	return nil
 }

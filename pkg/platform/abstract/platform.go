@@ -1131,11 +1131,6 @@ func (ap *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Run
 	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry), nil
 }
 
-// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
-func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
-	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
-}
-
 func (ap *Platform) GetRegistryKind() string {
 	if ap.ContainerBuilder != nil {
 		return ap.ContainerBuilder.GetRegistryKind()

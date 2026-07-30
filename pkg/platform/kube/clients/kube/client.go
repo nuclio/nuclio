@@ -31,9 +31,13 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
+
+// fieldManager identifies nuclio as the owner of fields written via server-side apply.
+const fieldManager = "nuclio"
 
 type clientWithRetry struct {
 	kubernetes.Interface
@@ -140,6 +144,18 @@ func (r *clientWithRetry) DeleteConfigMap(ctx context.Context, namespace string,
 			Delete(ctx, name, deleteOptions)
 	}, r.retries, r.delay)
 	return
+}
+
+func (r *clientWithRetry) ApplyConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	applyConfig := corev1apply.ConfigMap(configMap.Name, namespace).
+		WithLabels(configMap.Labels).
+		WithData(configMap.Data)
+
+	return clients.RequestWithRetry[*corev1.ConfigMap](func() (*corev1.ConfigMap, error) {
+		return r.CoreV1().
+			ConfigMaps(namespace).
+			Apply(ctx, applyConfig, metav1.ApplyOptions{FieldManager: fieldManager, Force: true})
+	}, r.retries, r.delay)
 }
 
 func (r *clientWithRetry) ListServices(ctx context.Context, namespace string, options metav1.ListOptions) (*corev1.ServiceList, error) {

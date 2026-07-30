@@ -94,10 +94,6 @@ func (d *Docker) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string
 	return []string{}, nil
 }
 
-func (d *Docker) GetDefaultRegistryCredentialsSecretName() string {
-	return d.builderConfiguration.DefaultRegistryCredentialsSecretName
-}
-
 func (d *Docker) GetRegistryKind() string {
 	return d.builderConfiguration.RegistryKind
 }

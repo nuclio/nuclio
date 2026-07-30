@@ -225,6 +225,11 @@ dashboard:
       gcloudcli:
         repository: google/cloud-sdk
         tag: 497.0.0-slim
+      # Used by the merge-authfile init container to run the embedded registry-auth merge script.
+      python:
+        repository: gcr.io/iguazio/python
+        tag: "3.11"
+        pullPolicy: IfNotPresent
 
   kaniko:
 
@@ -249,6 +254,10 @@ dashboard:
     # "chroot" (default, no SYS_ADMIN needed) or "oci" (real namespace
     # isolation per RUN step, needs SYS_ADMIN or a user namespace)
     isolation: "chroot"
+
+    # AppArmor profile for the buildah container ("unconfined" by default: needed for overlayfs).
+    # Set to "" to leave the cluster/pod default profile in force.
+    appArmorProfile: "unconfined"
 
     image:
       repository: quay.io/buildah/stable
@@ -518,6 +527,14 @@ registry:
   # chart will create a secret with default name `{releaseName}-registry-credentials`
   #
   # secretName: registry-credentials
+
+  # secretNames lets in-cluster builds (buildah/kaniko) draw credentials for multiple registries
+  # at once - e.g. a push destination plus a separate base-image or onbuild-image registry, each
+  # with its own docker-registry secret.
+  #
+  # secretNames:
+  #   - registry-credentials
+  #   - base-image-registry-credentials
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have

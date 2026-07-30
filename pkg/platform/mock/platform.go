@@ -387,10 +387,6 @@ func (mp *Platform) GetRegistryKind() string {
 	return ""
 }
 
-func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
-	return "nuclio-registry-credentials"
-}
-
 func (mp *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
 	return nil
 }
