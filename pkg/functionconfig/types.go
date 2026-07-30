@@ -338,16 +338,19 @@ func IsAuthenticationEnabled(trigger *Trigger) bool {
 	return auth.IsFunctionLevelAuthenticationMode(mode)
 }
 
+// ErrHTTPTriggerNotFound is returned by GetHTTPTrigger when no HTTP trigger exists.
+var ErrHTTPTriggerNotFound = errors.New("No HTTP trigger found in function config")
+
 // GetHTTPTrigger returns the single HTTP trigger from triggers, or an error if there is not exactly one.
 func GetHTTPTrigger(triggers map[string]Trigger) (Trigger, error) {
 	httpTriggers := GetTriggersByKind(triggers, "http")
 	if len(httpTriggers) > 1 {
 		return Trigger{}, errors.New("Expected exactly one HTTP trigger in function config")
 	}
-	for _, trigger := range triggers {
+	for _, trigger := range httpTriggers {
 		return trigger, nil
 	}
-	return Trigger{}, errors.New("No HTTP trigger found in function config")
+	return Trigger{}, ErrHTTPTriggerNotFound
 }
 
 // GetTriggersByKinds returns a map of triggers by their kinds

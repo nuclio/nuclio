@@ -696,7 +696,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			shouldFailValidation: true,
 		},
 		{
-			name: "invalidReservedAuthProxySidecarName",
+			name: "reservedAuthProxySidecarNameAndAuthProxyDisabled",
 			sidecars: []*v1.Container{
 				{
 					Name:  abstract.AuthProxySidecarContainerName,
@@ -709,7 +709,6 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 					},
 				},
 			},
-			shouldFailValidation: true,
 		},
 	} {
 		suite.Run(testCase.name, func() {

@@ -1416,19 +1416,12 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 		return false
 	}
 
-	//TODO - change to GetHTTPTrigger once PR#4226 will be merged
-	httpTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
-	var httpTrigger *functionconfig.Trigger
-	for _, trigger := range httpTriggers {
-		httpTrigger = &trigger
-		break
-	}
-
-	if httpTrigger == nil {
+	httpTrigger, err := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
+	if err != nil {
 		return false
 	}
 
-	return functionconfig.IsAuthenticationEnabled(httpTrigger)
+	return functionconfig.IsAuthenticationEnabled(&httpTrigger)
 }
 
 // injectAuthProxySidecar appends the platform's auth-proxy sidecar to the pod: it terminates
@@ -1443,15 +1436,9 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 	// functionAuthenticationEnabled already found a valid HTTP trigger + authentication mode
-	//TODO - change to GetHTTPTrigger once PR#4226 will be merged
-	httpTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
-	var httpTrigger *functionconfig.Trigger
-	for _, trigger := range httpTriggers {
-		httpTrigger = &trigger
-		break
-	}
-	if httpTrigger == nil {
-		lc.logger.WarnWithCtx(ctx, "No HTTP trigger found for function, skipping auth-proxy injection", "functionName", function.Name)
+	httpTrigger, err := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
+	if err != nil {
+		lc.logger.WarnWithCtx(ctx, "Failed to get http trigger for function, skipping auth-proxy injection", "functionName", function.Name, "err", err)
 		return
 	}
 
@@ -2663,7 +2650,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 // its Triggers map is copied before being modified.
 func rewriteHTTPTriggerURLToLoopback(spec functionconfig.Spec) functionconfig.Spec {
 	triggers := make(map[string]functionconfig.Trigger, len(spec.Triggers))
-    //TODO - change to GetHTTPTrigger once PR#4226 will be merged
 	for triggerName, trigger := range spec.Triggers {
 		if trigger.Kind == "http" {
 			trigger.URL = fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort)

@@ -26,10 +26,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 // server fronts a function or the DLX.
