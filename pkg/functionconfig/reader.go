@@ -149,13 +149,7 @@ func (r *Reader) enrichPostMergeConfig(config, codeEntryConfig *Config) {
 
 // ReadConfigFromFile reads a processor config YAML at path and returns the embedded function config.
 func ReadConfigFromFile(path string) (*Config, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to open function configuration file; path: %s", path)
-	}
-	defer f.Close() // nolint: errcheck
-
-	bodyBytes, err := io.ReadAll(f)
+	bodyBytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to read function configuration file; path: %s", path)
 	}

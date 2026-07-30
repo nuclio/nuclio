@@ -129,15 +129,16 @@ func readBasicAuthCredentials(parentLogger logger.Logger, configPath string) (st
 			if err != nil {
 				return "", "", errors.Wrap(err, "Failed to load secrets map")
 			}
-			if len(secretsMap) > 0 {
-				restoredInterface, err := scrubber.Restore(functionConfig, secretsMap)
-				if err != nil {
-					return "", "", errors.Wrap(err, "Failed to restore function config from secret")
-				}
-				functionConfig = functionconfig.GetFunctionConfigFromInterface(restoredInterface)
-				if functionConfig == nil {
-					return "", "", errors.New("Failed to convert restored function config")
-				}
+			if len(secretsMap) == 0 {
+				return "", "", errors.New("Secrets map is empty, cannot restore masked function config credentials")
+			}
+			restoredInterface, err := scrubber.Restore(functionConfig, secretsMap)
+			if err != nil {
+				return "", "", errors.Wrap(err, "Failed to restore function config from secret")
+			}
+			functionConfig = functionconfig.GetFunctionConfigFromInterface(restoredInterface)
+			if functionConfig == nil {
+				return "", "", errors.New("Failed to convert restored function config")
 			}
 		}
 	}
