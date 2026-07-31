@@ -603,7 +603,13 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 			LabelSelector: metav1.LabelSelector{
 				MatchLabels: functionLabels,
 			},
-			FunctionConfig: functionconfig.Config{},
+			FunctionConfig: functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Env: []v1.EnvVar{
+						{Name: "INJECTED_FROM_AUGMENTED_CONFIG", Value: "true"},
+					},
+				},
+			},
 			Kubernetes: platformconfig.Kubernetes{
 				Deployment: &appsv1.Deployment{
 					Spec: appsv1.DeploymentSpec{
@@ -623,6 +629,8 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	functionName := "augmented-config"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Meta.Labels["my-function"] = "is-labeled"
+	userEnv := []v1.EnvVar{{Name: "USER_CUSTOM_VAR", Value: "should-survive"}}
+	createFunctionOptions.FunctionConfig.Spec.Env = userEnv
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		deploymentInstance := &appsv1.Deployment{}
 		functionInstance := &nuclioio.NuclioFunction{}
@@ -638,6 +646,14 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
 		suite.Require().Equal(runAsUserID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
 		suite.Require().Equal(runAsGroupID, *deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsGroup)
+
+		// ensure the augmented config environment was injected, without dropping the user supplied environment
+		containerEnv := deploymentInstance.Spec.Template.Spec.Containers[0].Env
+		suite.Require().Contains(containerEnv, userEnv[0])
+		suite.Require().Contains(containerEnv, v1.EnvVar{Name: "INJECTED_FROM_AUGMENTED_CONFIG", Value: "true"})
+
+		// the augmented config is a deploy time overlay - it must not be persisted onto the function itself
+		suite.Require().Equal(userEnv, functionInstance.Spec.Env)
 		return true
 	})
 }
