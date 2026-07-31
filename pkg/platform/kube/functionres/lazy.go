@@ -1416,12 +1416,12 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 		return false
 	}
 
-	httpTrigger, err := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
+	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
 	if err != nil {
 		return false
 	}
 
-	return functionconfig.IsAuthenticationEnabled(&httpTrigger)
+	return functionconfig.IsAuthenticationEnabled(authMode)
 }
 
 // injectAuthProxySidecar appends the platform's auth-proxy sidecar to the pod: it terminates
@@ -1436,13 +1436,11 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 	// functionAuthenticationEnabled already found a valid HTTP trigger + authentication mode
-	httpTrigger, err := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
+	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
 	if err != nil {
-		lc.logger.WarnWithCtx(ctx, "Failed to get http trigger for function, skipping auth-proxy injection", "functionName", function.Name, "err", err)
+		lc.logger.WarnWithCtx(ctx, "Failed to get http trigger mode for function, skipping auth-proxy injection", "functionName", function.Name, "err", err)
 		return
 	}
-
-	authMode, _ := httpTrigger.Attributes[auth.AttributeAuthenticationMode].(string)
 
 	args := []string{
 		fmt.Sprintf("--mode=%s", auth.ProxyModeReverseProxy),

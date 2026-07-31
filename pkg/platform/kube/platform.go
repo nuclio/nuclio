@@ -2246,7 +2246,7 @@ func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig
 		return nil
 	}
 
-	httpTrigger, err := functionconfig.GetHTTPTrigger(functionConfig.Spec.Triggers)
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
 	if err != nil {
 		// no HTTP trigger means auth proxy is not relevant, so the sidecar name is not reserved
 		if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
@@ -2255,7 +2255,7 @@ func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	if !functionconfig.IsAuthenticationEnabled(&httpTrigger) {
+	if !functionconfig.IsAuthenticationEnabled(authMode) {
 		return nil
 	}
 
@@ -2311,7 +2311,7 @@ func (p *Platform) validateContainerPorts(functionConfig *functionconfig.Config,
 
 			// when function-level auth is active, the loopback port is also reserved
 			if p.IsFunctionAuthenticationEnabled() {
-				httpTrigger, err := functionconfig.GetHTTPTrigger(functionConfig.Spec.Triggers)
+				authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
 				if err != nil {
 					// if there is no HTTP trigger, no need to validate the loopback port
 					if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
@@ -2319,7 +2319,7 @@ func (p *Platform) validateContainerPorts(functionConfig *functionconfig.Config,
 					}
 					return nuclio.WrapErrBadRequest(err)
 				}
-				if functionconfig.IsAuthenticationEnabled(&httpTrigger) &&
+				if functionconfig.IsAuthenticationEnabled(authMode) &&
 					port.ContainerPort == abstract.FunctionContainerHTTPLoopbackPort {
 					return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
 				}
