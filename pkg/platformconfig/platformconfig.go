@@ -428,9 +428,19 @@ func (c *Config) ValidatePlatformConfig() error {
 }
 
 func (c *Config) validateAuthentication() error {
+	if !c.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
 	if c.Authentication == nil {
 		return errors.New("Authentication config is nil after enrichment")
 	}
+
+	// without an image, the platform would inject a sidecar container k8s rejects the deployment for
+	if c.Authentication.AuthSidecarImage == "" {
+		return errors.New("AuthSidecarImage must be set when functionAuthenticationEnabled is true")
+	}
+
 	// basicAuth cannot be the platform-wide default: it requires per-function credentials
 	// (username + password) that cannot be supplied at the platform config level.
 	if c.Authentication.DefaultMode == auth.AuthenticationModeBasicAuth {

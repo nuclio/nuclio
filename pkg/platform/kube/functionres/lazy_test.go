@@ -667,7 +667,7 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 				platformConfiguration: &platformconfig.Config{
 					Authentication: &platformconfig.Authentication{
 						FunctionAuthenticationEnabled: true,
-						SidecarImage:                  "nuclio/auth-proxy:latest",
+						AuthSidecarImage:              "nuclio/auth-proxy:latest",
 						AuthURL:                       "http://auth.example.com",
 						SignInURL:                     "http://signin.example.com",
 						AuthKind:                      auth.KindIguazio,

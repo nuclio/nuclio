@@ -1462,7 +1462,7 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 
 	container := v1.Container{
 		Name:         abstract.AuthProxySidecarContainerName,
-		Image:        platformConfig.Authentication.SidecarImage,
+		Image:        platformConfig.Authentication.AuthSidecarImage,
 		Args:         args,
 		VolumeMounts: volumeMounts,
 		Ports: []v1.ContainerPort{
