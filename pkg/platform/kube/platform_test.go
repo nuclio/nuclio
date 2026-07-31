@@ -500,6 +500,58 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			},
 		},
 		{
+			name: "invalidDuplicateContainerPortNumberAcrossSidecars",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+				{
+					Name:  "sidecar2",
+					Image: "alpine",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          fmt.Sprintf("%s-2", sidcarPortName),
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidDuplicateContainerPortNameAcrossSidecars",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+				{
+					Name:  "sidecar2",
+					Image: "alpine",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 90,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
 			name: "invalidNoName",
 			sidecars: []*v1.Container{
 				{
