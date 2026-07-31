@@ -535,6 +535,7 @@ registry:
   # secretNames:
   #   - registry-credentials
   #   - base-image-registry-credentials
+  secretNames: []
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have
