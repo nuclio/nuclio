@@ -19,13 +19,11 @@ limitations under the License.
 package app
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
@@ -125,36 +123,6 @@ func (suite *ServerTestSuite) TestStartServerFailsOnOccupiedPort() {
 
 	err = newServer(suite.logger, occupied.Addr().String(), handler).start()
 	suite.Require().Error(err)
-}
-
-// requireServing polls listenAddress until it accepts connections or the deadline elapses.
-func (suite *ServerTestSuite) requireServing(listenAddress string) {
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		conn, err := net.Dial("tcp", listenAddress)
-		if err == nil {
-			conn.Close() // nolint: errcheck
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	suite.FailNow("Server never started listening", "listenAddress", listenAddress)
-}
-
-// doRequestToAddress performs an HTTP GET against an already-listening address (as opposed to doRequest,
-// which spins up its own httptest.Server).
-func (suite *ServerTestSuite) doRequestToAddress(listenAddress string, path string) (int, string) {
-	response, err := http.Get(fmt.Sprintf("http://%s%s", listenAddress, path))
-	suite.Require().NoError(err)
-	defer func(body io.ReadCloser) {
-		if err := body.Close(); err != nil {
-			suite.logger.WarnWith("Failed to close response body", "err", err)
-		}
-	}(response.Body)
-
-	body, err := io.ReadAll(response.Body)
-	suite.Require().NoError(err)
-	return response.StatusCode, string(body)
 }
 
 // TestReverseProxyForwardsWhenAuthorized verifies an authorized request is proxied to the upstream.
