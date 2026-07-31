@@ -702,7 +702,7 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			suite.Require().Equal(abstract.AuthProxySidecarContainerName, sidecar.Name)
 			suite.Require().Equal("nuclio/auth-proxy:latest", sidecar.Image)
 			suite.Require().Contains(sidecar.Args, "--mode=reverseProxy")
-			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--listen-ports=%d", abstract.FunctionContainerHTTPPort))
+			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--listen-port=%d", abstract.FunctionContainerHTTPPort))
 			suite.Require().Contains(sidecar.Args,
 				fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort))
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-mode=%s", testCase.authenticationMode))

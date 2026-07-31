@@ -17,7 +17,6 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -29,7 +28,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"golang.org/x/sync/errgroup"
 )
 
 // server fronts a function or the DLX.
@@ -70,22 +68,17 @@ func newHandler(parentLogger logger.Logger,
 	}
 }
 
-// resolveListenAddresses returns the addresses the given mode listens on: reverseProxy is exposed to the
-// cluster on every one of listenPorts (e.g. all of a function's published ports); authOnly is reachable
-// only from within the pod (loopback), and only ever has a single listen port (see config.go:validatePorts).
-func resolveListenAddresses(mode auth.ProxyMode, listenPorts []int) ([]string, error) {
-	listenAddresses := make([]string, 0, len(listenPorts))
-	for _, listenPort := range listenPorts {
-		switch mode {
-		case auth.ProxyModeReverseProxy:
-			listenAddresses = append(listenAddresses, fmt.Sprintf(":%d", listenPort))
-		case auth.ProxyModeAuthOnly:
-			listenAddresses = append(listenAddresses, fmt.Sprintf("127.0.0.1:%d", listenPort))
-		default:
-			return nil, errors.Errorf("Unknown auth-proxy mode: %s", mode)
-		}
+// resolveListenAddress returns the address the given mode listens on: reverseProxy is exposed to the
+// cluster; authOnly is reachable only from within the pod (loopback).
+func resolveListenAddress(mode auth.ProxyMode, listenPort int) (string, error) {
+	switch mode {
+	case auth.ProxyModeReverseProxy:
+		return fmt.Sprintf(":%d", listenPort), nil
+	case auth.ProxyModeAuthOnly:
+		return fmt.Sprintf("127.0.0.1:%d", listenPort), nil
+	default:
+		return "", errors.Errorf("Unknown auth-proxy mode: %s", mode)
 	}
-	return listenAddresses, nil
 }
 
 func (s *server) start() error {
@@ -144,33 +137,4 @@ func newAuthOnlyHandler(authenticator authproxy.Authenticator) http.Handler {
 		}
 	})
 	return mux
-}
-
-// startServers builds and starts one server per listen address, all serving the same handler
-// concurrently, so a single auth-proxy process fronts every listen address (e.g. all of a function's ports)
-func startServers(ctx context.Context, parentLogger logger.Logger, listenAddresses []string, handler http.Handler) error {
-	errorWG, groupCtx := errgroup.WithContext(ctx)
-	servers := make([]*server, 0, len(listenAddresses))
-	for _, listenAddress := range listenAddresses {
-		listenerServer := newServer(parentLogger, listenAddress, handler)
-		servers = append(servers, listenerServer)
-		errorWG.Go(listenerServer.start)
-	}
-
-	stop := context.AfterFunc(groupCtx, func() {
-		closeServers(parentLogger, servers)
-	})
-	defer stop()
-
-	return errorWG.Wait()
-}
-
-func closeServers(parentLogger logger.Logger, servers []*server) {
-	for _, listenerServer := range servers {
-		if err := listenerServer.httpServer.Close(); err != nil && err != http.ErrServerClosed {
-			parentLogger.WarnWith("Failed to close auth-proxy listener",
-				"listenAddress", listenerServer.httpServer.Addr,
-				"err", err.Error())
-		}
-	}
 }

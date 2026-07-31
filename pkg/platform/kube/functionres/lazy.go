@@ -1444,7 +1444,7 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 
 	args := []string{
 		fmt.Sprintf("--mode=%s", auth.ProxyModeReverseProxy),
-		fmt.Sprintf("--listen-ports=%d", abstract.FunctionContainerHTTPPort),
+		fmt.Sprintf("--listen-port=%d", abstract.FunctionContainerHTTPPort),
 		fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
 		fmt.Sprintf("--auth-mode=%s", authMode),
 	}
