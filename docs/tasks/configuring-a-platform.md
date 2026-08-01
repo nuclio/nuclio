@@ -234,6 +234,38 @@ Example:
     - "^/spec/triggers/.+/url$"
 ```
 
+#### Writing a custom field path
+
+The path a regex is matched against mirrors the JSON structure of the function configuration. Map keys are separated by
+`/`, and **list items are addressed by a bracketed index**, not by a path separator. For example, the value of the first
+environment variable is `/spec/env[0]/value` — a regex of `^/spec/env/.+$` matches nothing at all, and the field is
+silently left unmasked. Matching is case insensitive.
+
+#### Masking environment variables
+
+Environment variables are not masked by default, but they can be, which keeps their values out of the `NuclioFunction`
+CRD, out of the Dashboard API's responses, and out of the function's `Deployment` spec:
+
+```yaml
+  sensitiveFields:
+    maskSensitiveFields: true
+    customSensitiveFields:
+    - '^/spec/env\[\d+\]/value$'
+```
+
+The function itself is unaffected: the processor restores the values from the mounted function secret on startup and
+exports them to the process environment before the handler runs, so `os.environ['MY_ENV']` (Python), `process.env.MY_ENV`
+(Node.js) and `os.Getenv("MY_ENV")` (Go) all return the real value.
+
+Two caveats:
+
+* Environment variables that take their value from elsewhere (`valueFrom` — config maps, secrets, field refs) are
+  resolved by Kubernetes and are neither masked nor restored. Nuclio leaves them alone.
+* References are keyed by list index, so the reference stored for `/spec/env[0]/value` follows position, not name. The
+  reference and the secret are rewritten together on every deploy, so this is consistent — but a function whose
+  environment is assembled from several sources (for example `functionAugmentedConfigs`) will have its indices shift as
+  those sources change.
+
 <a id="liveness-probe"></a>
 ### Liveness probe
 Liveness probe is a configuration of [`v1.Probe`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core) type.<br/>

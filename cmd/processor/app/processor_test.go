@@ -21,6 +21,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
 
 	// load cron trigger for tests purposes
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
@@ -340,6 +342,53 @@ func (suite *ProcessorTestSuite) TestResolveWatcherTimeout() {
 			}
 		})
 	}
+}
+
+func (suite *ProcessorTestSuite) TestExportRestoredEnvironmentVariables() {
+
+	// what the pod was created with: the scrubbed spec, plus a variable kubernetes resolved from a
+	// secret reference and one the function image itself set
+	suite.T().Setenv("NUCLIO_TEST_MASKED_ENV", functionconfig.ReferencePrefix+"/spec/env[0]/value")
+	suite.T().Setenv("NUCLIO_TEST_SECRET_REF_ENV", "resolved-by-kubernetes")
+	suite.T().Setenv("NUCLIO_TEST_UNRESTORABLE_ENV", functionconfig.ReferencePrefix+"/spec/env[3]/value")
+	suite.Require().NoError(os.Unsetenv("NUCLIO_TEST_NEW_ENV"))
+
+	config := &functionconfig.Config{
+		Spec: functionconfig.Spec{
+			Env: []v1.EnvVar{
+				{Name: "NUCLIO_TEST_MASKED_ENV", Value: "the-real-value"},
+				{Name: "NUCLIO_TEST_NEW_ENV", Value: "brand-new-value"},
+				{
+					Name: "NUCLIO_TEST_SECRET_REF_ENV",
+					ValueFrom: &v1.EnvVarSource{
+						SecretKeyRef: &v1.SecretKeySelector{
+							LocalObjectReference: v1.LocalObjectReference{Name: "some-secret"},
+							Key:                  "some-key",
+						},
+					},
+				},
+
+				// no matching entry in the function secret, so the restore left it as a reference
+				{Name: "NUCLIO_TEST_UNRESTORABLE_ENV", Value: functionconfig.ReferencePrefix + "/spec/env[3]/value"},
+			},
+		},
+	}
+
+	p := &Processor{logger: suite.logger}
+	suite.Require().NoError(p.exportRestoredEnvironmentVariables(config))
+
+	// the masked value was replaced with the restored one
+	suite.Require().Equal("the-real-value", os.Getenv("NUCLIO_TEST_MASKED_ENV"))
+
+	// a variable the pod didn't have at all is exported too
+	suite.Require().Equal("brand-new-value", os.Getenv("NUCLIO_TEST_NEW_ENV"))
+
+	// kubernetes owns valueFrom variables - the empty spec value must not clobber them
+	suite.Require().Equal("resolved-by-kubernetes", os.Getenv("NUCLIO_TEST_SECRET_REF_ENV"))
+
+	// an unresolved reference is left exactly as the pod had it
+	suite.Require().Equal(functionconfig.ReferencePrefix+"/spec/env[3]/value",
+		os.Getenv("NUCLIO_TEST_UNRESTORABLE_ENV"))
 }
 
 func TestTriggerTestSuite(t *testing.T) {
