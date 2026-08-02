@@ -70,6 +70,14 @@ const (
 	FunctionContainerHTTPPortName        = "http"
 	FunctionContainerMetricPortName      = "metrics"
 	DefaultTargetCPU                     = 75
+
+	// FunctionContainerHTTPLoopbackPort is the port the processor listens on when the auth-proxy sidecar
+	// is injected in front of it: only reachable from within the pod (127.0.0.1), never exposed by the Service.
+	FunctionContainerHTTPLoopbackPort = 6080
+
+	// AuthProxySidecarContainerName is the reserved name of the platform-injected auth-proxy sidecar
+	// (see functionres.injectAuthProxySidecar). User-defined sidecars may not use this name.
+	AuthProxySidecarContainerName = "auth-proxy"
 )
 
 type Platform struct {
@@ -1069,10 +1077,7 @@ func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
 }
 
 func (ap *Platform) IsFunctionAuthenticationEnabled() bool {
-	if ap.Config.Authentication == nil {
-		return false
-	}
-	return ap.Config.Authentication.FunctionAuthenticationEnabled
+	return ap.Config.IsFunctionAuthenticationEnabled()
 }
 
 // GetAllowedAuthenticationModes returns allowed authentication modes

@@ -65,11 +65,7 @@ func Run(config *Config) error {
 		return errors.Wrap(err, "Failed to resolve listen address")
 	}
 
-	server := newServer(rootLogger, listenAddress, handler)
-	if err := server.start(); err != nil {
-		return errors.Wrap(err, "Failed to start auth-proxy server")
-	}
-	select {}
+	return newServer(rootLogger, listenAddress, handler).start()
 }
 
 // newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.

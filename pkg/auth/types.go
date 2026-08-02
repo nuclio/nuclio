@@ -147,6 +147,22 @@ func FunctionAuthConfigFromAttributes(attributes map[string]interface{}, default
 	return authConfig, nil
 }
 
+// FunctionLevelAuthenticationModes are the authentication modes valid for an HTTP trigger's
+// authenticationMode attribute: mode-based API authentication, browser-redirect authentication, and
+// static basic-auth credentials. AuthenticationModeNone (no additional authentication) is deliberately
+// excluded - it means the function-level auth-proxy gate itself does not apply.
+var FunctionLevelAuthenticationModes = map[AuthenticationMode]struct{}{
+	AuthenticationModeAPI:       {},
+	AuthenticationModeBrowser:   {},
+	AuthenticationModeBasicAuth: {},
+}
+
+// IsFunctionLevelAuthenticationMode reports whether mode is one of FunctionLevelAuthenticationModes.
+func IsFunctionLevelAuthenticationMode(mode string) bool {
+	_, ok := FunctionLevelAuthenticationModes[AuthenticationMode(mode)]
+	return ok
+}
+
 type IguazioConfig struct {
 	Timeout                time.Duration
 	VerificationURL        string

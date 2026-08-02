@@ -69,7 +69,7 @@ func newHandler(parentLogger logger.Logger,
 }
 
 // resolveListenAddress returns the address the given mode listens on: reverseProxy is exposed to the
-// cluster on listenPort; authOnly is reachable only from within the pod (loopback).
+// cluster; authOnly is reachable only from within the pod (loopback).
 func resolveListenAddress(mode auth.ProxyMode, listenPort int) (string, error) {
 	switch mode {
 	case auth.ProxyModeReverseProxy:

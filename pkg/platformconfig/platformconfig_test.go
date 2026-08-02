@@ -1195,7 +1195,40 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 		suite.Run(testCase.name, func() {
 			config := &Config{
 				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
-				Authentication:    &Authentication{DefaultMode: testCase.mode},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: true,
+					AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					DefaultMode:                   testCase.mode,
+				},
+			}
+			err := config.ValidatePlatformConfig()
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "authentication config")
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigAuthSidecarImage() {
+	for _, testCase := range []struct {
+		name             string
+		authSidecarImage string
+		expectError      bool
+	}{
+		{name: "empty image rejected", authSidecarImage: "", expectError: true},
+		{name: "image set", authSidecarImage: "nuclio/auth-proxy:latest"},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: true,
+					AuthSidecarImage:              testCase.authSidecarImage,
+					DefaultMode:                   auth.AuthenticationModeNone,
+				},
 			}
 			err := config.ValidatePlatformConfig()
 			if testCase.expectError {

@@ -2219,16 +2219,50 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 }
 
 func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) error {
+	portNames := make(map[string]bool)
+	portNumbers := make(map[int32]bool)
+
 	for _, sidecar := range functionConfig.Spec.Sidecars {
 		if err := p.validateContainerSpec(sidecar); err != nil {
 			return nuclio.WrapErrBadRequest(err)
 		}
 
-		if err := p.validateContainerPorts(sidecar); err != nil {
+		if err := p.validateContainerPorts(functionConfig, sidecar, portNames, portNumbers); err != nil {
+			return nuclio.WrapErrBadRequest(err)
+		}
+
+		if err := p.validateSidecarNameNotReserved(functionConfig, sidecar); err != nil {
 			return nuclio.WrapErrBadRequest(err)
 		}
 	}
 
+	return nil
+}
+
+// validateSidecarNameNotReserved rejects a user-supplied sidecar named abstract.AuthProxySidecarContainerName,
+// which is reserved for the platform-injected auth-proxy sidecar (see functionres.injectAuthProxySidecar).
+func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig.Config, sidecar *v1.Container) error {
+	if !p.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	if err != nil {
+		// no HTTP trigger means auth proxy is not relevant, so the sidecar name is not reserved
+		if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
+			return nil
+		}
+		return nuclio.WrapErrBadRequest(err)
+	}
+
+	if !functionconfig.IsAuthenticationEnabled(authMode) {
+		return nil
+	}
+
+	if sidecar.Name == abstract.AuthProxySidecarContainerName {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Reserved sidecar name: %s",
+			abstract.AuthProxySidecarContainerName))
+	}
 	return nil
 }
 
@@ -2254,11 +2288,11 @@ func (p *Platform) validateContainerSpec(container *v1.Container) error {
 	return nil
 }
 
-func (p *Platform) validateContainerPorts(container *v1.Container) error {
+func (p *Platform) validateContainerPorts(functionConfig *functionconfig.Config,
+	container *v1.Container,
+	portNames map[string]bool,
+	portNumbers map[int32]bool) error {
 	if container.Ports != nil {
-		portNames := make(map[string]bool)
-		portNumbers := make(map[int32]bool)
-
 		for _, port := range container.Ports {
 			// validate container port exists
 			if port.ContainerPort == 0 {
@@ -2275,6 +2309,22 @@ func (p *Platform) validateContainerPorts(container *v1.Container) error {
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
 			}
 
+			// when function-level auth is active, the loopback port is also reserved
+			if p.IsFunctionAuthenticationEnabled() {
+				authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+				if err != nil {
+					// if there is no HTTP trigger, no need to validate the loopback port
+					if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
+						return nil
+					}
+					return nuclio.WrapErrBadRequest(err)
+				}
+				if functionconfig.IsAuthenticationEnabled(authMode) &&
+					port.ContainerPort == abstract.FunctionContainerHTTPLoopbackPort {
+					return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
+				}
+			}
+
 			// validate port name exists
 			if port.Name == "" {
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name must be provided for container %s", container.Name))
@@ -2288,14 +2338,14 @@ func (p *Platform) validateContainerPorts(container *v1.Container) error {
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is reserved for Nuclio internal use", port.Name))
 			}
 
-			// validate port name is unique
+			// validate port name is unique across all sidecar containers
 			if _, exists := portNames[port.Name]; exists {
-				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is duplicated in container %s", port.Name, container.Name))
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is duplicated across sidecar containers", port.Name))
 			}
 
-			// validate port number is unique
+			// validate port number is unique across all sidecar containers
 			if _, exists := portNumbers[port.ContainerPort]; exists {
-				return nuclio.NewErrBadRequest(fmt.Sprintf("Port number %d is duplicated in container %s", port.ContainerPort, container.Name))
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port number %d is duplicated across sidecar containers", port.ContainerPort))
 			}
 
 			portNames[port.Name] = true

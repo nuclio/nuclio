@@ -19,6 +19,8 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/nuclio/nuclio/cmd/authproxy/app"
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -29,7 +31,7 @@ import (
 
 func main() {
 	mode := flag.String("mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_MODE", string(auth.ProxyModeReverseProxy)), "Auth-proxy mode: reverseProxy or authOnly")
-	listenPort := flag.Int("listen-port", common.GetEnvOrDefaultInt("NUCLIO_AUTHPROXY_LISTEN_PORT", 8080), "Port the auth-proxy listens on")
+	listenPort := flag.String("listen-port", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_LISTEN_PORT", "8080"), "Port the auth-proxy listens on")
 	upstreamURL := flag.String("upstream-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_UPSTREAM_URL", "http://127.0.0.1:6080"), "URL of the upstream service (processor) to forward requests to")
 	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint")
 	signinURL := flag.String("signin-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_SIGNIN_URL", ""), "URL unauthenticated browser requests are redirected to sign-in")
@@ -41,9 +43,15 @@ func main() {
 	authKind := flag.String("auth-kind", auth.KindNop, "Authentication kind for API/browser authentication (e.g. iguazio, iguazio-v4, nop)")
 	flag.Parse()
 
+	listenPortInt, err := strconv.Atoi(strings.TrimSpace(*listenPort))
+	if err != nil {
+		errors.PrintErrorStack(os.Stderr, errors.Wrap(err, "Failed to parse listen port"), 5)
+		os.Exit(1)
+	}
+
 	if err := app.Run(&app.Config{
 		Mode:               auth.ProxyMode(*mode),
-		ListenPort:         *listenPort,
+		ListenPort:         listenPortInt,
 		UpstreamURL:        *upstreamURL,
 		AuthURL:            *authURL,
 		SigninURL:          *signinURL,
