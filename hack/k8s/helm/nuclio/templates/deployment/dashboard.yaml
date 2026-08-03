@@ -152,9 +152,9 @@ spec:
           value: {{ .Values.dashboard.buildah.image.repository }}:{{ .Values.dashboard.buildah.image.tag }}
         - name: NUCLIO_BUILDAH_CONTAINER_IMAGE_PULL_POLICY
           value: {{ .Values.dashboard.buildah.image.pullPolicy }}
-        - name: NUCLIO_PYTHON_BASE_IMAGE_NAME
+        - name: NUCLIO_PYTHON_INIT_CONTAINER_IMAGE
           value: {{ .Values.dashboard.build.initContainerImage.python.repository }}:{{ .Values.dashboard.build.initContainerImage.python.tag }}
-        - name: NUCLIO_PYTHON_BASE_IMAGE_PULL_POLICY
+        - name: NUCLIO_PYTHON_INIT_CONTAINER_IMAGE_PULL_POLICY
           value: {{ .Values.dashboard.build.initContainerImage.python.pullPolicy }}
         - name: NUCLIO_BUILDAH_ROOTLESS_MODE
           value: {{ .Values.dashboard.buildah.rootlessMode }}

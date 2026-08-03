@@ -178,12 +178,12 @@ func NewContainerBuilderConfiguration(existing *ContainerBuilderConfiguration) (
 
 	if containerBuilderConfiguration.PythonImage == "" {
 		containerBuilderConfiguration.PythonImage =
-			common.GetEnvOrDefaultString("NUCLIO_PYTHON_BASE_IMAGE_NAME", "gcr.io/iguazio/python:3.11")
+			common.GetEnvOrDefaultString("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE", "gcr.io/iguazio/python:3.11")
 	}
 
 	if containerBuilderConfiguration.PythonImagePullPolicy == "" {
 		containerBuilderConfiguration.PythonImagePullPolicy =
-			common.GetEnvOrDefaultString("NUCLIO_PYTHON_BASE_IMAGE_PULL_POLICY", "IfNotPresent")
+			common.GetEnvOrDefaultString("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE_PULL_POLICY", "IfNotPresent")
 	}
 
 	if containerBuilderConfiguration.RegistryKind == "" {

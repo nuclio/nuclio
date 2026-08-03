@@ -89,7 +89,7 @@ func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImageDefaultsToIg
 }
 
 func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImageHonorsEnv() {
-	suite.T().Setenv("NUCLIO_PYTHON_BASE_IMAGE_NAME", "custom-image:latest")
+	suite.T().Setenv("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE", "custom-image:latest")
 
 	config, err := NewContainerBuilderConfiguration(nil)
 	suite.Require().NoError(err)
@@ -105,7 +105,7 @@ func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImagePullPolicyDe
 }
 
 func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImagePullPolicyHonorsEnv() {
-	suite.T().Setenv("NUCLIO_PYTHON_BASE_IMAGE_PULL_POLICY", "Always")
+	suite.T().Setenv("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE_PULL_POLICY", "Always")
 
 	config, err := NewContainerBuilderConfiguration(nil)
 	suite.Require().NoError(err)

@@ -32,7 +32,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// mergeTestPythonImage mirrors the NUCLIO_PYTHON_BASE_IMAGE_NAME default in types.go.
+// mergeTestPythonImage mirrors the NUCLIO_PYTHON_INIT_CONTAINER_IMAGE default in types.go.
 const mergeTestPythonImage = "gcr.io/iguazio/python:3.11"
 
 // MergeIntegrationTestSuite runs the real merge-authfile container spec against a Docker container,
