@@ -283,14 +283,14 @@ jobs:
           platforms: ${{ matrix.arch }}
 
       - name: Login to registry
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # 4.5.1
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           registry: ${{ env.REPO }}
           username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
           password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
       - name: Login to cache registry
-        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # 4.5.1
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
