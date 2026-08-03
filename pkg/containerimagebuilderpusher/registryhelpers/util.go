@@ -18,7 +18,6 @@ package registryhelpers
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
 )
@@ -35,23 +34,4 @@ func softFailScript(script, host, kind string) string {
 	return fmt.Sprintf(`(set -e
 %s
 ) || echo "WARNING: failed to fetch %s login token for %s" >&2`, script, kind, host)
-}
-
-// NormalizeHosts strips each url to its bare hostname and drops empty/duplicate values.
-func NormalizeHosts(urls ...string) []string {
-	hosts := make([]string, 0, len(urls))
-	for _, url := range urls {
-		if host := hostOf(url); host != "" {
-			hosts = append(hosts, host)
-		}
-	}
-	return common.RemoveDuplicatesFromSliceString(hosts)
-}
-
-// hostOf returns url's hostname, stripping any repository path (GAR URLs carry one; ACR/ECR don't).
-func hostOf(url string) string {
-	if i := strings.Index(url, "/"); i != -1 {
-		return url[:i]
-	}
-	return url
 }

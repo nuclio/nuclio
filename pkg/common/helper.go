@@ -577,6 +577,25 @@ func StripImageTag(image string) string {
 	return image
 }
 
+// GetHostname returns url's hostname, stripping any repository path (GAR URLs carry one; ACR/ECR don't).
+func GetHostname(url string) string {
+	if i := strings.Index(url, "/"); i != -1 {
+		return url[:i]
+	}
+	return url
+}
+
+// NormalizeHosts strips each url to its bare hostname and drops empty/duplicate values.
+func NormalizeHosts(urls ...string) []string {
+	hosts := make([]string, 0, len(urls))
+	for _, url := range urls {
+		if host := GetHostname(url); host != "" {
+			hosts = append(hosts, host)
+		}
+	}
+	return RemoveDuplicatesFromSliceString(hosts)
+}
+
 func AnyPositiveInSliceInt64(numbers []int64) bool {
 	for _, number := range numbers {
 		if number >= 0 {

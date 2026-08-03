@@ -18,6 +18,7 @@ package registryhelpers
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -28,34 +29,34 @@ import (
 // ecrLoginUsername is the fixed username for ECR get-login-password tokens.
 const ecrLoginUsername = "AWS"
 
-// IsECRHost reports whether url is an ECR hostname.
-func IsECRHost(url string) bool {
-	return strings.Contains(url, ".amazonaws.com") && strings.Contains(url, ".ecr.")
+// ecrHostPattern matches an ECR hostname, e.g. <registryId>.dkr.ecr.<region>.amazonaws.com.
+var ecrHostPattern = regexp.MustCompile(`^\d+\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com$`)
+
+// AWSHelper authenticates to ECR and exposes ECR URL parsing that both the buildah
+// login-container flow and kaniko's bundled credential helper need.
+type AWSHelper struct{}
+
+// Matches detects an ECR hostname, e.g. <registryId>.dkr.ecr.<region>.amazonaws.com.
+func (h *AWSHelper) Matches(host string) bool {
+	return ecrHostPattern.MatchString(host)
 }
 
 // ECRRegion extracts the AWS region from an ECR registry URL.
-func ECRRegion(url string) string {
+func (h *AWSHelper) ECRRegion(url string) string {
 	return strings.Split(url, ".")[3]
 }
 
 // ECRRegistryID extracts the AWS account ID (registry ID) from an ECR registry URL.
-func ECRRegistryID(url string) string {
+func (h *AWSHelper) ECRRegistryID(url string) string {
 	return strings.Split(url, ".")[0]
 }
 
-type awsHelper struct{}
-
-// Matches detects an ECR hostname, e.g. <registryId>.dkr.ecr.<region>.amazonaws.com.
-func (h *awsHelper) Matches(host string) bool {
-	return IsECRHost(host)
-}
-
-func (h *awsHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
+func (h *AWSHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
 	cfg AuthConfig,
 	imagePullPolicy string) (v1.Container, error) {
 
-	region := ECRRegion(host)
-	registryID := ECRRegistryID(host)
+	region := h.ECRRegion(host)
+	registryID := h.ECRRegistryID(host)
 
 	var commandParts []string
 	// Pulling a base/onbuild image never needs repo creation, only the push destination does.

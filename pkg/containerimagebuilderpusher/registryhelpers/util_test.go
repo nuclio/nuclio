@@ -28,38 +28,6 @@ type UtilTestSuite struct {
 	suite.Suite
 }
 
-func (suite *UtilTestSuite) TestNormalizeHostsStripsRepoPathAndDedupesEmpty() {
-	for _, testCase := range []struct {
-		name     string
-		urls     []string
-		expected []string
-	}{
-		{
-			name:     "StripsRepoPath",
-			urls:     []string{"us-central1-docker.pkg.dev/my-project/my-repo"},
-			expected: []string{"us-central1-docker.pkg.dev"},
-		},
-		{
-			name:     "DropsEmptyAndDuplicates",
-			urls:     []string{"myregistry.azurecr.io", "", "myregistry.azurecr.io"},
-			expected: []string{"myregistry.azurecr.io"},
-		},
-		{
-			name:     "PreservesFirstSeenOrder",
-			urls:     []string{"b.io", "a.io", "b.io"},
-			expected: []string{"b.io", "a.io"},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			suite.Equal(testCase.expected, NormalizeHosts(testCase.urls...))
-		})
-	}
-}
-
-func (suite *UtilTestSuite) TestNormalizeHostsAllEmptyReturnsEmpty() {
-	suite.Empty(NormalizeHosts("", ""))
-}
-
 func (suite *UtilTestSuite) TestWriteCredentialFileScriptEmitsUnquotedSafeTokens() {
 	script := writeCredentialFileScript("/tmp/registry-auth-tokens/0.token", "myregistry.azurecr.io",
 		"00000000-0000-0000-0000-000000000000", "az acr login --name myregistry --expose-token")

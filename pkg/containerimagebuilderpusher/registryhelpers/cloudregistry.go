@@ -21,6 +21,8 @@ package registryhelpers
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	v1 "k8s.io/api/core/v1"
 )
@@ -53,22 +55,12 @@ type CloudRegistryHelper interface {
 }
 
 // cloudRegistryHelpers is the static, ordered set of supported vendors.
-var cloudRegistryHelpers = []CloudRegistryHelper{&awsHelper{}, &azureHelper{}, &gcpHelper{}}
-
-// helperFor returns the CloudRegistryHelper matching host, or nil.
-func helperFor(host string) CloudRegistryHelper {
-	for _, helper := range cloudRegistryHelpers {
-		if helper.Matches(host) {
-			return helper
-		}
-	}
-	return nil
-}
+var cloudRegistryHelpers = []CloudRegistryHelper{&AWSHelper{}, &azureHelper{}, &gcpHelper{}}
 
 // NeedsCloudLogin reports whether any of hosts is a supported cloud registry.
 func NeedsCloudLogin(hosts []string) bool {
 	for _, host := range hosts {
-		if helperFor(host) != nil {
+		if cloudRegistryHelperFromHost(host) != nil {
 			return true
 		}
 	}
@@ -87,7 +79,7 @@ func BuildLoginContainers(hosts []string,
 	cfg AuthConfig,
 	imagePullPolicy string) ([]v1.Container, []v1.Volume, error) {
 
-	pushHost := hostOf(pushDestination)
+	pushHost := common.GetHostname(pushDestination)
 	tokenDir := TokenDirVolumeMount()
 
 	var volumes []v1.Volume
@@ -104,7 +96,7 @@ func BuildLoginContainers(hosts []string,
 	tokenIndex := 0
 
 	for _, host := range hosts {
-		helper := helperFor(host)
+		helper := cloudRegistryHelperFromHost(host)
 		if helper == nil {
 			continue
 		}
@@ -129,4 +121,14 @@ func BuildLoginContainers(hosts []string,
 	}
 
 	return containers, volumes, nil
+}
+
+// cloudRegistryHelperFromHost returns the CloudRegistryHelper matching host, or nil.
+func cloudRegistryHelperFromHost(host string) CloudRegistryHelper {
+	for _, helper := range cloudRegistryHelpers {
+		if helper.Matches(host) {
+			return helper
+		}
+	}
+	return nil
 }

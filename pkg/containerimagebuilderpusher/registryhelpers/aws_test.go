@@ -26,6 +26,11 @@ import (
 
 type AWSTestSuite struct {
 	suite.Suite
+	helper *AWSHelper
+}
+
+func (suite *AWSTestSuite) SetupTest() {
+	suite.helper = &AWSHelper{}
 }
 
 func (suite *AWSTestSuite) TestECRRegistryID() {
@@ -51,7 +56,7 @@ func (suite *AWSTestSuite) TestECRRegistryID() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.Require().Equal(testCase.expected, ECRRegistryID(testCase.registryURL))
+			suite.Require().Equal(testCase.expected, suite.helper.ECRRegistryID(testCase.registryURL))
 		})
 	}
 }
@@ -79,12 +84,12 @@ func (suite *AWSTestSuite) TestECRRegion() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.Require().Equal(testCase.expected, ECRRegion(testCase.registryURL))
+			suite.Require().Equal(testCase.expected, suite.helper.ECRRegion(testCase.registryURL))
 		})
 	}
 }
 
-func (suite *AWSTestSuite) TestIsECRHost() {
+func (suite *AWSTestSuite) TestMatches() {
 	for _, testCase := range []struct {
 		name     string
 		url      string
@@ -95,7 +100,7 @@ func (suite *AWSTestSuite) TestIsECRHost() {
 		{name: "AzureHost", url: "myregistry.azurecr.io", expected: false},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.Require().Equal(testCase.expected, IsECRHost(testCase.url))
+			suite.Require().Equal(testCase.expected, suite.helper.Matches(testCase.url))
 		})
 	}
 }

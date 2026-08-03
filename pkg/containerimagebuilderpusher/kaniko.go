@@ -39,6 +39,7 @@ const (
 
 type Kaniko struct {
 	*jobRunner
+	awsHelper *registryhelpers.AWSHelper
 }
 
 func NewKaniko(logger logger.Logger,
@@ -50,7 +51,7 @@ func NewKaniko(logger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create kaniko job runner")
 	}
 
-	return &Kaniko{jobRunner: jobRunner}, nil
+	return &Kaniko{jobRunner: jobRunner, awsHelper: &registryhelpers.AWSHelper{}}, nil
 }
 
 func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
@@ -153,7 +154,7 @@ func (k *Kaniko) compileKanikoContainer(buildOptions *BuildOptions) v1.Container
 // configureRegistryAuthentication wires the registry authfile into the kaniko container. Kaniko has
 // its own bundled cloud credential helpers, hence the nil cloudHosts - no login containers needed.
 func (k *Kaniko) configureRegistryAuthentication(ctx context.Context, namespace string, buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) error {
-	if registryhelpers.IsECRHost(buildOptions.RegistryURL) {
+	if k.awsHelper.Matches(buildOptions.RegistryURL) {
 		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 		return nil
 	}
@@ -174,8 +175,8 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	// Add init container to create the main and cache repositories
 	// fail silently in order to ignore "repository already exists" errors
 	// if any other error occurs - kaniko will fail similarly
-	region := registryhelpers.ECRRegion(buildOptions.RegistryURL)
-	registryID := registryhelpers.ECRRegistryID(buildOptions.RegistryURL)
+	region := k.awsHelper.ECRRegion(buildOptions.RegistryURL)
+	registryID := k.awsHelper.ECRRegistryID(buildOptions.RegistryURL)
 	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s --registry-id %s || true"
 	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region, registryID)
 	createCacheRepo := fmt.Sprintf(createRepoTemplate,

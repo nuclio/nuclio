@@ -29,7 +29,7 @@ type CloudRegistryTestSuite struct {
 	suite.Suite
 }
 
-func (suite *CloudRegistryTestSuite) TestHelperForPicksTheRightVendor() {
+func (suite *CloudRegistryTestSuite) TestCloudRegistryHelperFromHostPicksTheRightVendor() {
 	for _, testCase := range []struct {
 		name     string
 		host     string
@@ -37,12 +37,12 @@ func (suite *CloudRegistryTestSuite) TestHelperForPicksTheRightVendor() {
 	}{
 		{name: "ACR", host: "myregistry.azurecr.io", expected: "*registryhelpers.azureHelper"},
 		{name: "GAR", host: "us-central1-docker.pkg.dev", expected: "*registryhelpers.gcpHelper"},
-		{name: "ECR", host: "123456789012.dkr.ecr.us-east-1.amazonaws.com", expected: "*registryhelpers.awsHelper"},
+		{name: "ECR", host: "123456789012.dkr.ecr.us-east-1.amazonaws.com", expected: "*registryhelpers.AWSHelper"},
 		{name: "PlainDockerHub", host: "index.docker.io", expected: ""},
 		{name: "Empty", host: "", expected: ""},
 	} {
 		suite.Run(testCase.name, func() {
-			helper := helperFor(testCase.host)
+			helper := cloudRegistryHelperFromHost(testCase.host)
 			if testCase.expected == "" {
 				suite.Nil(helper)
 				return

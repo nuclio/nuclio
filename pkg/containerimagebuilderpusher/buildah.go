@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
@@ -123,7 +122,7 @@ func (b *Buildah) configureAppArmorProfile(jobSpec *batchv1.Job) {
 // configureRegistryAuthentication mounts the registry auth secret(s) and cloud-provider credentials
 // into the buildah container.
 func (b *Buildah) configureRegistryAuthentication(ctx context.Context, namespace string, buildOptions *BuildOptions, podSpec *v1.PodSpec) error {
-	cloudHosts := registryhelpers.NormalizeHosts(buildOptions.RegistryURL,
+	cloudHosts := common.NormalizeHosts(buildOptions.RegistryURL,
 		buildOptions.BaseImageRegistry,
 		buildOptions.OnbuildImageRegistry)
 
