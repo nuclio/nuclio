@@ -181,6 +181,21 @@ func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesTokenOrdering() {
 	suite.Equal("user1:token1", auths["host.io"]["auth"])
 }
 
+func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesTokenOrderingDoubleDigit() {
+	authfile, _ := suite.runMerge(nil, map[string]string{
+		"0.token":  "host.io\nuser0\ntoken0\n",
+		"1.token":  "host.io\nuser1\ntoken1\n",
+		"2.token":  "host.io\nuser2\ntoken2\n",
+		"10.token": "host.io\nuser10\ntoken10\n",
+	})
+
+	// Lexicographic sort would order these "0", "1", "10", "2" (since "10.token" < "2.token"
+	// as strings), letting "2.token" win last; natural sort orders them 0, 1, 2, 10 so the
+	// highest-index token ("10.token") wins.
+	auths := suite.readAuths(authfile)
+	suite.Equal("user10:token10", auths["host.io"]["auth"])
+}
+
 func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesMalformedTokenSkipped() {
 	authfile, _ := suite.runMerge(nil, map[string]string{
 		"0.token": "onlyonelie",

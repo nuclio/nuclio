@@ -29,9 +29,17 @@ def warn(message):
     print("WARNING: " + message, file=sys.stderr)
 
 
+def _natural_sort_key(name):
+    # Numeric-prefixed names sort by value (0, 1, ..., 10, 11); anything else
+    # (shouldn't occur given how these dirs are populated) sorts after all
+    # numeric names instead of raising, so an unexpected filename can't crash the merge.
+    prefix = name.split(".", 1)[0]
+    return (0, int(prefix)) if prefix.isdigit() else (1, name)
+
+
 def files_with_suffix(directory, suffix):
     try:
-        names = sorted(os.listdir(directory))
+        names = sorted(os.listdir(directory), key=_natural_sort_key)
     except OSError:
         return []
     return [os.path.join(directory, name) for name in names if name.endswith(suffix)]
