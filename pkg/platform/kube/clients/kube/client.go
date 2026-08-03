@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -147,9 +148,21 @@ func (r *clientWithRetry) DeleteConfigMap(ctx context.Context, namespace string,
 }
 
 func (r *clientWithRetry) ApplyConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	ownerRefs := make([]*metav1apply.OwnerReferenceApplyConfiguration, 0, len(configMap.OwnerReferences))
+	for _, ref := range configMap.OwnerReferences {
+		ownerRefs = append(ownerRefs, metav1apply.OwnerReference().
+			WithAPIVersion(ref.APIVersion).
+			WithKind(ref.Kind).
+			WithName(ref.Name).
+			WithUID(ref.UID).
+			WithController(*ref.Controller).
+			WithBlockOwnerDeletion(*ref.BlockOwnerDeletion))
+	}
+
 	applyConfig := corev1apply.ConfigMap(configMap.Name, namespace).
 		WithLabels(configMap.Labels).
-		WithData(configMap.Data)
+		WithData(configMap.Data).
+		WithOwnerReferences(ownerRefs...)
 
 	return clients.RequestWithRetry[*corev1.ConfigMap](func() (*corev1.ConfigMap, error) {
 		return r.CoreV1().

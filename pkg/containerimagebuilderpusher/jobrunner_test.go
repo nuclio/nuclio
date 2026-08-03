@@ -30,6 +30,7 @@ import (
 
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -81,19 +82,33 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 		"Shell injection marker was created — injection succeeded via shell execution")
 }
 
-// TestEnsureMergeScriptConfigMap covers the server-side-apply upsert from each initial state.
+// TestEnsureMergeScriptConfigMap covers the server-side-apply upsert from each initial state,
+// including that the applied config map carries the nuclio-dashboard deployment as owner
+// reference, plus the error case where that deployment can't be resolved.
 func (suite *JobRunnerTestSuite) TestEnsureMergeScriptConfigMap() {
+	dashboardDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "nuclio-dashboard", Namespace: "default", UID: "dashboard-uid"},
+	}
+
 	for _, testCase := range []struct {
-		name            string
-		existingScript  string
-		configMapExists bool
+		name              string
+		existingScript    string
+		configMapExists   bool
+		dashboardDeployed bool
+		expectErr         bool
 	}{
-		{name: "CreatesWhenAbsent"},
-		{name: "UpdatesWhenStale", configMapExists: true, existingScript: "stale contents"},
-		{name: "IdempotentWhenUpToDate", configMapExists: true, existingScript: registryhelpers.MergeScriptContents()},
+		{name: "CreatesWhenAbsent", dashboardDeployed: true},
+		{name: "UpdatesWhenStale", configMapExists: true, existingScript: "stale contents", dashboardDeployed: true},
+		{name: "IdempotentWhenUpToDate", configMapExists: true, existingScript: registryhelpers.MergeScriptContents(), dashboardDeployed: true},
+		{name: "FailsWhenDashboardDeploymentUnresolvable", expectErr: true},
 	} {
 		suite.Run(testCase.name, func() {
+			suite.T().Setenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
+
 			var existingObjects []k8sruntime.Object
+			if testCase.dashboardDeployed {
+				existingObjects = append(existingObjects, dashboardDeployment)
+			}
 			if testCase.configMapExists {
 				existingObjects = append(existingObjects, &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Name: registryhelpers.MergeScriptConfigMapName, Namespace: "default"},
@@ -102,13 +117,25 @@ func (suite *JobRunnerTestSuite) TestEnsureMergeScriptConfigMap() {
 			}
 			suite.jobRunner.kubeClientSet = kube.NewClientWithRetryFromClient(k8sfake.NewClientset(existingObjects...))
 
-			suite.Require().NoError(suite.jobRunner.ensureMergeScriptConfigMap(context.Background(), "default"))
+			err := suite.jobRunner.ensureMergeScriptConfigMap(context.Background(), "default")
+			if testCase.expectErr {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
 
 			configMap, err := suite.jobRunner.kubeClientSet.GetConfigMap(context.Background(),
 				"default",
 				registryhelpers.MergeScriptConfigMapName)
 			suite.Require().NoError(err)
 			suite.Equal(registryhelpers.MergeScriptContents(), configMap.Data["merge_authfile.py"])
+
+			suite.Require().Len(configMap.OwnerReferences, 1)
+			ownerRef := configMap.OwnerReferences[0]
+			suite.Equal("apps/v1", ownerRef.APIVersion)
+			suite.Equal("Deployment", ownerRef.Kind)
+			suite.Equal(dashboardDeployment.Name, ownerRef.Name)
+			suite.Equal(dashboardDeployment.UID, ownerRef.UID)
 		})
 	}
 }

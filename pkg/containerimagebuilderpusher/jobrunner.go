@@ -764,8 +764,38 @@ func (r *jobRunner) ensureMergeScriptConfigMap(ctx context.Context, namespace st
 		Data: map[string]string{"merge_authfile.py": registryhelpers.MergeScriptContents()},
 	}
 
+	ownerRef, err := r.getDashboardOwnerReference(ctx, namespace)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve nuclio-dashboard owner reference for merge script config map")
+	}
+	configMap.OwnerReferences = []metav1.OwnerReference{*ownerRef}
+
 	if _, err := r.kubeClientSet.ApplyConfigMap(ctx, namespace, configMap); err != nil {
 		return errors.Wrap(err, "Failed to apply registry auth merge script config map")
 	}
 	return nil
+}
+
+// getDashboardOwnerReference resolves the nuclio-dashboard Deployment running in namespace as
+// an owner reference, so dependent objects get garbage-collected with it.
+func (r *jobRunner) getDashboardOwnerReference(ctx context.Context, namespace string) (*metav1.OwnerReference, error) {
+	deploymentName := os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME")
+	if deploymentName == "" {
+		return nil, errors.New("NUCLIO_DASHBOARD_DEPLOYMENT_NAME is not set")
+	}
+
+	deployment, err := r.kubeClientSet.GetDeployment(ctx, namespace, deploymentName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get nuclio-dashboard deployment %s/%s", namespace, deploymentName)
+	}
+
+	controller := true
+	return &metav1.OwnerReference{
+		APIVersion:         "apps/v1",
+		Kind:               "Deployment",
+		Name:               deployment.Name,
+		UID:                deployment.UID,
+		Controller:         &controller,
+		BlockOwnerDeletion: &controller,
+	}, nil
 }
