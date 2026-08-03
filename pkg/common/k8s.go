@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -35,6 +36,39 @@ const (
 	// NuclioSelfNamespace is used to get the namespace in which Nuclio is running
 	NuclioSelfNamespace = "@nuclio.selfNamespace"
 )
+
+// invalidKubernetesNameCharPattern matches runs of characters not allowed in a DNS-1123 label.
+var invalidKubernetesNameCharPattern = regexp.MustCompile(`[^a-z0-9-]+`)
+
+// generateNameRandomSuffixLength is the random suffix the API server appends to GenerateName.
+const generateNameRandomSuffixLength = 5
+
+// SanitizeKubernetesName joins a trusted prefix (verbatim, error if invalid) with an untrusted value
+// (lowercased, runs of invalid chars replaced by "-"), capped at KubernetesDomainLevelMaxLength.
+// forGenerateName appends a "-" and reserves room for the API server's random suffix.
+func SanitizeKubernetesName(prefix, value string, forGenerateName bool) (string, error) {
+	if invalidKubernetesNameCharPattern.MatchString(prefix) || strings.HasPrefix(prefix, "-") {
+		return "", errors.Errorf("Prefix %q contains characters invalid in a Kubernetes name", prefix)
+	}
+
+	maxLength := KubernetesDomainLevelMaxLength
+	if forGenerateName {
+		maxLength -= generateNameRandomSuffixLength + 1
+	}
+	maxLength = max(maxLength-len(prefix), 0)
+
+	sanitizedValue := strings.Trim(invalidKubernetesNameCharPattern.ReplaceAllString(strings.ToLower(value), "-"), "-")
+	if len(sanitizedValue) > maxLength {
+		sanitizedValue = sanitizedValue[:maxLength]
+	}
+
+	// truncation or an empty value can leave a dangling "-"
+	name := strings.TrimRight(prefix+sanitizedValue, "-")
+	if forGenerateName {
+		name += "-"
+	}
+	return name, nil
+}
 
 func IsInKubernetesCluster() bool {
 	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0

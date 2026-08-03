@@ -54,12 +54,6 @@ var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 var containerHostname string
 var specialCharPattern = regexp.MustCompile(`[^\w@%+=:,./-]`)
 
-// invalidKubernetesNameCharPattern matches runs of characters not allowed in a DNS-1123 label.
-var invalidKubernetesNameCharPattern = regexp.MustCompile(`[^a-z0-9-]+`)
-
-// generateNameRandomSuffixLength is the random suffix the API server appends to GenerateName.
-const generateNameRandomSuffixLength = 5
-
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
 	info, err := os.Stat(path)
@@ -459,33 +453,6 @@ func GetEnvOrDefaultStringSlice(key string, defaultValue []string) []string {
 		}
 	}
 	return RemoveDuplicatesFromSliceString(values)
-}
-
-// SanitizeKubernetesName joins a trusted prefix (verbatim, error if invalid) with an untrusted value
-// (lowercased, runs of invalid chars replaced by "-"), capped at KubernetesDomainLevelMaxLength.
-// forGenerateName appends a "-" and reserves room for the API server's random suffix.
-func SanitizeKubernetesName(prefix, value string, forGenerateName bool) (string, error) {
-	if invalidKubernetesNameCharPattern.MatchString(prefix) {
-		return "", errors.Errorf("Prefix %q contains characters invalid in a Kubernetes name", prefix)
-	}
-
-	maxLength := KubernetesDomainLevelMaxLength
-	if forGenerateName {
-		maxLength -= generateNameRandomSuffixLength + 1
-	}
-	maxLength = max(maxLength-len(prefix), 0)
-
-	sanitizedValue := strings.Trim(invalidKubernetesNameCharPattern.ReplaceAllString(strings.ToLower(value), "-"), "-")
-	if len(sanitizedValue) > maxLength {
-		sanitizedValue = sanitizedValue[:maxLength]
-	}
-
-	// truncation or an empty value can leave a dangling "-"
-	name := strings.TrimRight(prefix+sanitizedValue, "-")
-	if forGenerateName {
-		name += "-"
-	}
-	return name, nil
 }
 
 // IsJavaProjectDir Checks if the given @dirPath is in a java project structure
