@@ -18,6 +18,7 @@ package registryhelpers
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -28,25 +29,30 @@ import (
 // acrLoginUsername is the fixed GUID for ACR access-token auth.
 const acrLoginUsername = "00000000-0000-0000-0000-000000000000"
 
+// acrHostPattern matches an ACR login-server hostname, e.g. <registryName>[-<dnlHash>].azurecr.io.
+var acrHostPattern = regexp.MustCompile(`(?i)^[a-z0-9]{5,50}(-[a-z0-9]+)?\.azurecr\.(io|cn|us)$`)
+
 type azureHelper struct{}
 
 func (h *azureHelper) Matches(host string) bool {
-	return strings.HasSuffix(host, ".azurecr.io")
+	return acrHostPattern.MatchString(host)
 }
 
 func (h *azureHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
 	cfg AuthConfig,
 	imagePullPolicy string) (v1.Container, error) {
 
-	registryName := strings.Split(host, ".")[0]
+	envVars := append(credentialFileEnv(host, acrLoginUsername, tokenFilePath),
+		v1.EnvVar{Name: envVarACRRegistryName, Value: strings.Split(host, ".")[0]})
 
 	// Exchange the federated token (from workload identity) for an az-cli session, if present.
 	command := softFailScript(fmt.Sprintf(`if [ -n "$AZURE_FEDERATED_TOKEN_FILE" ]; then
   az login --service-principal -u "$AZURE_CLIENT_ID" -t "$AZURE_TENANT_ID" --federated-token "$(cat "$AZURE_FEDERATED_TOKEN_FILE")" >/dev/null
 fi
-%s`, writeCredentialFileScript(tokenFilePath, host, acrLoginUsername,
-		fmt.Sprintf("az acr login --name %s --expose-token --output tsv --query accessToken", registryName))),
-		host, "ACR")
+%s`, writeCredentialFileScript(
+		fmt.Sprintf(`az acr login --name "$%s" --expose-token --output tsv --query accessToken`,
+			envVarACRRegistryName))),
+		"ACR")
 
 	name, err := common.SanitizeKubernetesName("registry-login-azure-", host, false)
 	if err != nil {
@@ -59,6 +65,7 @@ fi
 		ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 		Command:         []string{"/bin/sh"},
 		Args:            []string{"-c", command},
+		Env:             envVars,
 		VolumeMounts:    []v1.VolumeMount{TokenDirVolumeMount()},
 	}
 

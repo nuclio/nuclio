@@ -16,6 +16,18 @@ limitations under the License.
 
 package registryhelpers
 
+// Env var names the login scripts read their values from, instead of having them interpolated
+// into the script text.
+const (
+	envVarRegistryHost      = "REGISTRY_HOST"
+	envVarRegistryUsername  = "REGISTRY_USERNAME"
+	envVarRegistryRepo      = "REGISTRY_REPO"
+	envVarRegistryTokenFile = "REGISTRY_TOKEN_FILE"
+	envVarECRRegion         = "ECR_REGION"
+	envVarECRRegistryID     = "ECR_REGISTRY_ID"
+	envVarACRRegistryName   = "ACR_REGISTRY_NAME"
+)
+
 // AuthConfig carries the images and provider secret the auth/merge init containers need.
 type AuthConfig struct {
 	AWSCLIImage                string

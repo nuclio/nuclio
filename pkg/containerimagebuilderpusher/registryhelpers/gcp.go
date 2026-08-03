@@ -17,7 +17,7 @@ limitations under the License.
 package registryhelpers
 
 import (
-	"strings"
+	"regexp"
 
 	"github.com/nuclio/nuclio/pkg/common"
 
@@ -27,10 +27,13 @@ import (
 // gcloudLoginUsername is the fixed username for GAR OAuth2 access tokens.
 const gcloudLoginUsername = "oauth2accesstoken"
 
+// garHostPattern matches a GAR hostname, e.g. <region>-docker.pkg.dev.
+var garHostPattern = regexp.MustCompile(`^[a-z0-9-]+-docker\.pkg\.dev$`)
+
 type gcpHelper struct{}
 
 func (h *gcpHelper) Matches(host string) bool {
-	return strings.HasSuffix(host, "-docker.pkg.dev")
+	return garHostPattern.MatchString(host)
 }
 
 func (h *gcpHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
@@ -39,8 +42,8 @@ func (h *gcpHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentia
 
 	// GKE workload identity supplies ambient credentials; a mounted secret overrides via env below.
 	command := softFailScript(
-		writeCredentialFileScript(tokenFilePath, host, gcloudLoginUsername, "gcloud auth print-access-token"),
-		host, "GAR")
+		writeCredentialFileScript("gcloud auth print-access-token"),
+		"GAR")
 
 	name, err := common.SanitizeKubernetesName("registry-login-gcp-", host, false)
 	if err != nil {
@@ -53,6 +56,7 @@ func (h *gcpHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentia
 		ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 		Command:         []string{"/bin/sh"},
 		Args:            []string{"-c", command},
+		Env:             credentialFileEnv(host, gcloudLoginUsername, tokenFilePath),
 		VolumeMounts:    []v1.VolumeMount{TokenDirVolumeMount()},
 	}
 

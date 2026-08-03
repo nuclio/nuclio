@@ -21,6 +21,7 @@ package containerimagebuilderpusher
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
@@ -194,7 +195,13 @@ func (suite *BuildahTestSuite) TestCompileJobSpecCloudAuthLoginContainersRunBefo
 
 	// the login container writes its token into the dir the merge container reads it from
 	tokenDir := registryhelpers.TokenDirVolumeMount().MountPath
-	suite.Contains(loginContainer.Args[1], tokenDir)
+	tokenPathPassed := false
+	for _, envVar := range loginContainer.Env {
+		if strings.HasPrefix(envVar.Value, tokenDir+"/") {
+			tokenPathPassed = true
+		}
+	}
+	suite.True(tokenPathPassed, "login container does not receive a token path under %s", tokenDir)
 	suite.Contains(mergeContainer.Args, "--cloud-tokens="+tokenDir)
 }
 

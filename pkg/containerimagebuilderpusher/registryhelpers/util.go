@@ -19,19 +19,32 @@ package registryhelpers
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/common"
+	v1 "k8s.io/api/core/v1"
 )
 
 // writeCredentialFileScript emits a shell snippet that writes a three-line credential file
-// (host, username, token) to path. tokenCommand must print the bare token on stdout.
-func writeCredentialFileScript(path, host, username, tokenCommand string) string {
-	return fmt.Sprintf("{ echo %s; echo %s; %s; } > %s",
-		common.Quote(host), common.Quote(username), tokenCommand, common.Quote(path))
+// (host, username, token) to the envVarRegistryTokenFile path. tokenCommand must print the bare
+// token on stdout. Values come from env vars, so none of them can be parsed as shell code.
+func writeCredentialFileScript(tokenCommand string) string {
+	return fmt.Sprintf(`{ echo "$%s"; echo "$%s"; %s; } > "$%s"`,
+		envVarRegistryHost,
+		envVarRegistryUsername,
+		tokenCommand,
+		envVarRegistryTokenFile)
+}
+
+// credentialFileEnv returns the env vars every login script reads.
+func credentialFileEnv(host, username, tokenFilePath string) []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: envVarRegistryHost, Value: host},
+		{Name: envVarRegistryUsername, Value: username},
+		{Name: envVarRegistryTokenFile, Value: tokenFilePath},
+	}
 }
 
 // softFailScript wraps script to log a warning and exit 0 on failure instead of aborting the pod.
-func softFailScript(script, host, kind string) string {
+func softFailScript(script, kind string) string {
 	return fmt.Sprintf(`(set -e
 %s
-) || echo "WARNING: failed to fetch %s login token for %s" >&2`, script, kind, host)
+) || echo "WARNING: failed to fetch %s login token for $%s" >&2`, script, kind, envVarRegistryHost)
 }

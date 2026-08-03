@@ -29,8 +29,8 @@ import (
 // ecrLoginUsername is the fixed username for ECR get-login-password tokens.
 const ecrLoginUsername = "AWS"
 
-// ecrHostPattern matches an ECR hostname, e.g. <registryId>.dkr.ecr.<region>.amazonaws.com.
-var ecrHostPattern = regexp.MustCompile(`^\d+\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com$`)
+// ecrHostPattern matches an ECR private registry hostname, e.g. <accountId>.dkr.ecr.<region>.amazonaws.com.
+var ecrHostPattern = regexp.MustCompile(`^\d{12}\.dkr\.ecr(-fips)?\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$`)
 
 // AWSHelper authenticates to ECR and exposes ECR URL parsing that both the buildah
 // login-container flow and kaniko's bundled credential helper need.
@@ -55,22 +55,26 @@ func (h *AWSHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentia
 	cfg AuthConfig,
 	imagePullPolicy string) (v1.Container, error) {
 
-	region := h.ECRRegion(host)
-	registryID := h.ECRRegistryID(host)
+	envVars := append(credentialFileEnv(host, ecrLoginUsername, tokenFilePath),
+		v1.EnvVar{Name: envVarECRRegion, Value: h.ECRRegion(host)},
+		v1.EnvVar{Name: envVarECRRegistryID, Value: h.ECRRegistryID(host)})
 
 	var commandParts []string
 	// Pulling a base/onbuild image never needs repo creation, only the push destination does.
 	if repoName != "" {
+		envVars = append(envVars, v1.EnvVar{Name: envVarRegistryRepo, Value: repoName})
 		commandParts = append(commandParts, fmt.Sprintf(`(set -e
-aws ecr create-repository --repository-name %s --region %s --registry-id %s
-aws ecr create-repository --repository-name %s/cache --region %s --registry-id %s
-) || echo "WARNING: failed to ensure ECR repository %s exists" >&2`,
-			repoName, region, registryID, repoName, region, registryID, repoName))
+aws ecr create-repository --repository-name "$%s" --region "$%s" --registry-id "$%s"
+aws ecr create-repository --repository-name "$%s"/cache --region "$%s" --registry-id "$%s"
+) || echo "WARNING: failed to ensure ECR repository $%s exists" >&2`,
+			envVarRegistryRepo, envVarECRRegion, envVarECRRegistryID,
+			envVarRegistryRepo, envVarECRRegion, envVarECRRegistryID,
+			envVarRegistryRepo))
 	}
 	commandParts = append(commandParts, softFailScript(
-		writeCredentialFileScript(tokenFilePath, host, ecrLoginUsername,
-			fmt.Sprintf("aws ecr get-login-password --region %s", region)),
-		host, "ECR"))
+		writeCredentialFileScript(
+			fmt.Sprintf(`aws ecr get-login-password --region "$%s"`, envVarECRRegion)),
+		"ECR"))
 
 	name, err := common.SanitizeKubernetesName("registry-login-aws-", host, false)
 	if err != nil {
@@ -83,6 +87,7 @@ aws ecr create-repository --repository-name %s/cache --region %s --registry-id %
 		ImagePullPolicy: v1.PullPolicy(imagePullPolicy),
 		Command:         []string{"/bin/sh"},
 		Args:            []string{"-c", strings.Join(commandParts, "\n")},
+		Env:             envVars,
 		VolumeMounts:    []v1.VolumeMount{TokenDirVolumeMount()},
 	}
 

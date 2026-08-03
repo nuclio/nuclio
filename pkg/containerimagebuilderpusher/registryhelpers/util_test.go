@@ -28,18 +28,11 @@ type UtilTestSuite struct {
 	suite.Suite
 }
 
-func (suite *UtilTestSuite) TestWriteCredentialFileScriptEmitsUnquotedSafeTokens() {
-	script := writeCredentialFileScript("/tmp/registry-auth-tokens/0.token", "myregistry.azurecr.io",
-		"00000000-0000-0000-0000-000000000000", "az acr login --name myregistry --expose-token")
+func (suite *UtilTestSuite) TestWriteCredentialFileScriptReferencesEnvVarsOnly() {
+	script := writeCredentialFileScript(`az acr login --name "$ACR_REGISTRY_NAME" --expose-token`)
 
-	suite.Equal(`{ echo myregistry.azurecr.io; echo 00000000-0000-0000-0000-000000000000; `+
-		`az acr login --name myregistry --expose-token; } > /tmp/registry-auth-tokens/0.token`, script)
-}
-
-func (suite *UtilTestSuite) TestWriteCredentialFileScriptQuotesShellMetacharacters() {
-	script := writeCredentialFileScript("/tmp/token", "host's; rm -rf /", "user", "cat token")
-
-	suite.Contains(script, `'host'"'"'s; rm -rf /'`)
+	suite.Equal(`{ echo "$REGISTRY_HOST"; echo "$REGISTRY_USERNAME"; `+
+		`az acr login --name "$ACR_REGISTRY_NAME" --expose-token; } > "$REGISTRY_TOKEN_FILE"`, script)
 }
 
 func TestUtilTestSuite(t *testing.T) {
