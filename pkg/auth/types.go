@@ -17,6 +17,7 @@ limitations under the License.
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -58,6 +59,27 @@ const (
 	// ProxyModeAuthOnly serves only the /auth endpoint (called by the DLX); does no forwarding.
 	ProxyModeAuthOnly ProxyMode = "authOnly"
 )
+
+const (
+	// FunctionContainerHTTPLoopbackPort is the port the processor listens on when the auth-proxy sidecar
+	// is injected in front of it: only reachable from within the pod (127.0.0.1), never exposed by the Service.
+	FunctionContainerHTTPLoopbackPort = 6080
+
+	// AuthProxySidecarListenPortRangeStart and AuthProxySidecarListenPortRangeEnd bound the band the
+	// auth-proxy listens on to front user sidecar ports. A user sidecar keeps binding its own port, so the
+	// proxy cannot reuse it; instead the Service's targetPort is repointed at a port from this band.
+	AuthProxySidecarListenPortRangeStart = 6081
+	AuthProxySidecarListenPortRangeEnd   = 6199
+
+	// AuthProxySidecarContainerName is the reserved name of the platform-injected auth-proxy sidecar.
+	// User-defined sidecars may not use this name.
+	AuthProxySidecarContainerName = "auth-proxy"
+)
+
+// AuthProxySidecarPortName returns the container-port name the auth-proxy sidecar binds for a listen port.
+func AuthProxySidecarPortName(listenPort int) string {
+	return fmt.Sprintf("authproxy-%d", listenPort)
+}
 
 type SessionContextKey string
 

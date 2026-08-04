@@ -19,11 +19,10 @@ package main
 import (
 	"flag"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/nuclio/nuclio/cmd/authproxy/app"
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
@@ -31,8 +30,7 @@ import (
 
 func main() {
 	mode := flag.String("mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_MODE", string(auth.ProxyModeReverseProxy)), "Auth-proxy mode: reverseProxy or authOnly")
-	listenPort := flag.String("listen-port", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_LISTEN_PORT", "8080"), "Port the auth-proxy listens on")
-	upstreamURL := flag.String("upstream-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_UPSTREAM_URL", "http://127.0.0.1:6080"), "URL of the upstream service (processor) to forward requests to")
+	routes := flag.String("routes", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_ROUTES", "8080=http://127.0.0.1:6080"), "Comma-separated listenPort=upstreamURL routes the auth-proxy serves; the first fronts the processor. In authOnly mode, a single port with no upstream")
 	authURL := flag.String("auth-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_URL", ""), "URL of the authentication endpoint")
 	signinURL := flag.String("signin-url", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_SIGNIN_URL", ""), "URL unauthenticated browser requests are redirected to sign-in")
 	authMode := flag.String("auth-mode", common.GetEnvOrDefaultString("NUCLIO_AUTHPROXY_AUTH_MODE", string(auth.AuthenticationModeNone)), "Authentication mode for reverseProxy: none, api, browser or basicAuth")
@@ -43,16 +41,15 @@ func main() {
 	authKind := flag.String("auth-kind", auth.KindNop, "Authentication kind for API/browser authentication (e.g. iguazio, iguazio-v4, nop)")
 	flag.Parse()
 
-	listenPortInt, err := strconv.Atoi(strings.TrimSpace(*listenPort))
+	parsedRoutes, err := authproxy.ParseRoutes(*routes)
 	if err != nil {
-		errors.PrintErrorStack(os.Stderr, errors.Wrap(err, "Failed to parse listen port"), 5)
+		errors.PrintErrorStack(os.Stderr, errors.Wrap(err, "Failed to parse routes"), 5)
 		os.Exit(1)
 	}
 
 	if err := app.Run(&app.Config{
 		Mode:               auth.ProxyMode(*mode),
-		ListenPort:         listenPortInt,
-		UpstreamURL:        *upstreamURL,
+		Routes:             parsedRoutes,
 		AuthURL:            *authURL,
 		SigninURL:          *signinURL,
 		AuthMode:           *authMode,

@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 // server fronts a function or the DLX.
@@ -47,16 +49,16 @@ func newServer(parentLogger logger.Logger, listenAddress string, handler http.Ha
 	}
 }
 
-// newHandler builds the HTTP handler for the given mode: reverseProxy authenticates each request and
-// forwards it to the processor; authOnly serves the DLX /auth endpoint.
+// newHandler builds the HTTP handler for the given route: reverseProxy authenticates each request and
+// forwards it to the route's upstream; authOnly serves the DLX /auth endpoint.
 func newHandler(parentLogger logger.Logger,
 	mode auth.ProxyMode,
-	upstreamURL string,
+	route authproxy.Route,
 	authenticator authproxy.Authenticator) (http.Handler, error) {
 
 	switch mode {
 	case auth.ProxyModeReverseProxy:
-		handler, err := newReverseProxyHandler(parentLogger, upstreamURL, authenticator)
+		handler, err := newReverseProxyHandler(parentLogger, route.UpstreamURL, authenticator)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create reverse-proxy handler")
 		}
@@ -84,7 +86,7 @@ func resolveListenAddress(mode auth.ProxyMode, listenPort int) (string, error) {
 func (s *server) start() error {
 	s.logger.InfoWith("Starting auth-proxy", "listenAddress", s.httpServer.Addr)
 
-	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return errors.Wrap(err, "Auth-proxy server failed to start")
 	}
 
@@ -137,4 +139,32 @@ func newAuthOnlyHandler(authenticator authproxy.Authenticator) http.Handler {
 		}
 	})
 	return mux
+}
+
+// startServers starts every server concurrently, so a single auth-proxy process fronts all of a function's ports.
+// Startup is all-or-nothing: a listener that fails to bind closes the others and the error is returned.
+func startServers(ctx context.Context, parentLogger logger.Logger, servers []*server) error {
+	errorWG, groupCtx := errgroup.WithContext(ctx)
+	for _, listenerServer := range servers {
+		errorWG.Go(listenerServer.start)
+	}
+
+	stop := context.AfterFunc(groupCtx, func() {
+		closeServers(parentLogger, servers)
+	})
+	defer stop()
+
+	return errorWG.Wait()
+}
+
+// closeServers unblocks the remaining listeners once the group context is cancelled; their start then
+// returns http.ErrServerClosed, which start treats as a clean stop so Wait can report the original error.
+func closeServers(parentLogger logger.Logger, servers []*server) {
+	for _, listenerServer := range servers {
+		if err := listenerServer.httpServer.Close(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			parentLogger.WarnWith("Failed to close auth-proxy listener",
+				"listenAddress", listenerServer.httpServer.Addr,
+				"err", err.Error())
+		}
+	}
 }
