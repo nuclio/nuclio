@@ -713,7 +713,7 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
 			suite.Require().Equal([]v1.ContainerPort{
 				{
-					Name:          auth.AuthProxySidecarPortName(abstract.FunctionContainerHTTPPort),
+					Name:          abstract.AuthProxySidecarPortName(abstract.FunctionContainerHTTPPort),
 					ContainerPort: abstract.FunctionContainerHTTPPort,
 					Protocol:      v1.ProtocolTCP,
 				},
@@ -762,23 +762,23 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecarFrontsSidecarPorts() {
 	suite.Require().Contains(sidecar.Args, fmt.Sprintf("--routes=%d=http://127.0.0.1:%d,%d=http://127.0.0.1:9000,%d=http://127.0.0.1:8050",
 		abstract.FunctionContainerHTTPPort,
 		abstract.FunctionContainerHTTPLoopbackPort,
-		auth.AuthProxySidecarListenPortRangeStart,
-		auth.AuthProxySidecarListenPortRangeStart+1))
+		abstract.AuthProxySidecarListenPortRangeStart,
+		abstract.AuthProxySidecarListenPortRangeStart+1))
 
 	suite.Require().Equal([]v1.ContainerPort{
 		{
-			Name:          auth.AuthProxySidecarPortName(abstract.FunctionContainerHTTPPort),
+			Name:          abstract.AuthProxySidecarPortName(abstract.FunctionContainerHTTPPort),
 			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      v1.ProtocolTCP,
 		},
 		{
-			Name:          auth.AuthProxySidecarPortName(auth.AuthProxySidecarListenPortRangeStart),
-			ContainerPort: auth.AuthProxySidecarListenPortRangeStart,
+			Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart),
+			ContainerPort: abstract.AuthProxySidecarListenPortRangeStart,
 			Protocol:      v1.ProtocolTCP,
 		},
 		{
-			Name:          auth.AuthProxySidecarPortName(auth.AuthProxySidecarListenPortRangeStart + 1),
-			ContainerPort: auth.AuthProxySidecarListenPortRangeStart + 1,
+			Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart + 1),
+			ContainerPort: abstract.AuthProxySidecarListenPortRangeStart + 1,
 			Protocol:      v1.ProtocolTCP,
 		},
 	}, sidecar.Ports)
@@ -802,7 +802,7 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecarFailsOnBadSidecarPort() {
 		{
 			Name: "sidecar-a",
 			Ports: []v1.ContainerPort{
-				{Name: "reserved", ContainerPort: auth.AuthProxySidecarListenPortRangeStart},
+				{Name: "reserved", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart},
 			},
 		},
 	}
@@ -837,8 +837,8 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 			},
 			expectedRoutes: []authproxy.Route{
 				authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort),
-				authproxy.LoopbackRoute(auth.AuthProxySidecarListenPortRangeStart, 9000),
-				authproxy.LoopbackRoute(auth.AuthProxySidecarListenPortRangeStart+1, 8050),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart, 9000),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart+1, 8050),
 			},
 		},
 		{
@@ -849,22 +849,22 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 			},
 			expectedRoutes: []authproxy.Route{
 				authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort),
-				authproxy.LoopbackRoute(auth.AuthProxySidecarListenPortRangeStart, 8050),
-				authproxy.LoopbackRoute(auth.AuthProxySidecarListenPortRangeStart+1, 9000),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart, 8050),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart+1, 9000),
 			},
 		},
 		{
 			name: "a sidecar port inside the reserved band is rejected",
 			sidecars: []*v1.Container{
 				{Name: "sidecar-a", Ports: []v1.ContainerPort{
-					{Name: "reserved", ContainerPort: auth.AuthProxySidecarListenPortRangeStart},
+					{Name: "reserved", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart},
 				}},
 			},
 			expectError: true,
 		},
 		{
 			name:        "more sidecar ports than the band can hold is rejected",
-			sidecars:    []*v1.Container{suite.compileSidecarWithPortCount(auth.AuthProxySidecarListenPortRangeEnd - auth.AuthProxySidecarListenPortRangeStart + 2)},
+			sidecars:    []*v1.Container{suite.compileSidecarWithPortCount(abstract.AuthProxySidecarListenPortRangeEnd - abstract.AuthProxySidecarListenPortRangeStart + 2)},
 			expectError: true,
 		},
 	} {
@@ -919,8 +919,8 @@ func (suite *lazyTestSuite) TestPopulateServiceSpecSidecarPorts() {
 			},
 			expectedPorts: []v1.ServicePort{
 				{Name: abstract.FunctionContainerHTTPPortName, Port: abstract.FunctionContainerHTTPPort},
-				{Name: "port-1", Port: 9000, TargetPort: intstr.FromInt32(auth.AuthProxySidecarListenPortRangeStart)},
-				{Name: "port-2", Port: 8050, TargetPort: intstr.FromInt32(auth.AuthProxySidecarListenPortRangeStart + 1)},
+				{Name: "port-1", Port: 9000, TargetPort: intstr.FromInt32(abstract.AuthProxySidecarListenPortRangeStart)},
+				{Name: "port-2", Port: 8050, TargetPort: intstr.FromInt32(abstract.AuthProxySidecarListenPortRangeStart + 1)},
 			},
 		},
 		{
@@ -928,7 +928,7 @@ func (suite *lazyTestSuite) TestPopulateServiceSpecSidecarPorts() {
 			functionAuthEnabled: true,
 			sidecars: []*v1.Container{
 				{Name: "sidecar-a", Ports: []v1.ContainerPort{
-					{Name: "reserved", ContainerPort: auth.AuthProxySidecarListenPortRangeStart},
+					{Name: "reserved", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart},
 				}},
 			},
 			expectError: true,

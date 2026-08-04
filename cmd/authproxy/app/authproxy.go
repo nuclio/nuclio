@@ -69,7 +69,7 @@ func newServers(rootLogger logger.Logger,
 	servers := make([]*server, len(config.Routes))
 
 	for index, route := range config.Routes {
-		handler, err := newHandler(rootLogger, config.Mode, route, authenticator)
+		handler, err := newHandler(rootLogger, config.Mode, route.UpstreamURL, authenticator)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create handler for listen port %d", route.ListenPort)
 		}

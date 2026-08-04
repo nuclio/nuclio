@@ -53,12 +53,12 @@ func newServer(parentLogger logger.Logger, listenAddress string, handler http.Ha
 // forwards it to the route's upstream; authOnly serves the DLX /auth endpoint.
 func newHandler(parentLogger logger.Logger,
 	mode auth.ProxyMode,
-	route authproxy.Route,
+	upstreamURL string,
 	authenticator authproxy.Authenticator) (http.Handler, error) {
 
 	switch mode {
 	case auth.ProxyModeReverseProxy:
-		handler, err := newReverseProxyHandler(parentLogger, route.UpstreamURL, authenticator)
+		handler, err := newReverseProxyHandler(parentLogger, upstreamURL, authenticator)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create reverse-proxy handler")
 		}

@@ -41,13 +41,13 @@ func LoopbackRoute(listenPort int, upstreamPort int) Route {
 
 // FormatRoutes renders routes into the --routes argument value.
 func FormatRoutes(routes []Route) string {
-	formattedRoutes := make([]string, 0, len(routes))
-	for _, route := range routes {
+	formattedRoutes := make([]string, len(routes))
+	for routeIndex, route := range routes {
 		if route.UpstreamURL == "" {
-			formattedRoutes = append(formattedRoutes, strconv.Itoa(route.ListenPort))
+			formattedRoutes[routeIndex] = strconv.Itoa(route.ListenPort)
 			continue
 		}
-		formattedRoutes = append(formattedRoutes, fmt.Sprintf("%d=%s", route.ListenPort, route.UpstreamURL))
+		formattedRoutes[routeIndex] = fmt.Sprintf("%d=%s", route.ListenPort, route.UpstreamURL)
 	}
 	return strings.Join(formattedRoutes, ",")
 }
@@ -56,8 +56,10 @@ func FormatRoutes(routes []Route) string {
 // A bare "listenPort" yields an empty upstream, which is what authOnly mode expects since it does no
 // forwarding.
 func ParseRoutes(routes string) ([]Route, error) {
-	parsedRoutes := make([]Route, 0)
-	for _, routeSpec := range strings.Split(routes, ",") {
+	routeSpecs := strings.Split(routes, ",")
+	parsedRoutes := make([]Route, len(routeSpecs))
+	routeIndex := 0
+	for _, routeSpec := range routeSpecs {
 		routeSpec = strings.TrimSpace(routeSpec)
 		if routeSpec == "" {
 			continue
@@ -69,12 +71,12 @@ func ParseRoutes(routes string) ([]Route, error) {
 			return nil, errors.Wrapf(err, "Failed to parse listen port of route: %s", routeSpec)
 		}
 
-		route := Route{ListenPort: listenPort}
+		parsedRoutes[routeIndex] = Route{ListenPort: listenPort}
 		if hasUpstream {
-			route.UpstreamURL = strings.TrimSpace(upstreamURL)
+			parsedRoutes[routeIndex].UpstreamURL = strings.TrimSpace(upstreamURL)
 		}
-		parsedRoutes = append(parsedRoutes, route)
+		routeIndex++
 	}
 
-	return parsedRoutes, nil
+	return parsedRoutes[:routeIndex], nil
 }

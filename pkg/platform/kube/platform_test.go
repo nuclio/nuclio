@@ -817,26 +817,26 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainersWithFun
 		{
 			name:                 "port at the start of the reserved band is rejected",
 			authenticationMode:   auth.AuthenticationModeAPI,
-			ports:                []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: auth.AuthProxySidecarListenPortRangeStart}},
+			ports:                []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart}},
 			shouldFailValidation: true,
 		},
 		{
 			name:                 "port at the end of the reserved band is rejected",
 			authenticationMode:   auth.AuthenticationModeAPI,
-			ports:                []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: auth.AuthProxySidecarListenPortRangeEnd}},
+			ports:                []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: abstract.AuthProxySidecarListenPortRangeEnd}},
 			shouldFailValidation: true,
 		},
 		{
 			name:               "port in the reserved band is allowed when authentication is off",
 			authenticationMode: auth.AuthenticationModeNone,
-			ports:              []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: auth.AuthProxySidecarListenPortRangeStart}},
+			ports:              []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart}},
 		},
 		{
 			name:               "port name the auth-proxy will not bind is allowed",
 			authenticationMode: auth.AuthenticationModeAPI,
 			ports: []v1.ContainerPort{
 				{
-					Name:          auth.AuthProxySidecarPortName(auth.AuthProxySidecarListenPortRangeEnd),
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeEnd),
 					ContainerPort: 8050,
 				},
 			},
@@ -846,7 +846,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainersWithFun
 			authenticationMode: auth.AuthenticationModeAPI,
 			ports: []v1.ContainerPort{
 				{
-					Name:          auth.AuthProxySidecarPortName(auth.AuthProxySidecarListenPortRangeStart),
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart),
 					ContainerPort: 8050,
 				},
 			},
@@ -857,7 +857,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainersWithFun
 			authenticationMode: auth.AuthenticationModeNone,
 			ports: []v1.ContainerPort{
 				{
-					Name:          auth.AuthProxySidecarPortName(auth.AuthProxySidecarListenPortRangeStart),
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart),
 					ContainerPort: 8050,
 				},
 			},

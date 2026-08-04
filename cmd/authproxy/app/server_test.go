@@ -91,7 +91,7 @@ func (suite *ServerTestSuite) TestModeListenAddresses() {
 		suite.Run(testCase.name, func() {
 			handler, err := newHandler(suite.logger,
 				testCase.mode,
-				authproxy.Route{ListenPort: testCase.listenPort, UpstreamURL: "http://127.0.0.1:6080"},
+				"http://127.0.0.1:6080",
 				&fakeAuthenticator{authorized: true})
 			suite.Require().NoError(err)
 
@@ -108,7 +108,7 @@ func (suite *ServerTestSuite) TestModeListenAddresses() {
 func (suite *ServerTestSuite) TestUnknownModeRejected() {
 	_, err := newHandler(suite.logger,
 		"unknown-mode",
-		authproxy.Route{ListenPort: 8080, UpstreamURL: "http://127.0.0.1:6080"},
+		"http://127.0.0.1:6080",
 		&fakeAuthenticator{authorized: true})
 	suite.Require().Error(err)
 	suite.Require().Contains(err.Error(), "Unknown auth-proxy mode")

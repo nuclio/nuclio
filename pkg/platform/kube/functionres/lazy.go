@@ -1146,7 +1146,7 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 	createService := func() (interface{}, error) {
 		spec := v1.ServiceSpec{}
 		if err := lc.populateServiceSpec(ctx, functionLabels, function, &spec); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to populate service spec")
 		}
 
 		return lc.kubeClientSet.CreateService(ctx,
@@ -1167,7 +1167,7 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 		// update existing
 		service.Labels = functionLabels
 		if err := lc.populateServiceSpec(ctx, functionLabels, function, &service.Spec); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to populate service spec")
 		}
 
 		return lc.kubeClientSet.UpdateService(ctx, function.Namespace, service)
@@ -1285,7 +1285,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		}
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
 		}
 
 		deployment := &appsv1.Deployment{
@@ -1365,7 +1365,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		}
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
 		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
@@ -1455,9 +1455,9 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 	return functionconfig.IsAuthenticationEnabled(authMode)
 }
 
-// functionAuthProxyRoute is the auth-proxy's route for the function itself: it owns the main HTTP port and
-// forwards to the processor on the pod-local loopback
-func functionAuthProxyRoute() authproxy.Route {
+// processorAuthProxyRoute is the auth-proxy's route for the processor: it owns the function's main HTTP port
+// and forwards to the processor on the pod-local loopback
+func processorAuthProxyRoute() authproxy.Route {
 	return authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort)
 }
 
@@ -1466,18 +1466,18 @@ func functionAuthProxyRoute() authproxy.Route {
 // reserved band instead, assigned in spec order.
 func authProxySidecarPortMapping(function *nuclioio.NuclioFunction) (map[int32]int32, error) {
 	portMapping := map[int32]int32{}
-	nextListenPort := int32(auth.AuthProxySidecarListenPortRangeStart)
+	nextListenPort := int32(abstract.AuthProxySidecarListenPortRangeStart)
 
 	for _, sidecar := range function.Spec.Sidecars {
 		for _, port := range sidecar.Ports {
-			if port.ContainerPort >= auth.AuthProxySidecarListenPortRangeStart &&
-				port.ContainerPort <= auth.AuthProxySidecarListenPortRangeEnd {
+			if port.ContainerPort >= abstract.AuthProxySidecarListenPortRangeStart &&
+				port.ContainerPort <= abstract.AuthProxySidecarListenPortRangeEnd {
 				return nil, errors.Errorf("Sidecar port is reserved for the auth-proxy; port: %d", port.ContainerPort)
 			}
 
-			if nextListenPort > auth.AuthProxySidecarListenPortRangeEnd {
+			if nextListenPort > abstract.AuthProxySidecarListenPortRangeEnd {
 				return nil, errors.Errorf("Too many sidecar ports to front; maximum is %d",
-					auth.AuthProxySidecarListenPortRangeEnd-auth.AuthProxySidecarListenPortRangeStart+1)
+					abstract.AuthProxySidecarListenPortRangeEnd-abstract.AuthProxySidecarListenPortRangeStart+1)
 			}
 
 			portMapping[port.ContainerPort] = nextListenPort
@@ -1501,7 +1501,7 @@ func authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, erro
 	// one route per mapped sidecar port, plus the function's own; sidecar port numbers are unique across
 	// containers (see kube.Platform.validateContainerPorts), so the mapping holds one entry per declared port
 	routes := make([]authproxy.Route, len(portMapping)+1)
-	routes[0] = functionAuthProxyRoute()
+	routes[0] = processorAuthProxyRoute()
 
 	routeIndex := 1
 	for _, sidecar := range function.Spec.Sidecars {
@@ -1540,7 +1540,7 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 	containerPorts := make([]v1.ContainerPort, 0, len(routes))
 	for _, route := range routes {
 		containerPorts = append(containerPorts, v1.ContainerPort{
-			Name:          auth.AuthProxySidecarPortName(route.ListenPort),
+			Name:          abstract.AuthProxySidecarPortName(route.ListenPort),
 			ContainerPort: int32(route.ListenPort),
 			Protocol:      v1.ProtocolTCP,
 		})

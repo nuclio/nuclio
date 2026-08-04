@@ -17,7 +17,6 @@ limitations under the License.
 package auth
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -59,19 +58,6 @@ const (
 	// ProxyModeAuthOnly serves only the /auth endpoint (called by the DLX); does no forwarding.
 	ProxyModeAuthOnly ProxyMode = "authOnly"
 )
-
-const (
-	// AuthProxySidecarListenPortRangeStart and AuthProxySidecarListenPortRangeEnd bound the band the
-	// auth-proxy listens on to front user sidecar ports. A user sidecar keeps binding its own port, so the
-	// proxy cannot reuse it; instead the Service's targetPort is repointed at a port from this band.
-	AuthProxySidecarListenPortRangeStart = 6081
-	AuthProxySidecarListenPortRangeEnd   = 6199
-)
-
-// AuthProxySidecarPortName returns the container-port name the auth-proxy sidecar binds for a listen port.
-func AuthProxySidecarPortName(listenPort int) string {
-	return fmt.Sprintf("authproxy-%d", listenPort)
-}
 
 type SessionContextKey string
 
