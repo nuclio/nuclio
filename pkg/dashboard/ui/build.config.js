@@ -82,11 +82,18 @@ module.exports = {
             'node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js'
         ],
         html: 'src/index.html',
+        // legacy LESS pass: iguazio.dashboard-controls' compiled LESS calls theming mixins that live in
+        // src/less/mixins.less (chained to src/less/palette.less), via LESS's mixin-call variable leaking.
+        // These three must stay compiled together as a single LESS document.
         less_files: [
             'node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less',
-
-            'src/less/**/*.less',
-            'src/app/components/**/*.less'
+            'src/less/mixins.less',
+            'src/less/palette.less'
+        ],
+        scss_files: [
+            'src/scss/palette.scss',
+            'src/scss/typography.scss',
+            'src/app/components/**/*.scss'
         ],
         fonts: 'node_modules/iguazio.dashboard-controls/dist/fonts',
         images: [
@@ -180,9 +187,12 @@ module.exports = {
             'node_modules/angular-cron-jobs/dist/angular-cron-jobs.js',
             'node_modules/tc-angular-ellipsis/src/angular-ellipsis.min.js'
         ],
+        // malihu scrollbar plugin - self-contained, no LESS-specific dependencies, kept as-is
         less: [
-            'node_modules/bootstrap/less/bootstrap.less',
             'node_modules/iguazio.dashboard-controls/dist/less/vendor.less'
+        ],
+        scss: [
+            'src/scss/vendor.scss'
         ],
         css: [
             'node_modules/jquery-ui/themes/themes/theme.css',

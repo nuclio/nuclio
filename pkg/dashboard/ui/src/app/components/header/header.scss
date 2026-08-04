@@ -1,7 +1,7 @@
-@users-icons-color: @dark-sky-blue;
+$users-icons-color: $dark-sky-blue;
 
 .ncl-main-header {
-    background: @white;
+    background: $white;
     cursor: default;
     left: 215px;
     min-width: 600px;
@@ -10,7 +10,7 @@
     right: 0;
     top: 0;
     z-index: 997;
-    border-bottom: 1px solid @pale-grey-two;
+    border-bottom: 1px solid $pale-grey-two;
 
     .logo {
         height: 52px;
@@ -25,9 +25,9 @@
     }
 
     .main-header-title-wrapper {
-        color: @greyish-purple;
+        color: $greyish-purple;
         float: left;
-        font-family: @font-family-sans-serif;
+        font-family: $font-family-sans-serif;
         font-size: 20px;
         font-weight: 500;
         height: 20px;
@@ -37,7 +37,7 @@
         .main-header-title {
             &:not(.disable-behavior) {
                 cursor: pointer;
-                transition: @igz-basic-transition-color;
+                transition: $igz-basic-transition-color;
             }
 
             &.disable-behavior {
@@ -46,7 +46,7 @@
         }
 
         .main-header-subtitle {
-            color: @dusk-three;
+            color: $dusk-three;
 
             .igz-icon-right {
                 font-size: 11px;
@@ -84,9 +84,9 @@
         float: right;
 
         .avatar {
-            .lightblue(0.6);
+            $color: lightblue(0.6);
             background-size: auto 100%;
-            background: @color no-repeat 23px center;
+            background: $color no-repeat 23px center;
             border-radius: 50%;
             display: inline-block;
             height: 32px;
@@ -103,7 +103,7 @@
 
             &:before {
                 font-size: 25px;
-                color: @users-icons-color;
+                color: $users-icons-color;
             }
         }
 
@@ -118,8 +118,8 @@
 
         .settings-dialog {
             i {
-                .duskThree(0.64);
-                color: @color;
+                $color: duskThree(0.64);
+                color: $color;
                 cursor: pointer;
             }
         }
@@ -145,15 +145,15 @@
     left: 50%;
     margin-left: -50px;
     border-radius: 0 0 6px 6px;
-    background-color: @light-grayish-blue;
-    border: 1px solid @pale-grey;
+    background-color: $light-grayish-blue;
+    border: 1px solid $pale-grey;
     width: 130px;
     height: 18px;
     z-index: 999;
 
     .expansion-icon {
-        .duskThree(0.64);
-        color: @color;
+        $color: duskThree(0.64);
+        color: $color;
         font-size: 12px;
     }
 
@@ -163,26 +163,26 @@
     }
 
     + .tooltip {
-        .duskThree(0.8);
+        $color: duskThree(0.8);
 
         .tooltip-arrow {
             display: block;
         }
 
         &.top .tooltip-arrow {
-            border-top: @color;
+            border-top: $color;
         }
 
         &.right .tooltip-arrow {
-            border-right-color: @color;
+            border-right-color: $color;
         }
 
         &.bottom .tooltip-arrow {
-            border-bottom-color: @color;
+            border-bottom-color: $color;
         }
 
         &.left .tooltip-arrow {
-            border-left-color: @color;
+            border-left-color: $color;
         }
 
         &.bottom {

@@ -32,6 +32,7 @@ var gulp = require('gulp');
 var path = require('path');
 var less = require('gulp-less');
 var lessImport = require('gulp-less-import');
+var sass = require('gulp-sass')(require('sass'));
 var log = require('fancy-log');
 var rename = require('gulp-rename');
 var concat = require('gulp-concat');
@@ -125,11 +126,15 @@ function vendorCss() {
     var distFolder = config.assets_dir + '/css';
 
     return merge2(
+        // Bootstrap 5+ ships Sass only (no LESS) - compiled via our own vendor.scss entry point
+        gulp.src(config.vendor_files.scss, {allowEmpty: true})
+            .pipe(errorHandler(handleError))
+            .pipe(sass({includePaths: ['node_modules']}).on('error', sass.logError)),
+        // malihu scrollbar plugin (iguazio.dashboard-controls) - still LESS, self-contained
         gulp.src(config.vendor_files.less, {allowEmpty: true})
             .pipe(errorHandler(handleError))
-            .pipe(lessImport('bootstrap.less'))
             .pipe(less()),
-        gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css), {allowEmpty: true}))
+        gulp.src(config.vendor_files.css, {allowEmpty: true}))
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
         .pipe(gulpIf(!state.isDevMode, minifyCss()))
@@ -161,7 +166,7 @@ function vendorJs() {
 function appCss() {
     var distFolder = config.assets_dir + '/css';
 
-    var task = gulp
+    var appLess = gulp
         .src(config.app_files.less_files)
         .pipe(errorHandler(handleError))
         .pipe(lessImport('app.less'))
@@ -171,8 +176,20 @@ function appCss() {
         }))
         .pipe(less({
             compress: !state.isDevMode
-        }))
-        .pipe(rename(config.output_files.app.css))
+        }));
+
+    var appScss = gulp
+        .src(config.app_files.scss_files)
+        .pipe(errorHandler(handleError))
+        .pipe(concat('app.scss'))
+        .pipe(sass({
+            includePaths: ['node_modules'],
+            outputStyle: state.isDevMode ? 'expanded' : 'compressed'
+        }).on('error', sass.logError));
+
+    var task = merge2(appLess, appScss)
+        .pipe(errorHandler(handleError))
+        .pipe(concat(config.output_files.app.css))
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.app.css_manifest)))
@@ -511,6 +528,9 @@ function watcher(next) {
 
     gulp.watch(config.app_files.less_files, appCss);
     log('Watching', color.yellow('LESS'), 'files');
+
+    gulp.watch(config.app_files.scss_files, appCss);
+    log('Watching', color.yellow('SCSS'), 'files');
 
     var appFiles = config.app_files.js
         .concat(config.app_files.templates);

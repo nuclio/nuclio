@@ -5,7 +5,7 @@
     width: 215px;
     height: 100%;
     min-height: 204px;
-    background-image: linear-gradient(to bottom, @dark-blue-grey, @dusk-two);
+    background-image: linear-gradient(to bottom, $dark-blue-grey, $dusk-two);
     z-index: 1000;
     overflow: hidden;
 
@@ -18,7 +18,7 @@
         height: 176px;
         width: 100%;
         padding: 0;
-        background-color: @dark-blue-grey;
+        background-color: $dark-blue-grey;
 
         .main-logo {
             width: 97px;
@@ -33,22 +33,22 @@
             font-size: 16px;
 
             .namespace-label {
-                color: @light-grey-blue;
+                color: $light-grey-blue;
                 margin-bottom: 10px;
             }
 
             .default-dropdown {
                 .default-dropdown-field {
-                    .white(0.84);
-                    color: @color;
+                    $color: white(0.84);
+                    color: $color;
                     height: 40px;
-                    background-color: @dusk;
+                    background-color: $dusk;
                     border: none;
                     border-radius: 3px;
 
                     input::placeholder {
-                        .white(0.84);
-                        color: @color;
+                        $color: white(0.84);
+                        color: $color;
                     }
 
                     .dropdown-arrow {
@@ -58,20 +58,20 @@
 
                 .default-dropdown-container {
                     margin-top: -5px;
-                    background-color: @dusk;
+                    background-color: $dusk;
                     border: none;
                     border-radius: 3px;
 
                     .list-item {
-                        .white(0.84);
-                        color: @color;
+                        $color: white(0.84);
+                        color: $color;
 
                         &.active {
-                            color: @orangish;
+                            color: $orangish;
                         }
 
                         &:hover, &:active, &:focus {
-                            background-color: @blue-grey;
+                            background-color: $blue-grey;
                         }
 
                         .selected-item-icon {
@@ -106,12 +106,12 @@
             height: 48px;
             position: relative;
             padding: 0 18px;
-            color: @light-grey-blue;
+            color: $light-grey-blue;
             cursor: pointer;
-            border-bottom: 1px solid @dark-blue-grey;
+            border-bottom: 1px solid $dark-blue-grey;
 
             &.active {
-                color: @orangish;
+                color: $orangish;
 
                 &::before {
                     content: '';
@@ -120,18 +120,18 @@
                     left: 0;
                     width: 4px;
                     height: 100%;
-                    background-image: linear-gradient(to bottom, @pale-orange, @orangish);
+                    background-image: linear-gradient(to bottom, $pale-orange, $orangish);
                 }
             }
 
             &:hover {
-                background-color: @dusk;
+                background-color: $dusk;
             }
 
             .menu-item-title {
                 width: 100%;
                 color: inherit;
-                font-family: @font-family-sans-serif;
+                font-family: $font-family-sans-serif;
                 font-size: 16px;
                 font-weight: 500;
             }
@@ -139,7 +139,7 @@
     }
 
     .bottom-container {
-        .lightGreyBlue(0.64);
+        $color: lightGreyBlue(0.64);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -147,6 +147,6 @@
         width: 100%;
         position: absolute;
         bottom: 0;
-        color: @color;
+        color: $color;
     }
 }
