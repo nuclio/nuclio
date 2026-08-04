@@ -1147,16 +1147,18 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 
 			// Conjunct Pull with NoCache
 			// To ensure that when forcing a function build, the base images would be pulled as well.
-			Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
-			NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
-			NoBaseImagePull:     b.GetNoBaseImagePull(),
-			BuildFlags:          buildFlags,
-			BuildArgs:           buildArgs,
-			RegistryURL:         registryURL,
-			RepoName:            b.resolveRepoName(registryURL),
-			SecretName:          b.resolveImagePullSecrets(),
-			OutputImageFile:     b.options.OutputImageFile,
-			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
+			Pull:                 b.options.FunctionConfig.Spec.Build.NoCache,
+			NoCache:              b.options.FunctionConfig.Spec.Build.NoCache,
+			NoBaseImagePull:      b.GetNoBaseImagePull(),
+			BuildFlags:           buildFlags,
+			BuildArgs:            buildArgs,
+			RegistryURL:          registryURL,
+			BaseImageRegistry:    baseImageRegistry,
+			OnbuildImageRegistry: onbuildImageRegistry,
+			RepoName:             b.resolveRepoName(registryURL),
+			SecretName:           b.options.FunctionConfig.Spec.ImagePullSecrets,
+			OutputImageFile:      b.options.OutputImageFile,
+			BuildTimeoutSeconds:  b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
 			NodeSelector:           enrichedNodeSelector,
@@ -1181,13 +1183,6 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 		})
 
 	return taggedImageName, err
-}
-
-func (b *Builder) resolveImagePullSecrets() string {
-	if b.options.FunctionConfig.Spec.ImagePullSecrets == "" {
-		return b.platform.GetDefaultRegistryCredentialsSecretName()
-	}
-	return b.options.FunctionConfig.Spec.ImagePullSecrets
 }
 
 func (b *Builder) resolveRepoName(registryURL string) string {

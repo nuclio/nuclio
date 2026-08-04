@@ -21,14 +21,20 @@ package containerimagebuilderpusher
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 var (
@@ -47,10 +53,16 @@ func (suite *BuildahTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
+	suite.T().Setenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
+	dashboardDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "nuclio-dashboard", Namespace: "default", UID: "dashboard-uid"},
+	}
+
 	suite.buildah = &Buildah{
 		jobRunner: &jobRunner{
-			builderName: BuildahKind,
-			logger:      suite.logger,
+			builderName:   BuildahKind,
+			logger:        suite.logger,
+			kubeClientSet: kube.NewClientWithRetryFromClient(k8sfake.NewClientset(dashboardDeployment)),
 			builderConfiguration: &ContainerBuilderConfiguration{
 				BusyBoxImage: "busybox:stable",
 				Buildah: BuildahConfig{
@@ -168,8 +180,36 @@ func (suite *BuildahTestSuite) TestCompileJobSpecAuthVolumeWithSecret() {
 	suite.Require().Len(podSpec.Containers[0].VolumeMounts, 2)
 
 	authMount := podSpec.Containers[0].VolumeMounts[1]
-	suite.Equal(buildahAuthVolume, authMount.Name)
+	suite.Equal(registryhelpers.AuthVolumeName, authMount.Name)
 	suite.True(authMount.ReadOnly, "auth secret mount must be read-only")
+}
+
+func (suite *BuildahTestSuite) TestCompileJobSpecCloudAuthLoginContainersRunBeforeMerge() {
+	suite.buildah.builderConfiguration.PythonImage = "python:test"
+
+	buildOptions := suite.newBuildOptions()
+	buildOptions.RegistryURL = "myregistry.azurecr.io"
+
+	jobSpec, err := suite.buildah.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
+	suite.Require().NoError(err)
+
+	podSpec := jobSpec.Spec.Template.Spec
+	suite.Require().Len(podSpec.InitContainers, 4)
+	loginContainer := podSpec.InitContainers[2]
+	mergeContainer := podSpec.InitContainers[3]
+	suite.Contains(loginContainer.Name, "registry-login-azure")
+	suite.Equal("merge-authfile", mergeContainer.Name)
+
+	// the login container writes its token into the dir the merge container reads it from
+	tokenDir := registryhelpers.TokenDirVolumeMount().MountPath
+	tokenPathPassed := false
+	for _, envVar := range loginContainer.Env {
+		if strings.HasPrefix(envVar.Value, tokenDir+"/") {
+			tokenPathPassed = true
+		}
+	}
+	suite.True(tokenPathPassed, "login container does not receive a token path under %s", tokenDir)
+	suite.Contains(mergeContainer.Args, "--cloud-tokens="+tokenDir)
 }
 
 func (suite *BuildahTestSuite) TestNewContainerBuilderConfigurationValidatesRootlessMode() {

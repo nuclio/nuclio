@@ -897,6 +897,42 @@ func (suite *StripImageTagTestSuite) TestStripImageTag() {
 	}
 }
 
+type NormalizeHostsTestSuite struct {
+	suite.Suite
+}
+
+func (suite *NormalizeHostsTestSuite) TestNormalizeHostsStripsRepoPathAndDedupesEmpty() {
+	for _, testCase := range []struct {
+		name     string
+		urls     []string
+		expected []string
+	}{
+		{
+			name:     "StripsRepoPath",
+			urls:     []string{"us-central1-docker.pkg.dev/my-project/my-repo"},
+			expected: []string{"us-central1-docker.pkg.dev"},
+		},
+		{
+			name:     "DropsEmptyAndDuplicates",
+			urls:     []string{"myregistry.azurecr.io", "", "myregistry.azurecr.io"},
+			expected: []string{"myregistry.azurecr.io"},
+		},
+		{
+			name:     "PreservesFirstSeenOrder",
+			urls:     []string{"b.io", "a.io", "b.io"},
+			expected: []string{"b.io", "a.io"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Equal(testCase.expected, NormalizeHosts(testCase.urls...))
+		})
+	}
+}
+
+func (suite *NormalizeHostsTestSuite) TestNormalizeHostsAllEmptyReturnsEmpty() {
+	suite.Empty(NormalizeHosts("", ""))
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -911,4 +947,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(ContainsPathTraversalTestSuite))
 	suite.Run(t, new(EnvWithLegacyKeyTestSuite))
 	suite.Run(t, new(StripImageTagTestSuite))
+	suite.Run(t, new(NormalizeHostsTestSuite))
 }

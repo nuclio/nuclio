@@ -440,6 +440,21 @@ func GetEnvOrDefaultInt(key string, defaultValue int) int {
 	return valueInt
 }
 
+// GetEnvOrDefaultStringSlice resolves key as a comma-separated list, dropping blanks and duplicates.
+func GetEnvOrDefaultStringSlice(key string, defaultValue []string) []string {
+	raw, ok := os.LookupEnv(key)
+	if !ok {
+		return defaultValue
+	}
+	var values []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return RemoveDuplicatesFromSliceString(values)
+}
+
 // IsJavaProjectDir Checks if the given @dirPath is in a java project structure
 // for example if the following dir existed "/my-project/src/main/java" then IsJavaProjectDir("/my-project") -> true
 func IsJavaProjectDir(dirPath string) bool {
@@ -560,6 +575,25 @@ func StripImageTag(image string) string {
 		return image[:lastColon]
 	}
 	return image
+}
+
+// GetHostname returns url's hostname, stripping any repository path (GAR URLs carry one; ACR/ECR don't).
+func GetHostname(url string) string {
+	if i := strings.Index(url, "/"); i != -1 {
+		return url[:i]
+	}
+	return url
+}
+
+// NormalizeHosts strips each url to its bare hostname and drops empty/duplicate values.
+func NormalizeHosts(urls ...string) []string {
+	hosts := make([]string, 0, len(urls))
+	for _, url := range urls {
+		if host := GetHostname(url); host != "" {
+			hosts = append(hosts, host)
+		}
+	}
+	return RemoveDuplicatesFromSliceString(hosts)
 }
 
 func AnyPositiveInSliceInt64(numbers []int64) bool {

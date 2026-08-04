@@ -84,6 +84,14 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- end -}}
 {{- end -}}
 
+{{- define "nuclio.registry.credentialsSecretNames" -}}
+{{- if len .Values.registry.secretNames -}}
+{{- .Values.registry.secretNames | join "," -}}
+{{- else -}}
+{{- include "nuclio.registry.credentialsSecretName" . -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "nuclio.registry.pushPullUrlName" -}}
 {{- printf "%s-registry-url" (include "nuclio.fullName" .) | trunc 63 -}}
 {{- end -}}

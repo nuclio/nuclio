@@ -66,6 +66,9 @@ type Client interface {
 	// DeleteConfigMap deletes a ConfigMap by name.
 	DeleteConfigMap(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error
 
+	// ApplyConfigMap creates or updates a ConfigMap in a single server-side-apply call by name.
+	ApplyConfigMap(ctx context.Context, namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error)
+
 	// --- Services ---
 
 	// GetService fetches a Service by name in the given namespace.
