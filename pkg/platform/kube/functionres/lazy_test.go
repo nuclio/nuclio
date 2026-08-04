@@ -1273,8 +1273,8 @@ func (suite *lazyTestSuite) TestAugmentedConfigMergesFunctionEnvironment() {
 	}
 
 	// keep the user supplied environment aside, to later verify the function instance itself wasn't augmented
-	userEnv := functionInstance.DeepCopy().Spec.Env
-	userEnvFrom := functionInstance.DeepCopy().Spec.EnvFrom
+	userEnv := append([]v1.EnvVar(nil), functionInstance.Spec.Env...)
+	userEnvFrom := append([]v1.EnvFromSource(nil), functionInstance.Spec.EnvFrom...)
 
 	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
 	suite.Require().NoError(err)
