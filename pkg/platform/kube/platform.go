@@ -2236,6 +2236,10 @@ func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) er
 		}
 	}
 
+	if err := p.validateSidecarPortNamesFreeForAuthProxy(functionConfig, portNames); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	return nil
 }
 
@@ -2264,6 +2268,55 @@ func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig
 			abstract.AuthProxySidecarContainerName))
 	}
 	return nil
+}
+
+// validateSidecarPortNamesFreeForAuthProxy rejects a user-defined sidecar port name that the auth-proxy
+// sidecar will itself bind to front a sidecar port. Container-port names are unique within a pod
+func (p *Platform) validateSidecarPortNamesFreeForAuthProxy(functionConfig *functionconfig.Config,
+	portNames map[string]bool) error {
+	if !p.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	if err != nil {
+		// no HTTP trigger means auth proxy is not relevant
+		if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
+			return nil
+		}
+		return nuclio.WrapErrBadRequest(err)
+	}
+
+	if !functionconfig.IsAuthenticationEnabled(authMode) {
+		return nil
+	}
+
+	for _, authProxyPortName := range authProxySidecarPortNames(functionConfig) {
+		if portNames[authProxyPortName] {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Port name is taken by the auth-proxy sidecar: %s", authProxyPortName))
+		}
+	}
+	return nil
+}
+
+// authProxySidecarPortNames returns the container-port names the auth-proxy sidecar will bind to front the
+// function's sidecar ports. The mapping is positional, so the names follow from the number of sidecar ports.
+func authProxySidecarPortNames(functionConfig *functionconfig.Config) []string {
+	sidecarPortCount := 0
+	for _, sidecar := range functionConfig.Spec.Sidecars {
+		sidecarPortCount += len(sidecar.Ports)
+	}
+
+	portNames := make([]string, 0, sidecarPortCount)
+	for portIndex := 0; portIndex < sidecarPortCount; portIndex++ {
+		listenPort := auth.AuthProxySidecarListenPortRangeStart + portIndex
+		if listenPort > auth.AuthProxySidecarListenPortRangeEnd {
+			break
+		}
+		portNames = append(portNames, auth.AuthProxySidecarPortName(listenPort))
+	}
+	return portNames
 }
 
 func (p *Platform) validateInitContainersSpec(functionConfig *functionconfig.Config) error {
@@ -2309,19 +2362,23 @@ func (p *Platform) validateContainerPorts(functionConfig *functionconfig.Config,
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
 			}
 
-			// when function-level auth is active, the loopback port is also reserved
+			// when function-level auth is active, the processor's loopback port and the band the auth-proxy
+			// listens on to front sidecar ports are also reserved
 			if p.IsFunctionAuthenticationEnabled() {
 				authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
 				if err != nil {
-					// if there is no HTTP trigger, no need to validate the loopback port
+					// if there is no HTTP trigger, no need to validate the auth-proxy's ports
 					if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
 						return nil
 					}
 					return nuclio.WrapErrBadRequest(err)
 				}
-				if functionconfig.IsAuthenticationEnabled(authMode) &&
-					port.ContainerPort == abstract.FunctionContainerHTTPLoopbackPort {
-					return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
+				if functionconfig.IsAuthenticationEnabled(authMode) {
+					if port.ContainerPort == abstract.FunctionContainerHTTPLoopbackPort ||
+						(port.ContainerPort >= auth.AuthProxySidecarListenPortRangeStart &&
+							port.ContainerPort <= auth.AuthProxySidecarListenPortRangeEnd) {
+						return nuclio.NewErrBadRequest(fmt.Sprintf("Container port is reserved for Nuclio internal use: %d", port.ContainerPort))
+					}
 				}
 			}
 
