@@ -114,9 +114,9 @@ func (suite *ConfigTestSuite) TestMergeEnvSlicesInOrder() {
 			expectedMergedEnvs: []v1.EnvVar{envVarFromSecret, {Name: "test1", Value: "a"}},
 		},
 		{
-			name:               "duplicated-secondary-name-deduplicated",
+			name:               "duplicated-secondary-name-last-wins",
 			secondaryEnvs:      []v1.EnvVar{{Name: "test1", Value: "a"}, {Name: "test1", Value: "b"}},
-			expectedMergedEnvs: []v1.EnvVar{{Name: "test1", Value: "a"}},
+			expectedMergedEnvs: []v1.EnvVar{{Name: "test1", Value: "b"}},
 		},
 		{
 			name:               "empty-secondary",

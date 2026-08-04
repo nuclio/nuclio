@@ -78,27 +78,31 @@ func MergeEnvSlicesInOrder(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v
 	}
 
 	merged := make([]v1.EnvVar, 0, len(secondaryEnv)+len(primaryEnv))
-	mergedNames := make(map[string]bool, len(secondaryEnv)+len(primaryEnv))
+	mergedIndex := make(map[string]int, len(secondaryEnv)+len(primaryEnv))
 
-	// walk the secondary list, replacing variables the primary list overrides. the first occurrence of a
-	// duplicated name wins, as in the deduplication kubernetes itself applies to container env
+	// walk the secondary list, replacing variables the primary list overrides. if a name appears multiple
+	// times, the last occurrence wins (matching Kubernetes env precedence semantics).
 	for _, env := range secondaryEnv {
-		if mergedNames[env.Name] {
-			continue
-		}
 		if primaryEnvVar, found := primaryEnvByName[env.Name]; found {
 			env = primaryEnvVar
 		}
+		if idx, exists := mergedIndex[env.Name]; exists {
+			merged[idx] = env
+			continue
+		}
+		mergedIndex[env.Name] = len(merged)
 		merged = append(merged, env)
-		mergedNames[env.Name] = true
 	}
 
 	// append the variables only the primary list holds
 	for _, env := range primaryEnv {
-		if !mergedNames[env.Name] {
-			merged = append(merged, env)
-			mergedNames[env.Name] = true
+		if idx, exists := mergedIndex[env.Name]; exists {
+			merged[idx] = env
+			continue
 		}
+
+		mergedIndex[env.Name] = len(merged)
+		merged = append(merged, env)
 	}
 
 	return merged
