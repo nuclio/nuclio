@@ -51,9 +51,8 @@ func (h *AWSHelper) ECRRegistryID(url string) string {
 	return strings.Split(url, ".")[0]
 }
 
-func (h *AWSHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
-	cfg AuthConfig,
-	imagePullPolicy string) (v1.Container, error) {
+func (h *AWSHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath, imagePullPolicy string,
+	cfg AuthConfig) (v1.Container, error) {
 
 	envVars := append(credentialFileEnv(host, ecrLoginUsername, tokenFilePath),
 		v1.EnvVar{Name: envVarECRRegion, Value: h.ECRRegion(host)},

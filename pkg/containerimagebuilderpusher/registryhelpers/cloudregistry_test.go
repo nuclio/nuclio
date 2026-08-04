@@ -68,13 +68,14 @@ func (suite *CloudRegistryTestSuite) TestBuildLoginContainersSharesOneProviderSe
 	suite.Require().NoError(err)
 
 	suite.Require().Len(volumes, 1)
-	suite.Equal("registry-provider-creds", volumes[0].Name)
+	suite.Equal(providerCredentialsVolumeName, volumes[0].Name)
+	suite.Equal("registry-provider-creds", volumes[0].Secret.SecretName)
 
 	suite.Require().Len(containers, 2)
 	for _, container := range containers {
 		found := false
 		for _, mount := range container.VolumeMounts {
-			if mount.Name == "registry-provider-creds" {
+			if mount.Name == providerCredentialsVolumeName {
 				found = true
 			}
 		}

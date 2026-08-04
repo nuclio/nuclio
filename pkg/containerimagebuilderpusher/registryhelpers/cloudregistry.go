@@ -34,7 +34,8 @@ const (
 	authTokensVolumeName = "authtokens"
 	authTokensMountPath  = "/tmp/registry-auth-tokens"
 
-	providerCredentialsMountPath = "/tmp/registry-provider-credentials"
+	providerCredentialsVolumeName = "registry-provider-credentials"
+	providerCredentialsMountPath  = "/tmp/registry-provider-credentials"
 
 	// providerCredentialsFileName is the key every provider secret carries, after AWS's
 	// ~/.aws/credentials convention; used the same way for Azure and GCP.
@@ -49,9 +50,8 @@ type CloudRegistryHelper interface {
 	// BuildLoginContainer returns the init container writing host's token to tokenFilePath. repoName
 	// is set only for the push destination, for vendors that provision repos (ECR);
 	// credentialsMountPath is where the static provider secret is mounted, or "" if none.
-	BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
-		cfg AuthConfig,
-		imagePullPolicy string) (v1.Container, error)
+	BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath, imagePullPolicy string,
+		cfg AuthConfig) (v1.Container, error)
 }
 
 // cloudRegistryHelpers is the static, ordered set of supported vendors.
@@ -87,7 +87,7 @@ func BuildLoginContainers(hosts []string,
 	if cfg.RegistryProviderSecretName != "" {
 		credentialsMountPath = providerCredentialsMountPath
 		volumes = append(volumes, v1.Volume{
-			Name:         cfg.RegistryProviderSecretName,
+			Name:         providerCredentialsVolumeName,
 			VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{SecretName: cfg.RegistryProviderSecretName}},
 		})
 	}
@@ -107,13 +107,13 @@ func BuildLoginContainers(hosts []string,
 		}
 		tokenFilePath := fmt.Sprintf("%s/%d.token", tokenDir.MountPath, tokenIndex)
 
-		container, err := helper.BuildLoginContainer(host, hostRepoName, tokenFilePath, credentialsMountPath, cfg, imagePullPolicy)
+		container, err := helper.BuildLoginContainer(host, hostRepoName, tokenFilePath, credentialsMountPath, imagePullPolicy, cfg)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "Failed to build registry login init container for host: %s", host)
 		}
 		if credentialsMountPath != "" {
 			container.VolumeMounts = append(container.VolumeMounts,
-				v1.VolumeMount{Name: cfg.RegistryProviderSecretName, MountPath: credentialsMountPath})
+				v1.VolumeMount{Name: providerCredentialsVolumeName, MountPath: credentialsMountPath})
 		}
 
 		containers = append(containers, container)

@@ -31,7 +31,9 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -51,11 +53,16 @@ func (suite *BuildahTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
+	suite.T().Setenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
+	dashboardDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "nuclio-dashboard", Namespace: "default", UID: "dashboard-uid"},
+	}
+
 	suite.buildah = &Buildah{
 		jobRunner: &jobRunner{
 			builderName:   BuildahKind,
 			logger:        suite.logger,
-			kubeClientSet: kube.NewClientWithRetryFromClient(k8sfake.NewClientset()),
+			kubeClientSet: kube.NewClientWithRetryFromClient(k8sfake.NewClientset(dashboardDeployment)),
 			builderConfiguration: &ContainerBuilderConfiguration{
 				BusyBoxImage: "busybox:stable",
 				Buildah: BuildahConfig{

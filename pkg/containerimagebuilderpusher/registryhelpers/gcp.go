@@ -36,9 +36,8 @@ func (h *gcpHelper) Matches(host string) bool {
 	return garHostPattern.MatchString(host)
 }
 
-func (h *gcpHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
-	cfg AuthConfig,
-	imagePullPolicy string) (v1.Container, error) {
+func (h *gcpHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath, imagePullPolicy string,
+	cfg AuthConfig) (v1.Container, error) {
 
 	// GKE workload identity supplies ambient credentials; a mounted secret overrides via env below.
 	command := softFailScript(

@@ -52,14 +52,12 @@ func BuildMergeAuthInitContainer(secretNames []string,
 
 	sources := make([]v1.VolumeProjection, 0, len(secretNames))
 	for i, secretName := range secretNames {
-		optional := true
 		sources = append(sources, v1.VolumeProjection{
 			Secret: &v1.SecretProjection{
 				LocalObjectReference: v1.LocalObjectReference{Name: secretName},
 				Items: []v1.KeyToPath{
 					{Key: ".dockerconfigjson", Path: fmt.Sprintf("%d.json", i)},
 				},
-				Optional: &optional,
 			},
 		})
 	}

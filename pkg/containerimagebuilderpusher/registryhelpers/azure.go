@@ -38,9 +38,8 @@ func (h *azureHelper) Matches(host string) bool {
 	return acrHostPattern.MatchString(host)
 }
 
-func (h *azureHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath string,
-	cfg AuthConfig,
-	imagePullPolicy string) (v1.Container, error) {
+func (h *azureHelper) BuildLoginContainer(host, repoName, tokenFilePath, credentialsMountPath, imagePullPolicy string,
+	cfg AuthConfig) (v1.Container, error) {
 
 	envVars := append(credentialFileEnv(host, acrLoginUsername, tokenFilePath),
 		v1.EnvVar{Name: envVarACRRegistryName, Value: strings.Split(host, ".")[0]})

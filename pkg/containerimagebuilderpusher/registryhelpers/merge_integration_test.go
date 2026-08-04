@@ -206,14 +206,15 @@ func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesMalformedTokenSkipped(
 	suite.Empty(auths)
 }
 
-func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesPassesThroughNonAuthsKeys() {
+func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesDropsNonAuthsKeys() {
 	authfile, _ := suite.runMerge(map[string]string{
 		"0.json": `{"auths":{"registry-a.io":{"auth":"YQ=="}},"credsStore":"ecr-login"}`,
 	}, nil)
 
 	var doc map[string]interface{}
 	suite.Require().NoError(json.Unmarshal([]byte(authfile), &doc))
-	suite.Equal("ecr-login", doc["credsStore"])
+	suite.NotContains(doc, "credsStore")
+	suite.Len(doc, 1)
 }
 
 func (suite *MergeIntegrationTestSuite) TestMergeAuthFilesMissingSecrets() {

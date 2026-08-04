@@ -71,7 +71,6 @@ def read_credential_file(path):
 
 def merge_auth_files(secrets_dir, tokens_dir, target_path):
     auths = {}
-    rest = {}
 
     secret_paths = files_with_suffix(secrets_dir, ".json")
     print("found {} registry auth source(s) in {}".format(len(secret_paths), secrets_dir))
@@ -84,6 +83,9 @@ def merge_auth_files(secrets_dir, tokens_dir, target_path):
             warn("failed to read/parse registry auth source {}: {}".format(path, exc))
             continue
 
+        # Only "auths" is merged: other config.json keys (credsStore, credHelpers, ...)
+        # would shell out to a credential helper binary that isn't in the buildah image,
+        # bypassing the merged auths this script exists to produce.
         host_auths = doc.get("auths")
         if isinstance(host_auths, dict):
             hosts = []
@@ -94,10 +96,6 @@ def merge_auth_files(secrets_dir, tokens_dir, target_path):
         else:
             print("merged registry auth source {}: no hosts".format(path))
 
-        for key, value in doc.items():
-            if key != "auths":
-                rest[key] = value
-
     token_paths = files_with_suffix(tokens_dir, ".token") if tokens_dir else []
     print("found {} cloud registry credential token(s) in {}".format(len(token_paths), tokens_dir))
 
@@ -107,8 +105,7 @@ def merge_auth_files(secrets_dir, tokens_dir, target_path):
             auths[host] = entry
             print("applied cloud registry credential token {} for host {}".format(path, host))
 
-    rest["auths"] = auths
-    merged = json.dumps(rest)
+    merged = json.dumps({"auths": auths})
 
     target_dir = os.path.dirname(target_path)
     if target_dir:
