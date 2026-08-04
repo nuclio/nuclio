@@ -38,7 +38,7 @@ type Config struct {
 }
 
 func validateConfiguration(config *Config) error {
-	if err := validatePorts(config); err != nil {
+	if err := validatePort(config.ListenPort); err != nil {
 		return errors.Wrap(err, "Invalid port configuration")
 	}
 
@@ -96,15 +96,15 @@ func validateAuthOnlyConfiguration(config *Config) error {
 	return nil
 }
 
-func validatePorts(config *Config) error {
+func validatePort(listenPort int) error {
 	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if config.ListenPort < 1 || config.ListenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
+	if listenPort < 1 || listenPort > 65535 {
+		return errors.Errorf("Invalid listen port: %d", listenPort)
 	}
 
 	// ports 1 through 1023 are known as privileged ports or well-known ports, so we should avoid using them
-	if config.ListenPort < 1024 {
-		return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", config.ListenPort)
+	if listenPort < 1024 {
+		return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", listenPort)
 	}
 
 	return nil

@@ -20,6 +20,7 @@ package app
 
 import (
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -65,16 +66,17 @@ func (suite *ServerTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-// TestModeListenAddress verifies the only listen-address difference between the modes: reverseProxy is
-// exposed on the configurable port, authOnly is bound to loopback (reachable only from within the pod).
-func (suite *ServerTestSuite) TestModeListenAddress() {
+// TestModeListenAddresses verifies the only listen-address difference between the modes: reverseProxy is
+// exposed on the configured port, authOnly is bound to loopback (reachable only from within the pod).
+func (suite *ServerTestSuite) TestModeListenAddresses() {
 	for _, testCase := range []struct {
 		name                  string
 		mode                  auth.ProxyMode
+		listenPort            int
 		expectedListenAddress string
 	}{
-		{name: "reverseProxy is exposed", mode: auth.ProxyModeReverseProxy, expectedListenAddress: ":8080"},
-		{name: "authOnly is loopback", mode: auth.ProxyModeAuthOnly, expectedListenAddress: "127.0.0.1:8080"},
+		{name: "reverseProxy is exposed", mode: auth.ProxyModeReverseProxy, listenPort: 8080, expectedListenAddress: ":8080"},
+		{name: "authOnly is loopback", mode: auth.ProxyModeAuthOnly, listenPort: 8080, expectedListenAddress: "127.0.0.1:8080"},
 	} {
 		suite.Run(testCase.name, func() {
 			handler, err := newHandler(suite.logger,
@@ -83,11 +85,12 @@ func (suite *ServerTestSuite) TestModeListenAddress() {
 				&fakeAuthenticator{authorized: true})
 			suite.Require().NoError(err)
 
-			listenAddress, err := resolveListenAddress(testCase.mode, 8080)
+			listenAddress, err := resolveListenAddress(testCase.mode, testCase.listenPort)
 			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedListenAddress, listenAddress)
 
 			server := newServer(suite.logger, listenAddress, handler)
-			suite.Require().Equal(testCase.expectedListenAddress, server.httpServer.Addr)
+			suite.Require().Equal(listenAddress, server.httpServer.Addr)
 		})
 	}
 }
@@ -103,6 +106,23 @@ func (suite *ServerTestSuite) TestUnknownModeRejected() {
 	_, err = resolveListenAddress("unknown-mode", 8080)
 	suite.Require().Error(err)
 	suite.Require().Contains(err.Error(), "Unknown auth-proxy mode")
+}
+
+// TestStartServerFailsOnOccupiedPort verifies that server.start returns an error when the port is already in use.
+func (suite *ServerTestSuite) TestStartServerFailsOnOccupiedPort() {
+	upstream := suite.newTestUpstreamStub()
+	defer upstream.server.Close()
+
+	handler, err := newReverseProxyHandler(suite.logger, upstream.server.URL, &fakeAuthenticator{authorized: true})
+	suite.Require().NoError(err)
+
+	// occupy a port so the listener deterministically fails to bind
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	suite.Require().NoError(err)
+	defer occupied.Close() // nolint: errcheck
+
+	err = newServer(suite.logger, occupied.Addr().String(), handler).start()
+	suite.Require().Error(err)
 }
 
 // TestReverseProxyForwardsWhenAuthorized verifies an authorized request is proxied to the upstream.

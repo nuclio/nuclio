@@ -520,6 +520,9 @@ type Authentication struct {
 	// Defaults to the value set in the OPA config (Opa.AuthKind).
 	AuthKind auth.Kind `json:"authKind,omitempty"`
 
+	// AuthSidecarImage is the image used for the platform-injected auth-proxy sidecar container.
+	AuthSidecarImage string `json:"authSidecarImage,omitempty"`
+
 	// AllowedModes lists the function-level authentication modes the platform permits.
 	AllowedModes []string `json:"allowedModes,omitempty"`
 
