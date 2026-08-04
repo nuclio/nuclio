@@ -62,10 +62,15 @@ func BuildMergeAuthInitContainer(secretNames []string,
 		})
 	}
 
+	authSourcesVolumeSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if len(sources) > 0 {
+		authSourcesVolumeSource = v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: sources}}
+	}
+
 	volumes := []v1.Volume{
 		{
 			Name:         authSourcesVolumeName,
-			VolumeSource: v1.VolumeSource{Projected: &v1.ProjectedVolumeSource{Sources: sources}},
+			VolumeSource: authSourcesVolumeSource,
 		},
 		{
 			Name: authScriptVolumeName,

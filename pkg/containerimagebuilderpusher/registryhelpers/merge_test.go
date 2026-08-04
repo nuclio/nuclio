@@ -123,6 +123,17 @@ func (suite *MergeTestSuite) TestBuildMergeAuthInitContainerNoTokenMountWithoutC
 	}
 }
 
+// A ProjectedVolumeSource with no sources fails Kubernetes API validation, so the cloud-auth-only
+// case (no registry secrets configured) must fall back to an EmptyDir instead.
+func (suite *MergeTestSuite) TestBuildMergeAuthInitContainerEmptyDirWithoutSecretNames() {
+	_, volumes := BuildMergeAuthInitContainer(nil, "/tmp/registry-auth", true, AuthConfig{})
+
+	sourcesVolume := volumes[0]
+	suite.Equal(authSourcesVolumeName, sourcesVolume.Name)
+	suite.Nil(sourcesVolume.Projected)
+	suite.NotNil(sourcesVolume.EmptyDir)
+}
+
 func (suite *MergeTestSuite) TestMergeScriptContentsIsTheEmbeddedScript() {
 	suite.Contains(MergeScriptContents(), "def merge_auth_files")
 }
