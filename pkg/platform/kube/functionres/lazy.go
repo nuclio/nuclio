@@ -1447,12 +1447,13 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 		return false
 	}
 
-	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
+	// a malformed trigger set is reported by validation, not here: this only decides whether to inject
+	authenticationEnabled, err := functionconfig.AuthenticationEnabledForTriggers(function.Spec.Triggers)
 	if err != nil {
 		return false
 	}
 
-	return functionconfig.IsAuthenticationEnabled(authMode)
+	return authenticationEnabled
 }
 
 // processorAuthProxyRoute is the auth-proxy's route for the processor: it owns the function's main HTTP port

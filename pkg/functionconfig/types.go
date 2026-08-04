@@ -363,6 +363,21 @@ func GetHTTPTriggerMode(triggers map[string]Trigger) (string, error) {
 	return mode, nil
 }
 
+// AuthenticationEnabledForTriggers reports whether the function's single HTTP trigger declares a
+// function-level authentication mode. A function with no HTTP trigger simply is not authenticated; any other
+// problem with the triggers is returned.
+func AuthenticationEnabledForTriggers(triggers map[string]Trigger) (bool, error) {
+	mode, err := GetHTTPTriggerMode(triggers)
+	if err != nil {
+		if errors.Is(err, ErrHTTPTriggerNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return IsAuthenticationEnabled(mode), nil
+}
+
 // GetTriggersByKinds returns a map of triggers by their kinds
 func GetTriggersByKinds(triggers map[string]Trigger, kinds []string) map[string]Trigger {
 	matchingTrigger := map[string]Trigger{}

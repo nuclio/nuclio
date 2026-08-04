@@ -2245,24 +2245,18 @@ func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) er
 
 // functionAuthenticationEnabled reports whether the auth-proxy sidecar will be injected in front of the
 // function - gated by the platform-wide feature flag AND the function's HTTP trigger declaring a
-// function-level authenticationMode. It decides which of the auth-proxy's reservations apply
-// (see functionres.lazyClient.functionAuthenticationEnabled, which gates the injection itself).
+// function-level authenticationMode.
 func (p *Platform) functionAuthenticationEnabled(functionConfig *functionconfig.Config) (bool, error) {
 	if !p.IsFunctionAuthenticationEnabled() {
 		return false, nil
 	}
 
-	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	authenticationEnabled, err := functionconfig.AuthenticationEnabledForTriggers(functionConfig.Spec.Triggers)
 	if err != nil {
-
-		// no HTTP trigger means the auth-proxy is not relevant, so none of its reservations apply
-		if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
-			return false, nil
-		}
 		return false, nuclio.WrapErrBadRequest(err)
 	}
 
-	return functionconfig.IsAuthenticationEnabled(authMode), nil
+	return authenticationEnabled, nil
 }
 
 // validateSidecarNameNotReserved rejects a user-supplied sidecar named abstract.AuthProxySidecarContainerName,
