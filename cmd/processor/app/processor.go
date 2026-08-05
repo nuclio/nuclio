@@ -364,7 +364,7 @@ func (p *Processor) exportRestoredEnvironmentVariables(config *functionconfig.Co
 			continue
 		}
 
-		if currentValue, found := os.LookupEnv(env.Name); found && currentValue == env.Value {
+		if currentValue, found := os.LookupEnv(env.Name); found && !strings.HasPrefix(currentValue, functionconfig.ReferencePrefix) {
 			continue
 		}
 
