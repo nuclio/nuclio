@@ -2365,10 +2365,10 @@ func (p *Platform) validateContainerPorts(functionConfig *functionconfig.Config,
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
 			}
 
-			// when function-level auth is active, the processor's loopback port and the band the auth-proxy
-			// listens on to front sidecar ports are also reserved
+			// when function-level auth is active, the port the auth-proxy fronts the processor on and the
+			// band it listens on to front sidecar ports are also reserved
 			if authProxyEnabled &&
-				(port.ContainerPort == abstract.FunctionContainerHTTPLoopbackPort ||
+				(port.ContainerPort == abstract.AuthProxyProcessorListenPort ||
 					(port.ContainerPort >= abstract.AuthProxySidecarListenPortRangeStart &&
 						port.ContainerPort <= abstract.AuthProxySidecarListenPortRangeEnd)) {
 				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port is reserved for Nuclio internal use: %d", port.ContainerPort))

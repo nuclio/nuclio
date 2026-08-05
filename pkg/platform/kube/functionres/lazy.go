@@ -1456,10 +1456,10 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 	return authenticationEnabled
 }
 
-// processorAuthProxyRoute is the auth-proxy's route for the processor: it owns the function's main HTTP port
-// and forwards to the processor on the pod-local loopback
+// processorAuthProxyRoute is the auth-proxy's route for the processor: it listens on a port of its own and
+// forwards to the processor's HTTP port on the pod-local loopback
 func processorAuthProxyRoute() authproxy.Route {
-	return authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort)
+	return authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort)
 }
 
 // authProxySidecarPortMapping maps each user sidecar container port to the auth-proxy listen port that fronts
@@ -1489,7 +1489,7 @@ func authProxySidecarPortMapping(function *nuclioio.NuclioFunction) (map[int32]i
 	return portMapping, nil
 }
 
-// authProxyRoutes returns the auth-proxy's listeners for the function. The first is always the function's own
+// authProxyRoutes returns the auth-proxy's listeners for the function. The first is always the processor's
 // route; the rest front user sidecar ports. The sidecars are walked in spec order rather than over the port
 // mapping, since map iteration order is randomized and would churn the sidecar's --routes argument - and with
 // it the deployment spec - on every reconcile.
@@ -1499,7 +1499,7 @@ func authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, erro
 		return nil, err
 	}
 
-	// one route per mapped sidecar port, plus the function's own; sidecar port numbers are unique across
+	// one route per mapped sidecar port, plus the processor's; sidecar port numbers are unique across
 	// containers (see kube.Platform.validateContainerPorts), so the mapping holds one entry per declared port
 	routes := make([]authproxy.Route, len(portMapping)+1)
 	routes[0] = processorAuthProxyRoute()
@@ -1516,8 +1516,8 @@ func authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, erro
 
 // injectAuthProxySidecar appends the platform's auth-proxy sidecar to the pod: it terminates
 // authentication for the function's traffic (the Kubernetes Service is repointed to it, see
-// populateServiceSpec) and forwards allowed requests to the processor, which by this point only listens
-// on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback), and to any user sidecar port.
+// populateServiceSpec) and forwards allowed requests over the pod-local loopback to the processor and to
+// any user sidecar port.
 func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 	function *nuclioio.NuclioFunction,
 	deploymentSpec *appsv1.DeploymentSpec,
@@ -2208,15 +2208,32 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 			"ports", spec.Ports)
 	}
 
+	// With function-level authentication enabled, the Service target port is
+	// redirected to the auth-proxy to prevent authentication bypass. Offline states
+	// are excluded because DLX authenticates requests on the function's HTTP port.
+	authProxyFronting := lc.functionAuthenticationEnabled(function) &&
+		function.Status.State != functionconfig.FunctionStateScaledToZero &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesToZero &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesFromZero
+
+	// the block above rebuilds the http port only on some passes, so its target is set here on every pass -
+	// otherwise it would not follow the function in and out of the states the DLX serves
+	httpTargetPort := int32(abstract.FunctionContainerHTTPPort)
+	if authProxyFronting {
+		httpTargetPort = int32(abstract.AuthProxyProcessorListenPort)
+	}
+	for portIndex, port := range spec.Ports {
+		if port.Name == abstract.FunctionContainerHTTPPortName {
+			spec.Ports[portIndex].TargetPort = intstr.FromInt32(httpTargetPort)
+		}
+	}
+
 	// add additional ports for sidecars
 	if function.Spec.Sidecars != nil {
 		sidecarPortMapping := map[int32]int32{}
 
-		// only when function-level auth is on does a sidecar port need to land on the auth-proxy rather than
-		// on the sidecar container; otherwise an in-cluster caller reaching the Service would bypass
-		// authentication. The client-facing Port never changes - only the TargetPort moves to the proxy.
-		// With the feature off, sidecarPortMapping stays empty and every port targets the sidecar as before.
-		if lc.functionAuthenticationEnabled(function) {
+		// with the feature off, sidecarPortMapping stays empty and every port targets the sidecar as before
+		if authProxyFronting {
 			resolvedPortMapping, err := authProxySidecarPortMapping(function)
 			if err != nil {
 				return errors.Wrap(err, "Failed to resolve auth-proxy sidecar ports")
@@ -2679,18 +2696,12 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	// re-derive the ports from scratch: on update this container is the one read back from the existing
 	// deployment, so appending to whatever it already carries would both
 	// accumulate duplicates and keep ports that no longer apply
-	container.Ports = nil
-
-	// when the auth-proxy sidecar is injected, it - not the processor - owns the main HTTP port; the
-	// processor listens only on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback)
-	if !lc.functionAuthenticationEnabled(function) {
-		container.Ports = []v1.ContainerPort{
-			{
-				Name:          abstract.FunctionContainerHTTPPortName,
-				ContainerPort: abstract.FunctionContainerHTTPPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-		}
+	container.Ports = []v1.ContainerPort{
+		{
+			Name:          abstract.FunctionContainerHTTPPortName,
+			ContainerPort: abstract.FunctionContainerHTTPPort,
+			Protocol:      v1.ProtocolTCP,
+		},
 	}
 
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
@@ -2707,10 +2718,18 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	utils.EnrichProbe(&function.Spec.ReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&function.Spec.LivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 
+	// readiness goes through the auth-proxy when one fronts the function, so the pod turns ready only once
+	// both the proxy and the processor serve.
+	// Liveness stays direct on the health check port, so a proxy fault never restarts the function container.
+	readinessProbePort := abstract.FunctionContainerHTTPPort
+	if lc.functionAuthenticationEnabled(function) {
+		readinessProbePort = abstract.AuthProxyProcessorListenPort
+	}
+
 	container.ReadinessProbe = &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
-				Port: intstr.FromInt(abstract.FunctionContainerHTTPPort),
+				Port: intstr.FromInt(readinessProbePort),
 				Path: http.InternalHealthPath,
 			},
 		},
@@ -2756,11 +2775,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	// create configMap contents - generate a processor configuration based on the function CR
 	configMapContents := bytes.Buffer{}
 
-	functionSpec := function.Spec
-	if lc.functionAuthenticationEnabled(function) {
-		functionSpec = rewriteHTTPTriggerURLToLoopback(functionSpec)
-	}
-
 	if err := configWriter.Write(&configMapContents, &processor.Configuration{
 		Config: functionconfig.Config{
 			Meta: functionconfig.Meta{
@@ -2769,7 +2783,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 				Labels:      functionLabels,
 				Annotations: function.Annotations,
 			},
-			Spec: functionSpec,
+			Spec: function.Spec,
 		},
 	}); err != nil {
 
@@ -2788,22 +2802,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	}
 
 	return nil
-}
-
-// rewriteHTTPTriggerURLToLoopback returns a copy of spec whose HTTP trigger(s) listen on the pod-local
-// loopback instead of the wildcard address, so the processor is only reachable from within the pod - i.e.
-// via the auth-proxy sidecar that fronts it (see injectAuthProxySidecar). The given spec is never mutated:
-// its Triggers map is copied before being modified.
-func rewriteHTTPTriggerURLToLoopback(spec functionconfig.Spec) functionconfig.Spec {
-	triggers := make(map[string]functionconfig.Trigger, len(spec.Triggers))
-	for triggerName, trigger := range spec.Triggers {
-		if trigger.Kind == "http" {
-			trigger.URL = fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort)
-		}
-		triggers[triggerName] = trigger
-	}
-	spec.Triggers = triggers
-	return spec
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,

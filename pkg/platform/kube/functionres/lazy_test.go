@@ -705,16 +705,16 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			suite.Require().Equal("nuclio/auth-proxy:latest", sidecar.Image)
 			suite.Require().Contains(sidecar.Args, "--mode=reverseProxy")
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--routes=%d=http://127.0.0.1:%d",
-				abstract.FunctionContainerHTTPPort,
-				abstract.FunctionContainerHTTPLoopbackPort))
+				abstract.AuthProxyProcessorListenPort,
+				abstract.FunctionContainerHTTPPort))
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-mode=%s", testCase.authenticationMode))
 			suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
 			suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
 			suite.Require().Equal([]v1.ContainerPort{
 				{
-					Name:          abstract.AuthProxySidecarPortName(abstract.FunctionContainerHTTPPort),
-					ContainerPort: abstract.FunctionContainerHTTPPort,
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxyProcessorListenPort),
+					ContainerPort: abstract.AuthProxyProcessorListenPort,
 					Protocol:      v1.ProtocolTCP,
 				},
 			}, sidecar.Ports)
@@ -760,15 +760,15 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecarFrontsSidecarPorts() {
 	sidecar := deploymentSpec.Template.Spec.Containers[1]
 
 	suite.Require().Contains(sidecar.Args, fmt.Sprintf("--routes=%d=http://127.0.0.1:%d,%d=http://127.0.0.1:9000,%d=http://127.0.0.1:8050",
+		abstract.AuthProxyProcessorListenPort,
 		abstract.FunctionContainerHTTPPort,
-		abstract.FunctionContainerHTTPLoopbackPort,
 		abstract.AuthProxySidecarListenPortRangeStart,
 		abstract.AuthProxySidecarListenPortRangeStart+1))
 
 	suite.Require().Equal([]v1.ContainerPort{
 		{
-			Name:          abstract.AuthProxySidecarPortName(abstract.FunctionContainerHTTPPort),
-			ContainerPort: abstract.FunctionContainerHTTPPort,
+			Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxyProcessorListenPort),
+			ContainerPort: abstract.AuthProxyProcessorListenPort,
 			Protocol:      v1.ProtocolTCP,
 		},
 		{
@@ -814,8 +814,9 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecarFailsOnBadSidecarPort() {
 	suite.Require().Len(deploymentSpec.Template.Spec.Containers, 1)
 }
 
-// TestAuthProxyRoutes verifies the route set: the function's own route always comes first and is unchanged,
-// sidecar routes are assigned from the reserved band in spec order, and the band's limits are enforced.
+// TestAuthProxyRoutes verifies the route set: the processor's route always comes first and takes the band's
+// first slot, sidecar routes are assigned the slots after it in spec order, and the band's limits are
+// enforced. Every route forwards to the port its container already binds - none is asked to rebind.
 func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 	for _, testCase := range []struct {
 		name           string
@@ -824,9 +825,9 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 		expectError    bool
 	}{
 		{
-			name: "no sidecars leaves only the function route",
+			name: "no sidecars leaves only the processor route",
 			expectedRoutes: []authproxy.Route{
-				authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort),
+				authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort),
 			},
 		},
 		{
@@ -836,7 +837,7 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 				{Name: "sidecar-b", Ports: []v1.ContainerPort{{Name: "low", ContainerPort: 8050}}},
 			},
 			expectedRoutes: []authproxy.Route{
-				authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort),
+				authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort),
 				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart, 9000),
 				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart+1, 8050),
 			},
@@ -848,7 +849,7 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 				{Name: "sidecar-a", Ports: []v1.ContainerPort{{Name: "high", ContainerPort: 9000}}},
 			},
 			expectedRoutes: []authproxy.Route{
-				authproxy.LoopbackRoute(abstract.FunctionContainerHTTPPort, abstract.FunctionContainerHTTPLoopbackPort),
+				authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort),
 				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart, 8050),
 				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart+1, 9000),
 			},
@@ -887,9 +888,10 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 	}
 }
 
-// TestPopulateServiceSpecSidecarPorts verifies a sidecar's Service port keeps its client-facing number but
-// targets the auth-proxy when function-level authentication is on, so reaching the Service cannot bypass it.
-func (suite *lazyTestSuite) TestPopulateServiceSpecSidecarPorts() {
+// TestPopulateServiceSpecPorts verifies every published port keeps its client-facing number and targets the
+// auth-proxy when function-level authentication is on - the processor's HTTP port included, so the rule is
+// the same for the function and its sidecars and reaching the Service cannot bypass authentication.
+func (suite *lazyTestSuite) TestPopulateServiceSpecPorts() {
 	for _, testCase := range []struct {
 		name                string
 		functionAuthEnabled bool
@@ -898,18 +900,22 @@ func (suite *lazyTestSuite) TestPopulateServiceSpecSidecarPorts() {
 		expectError         bool
 	}{
 		{
-			name:                "auth off keeps the sidecar port targeting the sidecar",
+			name:                "auth off targets every port at the container binding it",
 			functionAuthEnabled: false,
 			sidecars: []*v1.Container{
 				{Name: "sidecar-a", Ports: []v1.ContainerPort{{Name: "port-1", ContainerPort: 8050}}},
 			},
 			expectedPorts: []v1.ServicePort{
-				{Name: abstract.FunctionContainerHTTPPortName, Port: abstract.FunctionContainerHTTPPort},
+				{
+					Name:       abstract.FunctionContainerHTTPPortName,
+					Port:       abstract.FunctionContainerHTTPPort,
+					TargetPort: intstr.FromInt32(abstract.FunctionContainerHTTPPort),
+				},
 				{Name: "port-1", Port: 8050, TargetPort: intstr.FromInt32(8050)},
 			},
 		},
 		{
-			name:                "auth on repoints the sidecar port at the auth-proxy",
+			name:                "auth on repoints the http port and the sidecar ports at the auth-proxy",
 			functionAuthEnabled: true,
 			sidecars: []*v1.Container{
 				{Name: "sidecar-a", Ports: []v1.ContainerPort{
@@ -918,7 +924,11 @@ func (suite *lazyTestSuite) TestPopulateServiceSpecSidecarPorts() {
 				}},
 			},
 			expectedPorts: []v1.ServicePort{
-				{Name: abstract.FunctionContainerHTTPPortName, Port: abstract.FunctionContainerHTTPPort},
+				{
+					Name:       abstract.FunctionContainerHTTPPortName,
+					Port:       abstract.FunctionContainerHTTPPort,
+					TargetPort: intstr.FromInt32(abstract.AuthProxyProcessorListenPort),
+				},
 				{Name: "port-1", Port: 9000, TargetPort: intstr.FromInt32(abstract.AuthProxySidecarListenPortRangeStart)},
 				{Name: "port-2", Port: 8050, TargetPort: intstr.FromInt32(abstract.AuthProxySidecarListenPortRangeStart + 1)},
 			},
@@ -1055,16 +1065,17 @@ func (suite *lazyTestSuite) TestPopulateSupplementaryContainersInjectsAuthProxyW
 	}
 }
 
-// TestPopulateDeploymentContainerRemovesHTTPPortWhenAuthProxyFronts verifies the processor container no
-// longer declares the main HTTP port once the auth-proxy sidecar takes over listening on it.
-func (suite *lazyTestSuite) TestPopulateDeploymentContainerRemovesHTTPPortWhenAuthProxyFronts() {
+// TestPopulateDeploymentContainerKeepsHTTPPort verifies the processor keeps declaring - and binding - its own
+// HTTP port whether or not the auth-proxy fronts it. The proxy listens on a port of its own, so the processor
+// is never displaced.
+func (suite *lazyTestSuite) TestPopulateDeploymentContainerKeepsHTTPPort() {
 	for _, testCase := range []struct {
 		name                string
 		functionAuthEnabled bool
 		expectHTTPPort      bool
 	}{
 		{name: "keeps HTTP port when gate is off", functionAuthEnabled: false, expectHTTPPort: true},
-		{name: "removes HTTP port when gate is on", functionAuthEnabled: true, expectHTTPPort: false},
+		{name: "keeps HTTP port when gate is on", functionAuthEnabled: true, expectHTTPPort: true},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
@@ -1118,9 +1129,10 @@ func (suite *lazyTestSuite) TestPopulateDeploymentContainerPortsAreIdempotent() 
 			},
 		},
 		{
-			name:                "auth on drops the http port and keeps one metrics port",
+			name:                "auth on keeps the http port and one metrics port",
 			functionAuthEnabled: true,
 			expectedPorts: []v1.ContainerPort{
+				{Name: abstract.FunctionContainerHTTPPortName, ContainerPort: abstract.FunctionContainerHTTPPort, Protocol: v1.ProtocolTCP},
 				{Name: abstract.FunctionContainerMetricPortName, ContainerPort: abstract.FunctionContainerMetricPort, Protocol: v1.ProtocolTCP},
 			},
 		},
@@ -1165,10 +1177,10 @@ func (suite *lazyTestSuite) TestPopulateDeploymentContainerPortsAreIdempotent() 
 	}
 }
 
-// TestPopulateConfigMapRewritesHTTPTriggerURLToLoopback verifies the processor's HTTP trigger is
-// configured to listen on the pod-local loopback (reachable only via the auth-proxy sidecar) once the
-// gate is on, and that the function's own Spec is never mutated in the process.
-func (suite *lazyTestSuite) TestPopulateConfigMapRewritesHTTPTriggerURLToLoopback() {
+// TestPopulateConfigMapKeepsHTTPTriggerURL verifies the processor's HTTP trigger is written through
+// untouched with the gate on: the auth-proxy takes a port of its own, so the processor is never moved off
+// the address it would otherwise listen on.
+func (suite *lazyTestSuite) TestPopulateConfigMapKeepsHTTPTriggerURL() {
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
 			Authentication: &platformconfig.Authentication{
@@ -1196,11 +1208,122 @@ func (suite *lazyTestSuite) TestPopulateConfigMapRewritesHTTPTriggerURLToLoopbac
 
 	var writtenConfiguration processor.Configuration
 	suite.Require().NoError(reader.Read(strings.NewReader(configMap.Data["processor.yaml"]), &writtenConfiguration))
-	suite.Require().Equal(fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
-		writtenConfiguration.Config.Spec.Triggers["http"].URL)
+	suite.Require().Empty(writtenConfiguration.Config.Spec.Triggers["http"].URL)
+}
 
-	// the original function spec must remain untouched
-	suite.Require().Empty(functionInstance.Spec.Triggers["http"].URL)
+// TestPopulateServiceSpecKeepsTargetPortWhileServedByDLX verifies a scaled-to-zero function's http port is
+// not repointed at the auth-proxy: the Service selector points at the DLX pods, which listen on the
+// function's own HTTP port only, so a repointed TargetPort would black-hole the request meant to scale the
+// function back up.
+func (suite *lazyTestSuite) TestPopulateServiceSpecKeepsTargetPortWhileServedByDLX() {
+	for _, testCase := range []struct {
+		name               string
+		functionState      functionconfig.FunctionState
+		expectedTargetPort int32
+	}{
+		{
+			name:               "ready function targets the auth-proxy",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedTargetPort: abstract.AuthProxyProcessorListenPort,
+		},
+		{
+			name:               "scaled to zero targets the DLX",
+			functionState:      functionconfig.FunctionStateScaledToZero,
+			expectedTargetPort: abstract.FunctionContainerHTTPPort,
+		},
+		{
+			name:               "scaling to zero targets the DLX",
+			functionState:      functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+			expectedTargetPort: abstract.FunctionContainerHTTPPort,
+		},
+		{
+			name:               "scaling from zero targets the DLX",
+			functionState:      functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+			expectedTargetPort: abstract.FunctionContainerHTTPPort,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: true,
+						AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					},
+				},
+			})
+
+			functionInstance := suite.compileAuthenticatedFunction()
+			functionInstance.Status.State = testCase.functionState
+
+			// stand in for the service read back on update, rendered while the function was ready
+			serviceSpec := &v1.ServiceSpec{
+				Ports: []v1.ServicePort{
+					{
+						Name:       abstract.FunctionContainerHTTPPortName,
+						Port:       abstract.FunctionContainerHTTPPort,
+						NodePort:   30000,
+						TargetPort: intstr.FromInt32(abstract.AuthProxyProcessorListenPort),
+					},
+				},
+			}
+			suite.Require().NoError(
+				suite.client.populateServiceSpec(suite.ctx, nil, functionInstance, serviceSpec))
+
+			suite.Require().Equal(intstr.FromInt32(testCase.expectedTargetPort), serviceSpec.Ports[0].TargetPort)
+		})
+	}
+}
+
+// TestPopulateDeploymentContainerReadinessProbePort verifies readiness is probed through the auth-proxy when
+// one fronts the function, so the pod turns ready only once both the proxy and the processor serve. Liveness
+// stays direct on the health-check port, so a proxy fault never restarts the function container.
+func (suite *lazyTestSuite) TestPopulateDeploymentContainerReadinessProbePort() {
+	for _, testCase := range []struct {
+		name                       string
+		functionAuthEnabled        bool
+		expectedReadinessProbePort int
+	}{
+		{
+			name:                       "auth off probes the processor directly",
+			functionAuthEnabled:        false,
+			expectedReadinessProbePort: abstract.FunctionContainerHTTPPort,
+		},
+		{
+			name:                       "auth on probes through the auth-proxy",
+			functionAuthEnabled:        true,
+			expectedReadinessProbePort: abstract.AuthProxyProcessorListenPort,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBrowser),
+			}
+			functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+				"http": httpTrigger,
+			}
+
+			container := &v1.Container{}
+			suite.client.populateDeploymentContainer(suite.ctx,
+				suite.client.getFunctionLabels(functionInstance),
+				functionInstance,
+				container)
+
+			suite.Require().Equal(intstr.FromInt(testCase.expectedReadinessProbePort),
+				container.ReadinessProbe.HTTPGet.Port)
+			suite.Require().Equal(intstr.FromInt(abstract.FunctionContainerHealthCheckHTTPPort),
+				container.LivenessProbe.HTTPGet.Port)
+		})
+	}
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
