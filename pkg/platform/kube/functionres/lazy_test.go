@@ -1503,6 +1503,144 @@ func (suite *lazyTestSuite) getFunctionInstanceWithDefaultProbes(funcName string
 	return functionInstance
 }
 
+// TestAugmentedConfigMergesFunctionEnvironment verifies that a function augmented config injects its
+// environment into the deployed function without dropping the environment the user supplied
+func (suite *lazyTestSuite) TestAugmentedConfigMergesFunctionEnvironment() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			FunctionAugmentedConfigs: []platformconfig.LabelSelectorAndConfig{
+				{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "hi",
+						},
+					},
+					FunctionConfig: functionconfig.Config{
+						Spec: functionconfig.Spec{
+							Env: []v1.EnvVar{
+								{Name: "INJECTED_FROM_AUGMENTED_CONFIG", Value: "true"},
+
+								// overrides a user supplied variable of the same name
+								{Name: "SHARED_VAR", Value: "augmented-value"},
+							},
+							EnvFrom: []v1.EnvFromSource{
+								{
+									SecretRef: &v1.SecretEnvSource{
+										LocalObjectReference: v1.LocalObjectReference{Name: "augmented-secret"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-env-test")
+	functionInstance.Labels = map[string]string{
+
+		// matches the augmented config label selector
+		"app": "hi",
+	}
+	functionInstance.Spec.Env = []v1.EnvVar{
+		{Name: "USER_CUSTOM_VAR", Value: "should-survive"},
+		{Name: "SHARED_VAR", Value: "original-value"},
+		{
+			Name: "USER_VAR_FROM_SECRET",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: "user-secret"},
+					Key:                  "user-key",
+				},
+			},
+		},
+	}
+	functionInstance.Spec.EnvFrom = []v1.EnvFromSource{
+		{
+			ConfigMapRef: &v1.ConfigMapEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: "user-configmap"},
+			},
+		},
+	}
+
+	// keep the user supplied environment aside, to later verify the function instance itself wasn't augmented
+	userEnv := append([]v1.EnvVar(nil), functionInstance.Spec.Env...)
+	userEnvFrom := append([]v1.EnvFromSource(nil), functionInstance.Spec.EnvFrom...)
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	suite.Require().NoError(err)
+	suite.Require().NotNil(resources)
+
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	// user supplied environment variables must not be clobbered by the augmented config
+	suite.Require().Equal("should-survive", suite.getEnvVarByName(container.Env, "USER_CUSTOM_VAR").Value)
+
+	// environment variables from the augmented config must be injected
+	suite.Require().Equal("true", suite.getEnvVarByName(container.Env, "INJECTED_FROM_AUGMENTED_CONFIG").Value)
+
+	// on a name collision, the augmented config wins
+	suite.Require().Equal("augmented-value", suite.getEnvVarByName(container.Env, "SHARED_VAR").Value)
+
+	// a user supplied variable holding a reference keeps it, rather than being flattened to an empty value
+	suite.Require().Equal(userEnv[2].ValueFrom, suite.getEnvVarByName(container.Env, "USER_VAR_FROM_SECRET").ValueFrom)
+
+	// envFrom sources of both the user and the augmented config are kept
+	suite.Require().Equal([]v1.EnvFromSource{
+		{
+			SecretRef: &v1.SecretEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: "augmented-secret"},
+			},
+		},
+		userEnvFrom[0],
+	}, container.EnvFrom)
+
+	// the merged environment keeps the user supplied order, with the augmented-only variables appended
+	suite.Require().Equal([]string{
+		"USER_CUSTOM_VAR",
+		"SHARED_VAR",
+		"USER_VAR_FROM_SECRET",
+		"INJECTED_FROM_AUGMENTED_CONFIG",
+	}, suite.getEnvVarNames(container.Env)[:4])
+
+	// the augmented config is a deploy time overlay - the function instance the caller passed, which the
+	// function operator persists back to the function CRD, must be left as the user wrote it
+	suite.Require().Equal(userEnv, functionInstance.Spec.Env)
+	suite.Require().Equal(userEnvFrom, functionInstance.Spec.EnvFrom)
+
+	// reconciling again must yield the very same environment, in the same order, so that the deployment
+	// isn't rolled out on every reconciliation
+	secondResources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	suite.Require().NoError(err)
+	secondDeployment, err := secondResources.Deployment()
+	suite.Require().NoError(err)
+	suite.Require().Equal(container.Env, secondDeployment.Spec.Template.Spec.Containers[0].Env)
+	suite.Require().Equal(container.EnvFrom, secondDeployment.Spec.Template.Spec.Containers[0].EnvFrom)
+}
+
+func (suite *lazyTestSuite) getEnvVarByName(env []v1.EnvVar, name string) v1.EnvVar {
+	for _, envVar := range env {
+		if envVar.Name == name {
+			return envVar
+		}
+	}
+
+	suite.Failf("Could not find env var in container environment", "name: %s", name)
+	return v1.EnvVar{}
+}
+
+func (suite *lazyTestSuite) getEnvVarNames(env []v1.EnvVar) []string {
+	var names []string
+	for _, envVar := range env {
+		names = append(names, envVar.Name)
+	}
+
+	return names
+}
+
 func TestLazyTestSuite(t *testing.T) {
 	suite.Run(t, new(lazyTestSuite))
 }

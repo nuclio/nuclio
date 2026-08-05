@@ -66,6 +66,48 @@ func envFromSourceKey(envSource v1.EnvFromSource) string {
 	return ""
 }
 
+// MergeEnvSlicesInOrder merges two lists of environment variables, giving priority to variables from the
+// primary list, while preserving the order of the secondary list. Variables that appear only in the primary
+// list are appended in their original order. Unlike MergeEnvSlices, the returned order is deterministic,
+// which matters when the result is written to a resource spec that would otherwise be diffed (and rolled out)
+// on every reconciliation.
+func MergeEnvSlicesInOrder(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v1.EnvVar {
+	primaryEnvByName := make(map[string]v1.EnvVar, len(primaryEnv))
+	for _, env := range primaryEnv {
+		primaryEnvByName[env.Name] = env
+	}
+
+	merged := make([]v1.EnvVar, 0, len(secondaryEnv)+len(primaryEnv))
+	mergedIndex := make(map[string]int, len(secondaryEnv)+len(primaryEnv))
+
+	// walk the secondary list, replacing variables the primary list overrides. if a name appears multiple
+	// times, the last occurrence wins (matching Kubernetes env precedence semantics).
+	for _, env := range secondaryEnv {
+		if primaryEnvVar, found := primaryEnvByName[env.Name]; found {
+			env = primaryEnvVar
+		}
+		if idx, exists := mergedIndex[env.Name]; exists {
+			merged[idx] = env
+			continue
+		}
+		mergedIndex[env.Name] = len(merged)
+		merged = append(merged, env)
+	}
+
+	// append the variables only the primary list holds
+	for _, env := range primaryEnv {
+		if idx, exists := mergedIndex[env.Name]; exists {
+			merged[idx] = env
+			continue
+		}
+
+		mergedIndex[env.Name] = len(merged)
+		merged = append(merged, env)
+	}
+
+	return merged
+}
+
 // MergeEnvSlices merges two lists of environment variables, giving priority to variables from the primary list
 func MergeEnvSlices(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v1.EnvVar {
 	envMap := make(map[string]v1.EnvVar)

@@ -180,16 +180,27 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 
 	resources := lazyResources{}
 
-	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
-	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
+	matchingAugmentedConfigs, err := lc.getMatchingFunctionAugmentedConfigs(functionLabels)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get matching function augmented configs")
+	}
 
-		selector, err := metav1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get selector from label selector")
+	if len(matchingAugmentedConfigs) > 0 {
+
+		// function augmented configs are a deploy time overlay - they must not leak back into the function CRD,
+		// which the caller persists once this call returns, so apply them onto a copy of the function
+		if function, err = copyFunction(function); err != nil {
+			return nil, errors.Wrap(err, "Failed to copy function before augmenting it")
 		}
 
-		// if the label matches any of the function labels, augment the function with provided function config
-		if selector.Matches(functionLabels) {
+		for _, augmentedConfig := range matchingAugmentedConfigs {
+
+			// unmarshalling the augmented config onto the function overwrites its environment rather than merging
+			// into it, and does so in place - reusing the backing array of the slices it overwrites. detach the
+			// environment from the function first, so that it survives untouched and can be merged back in below
+			preAugmentationEnv, preAugmentationEnvFrom := function.Spec.Env, function.Spec.EnvFrom
+			function.Spec.Env, function.Spec.EnvFrom = nil, nil
+
 			encodedFunctionConfig, err := yaml.Marshal(augmentedConfig.FunctionConfig)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to marshal augmented function config")
@@ -198,6 +209,13 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 			if err := yaml.Unmarshal(encodedFunctionConfig, function); err != nil {
 				return nil, errors.Wrap(err, "Failed to join augmented function config into target function")
 			}
+
+			// merge the detached environment back in, so that user supplied environment variables survive. the
+			// augmented config takes precedence on name collisions, being platform level configuration.
+			// NOTE: every other slice field (volumes, sidecars, etc.) is still overlaid element by element, as
+			// unmarshalling does it
+			function.Spec.Env = common.MergeEnvSlicesInOrder(function.Spec.Env, preAugmentationEnv)
+			function.Spec.EnvFrom = common.MergeEnvFromSlices(function.Spec.EnvFrom, preAugmentationEnvFrom)
 		}
 	}
 
@@ -1562,12 +1580,17 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 
 func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) (
 	[]platformconfig.LabelSelectorAndConfig, error) {
+
+	// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
+	return lc.getMatchingFunctionAugmentedConfigs(lc.getFunctionLabels(function))
+}
+
+// getMatchingFunctionAugmentedConfigs returns the platform's function augmented configs whose label selector
+// matches the given function labels
+func (lc *lazyClient) getMatchingFunctionAugmentedConfigs(functionLabels labels.Set) (
+	[]platformconfig.LabelSelectorAndConfig, error) {
 	var configs []platformconfig.LabelSelectorAndConfig
 
-	// get the function labels
-	functionLabels := lc.getFunctionLabels(function)
-
-	// get platform config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
@@ -1577,14 +1600,32 @@ func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFun
 			return nil, errors.Wrap(err, "Failed to get selector from label selector")
 		}
 
-		// if the label matches any of the function labels, augment the deployment with provided function config
-		// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
 		if selector.Matches(functionLabels) {
 			configs = append(configs, augmentedConfig)
 		}
 	}
 
 	return configs, nil
+}
+
+// copyFunction returns a copy of the given function that shares no state with it.
+// nuclioio.NuclioFunction.DeepCopy() alone doesn't cut it - functionconfig.Spec.DeepCopyInto() is a shallow
+// copy (see the TODO there), leaving the spec's slices, maps and pointers shared with the original. the spec is
+// therefore copied by round tripping it through JSON, which is how it is read from the function CRD to begin with
+func copyFunction(function *nuclioio.NuclioFunction) (*nuclioio.NuclioFunction, error) {
+	functionCopy := function.DeepCopy()
+
+	encodedFunctionSpec, err := json.Marshal(&function.Spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal function spec")
+	}
+
+	functionCopy.Spec = functionconfig.Spec{}
+	if err := json.Unmarshal(encodedFunctionSpec, &functionCopy.Spec); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal function spec")
+	}
+
+	return functionCopy, nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
