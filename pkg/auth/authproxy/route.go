@@ -57,8 +57,7 @@ func FormatRoutes(routes []Route) string {
 // forwarding.
 func ParseRoutes(routes string) ([]Route, error) {
 	routeSpecs := strings.Split(routes, ",")
-	parsedRoutes := make([]Route, len(routeSpecs))
-	routeIndex := 0
+	var parsedRoutes []Route
 	for _, routeSpec := range routeSpecs {
 		routeSpec = strings.TrimSpace(routeSpec)
 		if routeSpec == "" {
@@ -71,12 +70,12 @@ func ParseRoutes(routes string) ([]Route, error) {
 			return nil, errors.Wrapf(err, "Failed to parse listen port of route: %s", routeSpec)
 		}
 
-		parsedRoutes[routeIndex] = Route{ListenPort: listenPort}
+		route := Route{ListenPort: listenPort}
 		if hasUpstream {
-			parsedRoutes[routeIndex].UpstreamURL = strings.TrimSpace(upstreamURL)
+			route.UpstreamURL = strings.TrimSpace(upstreamURL)
 		}
-		routeIndex++
+		parsedRoutes = append(parsedRoutes, route)
 	}
 
-	return parsedRoutes[:routeIndex], nil
+	return parsedRoutes, nil
 }
