@@ -19,10 +19,8 @@ package runtime
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
@@ -184,59 +182,13 @@ func (ar *AbstractRuntime) SupportsControlCommunication() bool {
 	return false
 }
 
-// GetEnvFromConfiguration returns the environment variables to pass to the runtime's child
-// process - the NUCLIO_FUNCTION_* metadata variables, followed by the function spec's own
-// environment variables.
-//
-// The spec environment variables are appended last on purpose. Runtimes seed the child
-// process environment with os.Environ(), which, when sensitive fields masking is enabled,
-// may hold "$ref:..." placeholders rather than the real values: the dashboard scrubs the
-// function config before writing the NuclioFunction CRD, and the pod's container env is
-// built from that scrubbed spec. The processor restores the config from the mounted
-// function secret on startup, so the values here are the real ones. os/exec keeps the last
-// occurrence of a duplicate key, so these override the placeholders inherited from the pod.
 func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
-	envs := []string{
+	return []string{
 		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", ar.configuration.Meta.Name),
 		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", ar.configuration.Spec.Description),
 		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", ar.configuration.Spec.Version),
 		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", ar.configuration.Spec.Handler),
 	}
-
-	return append(envs, ar.GetEnvFromSpec()...)
-}
-
-// GetEnvFromSpec returns the function spec's environment variables as "name=value" strings.
-//
-// Variables whose value is sourced from elsewhere (ValueFrom - config maps, secrets, field
-// refs) are skipped: Kubernetes resolves those into the pod environment and the spec holds
-// no value for them, so emitting them would shadow the resolved value with an empty string.
-func (ar *AbstractRuntime) GetEnvFromSpec() []string {
-	var envs []string
-
-	for _, env := range ar.configuration.Spec.Env {
-		if env.ValueFrom != nil {
-
-			// resolved by kubernetes into the pod environment, inherited via os.Environ()
-			continue
-		}
-
-		if strings.HasPrefix(env.Value, functionconfig.ReferencePrefix) {
-
-			// the config was not restored from the function secret - passing the placeholder
-			// on would be worse than useless, so let the pod's own value (identical, but at
-			// least not silently "restored") stand and make the failure visible
-			ar.Logger.WarnWith("Function spec environment variable is still masked, not restored from secret. "+
-				"The function will receive the reference placeholder instead of the real value",
-				"envName", env.Name,
-				"functionName", ar.configuration.Meta.Name)
-			continue
-		}
-
-		envs = append(envs, fmt.Sprintf("%s=%s", env.Name, env.Value))
-	}
-
-	return envs
 }
 
 // GetControlMessageBroker returns the control message broker

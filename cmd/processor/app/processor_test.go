@@ -347,10 +347,12 @@ func (suite *ProcessorTestSuite) TestResolveWatcherTimeout() {
 func (suite *ProcessorTestSuite) TestExportRestoredEnvironmentVariables() {
 
 	// what the pod was created with: the scrubbed spec, plus a variable kubernetes resolved from a
-	// secret reference and one the function image itself set
+	// secret reference, one the function image itself set, and one kubernetes resolved through
+	// "$(...)" interpolation against another env var
 	suite.T().Setenv("NUCLIO_TEST_MASKED_ENV", functionconfig.ReferencePrefix+"/spec/env[0]/value")
 	suite.T().Setenv("NUCLIO_TEST_SECRET_REF_ENV", "resolved-by-kubernetes")
 	suite.T().Setenv("NUCLIO_TEST_UNRESTORABLE_ENV", functionconfig.ReferencePrefix+"/spec/env[3]/value")
+	suite.T().Setenv("NUCLIO_TEST_INTERPOLATED_ENV", "https://svc/health")
 	suite.Require().NoError(os.Unsetenv("NUCLIO_TEST_NEW_ENV"))
 
 	config := &functionconfig.Config{
@@ -370,6 +372,10 @@ func (suite *ProcessorTestSuite) TestExportRestoredEnvironmentVariables() {
 
 				// no matching entry in the function secret, so the restore left it as a reference
 				{Name: "NUCLIO_TEST_UNRESTORABLE_ENV", Value: functionconfig.ReferencePrefix + "/spec/env[3]/value"},
+
+				// not masked - the spec literal differs from the pod's value only because
+				// kubernetes resolved the "$(...)" reference; this must not be overwritten
+				{Name: "NUCLIO_TEST_INTERPOLATED_ENV", Value: "$(NUCLIO_TEST_BASE_URL)/health"},
 			},
 		},
 	}
@@ -389,6 +395,10 @@ func (suite *ProcessorTestSuite) TestExportRestoredEnvironmentVariables() {
 	// an unresolved reference is left exactly as the pod had it
 	suite.Require().Equal(functionconfig.ReferencePrefix+"/spec/env[3]/value",
 		os.Getenv("NUCLIO_TEST_UNRESTORABLE_ENV"))
+
+	// the pod's kubernetes-resolved value is not masked, so it must not be clobbered with the
+	// spec's unresolved "$(...)" literal
+	suite.Require().Equal("https://svc/health", os.Getenv("NUCLIO_TEST_INTERPOLATED_ENV"))
 }
 
 func TestTriggerTestSuite(t *testing.T) {

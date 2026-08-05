@@ -78,7 +78,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 		return nil, errors.Wrap(err, "Failed to get command")
 	}
 
-	newShellRuntime.env = newShellRuntime.GetEnvFromConfiguration()
+	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
 	newShellRuntime.restartChannel = make(chan struct{})
 
 	newShellRuntime.commandInPath, err = newShellRuntime.commandIsInPath()
@@ -300,6 +300,23 @@ func (s *shell) getCommandArguments(event nuclio.Event) []string {
 	}
 
 	return strings.Split(arguments, " ")
+}
+
+func (s *shell) getEnvFromConfiguration() []string {
+	envs := s.GetEnvFromConfiguration()
+
+	// inject all environment variables passed in configuration
+	for _, configEnv := range s.configuration.Spec.Env {
+		if configEnv.ValueFrom != nil {
+
+			// resolved by kubernetes into the pod environment, inherited via os.Environ()
+			continue
+		}
+
+		envs = append(envs, fmt.Sprintf("%s=%s", configEnv.Name, configEnv.Value))
+	}
+
+	return envs
 }
 
 func (s *shell) getEnvFromEvent(event nuclio.Event) []string {

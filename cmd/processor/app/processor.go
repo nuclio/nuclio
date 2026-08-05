@@ -357,10 +357,13 @@ func (p *Processor) exportRestoredEnvironmentVariables(config *functionconfig.Co
 		if strings.HasPrefix(env.Value, functionconfig.ReferencePrefix) {
 
 			// the reference has no matching entry in the function secret, so there is nothing to
-			// restore it to. don't overwrite whatever the pod has - just make the failure visible
-			p.logger.WarnWith("Environment variable is still masked after restoring the function config. "+
-				"The function will read the reference placeholder instead of the real value",
-				"envName", env.Name)
+			// restore it to. don't overwrite whatever the pod has - just make the failure visible,
+			// unless the pod's own value is already real (e.g. injected out-of-band)
+			if currentValue, found := os.LookupEnv(env.Name); !found || strings.HasPrefix(currentValue, functionconfig.ReferencePrefix) {
+				p.logger.WarnWith("Environment variable is still masked after restoring the function config. "+
+					"The function will read the reference placeholder instead of the real value",
+					"envName", env.Name)
+			}
 			continue
 		}
 
