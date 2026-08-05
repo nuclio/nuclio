@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 
 	"github.com/nuclio/zap"
@@ -50,13 +51,14 @@ func (suite *MergeIntegrationTestSuite) SetupSuite() {
 	suite.Require().NoError(err, "Docker must be reachable to run this suite")
 }
 
-// hostScratchDir returns a fresh temp dir under $HOME, not the OS temp dir: Docker-in-a-VM usually
-// only bind-mounts $HOME, so a volume outside it silently mounts empty.
-func (suite *MergeIntegrationTestSuite) hostScratchDir() string {
-	homeDir, err := os.UserHomeDir()
-	suite.Require().NoError(err)
+// hostScratchDir returns a fresh temp dir under the nuclio source tree: this process reads/writes
+// via localPath, while hostPath (translated via NUCLIO_TEST_HOST_PATH when set, e.g. under `make
+// test`) is what the real Docker host uses for the bind mount.
+func (suite *MergeIntegrationTestSuite) hostScratchDir() (localPath, hostPath string) {
+	localSourceDir := common.GetSourceDir()
+	hostSourceDir := common.GetEnvOrDefaultString("NUCLIO_TEST_HOST_PATH", localSourceDir)
 
-	baseDir := filepath.Join(homeDir, ".nuclio-test-tmp")
+	baseDir := filepath.Join(localSourceDir, ".nuclio-test-tmp")
 	suite.Require().NoError(os.MkdirAll(baseDir, 0o755))
 
 	dir, err := os.MkdirTemp(baseDir, "merge-authfile-")
@@ -64,31 +66,35 @@ func (suite *MergeIntegrationTestSuite) hostScratchDir() string {
 	suite.T().Cleanup(func() {
 		_ = os.RemoveAll(dir) // nolint: errcheck
 	})
-	return dir
+
+	relPath, err := filepath.Rel(localSourceDir, dir)
+	suite.Require().NoError(err)
+
+	return dir, filepath.Join(hostSourceDir, relPath)
 }
 
-// runMerge writes secretFiles/tokenFiles to host temp dirs and runs the real merge-authfile container
+// runMerge writes secretFiles/tokenFiles to scratch dirs and runs the real merge-authfile container
 // spec via docker, returning the resulting authfile contents and the container's output.
 func (suite *MergeIntegrationTestSuite) runMerge(secretFiles, tokenFiles map[string]string) (string, string) {
-	secretsHostDir := suite.hostScratchDir()
-	authHostDir := suite.hostScratchDir()
-	scriptHostDir := suite.hostScratchDir()
+	secretsLocalDir, secretsHostDir := suite.hostScratchDir()
+	authLocalDir, authHostDir := suite.hostScratchDir()
+	scriptLocalDir, scriptHostDir := suite.hostScratchDir()
 
 	for name, contents := range secretFiles {
-		suite.Require().NoError(os.WriteFile(filepath.Join(secretsHostDir, name), []byte(contents), 0o644))
+		suite.Require().NoError(os.WriteFile(filepath.Join(secretsLocalDir, name), []byte(contents), 0o644))
 	}
 
 	withCloudTokens := len(tokenFiles) > 0
-	tokensHostDir := ""
+	var tokensLocalDir, tokensHostDir string
 	if withCloudTokens {
-		tokensHostDir = suite.hostScratchDir()
+		tokensLocalDir, tokensHostDir = suite.hostScratchDir()
 		for name, contents := range tokenFiles {
-			suite.Require().NoError(os.WriteFile(filepath.Join(tokensHostDir, name), []byte(contents), 0o644))
+			suite.Require().NoError(os.WriteFile(filepath.Join(tokensLocalDir, name), []byte(contents), 0o644))
 		}
 	}
 
 	suite.Require().NoError(os.WriteFile(
-		filepath.Join(scriptHostDir, authScriptFileName), []byte(MergeScriptContents()), 0o644))
+		filepath.Join(scriptLocalDir, authScriptFileName), []byte(MergeScriptContents()), 0o644))
 
 	secretNames := make([]string, len(secretFiles))
 	container, _ := BuildMergeAuthInitContainer(secretNames, "/authdir", withCloudTokens,
@@ -116,7 +122,7 @@ func (suite *MergeIntegrationTestSuite) runMerge(secretFiles, tokenFiles map[str
 	})
 	suite.Require().NoError(err, "container output: %s", output)
 
-	authfileContents, err := os.ReadFile(filepath.Join(authHostDir, "config.json"))
+	authfileContents, err := os.ReadFile(filepath.Join(authLocalDir, "config.json"))
 	suite.Require().NoError(err)
 
 	return string(authfileContents), output
