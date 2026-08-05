@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -145,6 +146,14 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 				return nil, errors.Wrap(err, "Failed to restore function configuration")
 			}
 			processorConfiguration.Config = *restoredFunctionConfig
+
+			// the pod's own environment still holds the scrubbed values, since the deployment's
+			// container env is built from the scrubbed spec. re-export the restored ones, so that
+			// anything reading the process environment - the native golang runtime's handler, the
+			// child processes the other runtimes spawn, third party SDKs - sees the real value
+			if err := newProcessor.exportRestoredEnvironmentVariables(&processorConfiguration.Config); err != nil {
+				return nil, errors.Wrap(err, "Failed to export restored environment variables")
+			}
 		}
 	}
 
@@ -332,6 +341,42 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 	}
 
 	return functionconfig.GetFunctionConfigFromInterface(restoredFunctionConfig), nil
+}
+
+// exportRestoredEnvironmentVariables writes the function spec's environment variables back into
+// the processor's own environment, overwriting the scrubbed values the pod was created with.
+//
+// Variables sourced from elsewhere (ValueFrom - config maps, secrets, field refs) are left alone:
+// kubernetes already resolved those into the pod environment, and the spec holds no value for them.
+func (p *Processor) exportRestoredEnvironmentVariables(config *functionconfig.Config) error {
+	for _, env := range config.Spec.Env {
+		if env.ValueFrom != nil {
+			continue
+		}
+
+		if strings.HasPrefix(env.Value, functionconfig.ReferencePrefix) {
+
+			// the reference has no matching entry in the function secret, so there is nothing to
+			// restore it to. don't overwrite whatever the pod has - just make the failure visible,
+			// unless the pod's own value is already real (e.g. injected out-of-band)
+			if currentValue, found := os.LookupEnv(env.Name); !found || strings.HasPrefix(currentValue, functionconfig.ReferencePrefix) {
+				p.logger.WarnWith("Environment variable is still masked after restoring the function config. "+
+					"The function will read the reference placeholder instead of the real value",
+					"envName", env.Name)
+			}
+			continue
+		}
+
+		if currentValue, found := os.LookupEnv(env.Name); found && !strings.HasPrefix(currentValue, functionconfig.ReferencePrefix) {
+			continue
+		}
+
+		if err := os.Setenv(env.Name, env.Value); err != nil {
+			return errors.Wrapf(err, "Failed to set environment variable %s", env.Name)
+		}
+	}
+
+	return nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {

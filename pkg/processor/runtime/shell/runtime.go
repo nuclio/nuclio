@@ -307,6 +307,12 @@ func (s *shell) getEnvFromConfiguration() []string {
 
 	// inject all environment variables passed in configuration
 	for _, configEnv := range s.configuration.Spec.Env {
+		if configEnv.ValueFrom != nil {
+
+			// resolved by kubernetes into the pod environment, inherited via os.Environ()
+			continue
+		}
+
 		envs = append(envs, fmt.Sprintf("%s=%s", configEnv.Name, configEnv.Value))
 	}
 
