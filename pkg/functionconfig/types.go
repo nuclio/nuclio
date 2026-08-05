@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
@@ -329,6 +330,37 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	}
 
 	return matchingTrigger
+}
+
+// IsAuthenticationEnabled reports whether the trigger has a function-level authentication mode set.
+func IsAuthenticationEnabled(mode string) bool {
+	return auth.IsFunctionLevelAuthenticationMode(mode)
+}
+
+// ErrHTTPTriggerNotFound is returned by GetHTTPTrigger when no HTTP trigger exists.
+var ErrHTTPTriggerNotFound = errors.New("No HTTP trigger found in function config")
+
+// GetHTTPTrigger returns the single HTTP trigger from triggers, or an error if there is not exactly one.
+func GetHTTPTrigger(triggers map[string]Trigger) (Trigger, error) {
+	httpTriggers := GetTriggersByKind(triggers, "http")
+	if len(httpTriggers) > 1 {
+		return Trigger{}, errors.New("Expected exactly one HTTP trigger in function config")
+	}
+	for _, trigger := range httpTriggers {
+		return trigger, nil
+	}
+	return Trigger{}, ErrHTTPTriggerNotFound
+}
+
+// GetHTTPTriggerMode returns the function-level authentication mode declared on the function's single HTTP
+// trigger, or an error if there is not exactly one HTTP trigger.
+func GetHTTPTriggerMode(triggers map[string]Trigger) (string, error) {
+	httpTrigger, err := GetHTTPTrigger(triggers)
+	if err != nil {
+		return "", err
+	}
+	mode, _ := httpTrigger.Attributes[auth.AttributeAuthenticationMode].(string)
+	return mode, nil
 }
 
 // GetTriggersByKinds returns a map of triggers by their kinds

@@ -28,6 +28,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -179,16 +180,27 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 
 	resources := lazyResources{}
 
-	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
-	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
+	matchingAugmentedConfigs, err := lc.getMatchingFunctionAugmentedConfigs(functionLabels)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get matching function augmented configs")
+	}
 
-		selector, err := metav1.LabelSelectorAsSelector(&augmentedConfig.LabelSelector)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get selector from label selector")
+	if len(matchingAugmentedConfigs) > 0 {
+
+		// function augmented configs are a deploy time overlay - they must not leak back into the function CRD,
+		// which the caller persists once this call returns, so apply them onto a copy of the function
+		if function, err = copyFunction(function); err != nil {
+			return nil, errors.Wrap(err, "Failed to copy function before augmenting it")
 		}
 
-		// if the label matches any of the function labels, augment the function with provided function config
-		if selector.Matches(functionLabels) {
+		for _, augmentedConfig := range matchingAugmentedConfigs {
+
+			// unmarshalling the augmented config onto the function overwrites its environment rather than merging
+			// into it, and does so in place - reusing the backing array of the slices it overwrites. detach the
+			// environment from the function first, so that it survives untouched and can be merged back in below
+			preAugmentationEnv, preAugmentationEnvFrom := function.Spec.Env, function.Spec.EnvFrom
+			function.Spec.Env, function.Spec.EnvFrom = nil, nil
+
 			encodedFunctionConfig, err := yaml.Marshal(augmentedConfig.FunctionConfig)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to marshal augmented function config")
@@ -197,6 +209,13 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 			if err := yaml.Unmarshal(encodedFunctionConfig, function); err != nil {
 				return nil, errors.Wrap(err, "Failed to join augmented function config into target function")
 			}
+
+			// merge the detached environment back in, so that user supplied environment variables survive. the
+			// augmented config takes precedence on name collisions, being platform level configuration.
+			// NOTE: every other slice field (volumes, sidecars, etc.) is still overlaid element by element, as
+			// unmarshalling does it
+			function.Spec.Env = common.MergeEnvSlicesInOrder(function.Spec.Env, preAugmentationEnv)
+			function.Spec.EnvFrom = common.MergeEnvFromSlices(function.Spec.EnvFrom, preAugmentationEnvFrom)
 		}
 	}
 
@@ -1402,6 +1421,90 @@ func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
 
 		deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
 	}
+	if lc.functionAuthenticationEnabled(function) {
+		lc.injectAuthProxySidecar(ctx, function, deploymentSpec, volumeMounts)
+	}
+}
+
+// functionAuthenticationEnabled reports whether the auth-proxy sidecar should be injected in front of the
+// function: gated by the platform-wide feature flag AND the function's HTTP trigger declaring a
+// function-level authenticationMode (anything other than none/unset).
+func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFunction) bool {
+	if !lc.platformConfigurationProvider.GetPlatformConfiguration().IsFunctionAuthenticationEnabled() {
+		return false
+	}
+
+	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
+	if err != nil {
+		return false
+	}
+
+	return functionconfig.IsAuthenticationEnabled(authMode)
+}
+
+// injectAuthProxySidecar appends the platform's auth-proxy sidecar to the pod: it terminates
+// authentication for the function's traffic (the Kubernetes Service is repointed to it, see
+// populateServiceSpec) and forwards allowed requests to the processor, which by this point only listens
+// on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback).
+func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	deploymentSpec *appsv1.DeploymentSpec,
+	volumeMounts []v1.VolumeMount) {
+
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+	// functionAuthenticationEnabled already found a valid HTTP trigger + authentication mode
+	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
+	if err != nil {
+		lc.logger.WarnWithCtx(ctx, "Failed to get http trigger mode for function, skipping auth-proxy injection", "functionName", function.Name, "err", err)
+		return
+	}
+
+	args := []string{
+		fmt.Sprintf("--mode=%s", auth.ProxyModeReverseProxy),
+		fmt.Sprintf("--listen-port=%d", abstract.FunctionContainerHTTPPort),
+		fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
+		fmt.Sprintf("--auth-mode=%s", authMode),
+	}
+	if platformConfig.Authentication.AuthURL != "" {
+		args = append(args, fmt.Sprintf("--auth-url=%s", platformConfig.Authentication.AuthURL))
+	}
+	if platformConfig.Authentication.SignInURL != "" {
+		args = append(args, fmt.Sprintf("--signin-url=%s", platformConfig.Authentication.SignInURL))
+	}
+	if platformConfig.Authentication.AuthKind != "" {
+		args = append(args, fmt.Sprintf("--auth-kind=%s", platformConfig.Authentication.AuthKind))
+	}
+
+	container := v1.Container{
+		Name:         abstract.AuthProxySidecarContainerName,
+		Image:        platformConfig.Authentication.AuthSidecarImage,
+		Args:         args,
+		VolumeMounts: volumeMounts,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          abstract.FunctionContainerHTTPPortName,
+				ContainerPort: abstract.FunctionContainerHTTPPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+	}
+
+	// basicAuth credentials are scrubbed onto the function's own secret; the sidecar restores them itself
+	// from the mounted processor config + secret (see cmd/authproxy/app/authproxy.go:readBasicAuthCredentials),
+	// mirroring how the processor restores its own configuration.
+	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeBasicAuth {
+		container.Env = append(container.Env, v1.EnvVar{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		})
+	}
+
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+		lc.logger,
+		&container.Resources)
+
+	deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, container)
 }
 
 func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) appsv1.DeploymentStrategyType {
@@ -1477,12 +1580,17 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 
 func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) (
 	[]platformconfig.LabelSelectorAndConfig, error) {
+
+	// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
+	return lc.getMatchingFunctionAugmentedConfigs(lc.getFunctionLabels(function))
+}
+
+// getMatchingFunctionAugmentedConfigs returns the platform's function augmented configs whose label selector
+// matches the given function labels
+func (lc *lazyClient) getMatchingFunctionAugmentedConfigs(functionLabels labels.Set) (
+	[]platformconfig.LabelSelectorAndConfig, error) {
 	var configs []platformconfig.LabelSelectorAndConfig
 
-	// get the function labels
-	functionLabels := lc.getFunctionLabels(function)
-
-	// get platform config
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
@@ -1492,14 +1600,32 @@ func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFun
 			return nil, errors.Wrap(err, "Failed to get selector from label selector")
 		}
 
-		// if the label matches any of the function labels, augment the deployment with provided function config
-		// NOTE: supports spec only for now. in the future we can remove .Spec and try to merge both meta and spec
 		if selector.Matches(functionLabels) {
 			configs = append(configs, augmentedConfig)
 		}
 	}
 
 	return configs, nil
+}
+
+// copyFunction returns a copy of the given function that shares no state with it.
+// nuclioio.NuclioFunction.DeepCopy() alone doesn't cut it - functionconfig.Spec.DeepCopyInto() is a shallow
+// copy (see the TODO there), leaving the spec's slices, maps and pointers shared with the original. the spec is
+// therefore copied by round tripping it through JSON, which is how it is read from the function CRD to begin with
+func copyFunction(function *nuclioio.NuclioFunction) (*nuclioio.NuclioFunction, error) {
+	functionCopy := function.DeepCopy()
+
+	encodedFunctionSpec, err := json.Marshal(&function.Spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal function spec")
+	}
+
+	functionCopy.Spec = functionconfig.Spec{}
+	if err := json.Unmarshal(encodedFunctionSpec, &functionCopy.Spec); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal function spec")
+	}
+
+	return functionCopy, nil
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
@@ -2447,12 +2573,17 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	if function.Spec.EnvFrom != nil {
 		container.EnvFrom = function.Spec.EnvFrom
 	}
-	container.Ports = []v1.ContainerPort{
-		{
-			Name:          abstract.FunctionContainerHTTPPortName,
-			ContainerPort: abstract.FunctionContainerHTTPPort,
-			Protocol:      v1.ProtocolTCP,
-		},
+
+	// when the auth-proxy sidecar is injected, it - not the processor - owns the main HTTP port; the
+	// processor listens only on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback)
+	if !lc.functionAuthenticationEnabled(function) {
+		container.Ports = []v1.ContainerPort{
+			{
+				Name:          abstract.FunctionContainerHTTPPortName,
+				ContainerPort: abstract.FunctionContainerHTTPPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+		}
 	}
 
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
@@ -2518,6 +2649,11 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	// create configMap contents - generate a processor configuration based on the function CR
 	configMapContents := bytes.Buffer{}
 
+	functionSpec := function.Spec
+	if lc.functionAuthenticationEnabled(function) {
+		functionSpec = rewriteHTTPTriggerURLToLoopback(functionSpec)
+	}
+
 	if err := configWriter.Write(&configMapContents, &processor.Configuration{
 		Config: functionconfig.Config{
 			Meta: functionconfig.Meta{
@@ -2526,7 +2662,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 				Labels:      functionLabels,
 				Annotations: function.Annotations,
 			},
-			Spec: function.Spec,
+			Spec: functionSpec,
 		},
 	}); err != nil {
 
@@ -2545,6 +2681,22 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	}
 
 	return nil
+}
+
+// rewriteHTTPTriggerURLToLoopback returns a copy of spec whose HTTP trigger(s) listen on the pod-local
+// loopback instead of the wildcard address, so the processor is only reachable from within the pod - i.e.
+// via the auth-proxy sidecar that fronts it (see injectAuthProxySidecar). The given spec is never mutated:
+// its Triggers map is copied before being modified.
+func rewriteHTTPTriggerURLToLoopback(spec functionconfig.Spec) functionconfig.Spec {
+	triggers := make(map[string]functionconfig.Trigger, len(spec.Triggers))
+	for triggerName, trigger := range spec.Triggers {
+		if trigger.Kind == "http" {
+			trigger.URL = fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort)
+		}
+		triggers[triggerName] = trigger
+	}
+	spec.Triggers = triggers
+	return spec
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,

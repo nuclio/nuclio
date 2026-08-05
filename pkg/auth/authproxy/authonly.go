@@ -20,15 +20,13 @@ import (
 	"context"
 	"net/http"
 
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
-	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +65,7 @@ func (b *boundAuthenticator) AuthenticateTarget(functionName string) bool {
 func NewAuthOnlyAuthenticator(parentLogger logger.Logger,
 	authURL string,
 	signinURL string,
-	authKind authpkg.Kind,
+	authKind auth.Kind,
 	nuclioClientSet nuclioioclient.Interface,
 	kubeClientSet kubeclient.Client,
 	namespace string) (Authenticator, error) {
@@ -129,23 +127,23 @@ func (a *authOnlyAuthenticator) authenticateTarget(responseWriter http.ResponseW
 
 // getAuthSpec reads the target function's CRD, extracts its auth config, and (only for basicAuth)
 // restores scrubbed credentials from the function's dedicated Secret.
-func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName string) (FunctionAuthConfig, error) {
+func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName string) (auth.FunctionAuthConfig, error) {
 	function, err := a.nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(a.namespace).
 		Get(ctx, functionName, metav1.GetOptions{})
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to get function %s", functionName)
+		return auth.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to get function %s", functionName)
 	}
 
 	authConfig, err := functionAuthConfigFromSpec(&function.Spec)
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read auth config for function %s", functionName)
+		return auth.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to read auth config for function %s", functionName)
 	}
 
 	// the scrubber is only needed for basicAuth: it replaces $ref: placeholders with the real
 	// credentials stored in the function's dedicated Secret; other modes have no sensitive fields
-	if authConfig.Mode != ModeBasicAuth {
+	if authConfig.Mode != auth.AuthenticationModeBasicAuth {
 		return authConfig, nil
 	}
 
@@ -158,52 +156,18 @@ func (a *authOnlyAuthenticator) getAuthSpec(ctx context.Context, functionName st
 	}
 	restoredConfig, err := a.scrubber.RestoreFunctionConfig(ctx, functionConfig, common.KubePlatformName)
 	if err != nil {
-		return FunctionAuthConfig{}, errors.Wrapf(err, "Failed to restore function %s secrets", functionName)
+		return auth.FunctionAuthConfig{}, errors.Wrapf(err, "Failed to restore function %s secrets", functionName)
 	}
 
 	return functionAuthConfigFromSpec(&restoredConfig.Spec)
 }
 
 // functionAuthConfigFromSpec resolves the authentication config from the function's HTTP trigger.
-func functionAuthConfigFromSpec(spec *functionconfig.Spec) (FunctionAuthConfig, error) {
-	for _, httpTrigger := range functionconfig.GetTriggersByKind(spec.Triggers, "http") {
-		return functionAuthConfigFromAttributes(httpTrigger.Attributes)
+func functionAuthConfigFromSpec(spec *functionconfig.Spec) (auth.FunctionAuthConfig, error) {
+	httpTrigger, err := functionconfig.GetHTTPTrigger(spec.Triggers)
+	if err != nil {
+		// no HTTP trigger - nothing to authenticate
+		return auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil
 	}
-
-	// no HTTP trigger -> nothing to authenticate
-	return FunctionAuthConfig{Mode: ModeNone}, nil
-}
-
-// functionAuthConfigFromAttributes decodes authenticationMode + authentication.basicAuth from an HTTP
-// trigger's free-form attributes (HLD §2.1.2), reusing the shared ingress.Authentication spec for the credentials.
-func functionAuthConfigFromAttributes(attributes map[string]interface{}) (FunctionAuthConfig, error) {
-	decoded := struct {
-		AuthenticationMode string                  `mapstructure:"authenticationMode"`
-		Authentication     *ingress.Authentication `mapstructure:"authentication"`
-	}{}
-	if err := mapstructure.Decode(attributes, &decoded); err != nil {
-		return FunctionAuthConfig{}, errors.Wrap(err, "Failed to decode HTTP trigger attributes")
-	}
-
-	mode := AuthenticationMode(decoded.AuthenticationMode)
-	if mode == "" {
-		mode = ModeNone
-	}
-
-	authConfig := FunctionAuthConfig{Mode: mode}
-	if decoded.Authentication != nil && decoded.Authentication.BasicAuth != nil {
-		authConfig.BasicAuthUsername = decoded.Authentication.BasicAuth.Username
-		authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
-	}
-
-	if mode == ModeBasicAuth {
-		if authConfig.BasicAuthUsername == "" {
-			return FunctionAuthConfig{}, errors.New("Basic-auth username must be provided")
-		}
-		if authConfig.BasicAuthPassword == "" {
-			return FunctionAuthConfig{}, errors.New("Basic-auth password must be provided")
-		}
-	}
-
-	return authConfig, nil
+	return auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeNone)
 }

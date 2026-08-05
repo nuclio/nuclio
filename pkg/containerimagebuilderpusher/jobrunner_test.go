@@ -25,12 +25,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 type JobRunnerTestSuite struct {
 	suite.Suite
+	jobRunner *jobRunner
+}
+
+func (suite *JobRunnerTestSuite) SetupTest() {
+	logger, err := nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+
+	suite.jobRunner = &jobRunner{
+		builderName:          "test",
+		logger:               logger,
+		builderConfiguration: &ContainerBuilderConfiguration{},
+	}
 }
 
 func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSuccess() {
@@ -40,16 +60,7 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSuccess() {
 	testFile := fmt.Sprintf("%s/test.txt", contextDir)
 	suite.Require().NoError(os.WriteFile(testFile, []byte("test"), 0644))
 
-	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err)
-
-	r := &jobRunner{
-		builderName:          "test",
-		logger:               logger,
-		builderConfiguration: &ContainerBuilderConfiguration{},
-	}
-
-	bundleFilename, assetPath, err := r.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
+	bundleFilename, assetPath, err := suite.jobRunner.createContainerBuildBundle(context.Background(), "test/image:latest", contextDir, tempDir)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(bundleFilename)
 	suite.Require().FileExists(assetPath)
@@ -63,21 +74,70 @@ func (suite *JobRunnerTestSuite) TestCreateContainerBuildBundleSafeFromShellInje
 	markerFile := fmt.Sprintf("%s/kaniko-injection-marker-%d", os.TempDir(), time.Now().UnixNano())
 	injectionPayload := fmt.Sprintf("/nonexistent-dir; touch %s", markerFile)
 
-	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err)
-
-	r := &jobRunner{
-		builderName:          "test",
-		logger:               logger,
-		builderConfiguration: &ContainerBuilderConfiguration{},
-	}
-
-	_, _, err = r.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
+	_, _, err := suite.jobRunner.createContainerBuildBundle(context.Background(), "test/image:latest", injectionPayload, tempDir)
 	suite.Require().Error(err, "Expected tar to fail on non-existent contextDir")
 
 	_, statErr := os.Stat(markerFile)
 	suite.Require().True(os.IsNotExist(statErr),
 		"Shell injection marker was created — injection succeeded via shell execution")
+}
+
+// TestEnsureMergeScriptConfigMap covers the server-side-apply upsert from each initial state,
+// including that the applied config map carries the nuclio-dashboard deployment as owner
+// reference, plus the error case where that deployment can't be resolved.
+func (suite *JobRunnerTestSuite) TestEnsureMergeScriptConfigMap() {
+	dashboardDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "nuclio-dashboard", Namespace: "default", UID: "dashboard-uid"},
+	}
+
+	for _, testCase := range []struct {
+		name              string
+		existingScript    string
+		configMapExists   bool
+		dashboardDeployed bool
+		expectErr         bool
+	}{
+		{name: "CreatesWhenAbsent", dashboardDeployed: true},
+		{name: "UpdatesWhenStale", configMapExists: true, existingScript: "stale contents", dashboardDeployed: true},
+		{name: "IdempotentWhenUpToDate", configMapExists: true, existingScript: registryhelpers.MergeScriptContents(), dashboardDeployed: true},
+		{name: "FailsWhenDashboardDeploymentUnresolvable", expectErr: true},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.T().Setenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
+
+			var existingObjects []k8sruntime.Object
+			if testCase.dashboardDeployed {
+				existingObjects = append(existingObjects, dashboardDeployment)
+			}
+			if testCase.configMapExists {
+				existingObjects = append(existingObjects, &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Name: registryhelpers.MergeScriptConfigMapName, Namespace: "default"},
+					Data:       map[string]string{"merge_authfile.py": testCase.existingScript},
+				})
+			}
+			suite.jobRunner.kubeClientSet = kube.NewClientWithRetryFromClient(k8sfake.NewClientset(existingObjects...))
+
+			err := suite.jobRunner.ensureMergeScriptConfigMap(context.Background(), "default")
+			if testCase.expectErr {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+
+			configMap, err := suite.jobRunner.kubeClientSet.GetConfigMap(context.Background(),
+				"default",
+				registryhelpers.MergeScriptConfigMapName)
+			suite.Require().NoError(err)
+			suite.Equal(registryhelpers.MergeScriptContents(), configMap.Data["merge_authfile.py"])
+
+			suite.Require().Len(configMap.OwnerReferences, 1)
+			ownerRef := configMap.OwnerReferences[0]
+			suite.Equal("apps/v1", ownerRef.APIVersion)
+			suite.Equal("Deployment", ownerRef.Kind)
+			suite.Equal(dashboardDeployment.Name, ownerRef.Name)
+			suite.Equal(dashboardDeployment.UID, ownerRef.UID)
+		})
+	}
 }
 
 func TestJobRunnerTestSuite(t *testing.T) {

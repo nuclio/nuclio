@@ -95,6 +95,7 @@ RUN apk --update --no-cache add \
         parallel \
         ca-certificates \
         git \
+        docker-cli-buildx \
     && apk upgrade --no-cache \
     && wget -O /tmp/templates.zip $NUCLIO_TEMPLATES_ZIP_GITHUB_URL
 

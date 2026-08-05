@@ -86,7 +86,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		},
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 		AuthSession:   pr.getCtxSession(ctx),
 		SessionCookie: sessionCookie,
@@ -194,7 +194,7 @@ func (pr *projectResource) Update(request *http.Request, id string) (restful.Att
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
 	}); err != nil {
@@ -286,7 +286,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 	}
 
@@ -341,7 +341,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
 
@@ -363,6 +363,11 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 	return
 }
 
+// getRequestOriginAndSessionCookie returns the *claimed* request origin from the legacy
+// X-Projects-Role header. It is not itself a verification: pkg/platform/abstract/project/external.Client
+// verifies the claim against the caller's authenticated session before treating it as leader-origin
+// (see ProjectsLeader.TrustsLeaderOrigin), so a spoofed header here is rejected downstream rather than
+// trusted here.
 func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
 	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get(headers.ProjectsRole))
 
@@ -431,7 +436,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 	})
 	if err != nil {
@@ -464,7 +469,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 			ProjectConfig: newProject.GetConfig(),
 			AuthSession:   pr.getCtxSession(ctx),
 			PermissionOptions: opaclient.PermissionOptions{
-				OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+				OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 			},
 		}); err != nil {
 
@@ -543,7 +548,7 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 	})
 	if err != nil {
@@ -648,7 +653,7 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
@@ -690,7 +695,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
+			OverrideHeaderValue: pr.getTrustedProjectsRoleHeader(request),
 		},
 		SkipLeaderEvaluation: pr.headerValueIsTrue(request, headers.MLRunForceSync),
 	}); err != nil {

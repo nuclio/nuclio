@@ -26,7 +26,6 @@ import (
 
 type KanikoTestSuite struct {
 	suite.Suite
-	kaniko *Kaniko
 }
 
 func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPodLabels() {
@@ -62,75 +61,13 @@ func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPo
 				suite.T().Setenv("NUCLIO_KANIKO_POD_LABELS", testCase.envValue)
 			}
 
-			config, err := NewContainerBuilderConfiguration()
+			config, err := NewContainerBuilderConfiguration(nil)
 			if testCase.expectErr {
 				suite.Require().Error(err)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Equal(testCase.expected, config.KanikoPodLabels)
-		})
-	}
-}
-
-func (suite *KanikoTestSuite) SetupTest() {
-	suite.kaniko = &Kaniko{jobRunner: &jobRunner{}}
-}
-
-func (suite *KanikoTestSuite) TestResolveAWSRegistryId() {
-	for _, testCase := range []struct {
-		name        string
-		registryURL string
-		expected    string
-	}{
-		{
-			name:        "StandardECRURL",
-			registryURL: "123456789012.dkr.ecr.us-east-1.amazonaws.com",
-			expected:    "123456789012",
-		},
-		{
-			name:        "DifferentRegion",
-			registryURL: "987654321098.dkr.ecr.eu-west-1.amazonaws.com",
-			expected:    "987654321098",
-		},
-		{
-			name:        "APRegion",
-			registryURL: "111222333444.dkr.ecr.ap-southeast-1.amazonaws.com",
-			expected:    "111222333444",
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			result := suite.kaniko.resolveAWSRegistryId(testCase.registryURL)
-			suite.Require().Equal(testCase.expected, result)
-		})
-	}
-}
-
-func (suite *KanikoTestSuite) TestResolveAWSRegionFromECR() {
-	for _, testCase := range []struct {
-		name        string
-		registryURL string
-		expected    string
-	}{
-		{
-			name:        "USEast1",
-			registryURL: "123456789012.dkr.ecr.us-east-1.amazonaws.com",
-			expected:    "us-east-1",
-		},
-		{
-			name:        "EUWest1",
-			registryURL: "987654321098.dkr.ecr.eu-west-1.amazonaws.com",
-			expected:    "eu-west-1",
-		},
-		{
-			name:        "APSoutheast1",
-			registryURL: "111222333444.dkr.ecr.ap-southeast-1.amazonaws.com",
-			expected:    "ap-southeast-1",
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			result := suite.kaniko.resolveAWSRegionFromECR(testCase.registryURL)
-			suite.Require().Equal(testCase.expected, result)
+			suite.Equal(testCase.expected, config.PodLabels)
 		})
 	}
 }

@@ -70,6 +70,14 @@ const (
 	FunctionContainerHTTPPortName        = "http"
 	FunctionContainerMetricPortName      = "metrics"
 	DefaultTargetCPU                     = 75
+
+	// FunctionContainerHTTPLoopbackPort is the port the processor listens on when the auth-proxy sidecar
+	// is injected in front of it: only reachable from within the pod (127.0.0.1), never exposed by the Service.
+	FunctionContainerHTTPLoopbackPort = 6080
+
+	// AuthProxySidecarContainerName is the reserved name of the platform-injected auth-proxy sidecar
+	// (see functionres.injectAuthProxySidecar). User-defined sidecars may not use this name.
+	AuthProxySidecarContainerName = "auth-proxy"
 )
 
 type Platform struct {
@@ -1069,10 +1077,7 @@ func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
 }
 
 func (ap *Platform) IsFunctionAuthenticationEnabled() bool {
-	if ap.Config.Authentication == nil {
-		return false
-	}
-	return ap.Config.Authentication.FunctionAuthenticationEnabled
+	return ap.Config.IsFunctionAuthenticationEnabled()
 }
 
 // GetAllowedAuthenticationModes returns allowed authentication modes
@@ -1129,11 +1134,6 @@ func (ap *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Run
 		return imageRegistryRuntimeOverride, nil
 	}
 	return ap.ContainerBuilder.GetOnbuildImageRegistry(registry), nil
-}
-
-// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
-func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
-	return ap.ContainerBuilder.GetDefaultRegistryCredentialsSecretName()
 }
 
 func (ap *Platform) GetRegistryKind() string {
@@ -1774,6 +1774,9 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 			if err := ap.validateStreamingFlushPeriod(triggerKey, &triggerInstance); err != nil {
 				return nuclio.WrapErrBadRequest(err)
 			}
+			if err := ap.validateHTTPTriggerAuthentication(triggerKey, &triggerInstance); err != nil {
+				return err
+			}
 		}
 
 		// explicit ack is only allowed for Static Allocation mode
@@ -1945,6 +1948,19 @@ func (ap *Platform) validateIngresses(triggers map[string]functionconfig.Trigger
 	return nil
 }
 
+// validateHTTPTriggerAuthentication validates the HTTP trigger's function-level authentication attributes.
+// It is gated by IsFunctionAuthenticationEnabled: when the flag is off the validation is ignored.
+func (ap *Platform) validateHTTPTriggerAuthentication(triggerKey string, triggerInstance *functionconfig.Trigger) error {
+	if !ap.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+	_, err := auth.FunctionAuthConfigFromAttributes(triggerInstance.Attributes, ap.Config.Authentication.DefaultMode)
+	if err != nil {
+		return nuclio.WrapErrBadRequest(errors.Wrapf(err, "Invalid function authentication for HTTP trigger %q", triggerKey))
+	}
+	return nil
+}
+
 func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) {
 
 	// if min replicas was not set, and max replicas is set, assign max replicas to min replicas
@@ -2003,6 +2019,7 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 		}
 		if triggerInstance.Kind == "http" {
 			ap.enrichHTTPTriggerStreamingFlushPeriod(ctx, triggerName, &triggerInstance, functionConfig)
+			ap.enrichHTTPTriggerAuthenticationMode(ctx, triggerName, &triggerInstance, functionConfig)
 		}
 		if triggerInstance.Kind == "rabbit-mq" {
 			if err := ap.enrichRabbitMQTrigger(ctx, triggerName, &triggerInstance); err != nil {
@@ -2014,6 +2031,30 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 	}
 
 	return nil
+}
+
+// enrichHTTPTriggerAuthenticationMode stamps the platform-wide default authentication mode onto an HTTP
+// trigger when function-level authentication is enabled and the trigger does not set one explicitly.
+func (ap *Platform) enrichHTTPTriggerAuthenticationMode(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger, functionConfig *functionconfig.Config) {
+	if !ap.IsFunctionAuthenticationEnabled() {
+		return
+	}
+	defaultMode := ap.Config.Authentication.DefaultMode
+	if defaultMode == "" || defaultMode == auth.AuthenticationModeNone {
+		return
+	}
+	if triggerInstance.Attributes == nil {
+		triggerInstance.Attributes = make(map[string]interface{})
+	}
+	if mode, ok := triggerInstance.Attributes[auth.AttributeAuthenticationMode]; ok && mode != "" {
+		return
+	}
+	ap.Logger.DebugWithCtx(ctx,
+		"Enriching authentication mode for HTTP trigger",
+		"functionName", functionConfig.Meta.Name,
+		"trigger", triggerName,
+		"authenticationMode", defaultMode)
+	triggerInstance.Attributes[auth.AttributeAuthenticationMode] = defaultMode
 }
 
 func (ap *Platform) enrichHTTPTriggerStreamingFlushPeriod(ctx context.Context, triggerName string, triggerInstance *functionconfig.Trigger, functionConfig *functionconfig.Config) {

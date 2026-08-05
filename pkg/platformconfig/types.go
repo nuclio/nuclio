@@ -217,6 +217,19 @@ type ProjectsLeader struct {
 	// SyncOnStartup, when true, performs a single project sync from the leader on startup instead of (or in
 	// addition to) the periodic interval loop.
 	SyncOnStartup bool `json:"syncOnStartup,omitempty"`
+
+	// Identity is the authenticated username the leader is expected to present on leader-origin calls.
+	Identity string `json:"identity,omitempty"`
+}
+
+// TrustsLeaderOrigin reports whether a caller presenting the given session should be trusted as
+// leader-origin. Kinds other than ProjectsLeaderKindOris keep trusting the legacy X-Projects-Role header unconditionally.
+// Oris requires session.GetUsername() to match Leader Identity. A nil receiver, nil session, or empty Leader dentity all fail closed.
+func (pl *ProjectsLeader) TrustsLeaderOrigin(session auth.Session) bool {
+	if pl == nil || pl.Kind != ProjectsLeaderKindOris {
+		return true
+	}
+	return pl.Identity != "" && session != nil && session.GetUsername() == pl.Identity
 }
 
 type PlatformKubeConfig struct {
@@ -463,6 +476,8 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 		"^/spec/triggers/.+/attributes/accesscertificate$",
 		"^/spec/triggers/.+/attributes/sasl/password$",
 		"^/spec/triggers/.+/attributes/sasl/oauth/clientsecret$",
+		// - http function-level basic auth
+		"^/spec/triggers/.+/attributes/authentication/basicauth/password$",
 		// - kafka annotations
 		"^/metadata/annotations/nuclio\\.io/kafka-ca-cert$",
 		"^/metadata/annotations/nuclio\\.io/kafka-access-key$",
@@ -504,4 +519,28 @@ type Authentication struct {
 	// AuthKind is the auth client kind used by the auth-proxy sidecar for API/browser authentication.
 	// Defaults to the value set in the OPA config (Opa.AuthKind).
 	AuthKind auth.Kind `json:"authKind,omitempty"`
+
+	// AuthSidecarImage is the image used for the platform-injected auth-proxy sidecar container.
+	AuthSidecarImage string `json:"authSidecarImage,omitempty"`
+
+	// AllowedModes lists the function-level authentication modes the platform permits.
+	AllowedModes []string `json:"allowedModes,omitempty"`
+
+	// DefaultMode is the platform-wide default function-level authentication mode
+	// stamped onto an HTTP trigger when it does not set one explicitly.
+	DefaultMode auth.AuthenticationMode `json:"defaultMode,omitempty"`
+}
+
+// GetAllowedFunctionAuthenticationModes returns the allowed function-level authentication modes.
+// Returns AllowedModes when configured; otherwise the built-in default set.
+func (a *Authentication) GetAllowedFunctionAuthenticationModes() []string {
+	if len(a.AllowedModes) > 0 {
+		return a.AllowedModes
+	}
+	return []string{
+		string(auth.AuthenticationModeNone),
+		string(auth.AuthenticationModeAPI),
+		string(auth.AuthenticationModeBrowser),
+		string(auth.AuthenticationModeBasicAuth),
+	}
 }

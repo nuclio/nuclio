@@ -25,27 +25,6 @@ import (
 // closed quickly instead of inheriting pkg/auth's long (up to 60s) retry window.
 const AuthTimeout = 10 * time.Second
 
-// AuthenticationMode is the function level authentication mode
-type AuthenticationMode string
-
-const (
-	ModeNone      AuthenticationMode = "none"
-	ModeAPI       AuthenticationMode = "api"
-	ModeBrowser   AuthenticationMode = "browser"
-	ModeBasicAuth AuthenticationMode = "basicAuth"
-)
-
-// FunctionAuthConfig is the authentication configuration resolved for a single function.
-type FunctionAuthConfig struct {
-	Mode              AuthenticationMode
-	BasicAuthUsername string
-	BasicAuthPassword string // plaintext input; cleared after hashing in reverseProxy mode
-
-	// BasicAuthPasswordHash is the bcrypt hash of BasicAuthPassword. Set by NewReverseProxyAuthenticator
-	// so the plaintext is never held in memory for the pod's lifetime.
-	BasicAuthPasswordHash []byte
-}
-
 // Authenticator authenticates an incoming request, resolving the target function from the request itself.
 type Authenticator interface {
 	// Authenticate returns true if the request is authorized. On false it has already written the

@@ -20,11 +20,13 @@ package functionres
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -33,6 +35,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
@@ -561,6 +565,294 @@ func (suite *lazyTestSuite) TestScaleToZeroSpecificAnnotations() {
 		&networkingv1.IngressSpec{})
 	suite.Require().NoError(err)
 	suite.Require().Equal("added", ingressMeta.Annotations["something"])
+}
+
+// TestFunctionAuthenticationEnabled verifies the auth-proxy gate: the platform-wide feature flag AND a
+// function-level authenticationMode (other than none/unset) on the HTTP trigger must both hold.
+func (suite *lazyTestSuite) TestFunctionAuthenticationEnabled() {
+	for _, testCase := range []struct {
+		name                          string
+		functionAuthenticationEnabled bool
+		authenticationMode            string
+		noHTTPTrigger                 bool
+		expected                      bool
+	}{
+		{
+			name:                          "disabled when feature flag is off",
+			functionAuthenticationEnabled: false,
+			authenticationMode:            string(auth.AuthenticationModeBasicAuth),
+		},
+		{
+			name:                          "disabled when authenticationMode is none",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            string(auth.AuthenticationModeNone),
+		},
+		{
+			name:                          "disabled when authenticationMode is unset",
+			functionAuthenticationEnabled: true,
+		},
+		{
+			name:                          "disabled when there is no HTTP trigger",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            string(auth.AuthenticationModeBasicAuth),
+			noHTTPTrigger:                 true,
+		},
+		{
+			name:                          "enabled for basicAuth",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            string(auth.AuthenticationModeBasicAuth),
+			expected:                      true,
+		},
+		{
+			name:                          "enabled for api",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            string(auth.AuthenticationModeAPI),
+			expected:                      true,
+		},
+		{
+			name:                          "enabled for browser",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            string(auth.AuthenticationModeBrowser),
+			expected:                      true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthenticationEnabled,
+					},
+				},
+			})
+
+			functionInstance := &nuclioio.NuclioFunction{}
+			if !testCase.noHTTPTrigger {
+				httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+				httpTrigger.Attributes = map[string]interface{}{
+					auth.AttributeAuthenticationMode: testCase.authenticationMode,
+				}
+				functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+					"http": httpTrigger,
+				}
+			}
+
+			suite.Require().Equal(testCase.expected, suite.client.functionAuthenticationEnabled(functionInstance))
+		})
+	}
+}
+
+// TestInjectAuthProxySidecar verifies the auth-proxy sidecar is appended with the expected image/args/ports,
+// and that the config-restore env var is only set for basicAuth mode (api/browser have no credentials to
+// restore).
+func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
+	for _, testCase := range []struct {
+		name                string
+		authenticationMode  auth.AuthenticationMode
+		expectedRestoreEnvs []v1.EnvVar
+	}{
+		{
+			name:               "basicAuth restores config from the mounted secret",
+			authenticationMode: auth.AuthenticationModeBasicAuth,
+			expectedRestoreEnvs: []v1.EnvVar{
+				{Name: common.RestoreConfigFromSecretEnvVar, Value: "true"},
+			},
+		},
+		{
+			name:               "api mode does not need to restore anything",
+			authenticationMode: auth.AuthenticationModeAPI,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: true,
+						AuthSidecarImage:              "nuclio/auth-proxy:latest",
+						AuthURL:                       "http://auth.example.com",
+						SignInURL:                     "http://signin.example.com",
+						AuthKind:                      auth.KindIguazio,
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(testCase.authenticationMode),
+			}
+			functionInstance := &nuclioio.NuclioFunction{}
+			functionInstance.Name = "func-name"
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+				"http": httpTrigger,
+			}
+
+			deploymentSpec := &appsv1.DeploymentSpec{
+				Template: v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{Name: common.FunctionContainerName},
+						},
+					},
+				},
+			}
+
+			suite.client.injectAuthProxySidecar(suite.ctx, functionInstance, deploymentSpec, nil)
+
+			suite.Require().Len(deploymentSpec.Template.Spec.Containers, 2)
+			sidecar := deploymentSpec.Template.Spec.Containers[1]
+			suite.Require().Equal(abstract.AuthProxySidecarContainerName, sidecar.Name)
+			suite.Require().Equal("nuclio/auth-proxy:latest", sidecar.Image)
+			suite.Require().Contains(sidecar.Args, "--mode=reverseProxy")
+			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--listen-port=%d", abstract.FunctionContainerHTTPPort))
+			suite.Require().Contains(sidecar.Args,
+				fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort))
+			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-mode=%s", testCase.authenticationMode))
+			suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
+			suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
+			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
+			suite.Require().Equal([]v1.ContainerPort{
+				{
+					Name:          abstract.FunctionContainerHTTPPortName,
+					ContainerPort: abstract.FunctionContainerHTTPPort,
+					Protocol:      v1.ProtocolTCP,
+				},
+			}, sidecar.Ports)
+			suite.Require().Equal(testCase.expectedRestoreEnvs, sidecar.Env)
+		})
+	}
+}
+
+// TestPopulateSupplementaryContainersInjectsAuthProxyWhenGated verifies the auth-proxy sidecar is only
+// appended to the pod when function-level authentication is gated on.
+func (suite *lazyTestSuite) TestPopulateSupplementaryContainersInjectsAuthProxyWhenGated() {
+	for _, testCase := range []struct {
+		name                   string
+		functionAuthEnabled    bool
+		expectAuthProxySidecar bool
+	}{
+		{name: "not injected when gate is off", functionAuthEnabled: false, expectAuthProxySidecar: false},
+		{name: "injected when gate is on", functionAuthEnabled: true, expectAuthProxySidecar: true},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+			}
+			functionInstance := &nuclioio.NuclioFunction{}
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+				"http": httpTrigger,
+			}
+
+			deploymentSpec := &appsv1.DeploymentSpec{
+				Template: v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{Name: common.FunctionContainerName},
+						},
+					},
+				},
+			}
+
+			suite.client.populateSupplementaryContainers(suite.ctx, functionInstance, deploymentSpec, nil)
+
+			hasAuthProxy := false
+			for _, container := range deploymentSpec.Template.Spec.Containers {
+				if container.Name == abstract.AuthProxySidecarContainerName {
+					hasAuthProxy = true
+				}
+			}
+			suite.Require().Equal(testCase.expectAuthProxySidecar, hasAuthProxy)
+		})
+	}
+}
+
+// TestPopulateDeploymentContainerRemovesHTTPPortWhenAuthProxyFronts verifies the processor container no
+// longer declares the main HTTP port once the auth-proxy sidecar takes over listening on it.
+func (suite *lazyTestSuite) TestPopulateDeploymentContainerRemovesHTTPPortWhenAuthProxyFronts() {
+	for _, testCase := range []struct {
+		name                string
+		functionAuthEnabled bool
+		expectHTTPPort      bool
+	}{
+		{name: "keeps HTTP port when gate is off", functionAuthEnabled: false, expectHTTPPort: true},
+		{name: "removes HTTP port when gate is on", functionAuthEnabled: true, expectHTTPPort: false},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+			}
+			functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+				"http": httpTrigger,
+			}
+
+			functionLabels := suite.client.getFunctionLabels(functionInstance)
+			container := &v1.Container{}
+			suite.client.populateDeploymentContainer(suite.ctx, functionLabels, functionInstance, container)
+
+			hasHTTPPort := false
+			for _, port := range container.Ports {
+				if port.Name == abstract.FunctionContainerHTTPPortName {
+					hasHTTPPort = true
+				}
+			}
+			suite.Require().Equal(testCase.expectHTTPPort, hasHTTPPort)
+		})
+	}
+}
+
+// TestPopulateConfigMapRewritesHTTPTriggerURLToLoopback verifies the processor's HTTP trigger is
+// configured to listen on the pod-local loopback (reachable only via the auth-proxy sidecar) once the
+// gate is on, and that the function's own Spec is never mutated in the process.
+func (suite *lazyTestSuite) TestPopulateConfigMapRewritesHTTPTriggerURLToLoopback() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Authentication: &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+			},
+		},
+	})
+
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.Attributes = map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+	}
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": httpTrigger,
+	}
+
+	functionLabels := suite.client.getFunctionLabels(functionInstance)
+	configMap := &v1.ConfigMap{}
+	suite.Require().NoError(suite.client.populateConfigMap(functionLabels, functionInstance, configMap))
+
+	reader, err := processorconfig.NewReader()
+	suite.Require().NoError(err)
+
+	var writtenConfiguration processor.Configuration
+	suite.Require().NoError(reader.Read(strings.NewReader(configMap.Data["processor.yaml"]), &writtenConfiguration))
+	suite.Require().Equal(fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
+		writtenConfiguration.Config.Spec.Triggers["http"].URL)
+
+	// the original function spec must remain untouched
+	suite.Require().Empty(functionInstance.Spec.Triggers["http"].URL)
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
@@ -1209,6 +1501,144 @@ func (suite *lazyTestSuite) getFunctionInstanceWithDefaultProbes(funcName string
 	functionInstance.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfiguration
 
 	return functionInstance
+}
+
+// TestAugmentedConfigMergesFunctionEnvironment verifies that a function augmented config injects its
+// environment into the deployed function without dropping the environment the user supplied
+func (suite *lazyTestSuite) TestAugmentedConfigMergesFunctionEnvironment() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			FunctionAugmentedConfigs: []platformconfig.LabelSelectorAndConfig{
+				{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "hi",
+						},
+					},
+					FunctionConfig: functionconfig.Config{
+						Spec: functionconfig.Spec{
+							Env: []v1.EnvVar{
+								{Name: "INJECTED_FROM_AUGMENTED_CONFIG", Value: "true"},
+
+								// overrides a user supplied variable of the same name
+								{Name: "SHARED_VAR", Value: "augmented-value"},
+							},
+							EnvFrom: []v1.EnvFromSource{
+								{
+									SecretRef: &v1.SecretEnvSource{
+										LocalObjectReference: v1.LocalObjectReference{Name: "augmented-secret"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-env-test")
+	functionInstance.Labels = map[string]string{
+
+		// matches the augmented config label selector
+		"app": "hi",
+	}
+	functionInstance.Spec.Env = []v1.EnvVar{
+		{Name: "USER_CUSTOM_VAR", Value: "should-survive"},
+		{Name: "SHARED_VAR", Value: "original-value"},
+		{
+			Name: "USER_VAR_FROM_SECRET",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: "user-secret"},
+					Key:                  "user-key",
+				},
+			},
+		},
+	}
+	functionInstance.Spec.EnvFrom = []v1.EnvFromSource{
+		{
+			ConfigMapRef: &v1.ConfigMapEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: "user-configmap"},
+			},
+		},
+	}
+
+	// keep the user supplied environment aside, to later verify the function instance itself wasn't augmented
+	userEnv := append([]v1.EnvVar(nil), functionInstance.Spec.Env...)
+	userEnvFrom := append([]v1.EnvFromSource(nil), functionInstance.Spec.EnvFrom...)
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	suite.Require().NoError(err)
+	suite.Require().NotNil(resources)
+
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	// user supplied environment variables must not be clobbered by the augmented config
+	suite.Require().Equal("should-survive", suite.getEnvVarByName(container.Env, "USER_CUSTOM_VAR").Value)
+
+	// environment variables from the augmented config must be injected
+	suite.Require().Equal("true", suite.getEnvVarByName(container.Env, "INJECTED_FROM_AUGMENTED_CONFIG").Value)
+
+	// on a name collision, the augmented config wins
+	suite.Require().Equal("augmented-value", suite.getEnvVarByName(container.Env, "SHARED_VAR").Value)
+
+	// a user supplied variable holding a reference keeps it, rather than being flattened to an empty value
+	suite.Require().Equal(userEnv[2].ValueFrom, suite.getEnvVarByName(container.Env, "USER_VAR_FROM_SECRET").ValueFrom)
+
+	// envFrom sources of both the user and the augmented config are kept
+	suite.Require().Equal([]v1.EnvFromSource{
+		{
+			SecretRef: &v1.SecretEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: "augmented-secret"},
+			},
+		},
+		userEnvFrom[0],
+	}, container.EnvFrom)
+
+	// the merged environment keeps the user supplied order, with the augmented-only variables appended
+	suite.Require().Equal([]string{
+		"USER_CUSTOM_VAR",
+		"SHARED_VAR",
+		"USER_VAR_FROM_SECRET",
+		"INJECTED_FROM_AUGMENTED_CONFIG",
+	}, suite.getEnvVarNames(container.Env)[:4])
+
+	// the augmented config is a deploy time overlay - the function instance the caller passed, which the
+	// function operator persists back to the function CRD, must be left as the user wrote it
+	suite.Require().Equal(userEnv, functionInstance.Spec.Env)
+	suite.Require().Equal(userEnvFrom, functionInstance.Spec.EnvFrom)
+
+	// reconciling again must yield the very same environment, in the same order, so that the deployment
+	// isn't rolled out on every reconciliation
+	secondResources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	suite.Require().NoError(err)
+	secondDeployment, err := secondResources.Deployment()
+	suite.Require().NoError(err)
+	suite.Require().Equal(container.Env, secondDeployment.Spec.Template.Spec.Containers[0].Env)
+	suite.Require().Equal(container.EnvFrom, secondDeployment.Spec.Template.Spec.Containers[0].EnvFrom)
+}
+
+func (suite *lazyTestSuite) getEnvVarByName(env []v1.EnvVar, name string) v1.EnvVar {
+	for _, envVar := range env {
+		if envVar.Name == name {
+			return envVar
+		}
+	}
+
+	suite.Failf("Could not find env var in container environment", "name: %s", name)
+	return v1.EnvVar{}
+}
+
+func (suite *lazyTestSuite) getEnvVarNames(env []v1.EnvVar) []string {
+	var names []string
+	for _, envVar := range env {
+		names = append(names, envVar.Name)
+	}
+
+	return names
 }
 
 func TestLazyTestSuite(t *testing.T) {

@@ -28,6 +28,7 @@ import (
 	authfactory "github.com/nuclio/nuclio/pkg/auth/factory"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -141,20 +142,20 @@ func NewServer(parentLogger logger.Logger,
 
 	// try to load docker keys, ignoring errors
 	switch containerBuilderKind {
-	case "docker":
+	case containerimagebuilderpusher.DockerKind:
 		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
 			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
 		}
-	case "kaniko":
-		if common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE",
-			"local") == common.LocalPlatformName {
+	case containerimagebuilderpusher.KanikoKind, containerimagebuilderpusher.BuildahKind:
+		if common.GetEnvOrDefaultStringWithLegacyKey("NUCLIO_DASHBOARD_SERVE_BUILD_ARTIFACTS_MODE",
+			"NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE", "local") == common.LocalPlatformName {
 
-			// allow dashboard server to handle request to get kaniko artifacts for function builds
+			// allow dashboard server to handle requests to get build artifacts for function builds
 			// this is useful when running dashboard locally. in production, nginx will handle this
-			newServer.Router.HandleFunc("/kaniko/*", func(w http.ResponseWriter, r *http.Request) {
+			newServer.Router.HandleFunc("/build/*", func(w http.ResponseWriter, r *http.Request) {
 				ctx := chi.RouteContext(r.Context())
 				serverRoutePrefix := strings.TrimSuffix(ctx.RoutePattern(), "/*")
-				fs := http.StripPrefix(serverRoutePrefix, http.FileServer(http.Dir("/tmp/kaniko-builds")))
+				fs := http.StripPrefix(serverRoutePrefix, http.FileServer(http.Dir("/tmp/nuclio-builds")))
 				fs.ServeHTTP(w, r)
 			})
 		}
@@ -426,7 +427,7 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 
 func createDockerClient(parentLogger logger.Logger, containerBuilderKind string) (
 	dockerclient.Client, error) {
-	if containerBuilderKind == "docker" {
+	if containerBuilderKind == containerimagebuilderpusher.DockerKind {
 		return dockerclient.NewShellClient(parentLogger, nil)
 	}
 

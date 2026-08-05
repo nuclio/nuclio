@@ -17,37 +17,35 @@ limitations under the License.
 package app
 
 import (
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/auth"
 
 	"github.com/nuclio/errors"
 )
 
 // Config holds the auth-proxy sidecar configuration.
 type Config struct {
-	Mode               authpkg.ProxyMode
+	Mode               auth.ProxyMode
 	ListenPort         int
 	UpstreamURL        string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
 	AuthURL            string // the URL of the auth service to which requests are sent for authentication
 	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
 	AuthMode           string
-	BasicAuthUsername  string
-	BasicAuthPassword  string
+	FunctionConfigPath string // path to the mounted function config; credentials are read from it when auth-mode=basicAuth
 	Namespace          string
 	KubeconfigPath     string
 	PlatformConfigPath string
-	AuthKind           authpkg.Kind // auth kind used for API/browser authentication
+	AuthKind           auth.Kind // auth kind used for API/browser authentication
 }
 
 func validateConfiguration(config *Config) error {
-	if err := validatePorts(config); err != nil {
+	if err := validatePort(config.ListenPort); err != nil {
 		return errors.Wrap(err, "Invalid port configuration")
 	}
 
 	switch config.Mode {
-	case authpkg.ProxyModeReverseProxy:
+	case auth.ProxyModeReverseProxy:
 		return validateReverseProxyConfiguration(config)
-	case authpkg.ProxyModeAuthOnly:
+	case auth.ProxyModeAuthOnly:
 		return validateAuthOnlyConfiguration(config)
 	default:
 		return errors.Errorf("Unknown auth-proxy mode: %s", config.Mode)
@@ -59,26 +57,23 @@ func validateReverseProxyConfiguration(config *Config) error {
 		return errors.New("Upstream URL must be provided")
 	}
 
-	switch authproxy.AuthenticationMode(config.AuthMode) {
-	case authproxy.ModeAPI:
+	switch auth.AuthenticationMode(config.AuthMode) {
+	case auth.AuthenticationModeAPI:
 		if config.AuthURL == "" {
 			return errors.New("Auth URL must be provided for 'api' authentication mode")
 		}
-	case authproxy.ModeBrowser:
+	case auth.AuthenticationModeBrowser:
 		if config.AuthURL == "" {
 			return errors.New("Auth URL must be provided for 'browser' authentication mode")
 		}
 		if config.SigninURL == "" {
 			return errors.New("Sign-in URL must be provided for 'browser' authentication mode")
 		}
-	case authproxy.ModeBasicAuth:
-		if config.BasicAuthUsername == "" {
-			return errors.New("Basic-auth username must be provided for 'basicAuth' authentication mode")
+	case auth.AuthenticationModeBasicAuth:
+		if config.FunctionConfigPath == "" {
+			return errors.New("Function config path must be provided for 'basicAuth' authentication mode")
 		}
-		if config.BasicAuthPassword == "" {
-			return errors.New("Basic-auth password must be provided for 'basicAuth' authentication mode")
-		}
-	case authproxy.ModeNone, "":
+	case auth.AuthenticationModeNone, "":
 		// no additional requirements
 	default:
 		return errors.Errorf("Unknown authentication mode: %s", config.AuthMode)
@@ -101,15 +96,15 @@ func validateAuthOnlyConfiguration(config *Config) error {
 	return nil
 }
 
-func validatePorts(config *Config) error {
+func validatePort(listenPort int) error {
 	// TCP ports are 16-bit unsigned integers, so the valid range is 1-65535 (0 is reserved)
-	if config.ListenPort < 1 || config.ListenPort > 65535 {
-		return errors.Errorf("Invalid listen port: %d", config.ListenPort)
+	if listenPort < 1 || listenPort > 65535 {
+		return errors.Errorf("Invalid listen port: %d", listenPort)
 	}
 
 	// ports 1 through 1023 are known as privileged ports or well-known ports, so we should avoid using them
-	if config.ListenPort < 1024 {
-		return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", config.ListenPort)
+	if listenPort < 1024 {
+		return errors.Errorf("Listen port is reserved for well-known services; please use a port above 1023; invalid port: %d", listenPort)
 	}
 
 	return nil

@@ -32,6 +32,8 @@ import (
 )
 
 const (
+	DockerKind = "docker"
+
 	artifactDirNameInStaging = "artifacts"
 )
 
@@ -58,7 +60,7 @@ func NewDocker(logger logger.Logger, builderConfiguration *ContainerBuilderConfi
 }
 
 func (d *Docker) GetKind() string {
-	return "docker"
+	return DockerKind
 }
 
 func (d *Docker) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
@@ -90,10 +92,6 @@ func (d *Docker) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string
 
 	// Currently docker builder doesn't utilize multistage docker builds
 	return []string{}, nil
-}
-
-func (d *Docker) GetDefaultRegistryCredentialsSecretName() string {
-	return d.builderConfiguration.DefaultRegistryCredentialsSecretName
 }
 
 func (d *Docker) GetRegistryKind() string {

@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
@@ -33,7 +35,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1085,6 +1087,158 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigElasticSearchMut
 	err := config.ValidatePlatformConfig()
 	suite.Require().Error(err)
 	suite.Contains(err.Error(), "Elasticsearch config")
+}
+
+func (suite *PlatformConfigTestSuite) TestTrustsLeaderOrigin() {
+	matchingSession := &iguazio.AbstractSession{Username: "orca-sa"}
+	mismatchedSession := &iguazio.AbstractSession{Username: "someone-else"}
+
+	for _, testCase := range []struct {
+		name           string
+		projectsLeader *ProjectsLeader
+		session        auth.Session
+		expected       bool
+	}{
+		{
+			name:           "nil ProjectsLeader trusts unconditionally",
+			projectsLeader: nil,
+			session:        nil,
+			expected:       true,
+		}, {
+			name:           "mlrun kind trusts unconditionally, even with a nil session",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindMlrun, Identity: "orca-sa"},
+			session:        nil,
+			expected:       true,
+		}, {
+			name:           "iguazio kind trusts unconditionally, even with a mismatched session",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindIguazio, Identity: "orca-sa"},
+			session:        mismatchedSession,
+			expected:       true,
+		}, {
+			name:           "mock kind trusts unconditionally",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindMock},
+			session:        nil,
+			expected:       true,
+		}, {
+			name:           "oris kind with matching session is trusted",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
+			session:        matchingSession,
+			expected:       true,
+		}, {
+			name:           "oris kind with mismatched session is rejected",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
+			session:        mismatchedSession,
+			expected:       false,
+		}, {
+			name:           "oris kind with nil session is rejected",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
+			session:        nil,
+			expected:       false,
+		}, {
+			name:           "oris kind with empty Identity is rejected even given a session",
+			projectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris},
+			session:        matchingSession,
+			expected:       false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expected, testCase.projectsLeader.TrustsLeaderOrigin(testCase.session))
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichAndValidateProjectsLeaderConfigOrisRequiresIdentity() {
+	config := &Config{
+		ProjectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris},
+	}
+	suite.Require().Error(config.EnrichPlatformConfig())
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichAndValidateProjectsLeaderConfigOrisWithIdentity() {
+	config := &Config{
+		ProjectsLeader: &ProjectsLeader{Kind: ProjectsLeaderKindOris, Identity: "orca-sa"},
+	}
+	err := config.EnrichPlatformConfig()
+	suite.Require().NoError(err)
+	suite.Require().Equal(DefaultProjectSync2PCEnabled, config.ProjectsLeader.ProjectSync2PCEnabled)
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichAuthenticationDefaultMode() {
+	for _, testCase := range []struct {
+		name         string
+		config       *Config
+		expectedMode auth.AuthenticationMode
+	}{
+		{name: "none", config: &Config{}, expectedMode: auth.AuthenticationModeNone},
+		{name: "api enrich", config: &Config{Authentication: &Authentication{DefaultMode: auth.AuthenticationModeAPI}}, expectedMode: auth.AuthenticationModeAPI},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().NoError(testCase.config.EnrichPlatformConfig())
+			suite.Require().NotNil(testCase.config.Authentication)
+			suite.Require().Equal(testCase.expectedMode, testCase.config.Authentication.DefaultMode)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
+	for _, testCase := range []struct {
+		name        string
+		mode        auth.AuthenticationMode
+		expectError bool
+	}{
+		{name: "none", mode: auth.AuthenticationModeNone},
+		{name: "api", mode: auth.AuthenticationModeAPI},
+		{name: "browser", mode: auth.AuthenticationModeBrowser},
+		{name: "basicAuth rejected as default", mode: auth.AuthenticationModeBasicAuth, expectError: true},
+		{name: "invalid", mode: "bogus", expectError: true},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: true,
+					AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					DefaultMode:                   testCase.mode,
+				},
+			}
+			err := config.ValidatePlatformConfig()
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "authentication config")
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigAuthSidecarImage() {
+	for _, testCase := range []struct {
+		name             string
+		authSidecarImage string
+		expectError      bool
+	}{
+		{name: "empty image rejected", authSidecarImage: "", expectError: true},
+		{name: "image set", authSidecarImage: "nuclio/auth-proxy:latest"},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: true,
+					AuthSidecarImage:              testCase.authSidecarImage,
+					DefaultMode:                   auth.AuthenticationModeNone,
+				},
+			}
+			err := config.ValidatePlatformConfig()
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "authentication config")
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
 }
 
 func TestPlatformConfigTestSuite(t *testing.T) {

@@ -27,7 +27,7 @@ import (
 	"net/url"
 	"strings"
 
-	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/factory"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 
@@ -38,10 +38,10 @@ import (
 
 // newAuthInstance creates an auth client for the given kind, configured against authURL.
 // Returns an error for kinds that do not use Iguazio-style URL verification (e.g. KindNop).
-func newAuthInstance(parentLogger logger.Logger, authURL string, authKind authpkg.Kind) (authpkg.Auth, error) {
-	authConfig := authpkg.NewConfig(authKind)
+func newAuthInstance(parentLogger logger.Logger, authURL string, authKind auth.Kind) (auth.Auth, error) {
+	authConfig := auth.NewConfig(authKind)
 	switch authKind {
-	case authpkg.KindIguazio, authpkg.KindIguazioV4:
+	case auth.KindIguazio, auth.KindIguazioV4:
 		if authConfig.Iguazio == nil {
 			return nil, errors.Errorf("auth kind %q does not support URL-based verification", authKind)
 		}
@@ -53,17 +53,17 @@ func newAuthInstance(parentLogger logger.Logger, authURL string, authKind authpk
 }
 
 // abstractAuthenticator holds the shared authentication logic embedded by every topology. Given a resolved
-// FunctionAuthConfig it verifies basicAuth locally, calls the auth-url for api/browser, and always fails closed on error.
+// auth.FunctionAuthConfig it verifies basicAuth locally, calls the auth-url for api/browser, and always fails closed on error.
 type abstractAuthenticator struct {
 	logger    logger.Logger
-	auth      authpkg.Auth
+	auth      auth.Auth
 	signinURL *url.URL
 }
 
 // newAbstractAuthenticator builds the shared decision logic. authURL is guaranteed non-empty by the
 // caller for any mode that delegates to the auth-url (api/browser); basicAuth/none modes never reach
 // callAuthURL so the auth instance is effectively unused for them.
-func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL string, authKind authpkg.Kind) (*abstractAuthenticator, error) {
+func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL string, authKind auth.Kind) (*abstractAuthenticator, error) {
 	parsed, err := url.Parse(signinURL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse sign-in URL")
@@ -80,16 +80,16 @@ func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL str
 }
 
 // decide applies the verdict for the resolved authConfig, writing the rejection response itself on failure.
-func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig FunctionAuthConfig) bool {
+func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig) bool {
 	switch authConfig.Mode {
-	case ModeNone:
+	case auth.AuthenticationModeNone:
 		a.logger.Info("Authentication disabled, allowing request")
 		return true
-	case ModeBasicAuth:
+	case auth.AuthenticationModeBasicAuth:
 		return a.verifyBasicAuth(responseWriter, request, authConfig)
-	case ModeAPI:
+	case auth.AuthenticationModeAPI:
 		return a.callAuthURL(responseWriter, request, false)
-	case ModeBrowser:
+	case auth.AuthenticationModeBrowser:
 		return a.callAuthURL(responseWriter, request, true)
 	default:
 		a.logger.WarnWith("Unknown authentication mode, failing closed",
@@ -102,7 +102,7 @@ func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, reque
 // verifyBasicAuth checks HTTP Basic credentials locally (never delegated to the auth-url).
 // reverseProxy mode: (when a bcrypt hash is present) the incoming password is verified against it.
 // authOnly mode: (where the password is ephemeral) a constant-time string comparison is used.
-func (a *abstractAuthenticator) verifyBasicAuth(responseWriter http.ResponseWriter, request *http.Request, authConfig FunctionAuthConfig) bool {
+func (a *abstractAuthenticator) verifyBasicAuth(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig) bool {
 	username, password, ok := request.BasicAuth()
 	if ok && subtle.ConstantTimeCompare([]byte(username), []byte(authConfig.BasicAuthUsername)) == 1 {
 		var passwordMatch bool
@@ -127,7 +127,7 @@ func (a *abstractAuthenticator) callAuthURL(responseWriter http.ResponseWriter, 
 	ctx, cancel := context.WithTimeout(request.Context(), AuthTimeout)
 	defer cancel()
 
-	session, err := a.auth.Authenticate(request.WithContext(ctx), &authpkg.Options{})
+	session, err := a.auth.Authenticate(request.WithContext(ctx), &auth.Options{})
 	if err != nil {
 		a.logger.WarnWithCtx(ctx,
 			"Authentication failed, rejecting request",
@@ -152,7 +152,7 @@ func (a *abstractAuthenticator) reject(responseWriter http.ResponseWriter, reque
 }
 
 // applyIdentityHeaders forwards the authenticated identity to the upstream on the request headers.
-func (a *abstractAuthenticator) applyIdentityHeaders(request *http.Request, session authpkg.Session) {
+func (a *abstractAuthenticator) applyIdentityHeaders(request *http.Request, session auth.Session) {
 	if session == nil {
 		return
 	}

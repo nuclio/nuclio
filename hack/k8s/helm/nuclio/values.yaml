@@ -39,7 +39,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.17.2-amd64
+    tag: 1.17.3-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -125,7 +125,7 @@ dashboard:
   servicePort: 8070
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.17.2-amd64
+    tag: 1.17.3-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -170,11 +170,11 @@ dashboard:
   externalIPAddresses: []
   imageNamePrefixTemplate: ""
 
-  # Supported container builders: "kaniko", "docker"
+  # Supported container builders: "kaniko", "buildah", "docker"
   containerBuilderKind: "docker"
 
   # Mount an emptyDir at /tmp so the embedded builder can write build temp
-  # dirs, /tmp/kaniko-builds bundles and fetched function templates. Enable
+  # dirs, /tmp/nuclio-builds bundles and fetched function templates. Enable
   # this whenever the dashboard container runs with readOnlyRootFilesystem: true
   # (otherwise the dashboard writes directly to its rootfs /tmp).
   writableTmpVolume: false
@@ -185,10 +185,11 @@ dashboard:
     interval: 5s
     maxConsecutiveErrors: 5
 
-  kaniko:
+  # Settings shared by every in-cluster build backend
+  build:
 
-    #  Set to a repository url for storing cached layers
-    cacheRepo: ""
+    # How long to wait before deleting the build job
+    jobDeletionTimeout: 30m
 
     # Set this flag to push images to a plain HTTP registry
     insecurePushRegistry: false
@@ -196,10 +197,20 @@ dashboard:
     # Set this flag to pull images from a plain HTTP registry
     insecurePullRegistry: false
 
-    image:
-      repository: gcr.io/kaniko-project/executor
-      tag: v1.23.2
-      pullPolicy: IfNotPresent
+    # auth secret to attach to the build pod for off cluster registries
+    registryProviderSecretName: ""
+
+    # the default service account to use for the build pod, if not specified otherwise
+    defaultServiceAccount: ""
+
+    # Additional labels added to the build pod template.metadata.labels
+    podLabels: {}
+
+    #  Set to a repository url for storing cached layers
+    cacheRepo: ""
+
+    # How many times to retry pushing images to registry
+    pushImagesRetries: 3
 
     initContainerImage:
       busybox:
@@ -208,35 +219,50 @@ dashboard:
       awscli:
         repository: amazon/aws-cli
         tag: 2.17.16
+      azurecli:
+        repository: mcr.microsoft.com/azure-cli
+        tag: "2.65.0"
+      gcloudcli:
+        repository: google/cloud-sdk
+        tag: 497.0.0-slim
+      # Used by the merge-authfile init container to run the embedded registry-auth merge script.
+      python:
+        repository: gcr.io/iguazio/python
+        tag: "3.11"
+        pullPolicy: IfNotPresent
 
-    # How long to wait before deleting the build job
-    jobDeletionTimeout: 30m
+  kaniko:
 
-    # How many times to retry pushing images to registry
-    pushImagesRetries: 3
+    image:
+      repository: gcr.io/kaniko-project/executor
+      tag: v1.23.2
+      pullPolicy: IfNotPresent
 
     # The number of retries that should happen for the extracting an image filesystem
     imageFSExtractionRetries: 3
 
-    # auth secret to attach to kaniko pod for off cluster registries
-    # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
-    registryProviderSecretName: ""
+  buildah:
 
-    # the default service account to use for kaniko pod, if not specified otherwise
-    defaultServiceAccount: ""
+    # "caps" (default, SETUID/SETGID capabilities) or "hostusers"
+    # (kubelet-owned user namespace, requires k8s/containerd support)
+    rootlessMode: "caps"
 
-    # Additional labels added to the kaniko build pod template.metadata.labels.
-    # The dashboard passes these through to the kaniko Job it creates at
-    # runtime (so they can't be set on the chart-rendered manifests).
-    # Example use: { "azure.workload.identity/use": "true" } to activate
-    # Azure Workload Identity token injection for ACR push on AKS.
-    #
-    # Note: if `registry.secretName` / `registry.credentials` is also set,
-    # the resulting docker-config secret is mounted at /kaniko/.docker
-    # and takes precedence over any federated token a workload identity
-    # would provide. See "Using Kaniko with cloud workload identity" in
-    # docs/setup/k8s/running-in-production-k8s.md.
-    podLabels: {}
+    # "overlay" (default) or "vfs" (fallback for kernels/filesystems
+    # without overlay support; has a per-layer performance penalty)
+    storageDriver: "overlay"
+
+    # "chroot" (default, no SYS_ADMIN needed) or "oci" (real namespace
+    # isolation per RUN step, needs SYS_ADMIN or a user namespace)
+    isolation: "chroot"
+
+    # AppArmor profile for the buildah container ("unconfined" by default: needed for overlayfs).
+    # Set to "" to leave the cluster/pod default profile in force.
+    appArmorProfile: "unconfined"
+
+    image:
+      repository: quay.io/buildah/stable
+      tag: v1.43.1
+      pullPolicy: IfNotPresent
 
   # use to configure node port
   nodePort:
@@ -329,7 +355,7 @@ dashboard:
 
     image:
       repository: openpolicyagent/opa
-      tag: 1.17.2
+      tag: 1.17.3
       pullPolicy: IfNotPresent
       pullSecrets: []
     resources: {}
@@ -383,7 +409,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.17.2-amd64
+    tag: 1.17.3-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -429,7 +455,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.17.2-amd64
+    tag: 1.17.3-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -501,6 +527,15 @@ registry:
   # chart will create a secret with default name `{releaseName}-registry-credentials`
   #
   # secretName: registry-credentials
+
+  # secretNames lets in-cluster builds (buildah/kaniko) draw credentials for multiple registries
+  # at once - e.g. a push destination plus a separate base-image or onbuild-image registry, each
+  # with its own docker-registry secret.
+  #
+  # secretNames:
+  #   - registry-credentials
+  #   - base-image-registry-credentials
+  secretNames: []
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have
@@ -663,6 +698,14 @@ platform: {}
 #         - name: "nuclio_processor_handled_events_total"
 #           template: |-
 #             add_here_your_prometheus_query
+#
+# projectsLeader:
+#   kind: // one of iguazio, mlrun, oris, mock
+#   apiAddress: // the leader's API address
+#   synchronizationInterval: // the periodic project synchronization interval (0 to disable)
+#   projectSync2PCEnabled: // true to enable two-phase-commit validation for leader-origin project requests
+#   syncOnStartup: // true to perform a single project sync from the leader on startup instead of (or in addition to) the periodic interval loop
+#   identity: // required for Oris leader-origin calls
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

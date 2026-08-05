@@ -271,7 +271,7 @@ Finally, install the chart with the following command:
 ```shell
 helm repo add nuclio https://nuclio.github.io/nuclio/charts
 helm install nuclio \
-    --set dashboard.kaniko.registryProviderSecretName=<aws-secret-name> \
+    --set dashboard.build.registryProviderSecretName=<aws-secret-name> \
     --set registry.secretName=<ecr-secret-name>
     --set registry.pushPullUrl=<your registry URL> \
     nuclio/nuclio
@@ -282,9 +282,9 @@ helm install nuclio \
 On managed Kubernetes you can authenticate Kaniko to your container registry via a cloud workload identity bound to the build pod's ServiceAccount, instead of mounting a static docker-config secret.
 This is the standard pattern on AKS with Azure Workload Identity for ACR, on GKE with Workload Identity for Artifact Registry / GCR, and on EKS with IRSA for ECR.
 
-Because Kaniko jobs are created by the Nuclio dashboard at run time (rather than rendered by the chart), the chart exposes `dashboard.kaniko.podLabels`, a map of labels that the dashboard applies to every build pod template it creates.
+Because Kaniko jobs are created by the Nuclio dashboard at run time (rather than rendered by the chart), the chart exposes `dashboard.build.podLabels`, a map of labels that the dashboard applies to every build pod template it creates.
 On clusters where workload identity is opt-in via a pod label (e.g. AKS requires `azure.workload.identity/use: "true"`), set those labels here.
-You also need to set `dashboard.kaniko.defaultServiceAccount` (or the per-function `BuilderServiceAccount`) to a ServiceAccount that is bound to the cloud identity with push permissions on the target registry.
+You also need to set `dashboard.build.defaultServiceAccount` (or the per-function `BuilderServiceAccount`) to a ServiceAccount that is bound to the cloud identity with push permissions on the target registry.
 
 Example for AKS with Azure Workload Identity:
 
@@ -292,14 +292,14 @@ Example for AKS with Azure Workload Identity:
 helm upgrade --install --reuse-values nuclio \
     --set registry.pushPullUrl=<your-acr>.azurecr.io \
     --set dashboard.containerBuilderKind=kaniko \
-    --set dashboard.kaniko.defaultServiceAccount=<sa-bound-to-acrpush-identity> \
-    --set-json 'dashboard.kaniko.podLabels={"azure.workload.identity/use":"true"}' \
+    --set dashboard.build.defaultServiceAccount=<sa-bound-to-acrpush-identity> \
+    --set-json 'dashboard.build.podLabels={"azure.workload.identity/use":"true"}' \
     nuclio/nuclio
 ```
 
 #### Precedence when both are configured
 
-It's a valid configuration to set **both** `registry.secretName` (or `registry.credentials`) **and** `dashboard.kaniko.podLabels` + a workload-identity-bound `defaultServiceAccount`.
+It's a valid configuration to set **both** `registry.secretName` (or `registry.credentials`) **and** `dashboard.build.podLabels` + a workload-identity-bound `defaultServiceAccount`.
 Kaniko's auth resolution is the standard go-containerregistry chain, so when a docker-config secret is mounted at `/kaniko/.docker/config.json`, **those static credentials take precedence** over the federated token that workload identity would otherwise provide.
 The federated token is only consulted if the mounted config has no matching entry for the target registry.
 

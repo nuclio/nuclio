@@ -19,6 +19,7 @@ package platformconfig
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -214,7 +215,9 @@ func (c *Config) EnrichPlatformConfig() error {
 	utils.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	c.enrichElasticSearchConfig()
 	c.enrichRuntimeBaseImages()
-	c.enrichProjectsLeaderConfig()
+	if err := c.enrichAndValidateProjectsLeaderConfig(); err != nil {
+		return errors.Wrap(err, "Failed to enrich projects leader configuration")
+	}
 	c.enrichAuthentication()
 
 	return nil
@@ -417,7 +420,41 @@ func (c *Config) ValidatePlatformConfig() error {
 		return errors.Wrap(err, "Failed to validate Elasticsearch config")
 	}
 
+	if err := c.validateAuthentication(); err != nil {
+		return errors.Wrap(err, "Failed to validate authentication config")
+	}
+
 	return nil
+}
+
+func (c *Config) validateAuthentication() error {
+	if !c.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	if c.Authentication == nil {
+		return errors.New("Authentication config is nil after enrichment")
+	}
+
+	// without an image, the platform would inject a sidecar container k8s rejects the deployment for
+	if c.Authentication.AuthSidecarImage == "" {
+		return errors.New("AuthSidecarImage must be set when functionAuthenticationEnabled is true")
+	}
+
+	// basicAuth cannot be the platform-wide default: it requires per-function credentials
+	// (username + password) that cannot be supplied at the platform config level.
+	if c.Authentication.DefaultMode == auth.AuthenticationModeBasicAuth {
+		return errors.New("Default authentication mode cannot be 'basicAuth': basicAuth requires per-function credentials")
+	}
+	mode := string(c.Authentication.DefaultMode)
+	authModes := c.Authentication.GetAllowedFunctionAuthenticationModes()
+	for _, valid := range authModes {
+		if mode == valid {
+			return nil
+		}
+	}
+	return errors.Errorf("Invalid default authentication mode, must be one of %s: %s",
+		strings.Join(authModes, ", "), mode)
 }
 
 func (c *Config) validateRuntimeBaseImages() error {
@@ -528,9 +565,9 @@ func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding)
 	return LoggerSinksWithLevel, nil
 }
 
-func (c *Config) enrichProjectsLeaderConfig() {
+func (c *Config) enrichAndValidateProjectsLeaderConfig() error {
 	if c.ProjectsLeader == nil {
-		return
+		return nil
 	}
 
 	// ProjectSync2PCEnabled is opt-in; default to false so existing deployments that
@@ -538,6 +575,14 @@ func (c *Config) enrichProjectsLeaderConfig() {
 	if !c.ProjectsLeader.ProjectSync2PCEnabled {
 		c.ProjectsLeader.ProjectSync2PCEnabled = DefaultProjectSync2PCEnabled
 	}
+
+	// Oris leader-origin calls are verified against Leader Identity (see ProjectsLeader.TrustsLeaderOrigin);
+	// an unset Identity would make every leader-origin call fail closed with no clear cause.
+	if c.ProjectsLeader.Kind == ProjectsLeaderKindOris && c.ProjectsLeader.Identity == "" {
+		return errors.New("projectsLeader.Identity is required when projectsLeader.kind is \"oris\"")
+	}
+
+	return nil
 }
 
 func (c *Config) enrichLocalPlatform() {
@@ -559,12 +604,24 @@ func (c *Config) enrichLocalPlatform() {
 	}
 }
 
+// IsFunctionAuthenticationEnabled reports whether the platform-wide function-level authentication
+// feature flag is enabled (gates injecting the auth-proxy sidecar in front of function pods).
+func (c *Config) IsFunctionAuthenticationEnabled() bool {
+	if c.Authentication == nil {
+		return false
+	}
+	return c.Authentication.FunctionAuthenticationEnabled
+}
+
 func (c *Config) enrichAuthentication() {
 	if c.Authentication == nil {
 		c.Authentication = &Authentication{}
 	}
 	if c.Authentication.AuthKind == "" {
 		c.Authentication.AuthKind = c.Opa.AuthKind
+	}
+	if c.Authentication.DefaultMode == "" {
+		c.Authentication.DefaultMode = auth.AuthenticationModeNone
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -499,6 +500,58 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			},
 		},
 		{
+			name: "invalidDuplicateContainerPortNumberAcrossSidecars",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+				{
+					Name:  "sidecar2",
+					Image: "alpine",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          fmt.Sprintf("%s-2", sidcarPortName),
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidDuplicateContainerPortNameAcrossSidecars",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+				{
+					Name:  "sidecar2",
+					Image: "alpine",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 90,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
 			name: "invalidNoName",
 			sidecars: []*v1.Container{
 				{
@@ -693,6 +746,21 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 				},
 			},
 			shouldFailValidation: true,
+		},
+		{
+			name: "reservedAuthProxySidecarNameAndAuthProxyDisabled",
+			sidecars: []*v1.Container{
+				{
+					Name:  abstract.AuthProxySidecarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -2456,6 +2524,44 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication
 			} else {
 				suite.Require().Nil(err)
 			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestGetAllowedAuthenticationModesWithFunctionAuth() {
+	for _, testCase := range []struct {
+		name           string
+		config         *platformconfig.Config
+		expectedResult []string
+	}{
+		{
+			name:           "no function auth",
+			config:         &platformconfig.Config{Authentication: &platformconfig.Authentication{}},
+			expectedResult: []string{string(auth.AuthenticationModeBasicAuth), string(auth.AuthenticationModeNone)},
+		},
+		{
+			name:           "function auth enabled, default values",
+			config:         &platformconfig.Config{Authentication: &platformconfig.Authentication{FunctionAuthenticationEnabled: true}},
+			expectedResult: []string{string(auth.AuthenticationModeAPI), string(auth.AuthenticationModeBasicAuth), string(auth.AuthenticationModeBrowser), string(auth.AuthenticationModeNone)},
+		},
+		{
+			name: "function auth enabled, config values",
+			config: &platformconfig.Config{Authentication: &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+				AllowedModes:                  []string{"test1", "test2"},
+			}},
+			expectedResult: []string{"test1", "test2"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			previousConfig := suite.platform.Config
+			defer func() {
+				suite.platform.Config = previousConfig
+			}()
+			suite.platform.Config = testCase.config
+			result := suite.platform.GetAllowedAuthenticationModes()
+			sort.Strings(result)
+			suite.Require().Equal(result, testCase.expectedResult)
 		})
 	}
 }

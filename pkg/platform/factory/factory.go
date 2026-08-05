@@ -44,7 +44,7 @@ func CreatePlatform(ctx context.Context,
 	var err error
 
 	platformConfiguration.ContainerBuilderConfiguration, err =
-		containerimagebuilderpusher.NewContainerBuilderConfiguration()
+		containerimagebuilderpusher.NewContainerBuilderConfiguration(platformConfiguration.ContainerBuilderConfiguration)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}

@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -413,12 +414,45 @@ func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
 }
 
+// GetEnvOrDefaultStringWithLegacyKey resolves key, falling back to legacyKey, logging a deprecation
+// warning if legacyKey is actually used.
+func GetEnvOrDefaultStringWithLegacyKey(key, legacyKey, defaultValue string) string {
+	if _, ok := os.LookupEnv(key); ok {
+		return GetEnvOrDefaultString(key, defaultValue)
+	}
+	if _, ok := os.LookupEnv(legacyKey); ok {
+		log.Printf("%s is deprecated, use %s instead", legacyKey, key)
+	}
+	return GetEnvOrDefaultString(legacyKey, defaultValue)
+}
+
+// GetEnvOrDefaultBoolWithLegacyKey is the bool counterpart of GetEnvOrDefaultStringWithLegacyKey.
+func GetEnvOrDefaultBoolWithLegacyKey(key, legacyKey string, defaultValue bool) bool {
+	return strings.ToLower(GetEnvOrDefaultStringWithLegacyKey(key, legacyKey,
+		strconv.FormatBool(defaultValue))) == "true"
+}
+
 func GetEnvOrDefaultInt(key string, defaultValue int) int {
 	valueInt, err := strconv.Atoi(GetEnvOrDefaultString(key, strconv.Itoa(defaultValue)))
 	if err != nil {
 		return defaultValue
 	}
 	return valueInt
+}
+
+// GetEnvOrDefaultStringSlice resolves key as a comma-separated list, dropping blanks and duplicates.
+func GetEnvOrDefaultStringSlice(key string, defaultValue []string) []string {
+	raw, ok := os.LookupEnv(key)
+	if !ok {
+		return defaultValue
+	}
+	var values []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return RemoveDuplicatesFromSliceString(values)
 }
 
 // IsJavaProjectDir Checks if the given @dirPath is in a java project structure
@@ -533,6 +567,33 @@ func MatchStringPatterns(patterns []string, s string) bool {
 
 func CompileImageName(registryURL string, imageName string) string {
 	return strings.TrimSuffix(registryURL, "/") + "/" + imageName
+}
+
+// StripImageTag strips the trailing ":tag" from an image reference, leaving the bare repo path.
+func StripImageTag(image string) string {
+	if lastSlash, lastColon := strings.LastIndex(image, "/"), strings.LastIndex(image, ":"); lastColon > lastSlash {
+		return image[:lastColon]
+	}
+	return image
+}
+
+// GetHostname returns url's hostname, stripping any repository path (GAR URLs carry one; ACR/ECR don't).
+func GetHostname(url string) string {
+	if i := strings.Index(url, "/"); i != -1 {
+		return url[:i]
+	}
+	return url
+}
+
+// NormalizeHosts strips each url to its bare hostname and drops empty/duplicate values.
+func NormalizeHosts(urls ...string) []string {
+	hosts := make([]string, 0, len(urls))
+	for _, url := range urls {
+		if host := GetHostname(url); host != "" {
+			hosts = append(hosts, host)
+		}
+	}
+	return RemoveDuplicatesFromSliceString(hosts)
 }
 
 func AnyPositiveInSliceInt64(numbers []int64) bool {

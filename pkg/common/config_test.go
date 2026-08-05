@@ -69,6 +69,77 @@ func (suite *ConfigTestSuite) TestMergeEnvSlices() {
 	}
 }
 
+func (suite *ConfigTestSuite) TestMergeEnvSlicesInOrder() {
+	envVarFromSecret := v1.EnvVar{
+		Name: "from-secret",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: "some-secret"},
+				Key:                  "some-key",
+			},
+		},
+	}
+
+	for _, testCase := range []struct {
+		name               string
+		primaryEnvs        []v1.EnvVar
+		secondaryEnvs      []v1.EnvVar
+		expectedMergedEnvs []v1.EnvVar
+	}{
+		{
+			name:          "secondary-order-kept-primary-only-appended",
+			primaryEnvs:   []v1.EnvVar{{Name: "test3", Value: "c"}, {Name: "test4", Value: "d"}},
+			secondaryEnvs: []v1.EnvVar{{Name: "test1", Value: "a"}, {Name: "test2", Value: "b"}},
+			expectedMergedEnvs: []v1.EnvVar{
+				{Name: "test1", Value: "a"},
+				{Name: "test2", Value: "b"},
+				{Name: "test3", Value: "c"},
+				{Name: "test4", Value: "d"},
+			},
+		},
+		{
+			name:          "same-key-overridden-in-place",
+			primaryEnvs:   []v1.EnvVar{{Name: "test2", Value: "primary"}, {Name: "test3", Value: "c"}},
+			secondaryEnvs: []v1.EnvVar{{Name: "test1", Value: "a"}, {Name: "test2", Value: "secondary"}},
+			expectedMergedEnvs: []v1.EnvVar{
+				{Name: "test1", Value: "a"},
+				{Name: "test2", Value: "primary"},
+				{Name: "test3", Value: "c"},
+			},
+		},
+		{
+			name:               "value-from-preserved",
+			primaryEnvs:        []v1.EnvVar{{Name: "test1", Value: "a"}},
+			secondaryEnvs:      []v1.EnvVar{envVarFromSecret},
+			expectedMergedEnvs: []v1.EnvVar{envVarFromSecret, {Name: "test1", Value: "a"}},
+		},
+		{
+			name:               "duplicated-secondary-name-last-wins",
+			secondaryEnvs:      []v1.EnvVar{{Name: "test1", Value: "a"}, {Name: "test1", Value: "b"}},
+			expectedMergedEnvs: []v1.EnvVar{{Name: "test1", Value: "b"}},
+		},
+		{
+			name:               "empty-secondary",
+			primaryEnvs:        []v1.EnvVar{{Name: "test1", Value: "a"}},
+			expectedMergedEnvs: []v1.EnvVar{{Name: "test1", Value: "a"}},
+		},
+		{
+			name:               "empty-primary",
+			secondaryEnvs:      []v1.EnvVar{{Name: "test1", Value: "a"}},
+			expectedMergedEnvs: []v1.EnvVar{{Name: "test1", Value: "a"}},
+		},
+		{
+			name:               "both-empty",
+			expectedMergedEnvs: []v1.EnvVar{},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expectedMergedEnvs,
+				MergeEnvSlicesInOrder(testCase.primaryEnvs, testCase.secondaryEnvs))
+		})
+	}
+}
+
 func TestConfigTestSuite(t *testing.T) {
 	suite.Run(t, new(ConfigTestSuite))
 }
