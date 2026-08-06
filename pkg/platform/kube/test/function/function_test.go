@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"sort"
@@ -32,16 +33,19 @@ import (
 	"testing"
 	"time"
 
-	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
-
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
@@ -51,6 +55,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"github.com/v3io/version-go"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
@@ -1871,6 +1876,162 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGitPythonRuntime() {
 	})
 }
 
+
+// TestDeployFunctionWithSidecarBasicAuth is TestDeployFunctionWithSidecarMultiplePorts with function-level
+// basic-auth turned on: the auth-proxy is injected and fronts every port the Service publishes - the
+// function's own and both of the sidecar's - so none of them can be reached without credentials.
+func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarBasicAuth() {
+	functionName := "func-with-sidecar-basic-auth"
+	username, password := "test-user", "test-123"
+
+	// restore whatever the suite was configured with, rather than assuming the zero value
+	originalAuthentication := *suite.PlatformConfiguration.Authentication
+	defer func() {
+		*suite.PlatformConfiguration.Authentication = originalAuthentication
+	}()
+
+	suite.PlatformConfiguration.Authentication.FunctionAuthenticationEnabled = true
+
+	// build and push the auth-proxy sidecar image the same way processor images are built in other
+	// integration tests, so the test doesn't depend on CI having pre-built and pre-pushed it
+	suite.PlatformConfiguration.Authentication.AuthSidecarImage = suite.buildAndPushAuthProxySidecarImage()
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'Done'",
+	}
+
+	// create a busybox sidecar, same as TestDeployFunctionWithSidecarMultiplePorts
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    sidecarContainerName,
+			Image:   "busybox",
+			Command: commands,
+			Ports: []v1.ContainerPort{{Name: "port-1", ContainerPort: 8050, Protocol: v1.ProtocolTCP},
+				{Name: "port-2", ContainerPort: 22, Protocol: v1.ProtocolTCP},
+			},
+		},
+	}
+
+	// the HTTP trigger's authentication mode is what makes the platform inject the auth-proxy in front of the pod
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http-with-auth": {
+			Kind: "http",
+			Attributes: map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+				"authentication": map[string]interface{}{
+					"basicAuth": map[string]interface{}{
+						"username": username,
+						"password": password,
+					},
+				},
+			},
+		},
+	}
+
+	// keep plaintext passwords in the function config, so the test can validate the secret was created and mounted
+	createFunctionOptions.FunctionConfig.Spec.DisableSensitiveFieldsMasking = true
+
+	// pulling the proxy image and starting a third container might take longer than the default timeout
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 240
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.Containers, 3)
+
+		resultSidecarContainer := suite.getContainer(pod.Spec.Containers, sidecarContainerName)
+		suite.Require().NotNil(resultSidecarContainer)
+		suite.Require().Equal(sidecarContainerName, resultSidecarContainer.Name)
+		suite.Require().Equal("busybox", resultSidecarContainer.Image)
+		suite.Require().Equal(commands, resultSidecarContainer.Command)
+		suite.Require().Equal(2, len(resultSidecarContainer.Ports))
+
+		// the processor and the sidecar keep binding the ports they always did, so the proxy takes ports of
+		// its own - one per published port
+		authproxySidecarContainer := suite.getContainer(pod.Spec.Containers, abstract.AuthProxySidecarContainerName)
+		suite.Require().NotNil(authproxySidecarContainer)
+		suite.Require().Equal(abstract.AuthProxySidecarContainerName, authproxySidecarContainer.Name)
+		suite.Require().Equal(3, len(authproxySidecarContainer.Ports))
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+		})
+		suite.Require().NoError(err)
+
+		for _, testCase := range []struct {
+			portName string
+			port     int32
+
+			// the auth-proxy listen port the service now targets, instead of the container's own port
+			targetPort int32
+
+			// busybox listens on neither of its declared ports, so an authorized request there gets past the
+			// gate and fails on the proxy's upstream dial - which is the point: the gate is no longer the
+			// sidecar's own port
+			authorizedStatusCode int
+		}{
+			{
+				portName:             abstract.FunctionContainerHTTPPortName,
+				port:                 abstract.FunctionContainerHTTPPort,
+				targetPort:           abstract.AuthProxyProcessorListenPort,
+				authorizedStatusCode: http.StatusOK,
+			},
+			{
+				portName:             "port-1",
+				port:                 8050,
+				targetPort:           abstract.AuthProxySidecarListenPortRangeStart,
+				authorizedStatusCode: http.StatusBadGateway,
+			},
+			{
+				portName:             "port-2",
+				port:                 22,
+				targetPort:           abstract.AuthProxySidecarListenPortRangeStart + 1,
+				authorizedStatusCode: http.StatusBadGateway,
+			},
+		} {
+			servicePort := suite.getFunctionServicePort(functionName, testCase.portName)
+
+			// the published port number is unchanged; only its target moves to the auth-proxy
+			suite.Require().Equal(testCase.port, servicePort.Port, "portName: %s", testCase.portName)
+			suite.Require().Equal(testCase.targetPort, servicePort.TargetPort.IntVal,
+				"portName: %s", testCase.portName)
+			suite.Require().NotZero(servicePort.NodePort, "portName: %s", testCase.portName)
+
+			// retry the authorized request, so the assertions below are not racing endpoint propagation or
+			// the proxy's first accept
+			err = common.RetryUntilSuccessful(90*time.Second, 2*time.Second, func() bool {
+				return suite.invokeFunctionNodePort(servicePort.NodePort, username, password) ==
+					testCase.authorizedStatusCode
+			})
+			suite.Require().NoError(err, "Port did not answer the authorized status code; portName: %s",
+				testCase.portName)
+
+			// with no credentials, and with the wrong ones, the proxy rejects before the upstream is reached
+			suite.Require().Equal(http.StatusUnauthorized,
+				suite.invokeFunctionNodePort(servicePort.NodePort, "", ""),
+				"portName: %s", testCase.portName)
+			suite.Require().Equal(http.StatusUnauthorized,
+				suite.invokeFunctionNodePort(servicePort.NodePort, username, "wrong-password"),
+				"portName: %s", testCase.portName)
+		}
+
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
 
 	// create a platform config configmap with a json logger sink (this is how it is on production)
@@ -1925,6 +2086,89 @@ func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string,
 	return false
 }
 
+// getFunctionServicePort returns the function service's port by name.
+func (suite *DeployFunctionTestSuite) getFunctionServicePort(functionName, portName string) v1.ServicePort {
+	serviceInstance := &v1.Service{}
+	suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(functionName), serviceInstance)
+
+	for _, servicePort := range serviceInstance.Spec.Ports {
+		if servicePort.Name == portName {
+			return servicePort
+		}
+	}
+
+	suite.Require().Fail("Service has no such port", "portName: %s", portName)
+	return v1.ServicePort{}
+}
+
+// invokeFunctionNodePort issues a request to a service node port and returns the status code. Going through
+// the service is the point: the request lands on whatever the port's targetPort points at - the auth-proxy,
+// once function-level authentication is on. An empty username sends no credentials at all. The path is "/"
+// rather than the health path, which the proxy serves unauthenticated on every route.
+func (suite *DeployFunctionTestSuite) invokeFunctionNodePort(nodePort int32, username, password string) int {
+	request, err := http.NewRequest(http.MethodGet,
+		fmt.Sprintf("http://%s:%d/", suite.GetNuclioExternalIP(), nodePort),
+		nil)
+	suite.Require().NoError(err)
+	if username != "" {
+		request.SetBasicAuth(username, password)
+	}
+
+	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
+	if err != nil {
+		suite.Logger.WarnWith("Failed to invoke function node port",
+			"nodePort", nodePort,
+			"err", err.Error())
+		return 0
+	}
+	defer response.Body.Close() // nolint: errcheck
+
+	return response.StatusCode
+}
+
+func (suite *DeployFunctionTestSuite) getContainer(containers []v1.Container, containerName string) *v1.Container {
+	for _, container := range containers {
+		if container.Name == containerName {
+			return &container
+		}
+	}
+	return nil
+}
+
+// buildAndPushAuthProxySidecarImage builds and pushes the auth-proxy sidecar image via the same
+// platform.BuildAndPushContainerImage primitive processor images are built with (see buildTestFunction),
+func (suite *DeployFunctionTestSuite) buildAndPushAuthProxySidecarImage() string {
+	err := suite.Platform.InitializeContainerBuilder()
+	suite.Require().NoError(err)
+
+	taggedImageName := fmt.Sprintf("auth-proxy:%s-%s",
+		common.GetEnvOrDefaultString("NUCLIO_LABEL", "latest"),
+		version.Get().Arch)
+
+	err = suite.Platform.BuildAndPushContainerImage(suite.Ctx,
+		&containerimagebuilderpusher.BuildOptions{
+			ContextDir: suite.GetNuclioSourceDir(),
+			Image:      taggedImageName,
+			DockerfileInfo: &runtime.ProcessorDockerfileInfo{
+				DockerfilePath: "cmd/authproxy/Dockerfile",
+			},
+			RegistryURL: suite.RegistryURL,
+			BuildArgs: map[string]string{
+				"ALPINE_IMAGE": common.GetEnvOrDefaultString("NUCLIO_DOCKER_ALPINE_IMAGE",
+					"gcr.io/iguazio/alpine:3.23"),
+				"NUCLIO_DOCKER_REPO": fmt.Sprintf("%s/%s",
+					common.GetEnvOrDefaultString("REPO", "quay.io"),
+					common.GetEnvOrDefaultString("REPO_NAME", "nuclio")),
+				"NUCLIO_DOCKER_IMAGE_TAG": fmt.Sprintf("%s-%s",
+					common.GetEnvOrDefaultString("NUCLIO_LABEL", "latest"),
+					version.Get().Arch),
+			},
+		})
+	suite.Require().NoError(err)
+
+	return fmt.Sprintf("%s/%s", suite.RegistryURL, taggedImageName)
+}
+
 type DeleteFunctionTestSuite struct {
 	kubesuite.KubeTestSuite
 }
@@ -1936,7 +2180,7 @@ func (suite *DeleteFunctionTestSuite) TestDeleteFunctionWhichHasApiGateway() {
 		apiGatewayName := "func-apigw"
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
-			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, functionName)
+			suite.Assert().Contains(ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, functionName)
 
 			// try to delete the function while it uses this api gateway without DeleteApiGateways flag
 			err := suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{
