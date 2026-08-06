@@ -68,7 +68,12 @@ func (suite *RouteTestSuite) TestParseRoutes() {
 		{
 			name:           "empty string yields no routes",
 			routes:         "",
-			expectedRoutes: []Route{},
+			expectedRoutes: nil,
+		},
+		{
+			name:           "empty string with spaces yields no routes",
+			routes:         "   ",
+			expectedRoutes: nil,
 		},
 		{
 			name:        "non-numeric listen port is rejected",
