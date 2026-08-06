@@ -2262,11 +2262,9 @@ func (p *Platform) functionAuthenticationEnabled(functionConfig *functionconfig.
 // validateSidecarNameNotReserved rejects a user-supplied sidecar named abstract.AuthProxySidecarContainerName,
 // which is reserved for the platform-injected auth-proxy sidecar (see functionres.injectAuthProxySidecar).
 func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig.Config, sidecar *v1.Container) error {
-	authProxyEnabled, err := p.functionAuthenticationEnabled(functionConfig)
-	if err != nil {
+	if authProxyEnabled, err := p.functionAuthenticationEnabled(functionConfig); err != nil {
 		return err
-	}
-	if !authProxyEnabled {
+	} else if !authProxyEnabled {
 		return nil
 	}
 
@@ -2281,11 +2279,9 @@ func (p *Platform) validateSidecarNameNotReserved(functionConfig *functionconfig
 // bind to front a sidecar port. Container-port names are unique within a pod
 func (p *Platform) validateSidecarPortNames(functionConfig *functionconfig.Config,
 	portNames map[string]bool) error {
-	authProxyEnabled, err := p.functionAuthenticationEnabled(functionConfig)
-	if err != nil {
+	if authProxyEnabled, err := p.functionAuthenticationEnabled(functionConfig); err != nil {
 		return err
-	}
-	if !authProxyEnabled {
+	} else if !authProxyEnabled {
 		return nil
 	}
 
