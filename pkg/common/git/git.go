@@ -77,31 +77,49 @@ func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *At
 		return agc.cloneFromAzureDevops(outputDir, repositoryURL, referenceName, gitAuth, agc.cmdRunner)
 	}
 
-	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth)
+	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth, attributes)
 }
 
 func (agc *AbstractClient) clone(outputDir string,
 	repositoryURL string,
 	referenceName string,
-	gitAuth transport.AuthMethod) error {
+	gitAuth transport.AuthMethod,
+	attributes *Attributes) error {
 
 	agc.logger.DebugWith("Cloning",
 		"outputDir", outputDir,
 		"referenceName", referenceName,
 		"repositoryURL", repositoryURL)
 
-	if _, err := git.PlainClone(outputDir, false, &git.CloneOptions{
-		URL:           repositoryURL,
-		ReferenceName: plumbing.ReferenceName(referenceName),
-		Depth:         1,
-		Auth:          gitAuth,
-	}); err != nil {
+	if _, err := git.PlainClone(outputDir, false, buildCloneOptions(repositoryURL, referenceName, gitAuth, attributes)); err != nil {
 		return errors.Wrap(err, "Failed to clone git repository")
 	}
 
 	agc.logCurrentCommitSHA(outputDir, repositoryURL, referenceName)
 
 	return nil
+}
+
+// buildCloneOptions is split out from clone() so the mapping from Attributes onto
+// git.CloneOptions -- in particular the mutual-TLS fields -- can be unit-tested without
+// actually cloning a repository.
+func buildCloneOptions(repositoryURL string,
+	referenceName string,
+	gitAuth transport.AuthMethod,
+	attributes *Attributes) *git.CloneOptions {
+
+	return &git.CloneOptions{
+		URL:           repositoryURL,
+		ReferenceName: plumbing.ReferenceName(referenceName),
+		Depth:         1,
+		Auth:          gitAuth,
+
+		// mutual TLS: a client cert/key to present to the server, and/or an additional CA
+		// bundle to verify the server's certificate against (together with the system pool).
+		ClientCert: []byte(attributes.ClientCert),
+		ClientKey:  []byte(attributes.ClientKey),
+		CABundle:   []byte(attributes.CABundle),
+	}
 }
 
 func (agc *AbstractClient) cloneFromAzureDevops(outputDir string,
