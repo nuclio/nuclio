@@ -159,7 +159,7 @@ Set the [`spec.build.codeEntryType`](function-configuration-reference.md) functi
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository.
       The default work directory is the root directory of the git repository (`"/"`).
 
-      // mutual-TLS, for a Git server that requires a client certificate
+      **Mutual TLS (client certificates):**
       - `clientCert` (Optional) &mdash; a PEM-encoded client certificate to present to the Git server.
       - `clientKey` (Optional) &mdash; the PEM-encoded private key matching `clientCert`.
       - `caBundle` (Optional) &mdash; a PEM-encoded CA bundle used, together with the system cert pool, to verify the Git server's certificate. Only needed when the server's certificate isn't already trusted by the system pool (for example, a self-signed or internal CA).

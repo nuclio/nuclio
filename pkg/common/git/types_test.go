@@ -31,8 +31,8 @@ type AttributesTestSuite struct {
 
 // TestDecodeCodeEntryAttributesWithMTLSFields mirrors how builder.go's parseGitAttributes
 // decodes spec.build.codeEntryAttributes (a map[string]interface{} straight out of the
-// function config) into an Attributes struct, to guard the json tags that mapstructure's
-// default case-insensitive field matching relies on.
+// function config) into an Attributes struct, to ensure the expected keys (clientCert,
+// clientKey, caBundle) decode correctly with mapstructure's default matching.
 func (suite *AttributesTestSuite) TestDecodeCodeEntryAttributesWithMTLSFields() {
 	codeEntryAttributes := map[string]interface{}{
 		"branch":     "main",
