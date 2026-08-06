@@ -876,7 +876,7 @@ func (suite *lazyTestSuite) TestAuthProxyRoutes() {
 			// repeated to catch a nondeterministic route order, which would churn the sidecar's --routes
 			// argument and roll the deployment on every reconcile
 			for range 10 {
-				routes, err := authProxyRoutes(functionInstance)
+				routes, err := suite.client.authProxyRoutes(functionInstance)
 				if testCase.expectError {
 					suite.Require().Error(err)
 					return

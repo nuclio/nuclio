@@ -1458,14 +1458,14 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 
 // processorAuthProxyRoute is the auth-proxy's route for the processor: it listens on a port of its own and
 // forwards to the processor's HTTP port on the pod-local loopback
-func processorAuthProxyRoute() authproxy.Route {
+func (lc *lazyClient) processorAuthProxyRoute() authproxy.Route {
 	return authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort)
 }
 
 // authProxySidecarPortMapping maps each user sidecar container port to the auth-proxy listen port that fronts
 // it. A user sidecar keeps binding its own port, so the proxy cannot reuse it - each port gets one from the
 // reserved band instead, assigned in spec order.
-func authProxySidecarPortMapping(function *nuclioio.NuclioFunction) (map[int32]int32, error) {
+func (lc *lazyClient) authProxySidecarPortMapping(function *nuclioio.NuclioFunction) (map[int32]int32, error) {
 	portMapping := map[int32]int32{}
 	nextListenPort := int32(abstract.AuthProxySidecarListenPortRangeStart)
 
@@ -1493,8 +1493,8 @@ func authProxySidecarPortMapping(function *nuclioio.NuclioFunction) (map[int32]i
 // route; the rest front user sidecar ports. The sidecars are walked in spec order rather than over the port
 // mapping, since map iteration order is randomized and would churn the sidecar's --routes argument - and with
 // it the deployment spec - on every reconcile.
-func authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, error) {
-	portMapping, err := authProxySidecarPortMapping(function)
+func (lc *lazyClient) authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, error) {
+	portMapping, err := lc.authProxySidecarPortMapping(function)
 	if err != nil {
 		return nil, err
 	}
@@ -1502,7 +1502,7 @@ func authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, erro
 	// one route per mapped sidecar port, plus the processor's; sidecar port numbers are unique across
 	// containers (see kube.Platform.validateContainerPorts), so the mapping holds one entry per declared port
 	routes := make([]authproxy.Route, len(portMapping)+1)
-	routes[0] = processorAuthProxyRoute()
+	routes[0] = lc.processorAuthProxyRoute()
 
 	routeIndex := 1
 	for _, sidecar := range function.Spec.Sidecars {
@@ -1533,7 +1533,7 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 
 	// the proxy must front every port the Service publishes, so a port it cannot front fails the whole
 	// injection - a partially fronted function would expose an unauthenticated port
-	routes, err := authProxyRoutes(function)
+	routes, err := lc.authProxyRoutes(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to resolve auth-proxy sidecar routes")
 	}
@@ -2234,7 +2234,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 		// with the feature off, sidecarPortMapping stays empty and every port targets the sidecar as before
 		if authProxyFronting {
-			resolvedPortMapping, err := authProxySidecarPortMapping(function)
+			resolvedPortMapping, err := lc.authProxySidecarPortMapping(function)
 			if err != nil {
 				return errors.Wrap(err, "Failed to resolve auth-proxy sidecar ports")
 			}
