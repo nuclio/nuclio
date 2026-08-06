@@ -1759,7 +1759,16 @@ func (b *Builder) cloneFunctionFromGit(outputDir, repositoryURL string) error {
 		return errors.Wrap(err, "Failed to parse git attributes")
 	}
 
-	b.logger.DebugWith("Parsed git attributes", "gitAttributes", gitAttributes)
+	// avoid logging the full struct: Password and ClientKey carry secret/private-key material
+	b.logger.DebugWith("Parsed git attributes",
+		"branch", gitAttributes.Branch,
+		"tag", gitAttributes.Tag,
+		"reference", gitAttributes.Reference,
+		"hasUsername", gitAttributes.Username != "",
+		"hasPassword", gitAttributes.Password != "",
+		"hasClientCert", gitAttributes.ClientCert != "",
+		"hasClientKey", gitAttributes.ClientKey != "",
+		"hasCABundle", gitAttributes.CABundle != "")
 
 	return b.gitClient.Clone(outputDir, repositoryURL, gitAttributes)
 }
