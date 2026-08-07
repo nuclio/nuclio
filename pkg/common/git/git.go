@@ -91,7 +91,7 @@ func (agc *AbstractClient) clone(outputDir string,
 		"referenceName", referenceName,
 		"repositoryURL", repositoryURL)
 
-	if _, err := git.PlainClone(outputDir, false, buildCloneOptions(repositoryURL, referenceName, gitAuth, attributes)); err != nil {
+	if _, err := git.PlainClone(outputDir, false, agc.buildCloneOptions(repositoryURL, referenceName, gitAuth, attributes)); err != nil {
 		return errors.Wrap(err, "Failed to clone git repository")
 	}
 
@@ -103,7 +103,7 @@ func (agc *AbstractClient) clone(outputDir string,
 // buildCloneOptions is split out from clone() so the mapping from Attributes onto
 // git.CloneOptions -- in particular the mutual-TLS fields -- can be unit-tested without
 // actually cloning a repository.
-func buildCloneOptions(repositoryURL string,
+func (agc *AbstractClient) buildCloneOptions(repositoryURL string,
 	referenceName string,
 	gitAuth transport.AuthMethod,
 	attributes *Attributes) *git.CloneOptions {

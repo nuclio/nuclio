@@ -80,7 +80,7 @@ func (suite *AttributesTestSuite) TestBuildCloneOptionsSetsMTLSFields() {
 		CABundle:   "ca-pem",
 	}
 
-	options := buildCloneOptions("https://example.com/repo.git", "refs/heads/main", nil, attributes)
+	options := (&AbstractClient{}).buildCloneOptions("https://example.com/repo.git", "refs/heads/main", nil, attributes)
 
 	suite.Require().Equal("https://example.com/repo.git", options.URL)
 	suite.Require().Equal([]byte("cert-pem"), options.ClientCert)
@@ -89,7 +89,7 @@ func (suite *AttributesTestSuite) TestBuildCloneOptionsSetsMTLSFields() {
 }
 
 func (suite *AttributesTestSuite) TestBuildCloneOptionsLeavesMTLSFieldsEmptyWhenUnset() {
-	options := buildCloneOptions("https://example.com/repo.git", "refs/heads/main", nil, &Attributes{})
+	options := (&AbstractClient{}).buildCloneOptions("https://example.com/repo.git", "refs/heads/main", nil, &Attributes{})
 
 	suite.Require().Empty(options.ClientCert)
 	suite.Require().Empty(options.ClientKey)
