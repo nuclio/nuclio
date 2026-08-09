@@ -64,6 +64,43 @@ spec:
         - name: platform-config
           mountPath: /etc/nuclio/config/platform
         {{- end }}
+      {{- $authentication := dig "authentication" dict (.Values.platform | default dict) }}
+      {{- if $authentication.functionAuthenticationEnabled }}
+      # A function scaled to zero has no pod, so its own auth-proxy does not exist: the Service routes
+      # the request to the DLX instead. This sidecar is the DLX's stand-in for it - the DLX asks it about
+      # every request before scaling anything up, and leaves the function at zero unless it allows.
+      #
+      # Gated on the same value that renders functionAuthenticationEnabled into platform.yaml, which is
+      # what the DLX reads to decide whether to check at all: one value, applied in one install, so the
+      # container and the flag that makes it get called always arrive together.
+      - name: auth-proxy
+        # the args replace the image's CMD wholesale, so the binary name has to lead
+        args:
+        - auth-proxy
+        - --mode=authOnly
+        # a bare port, with no "=upstream": authOnly answers rather than forwards, and is bound to
+        # loopback rather than published. The port is the one the auth-proxy always listens on.
+        - --routes=6080
+        - --auth-url={{ $authentication.authURL }}
+        - --signin-url={{ $authentication.signInURL }}
+        - --namespace={{ .Values.dlx.namespace | default .Release.Namespace }}
+        {{- if $authentication.authKind }}
+        - --auth-kind={{ $authentication.authKind }}
+        {{- end }}
+        image: {{ $authentication.authSidecarImage }}
+        {{- with (include "nuclio.containerSecurityContext.dlx" .) }}
+        # without this the sidecar would be the one container in the pod missing the hardening the
+        # operator asked for, which is enough for restricted Pod Security admission to reject the pod
+        securityContext:
+          {{- . | nindent 10 }}
+        {{- end }}
+        # the sidecar reads platform config for one thing: its logger. Absent, it does not fail - it falls
+        # back to stdout at debug, which on a per-request component is louder than anyone asked for and
+        # sends nothing to a configured sink. Function pods mount it for the same reason.
+        volumeMounts:
+        - name: platform-config
+          mountPath: /etc/nuclio/config/platform
+      {{- end }}
         {{- if .Values.platform }}
       volumes:
       - name: platform-config
