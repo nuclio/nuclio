@@ -18,6 +18,7 @@ package app
 
 import (
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 
 	"github.com/nuclio/errors"
 )
@@ -25,10 +26,9 @@ import (
 // Config holds the auth-proxy sidecar configuration.
 type Config struct {
 	Mode               auth.ProxyMode
-	ListenPort         int
-	UpstreamURL        string // the URL of the upstream service to which requests are proxied (reverseProxy mode only)
-	AuthURL            string // the URL of the auth service to which requests are sent for authentication
-	SigninURL          string // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
+	Routes             []authproxy.Route // every port the auth-proxy listens on, each with its own upstream
+	AuthURL            string            // the URL of the auth service to which requests are sent for authentication
+	SigninURL          string            // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
 	AuthMode           string
 	FunctionConfigPath string // path to the mounted function config; credentials are read from it when auth-mode=basicAuth
 	Namespace          string
@@ -38,8 +38,8 @@ type Config struct {
 }
 
 func validateConfiguration(config *Config) error {
-	if err := validatePort(config.ListenPort); err != nil {
-		return errors.Wrap(err, "Invalid port configuration")
+	if err := validateRoutes(config); err != nil {
+		return errors.Wrap(err, "Invalid route configuration")
 	}
 
 	switch config.Mode {
@@ -53,10 +53,6 @@ func validateConfiguration(config *Config) error {
 }
 
 func validateReverseProxyConfiguration(config *Config) error {
-	if config.UpstreamURL == "" {
-		return errors.New("Upstream URL must be provided")
-	}
-
 	switch auth.AuthenticationMode(config.AuthMode) {
 	case auth.AuthenticationModeAPI:
 		if config.AuthURL == "" {
@@ -91,6 +87,48 @@ func validateAuthOnlyConfiguration(config *Config) error {
 	}
 	if config.SigninURL == "" {
 		return errors.New("Sign-in URL must be provided in authOnly mode")
+	}
+
+	return nil
+}
+
+func validateRoutes(config *Config) error {
+	if len(config.Routes) == 0 {
+		return errors.New("At least one route must be provided")
+	}
+
+	seenListenPorts := make(map[int]bool, len(config.Routes))
+	for _, route := range config.Routes {
+		if err := validatePort(route.ListenPort); err != nil {
+			return err
+		}
+
+		if seenListenPorts[route.ListenPort] {
+			return errors.Errorf("Duplicate listen port: %d", route.ListenPort)
+		}
+		seenListenPorts[route.ListenPort] = true
+	}
+
+	switch config.Mode {
+	case auth.ProxyModeReverseProxy:
+
+		// every listener forwards, so each route needs its own upstream
+		for _, route := range config.Routes {
+			if route.UpstreamURL == "" {
+				return errors.Errorf("Upstream URL must be provided for listen port: %d", route.ListenPort)
+			}
+		}
+	case auth.ProxyModeAuthOnly:
+
+		// authOnly is only ever reached over a single, internal loopback address
+		if len(config.Routes) != 1 {
+			return errors.Errorf("authOnly mode requires exactly one route, got %d", len(config.Routes))
+		}
+
+		// authOnly does not forward, so an upstream is always a configuration mistake
+		if config.Routes[0].UpstreamURL != "" {
+			return errors.New("Upstream URL must not be provided in authOnly mode")
+		}
 	}
 
 	return nil

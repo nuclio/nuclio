@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -1144,7 +1145,9 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 
 	createService := func() (interface{}, error) {
 		spec := v1.ServiceSpec{}
-		lc.populateServiceSpec(ctx, functionLabels, function, &spec)
+		if err := lc.populateServiceSpec(ctx, functionLabels, function, &spec); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate service spec")
+		}
 
 		return lc.kubeClientSet.CreateService(ctx,
 			function.Namespace,
@@ -1163,7 +1166,9 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 
 		// update existing
 		service.Labels = functionLabels
-		lc.populateServiceSpec(ctx, functionLabels, function, &service.Spec)
+		if err := lc.populateServiceSpec(ctx, functionLabels, function, &service.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate service spec")
+		}
 
 		return lc.kubeClientSet.UpdateService(ctx, function.Namespace, service)
 	}
@@ -1279,7 +1284,9 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
-		lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts)
+		if err := lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
+		}
 
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1357,7 +1364,9 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
-		lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts)
+		if err := lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
+		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
@@ -1385,7 +1394,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
 	function *nuclioio.NuclioFunction,
 	deploymentSpec *appsv1.DeploymentSpec,
-	volumeMounts []v1.VolumeMount) {
+	volumeMounts []v1.VolumeMount) error {
 
 	// create init containers if provided
 	if len(function.Spec.InitContainers) > 0 {
@@ -1422,8 +1431,12 @@ func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
 		deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
 	}
 	if lc.functionAuthenticationEnabled(function) {
-		lc.injectAuthProxySidecar(ctx, function, deploymentSpec, volumeMounts)
+		if err := lc.injectAuthProxySidecar(ctx, function, deploymentSpec, volumeMounts); err != nil {
+			return errors.Wrap(err, "Failed to inject auth-proxy sidecar")
+		}
 	}
+
+	return nil
 }
 
 // functionAuthenticationEnabled reports whether the auth-proxy sidecar should be injected in front of the
@@ -1434,36 +1447,110 @@ func (lc *lazyClient) functionAuthenticationEnabled(function *nuclioio.NuclioFun
 		return false
 	}
 
-	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
+	// a malformed trigger set is reported by validation, not here: this only decides whether to inject
+	authenticationEnabled, err := functionconfig.AuthenticationEnabledForTriggers(function.Spec.Triggers)
 	if err != nil {
 		return false
 	}
 
-	return functionconfig.IsAuthenticationEnabled(authMode)
+	return authenticationEnabled
+}
+
+// processorAuthProxyRoute is the auth-proxy's route for the processor: it listens on a port of its own and
+// forwards to the processor's HTTP port on the pod-local loopback
+func (lc *lazyClient) processorAuthProxyRoute() authproxy.Route {
+	return authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort)
+}
+
+// authProxySidecarPortMapping maps each user sidecar container port to the auth-proxy listen port that fronts
+// it. A user sidecar keeps binding its own port, so the proxy cannot reuse it - each port gets one from the
+// reserved band instead, assigned in spec order.
+func (lc *lazyClient) authProxySidecarPortMapping(function *nuclioio.NuclioFunction) (map[int32]int32, error) {
+	portMapping := map[int32]int32{}
+	nextListenPort := int32(abstract.AuthProxySidecarListenPortRangeStart)
+
+	for _, sidecar := range function.Spec.Sidecars {
+		for _, port := range sidecar.Ports {
+			if port.ContainerPort >= abstract.AuthProxySidecarListenPortRangeStart &&
+				port.ContainerPort <= abstract.AuthProxySidecarListenPortRangeEnd {
+				return nil, errors.Errorf("Sidecar port is reserved for the auth-proxy; port: %d", port.ContainerPort)
+			}
+
+			if nextListenPort > abstract.AuthProxySidecarListenPortRangeEnd {
+				return nil, errors.Errorf("Too many sidecar ports to front; maximum is %d",
+					abstract.AuthProxySidecarListenPortRangeEnd-abstract.AuthProxySidecarListenPortRangeStart+1)
+			}
+
+			portMapping[port.ContainerPort] = nextListenPort
+			nextListenPort++
+		}
+	}
+
+	return portMapping, nil
+}
+
+// authProxyRoutes returns the auth-proxy's listeners for the function. The first is always the processor's
+// route; the rest front user sidecar ports. The sidecars are walked in spec order rather than over the port
+// mapping, since map iteration order is randomized and would churn the sidecar's --routes argument - and with
+// it the deployment spec - on every reconcile.
+func (lc *lazyClient) authProxyRoutes(function *nuclioio.NuclioFunction) ([]authproxy.Route, error) {
+	portMapping, err := lc.authProxySidecarPortMapping(function)
+	if err != nil {
+		return nil, err
+	}
+
+	// one route per mapped sidecar port, plus the processor's; sidecar port numbers are unique across
+	// containers (see kube.Platform.validateContainerPorts), so the mapping holds one entry per declared port
+	routes := make([]authproxy.Route, len(portMapping)+1)
+	routes[0] = lc.processorAuthProxyRoute()
+
+	routeIndex := 1
+	for _, sidecar := range function.Spec.Sidecars {
+		for _, port := range sidecar.Ports {
+			routes[routeIndex] = authproxy.LoopbackRoute(int(portMapping[port.ContainerPort]), int(port.ContainerPort))
+			routeIndex++
+		}
+	}
+	return routes, nil
 }
 
 // injectAuthProxySidecar appends the platform's auth-proxy sidecar to the pod: it terminates
 // authentication for the function's traffic (the Kubernetes Service is repointed to it, see
-// populateServiceSpec) and forwards allowed requests to the processor, which by this point only listens
-// on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback).
+// populateServiceSpec) and forwards allowed requests over the pod-local loopback to the processor and to
+// any user sidecar port.
 func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 	function *nuclioio.NuclioFunction,
 	deploymentSpec *appsv1.DeploymentSpec,
-	volumeMounts []v1.VolumeMount) {
+	volumeMounts []v1.VolumeMount) error {
 
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 	// functionAuthenticationEnabled already found a valid HTTP trigger + authentication mode
 	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
 	if err != nil {
-		lc.logger.WarnWithCtx(ctx, "Failed to get http trigger mode for function, skipping auth-proxy injection", "functionName", function.Name, "err", err)
-		return
+		return errors.Wrap(err, "Failed to get http trigger mode for function")
+	}
+
+	// the proxy must front every port the Service publishes, so a port it cannot front fails the whole
+	// injection - a partially fronted function would expose an unauthenticated port
+	routes, err := lc.authProxyRoutes(function)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve auth-proxy sidecar routes")
+	}
+
+	containerPorts := make([]v1.ContainerPort, 0, len(routes))
+	for _, route := range routes {
+		containerPorts = append(containerPorts, v1.ContainerPort{
+			Name:          abstract.AuthProxySidecarPortName(route.ListenPort),
+			ContainerPort: int32(route.ListenPort),
+			Protocol:      v1.ProtocolTCP,
+		})
 	}
 
 	args := []string{
+		"auth-proxy",
 		fmt.Sprintf("--mode=%s", auth.ProxyModeReverseProxy),
-		fmt.Sprintf("--listen-port=%d", abstract.FunctionContainerHTTPPort),
-		fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
+		fmt.Sprintf("--routes=%s", authproxy.FormatRoutes(routes)),
 		fmt.Sprintf("--auth-mode=%s", authMode),
 	}
 	if platformConfig.Authentication.AuthURL != "" {
@@ -1481,13 +1568,7 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 		Image:        platformConfig.Authentication.AuthSidecarImage,
 		Args:         args,
 		VolumeMounts: volumeMounts,
-		Ports: []v1.ContainerPort{
-			{
-				Name:          abstract.FunctionContainerHTTPPortName,
-				ContainerPort: abstract.FunctionContainerHTTPPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-		},
+		Ports:        containerPorts,
 	}
 
 	// basicAuth credentials are scrubbed onto the function's own secret; the sidecar restores them itself
@@ -1505,6 +1586,7 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 		&container.Resources)
 
 	deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, container)
+	return nil
 }
 
 func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) appsv1.DeploymentStrategyType {
@@ -2079,7 +2161,7 @@ func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.NuclioFunction) (
 func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	spec *v1.ServiceSpec) {
+	spec *v1.ServiceSpec) error {
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
 		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero ||
@@ -2126,17 +2208,52 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 			"ports", spec.Ports)
 	}
 
+	// With function-level authentication enabled, the Service target port is
+	// redirected to the auth-proxy to prevent authentication bypass. Offline states
+	// are excluded because DLX authenticates requests on the function's HTTP port.
+	authProxyFronting := lc.functionAuthenticationEnabled(function) &&
+		function.Status.State != functionconfig.FunctionStateScaledToZero &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesToZero &&
+		function.Status.State != functionconfig.FunctionStateWaitingForScaleResourcesFromZero
+
+	// the block above rebuilds the http port only on some passes, so its target is set here on every pass -
+	// otherwise it would not follow the function in and out of the states the DLX serves
+	httpTargetPort := int32(abstract.FunctionContainerHTTPPort)
+	if authProxyFronting {
+		httpTargetPort = int32(abstract.AuthProxyProcessorListenPort)
+	}
+	for portIndex, port := range spec.Ports {
+		if port.Name == abstract.FunctionContainerHTTPPortName {
+			spec.Ports[portIndex].TargetPort = intstr.FromInt32(httpTargetPort)
+		}
+	}
+
 	// add additional ports for sidecars
 	if function.Spec.Sidecars != nil {
+		sidecarPortMapping := map[int32]int32{}
+
+		// with the feature off, sidecarPortMapping stays empty and every port targets the sidecar as before
+		if authProxyFronting {
+			resolvedPortMapping, err := lc.authProxySidecarPortMapping(function)
+			if err != nil {
+				return errors.Wrap(err, "Failed to resolve auth-proxy sidecar ports")
+			}
+			sidecarPortMapping = resolvedPortMapping
+		}
+
 		if len(spec.Ports) == 0 {
 			spec.Ports = []v1.ServicePort{}
 		}
 		for _, sidecar := range function.Spec.Sidecars {
 			for _, port := range sidecar.Ports {
+				targetPort := port.ContainerPort
+				if proxyListenPort, found := sidecarPortMapping[port.ContainerPort]; found {
+					targetPort = proxyListenPort
+				}
 				spec.Ports = lc.addOrUpdatePort(spec.Ports, v1.ServicePort{
 					Name:       port.Name,
 					Port:       port.ContainerPort,
-					TargetPort: intstr.FromInt32(port.ContainerPort),
+					TargetPort: intstr.FromInt32(targetPort),
 				})
 			}
 		}
@@ -2147,6 +2264,8 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 	// make sure the ports exist (add if not)
 	spec.Ports = lc.ensureServicePortsExist(spec.Ports, platformServicePorts)
+
+	return nil
 }
 
 func (lc *lazyClient) addOrUpdatePort(ports []v1.ServicePort, port v1.ServicePort) []v1.ServicePort {
@@ -2574,16 +2693,15 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		container.EnvFrom = function.Spec.EnvFrom
 	}
 
-	// when the auth-proxy sidecar is injected, it - not the processor - owns the main HTTP port; the
-	// processor listens only on the pod-local loopback (see rewriteHTTPTriggerURLToLoopback)
-	if !lc.functionAuthenticationEnabled(function) {
-		container.Ports = []v1.ContainerPort{
-			{
-				Name:          abstract.FunctionContainerHTTPPortName,
-				ContainerPort: abstract.FunctionContainerHTTPPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-		}
+	// re-derive the ports from scratch: on update this container is the one read back from the existing
+	// deployment, so appending to whatever it already carries would both
+	// accumulate duplicates and keep ports that no longer apply
+	container.Ports = []v1.ContainerPort{
+		{
+			Name:          abstract.FunctionContainerHTTPPortName,
+			ContainerPort: abstract.FunctionContainerHTTPPort,
+			Protocol:      v1.ProtocolTCP,
+		},
 	}
 
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
@@ -2600,10 +2718,18 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	utils.EnrichProbe(&function.Spec.ReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	utils.EnrichProbe(&function.Spec.LivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 
+	// readiness goes through the auth-proxy when one fronts the function, so the pod turns ready only once
+	// both the proxy and the processor serve.
+	// Liveness stays direct on the health check port, so a proxy fault never restarts the function container.
+	readinessProbePort := abstract.FunctionContainerHTTPPort
+	if lc.functionAuthenticationEnabled(function) {
+		readinessProbePort = abstract.AuthProxyProcessorListenPort
+	}
+
 	container.ReadinessProbe = &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
-				Port: intstr.FromInt(abstract.FunctionContainerHTTPPort),
+				Port: intstr.FromInt(readinessProbePort),
 				Path: http.InternalHealthPath,
 			},
 		},
@@ -2649,11 +2775,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	// create configMap contents - generate a processor configuration based on the function CR
 	configMapContents := bytes.Buffer{}
 
-	functionSpec := function.Spec
-	if lc.functionAuthenticationEnabled(function) {
-		functionSpec = rewriteHTTPTriggerURLToLoopback(functionSpec)
-	}
-
 	if err := configWriter.Write(&configMapContents, &processor.Configuration{
 		Config: functionconfig.Config{
 			Meta: functionconfig.Meta{
@@ -2662,7 +2783,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 				Labels:      functionLabels,
 				Annotations: function.Annotations,
 			},
-			Spec: functionSpec,
+			Spec: function.Spec,
 		},
 	}); err != nil {
 
@@ -2681,22 +2802,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	}
 
 	return nil
-}
-
-// rewriteHTTPTriggerURLToLoopback returns a copy of spec whose HTTP trigger(s) listen on the pod-local
-// loopback instead of the wildcard address, so the processor is only reachable from within the pod - i.e.
-// via the auth-proxy sidecar that fronts it (see injectAuthProxySidecar). The given spec is never mutated:
-// its Triggers map is copied before being modified.
-func rewriteHTTPTriggerURLToLoopback(spec functionconfig.Spec) functionconfig.Spec {
-	triggers := make(map[string]functionconfig.Trigger, len(spec.Triggers))
-	for triggerName, trigger := range spec.Triggers {
-		if trigger.Kind == "http" {
-			trigger.URL = fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort)
-		}
-		triggers[triggerName] = trigger
-	}
-	spec.Triggers = triggers
-	return spec
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,

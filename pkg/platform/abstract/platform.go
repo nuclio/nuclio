@@ -71,14 +71,27 @@ const (
 	FunctionContainerMetricPortName      = "metrics"
 	DefaultTargetCPU                     = 75
 
-	// FunctionContainerHTTPLoopbackPort is the port the processor listens on when the auth-proxy sidecar
-	// is injected in front of it: only reachable from within the pod (127.0.0.1), never exposed by the Service.
-	FunctionContainerHTTPLoopbackPort = 6080
+	// AuthProxyProcessorListenPort is the port the auth-proxy sidecar listens on to front the processor's
+	// HTTP port. The processor keeps binding its own port, so the proxy cannot reuse it - the Service's
+	// targetPort is repointed here instead (see functionres.processorAuthProxyRoute).
+	AuthProxyProcessorListenPort = 6080
 
 	// AuthProxySidecarContainerName is the reserved name of the platform-injected auth-proxy sidecar
 	// (see functionres.injectAuthProxySidecar). User-defined sidecars may not use this name.
 	AuthProxySidecarContainerName = "auth-proxy"
+
+	// AuthProxySidecarListenPortRangeStart and AuthProxySidecarListenPortRangeEnd bound the band the
+	// auth-proxy listens on to front user sidecar ports. A user sidecar keeps binding its own port, so the
+	// proxy cannot reuse it; instead the Service's targetPort is repointed at a port from this band
+	// (see functionres.authProxySidecarPortMapping).
+	AuthProxySidecarListenPortRangeStart = 6081
+	AuthProxySidecarListenPortRangeEnd   = 6199
 )
+
+// AuthProxySidecarPortName returns the container-port name the auth-proxy sidecar binds for a listen port.
+func AuthProxySidecarPortName(listenPort int) string {
+	return fmt.Sprintf("authproxy-%d", listenPort)
+}
 
 type Platform struct {
 	Logger                  logger.Logger
