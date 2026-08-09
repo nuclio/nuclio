@@ -129,14 +129,8 @@ func newReverseProxyHandler(parentLogger logger.Logger,
 	}), nil
 }
 
-// newAuthOnlyHandler serves the DLX's decision endpoint: 200 when authorized, and on reject whatever
-// the authenticator already wrote (401/302/403).
-//
-// Every path is answered rather than just a fixed /auth, because the DLX asks about a request by
-// replaying the caller's own request line to this listener. That is what lets browser-mode redirects
-// point back at the URL the caller actually requested, with no out-of-band header carrying it. Serving
-// any path is safe here: the listener is bound to pod loopback and forwards nothing - it only ever
-// returns a verdict.
+// newAuthOnlyHandler serves the DLX decision endpoint, returning the authenticator's response on reject
+// and 200 on success. It handles any path because the DLX replays the original request to preserve its URL for browser redirects.
 func newAuthOnlyHandler(authenticator authproxy.Authenticator) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		if authenticator.Authenticate(responseWriter, request) {

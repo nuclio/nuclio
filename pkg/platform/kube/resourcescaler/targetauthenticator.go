@@ -33,74 +33,24 @@ import (
 // forwardedHeaders are the headers the auth-proxy decides on, copied verbatim from the caller's
 // request. The credential itself is what the auth-url validates; the authenticator kind only selects a
 // validator, so a caller-supplied kind cannot bypass the check.
-//
-// A slice, not a set: these are iterated to pull each one out of the caller's request, so the cost is
-// one map lookup per name. Testing set membership while walking the caller's headers instead would cost
-// a lookup per header the caller happened to send, which is the larger number.
 var forwardedHeaders = []string{
 	headers.AuthorizationHeader,
 	headers.CookieHeader,
 	headers.IguazioAuthenticatorKind,
 }
 
-// AuthOnlyAuthenticator asks the auth-proxy co-located in the DLX pod whether a request may start a
-// scaled-to-zero function. The split is deliberate: the DLX knows the request and which function it
-// resolved to, the auth-proxy owns every bit of authentication logic. This type holds none - it
-// forwards the request, names the target, and relays whatever verdict comes back.
-//
-// It implements scalertypes.TargetAuthenticator, which is what the DLX calls: the target arrives as a
-// resolved name rather than as something already on the request.
+// AuthOnlyAuthenticator implements scalertypes.TargetAuthenticator, which is what the DLX calls with a
+// resolved function name to ask whether a request may start a scaled-to-zero function. The split is
+// deliberate: the DLX knows the request and which function it resolved to, the auth-proxy owns the
+// authentication logic.
 type AuthOnlyAuthenticator struct {
 	logger     logger.Logger
 	authProxy  string
 	httpClient *http.Client
 }
 
-// newAuthOnlyAuthenticator returns the DLX's authentication hook, or nil when function-level
-// authentication is disabled platform-wide. A nil hook is how the DLX skips the check entirely, which
-// is what keeps the feature-flag-off path byte-identical to the behavior before this feature.
-func (n *NuclioResourceScaler) newAuthOnlyAuthenticator() scalertypes.TargetAuthenticator {
-	if !n.platformConfiguration.IsFunctionAuthenticationEnabled() {
-		return nil
-	}
-
-	// the auth-proxy listens on the port it always listens on. The const is named for its function-pod
-	// role of fronting the processor, which is not the job here - in the DLX pod authOnly forwards
-	// nothing and only answers - but sharing it keeps this in step with the --routes the chart passes.
-	authProxy := fmt.Sprintf("http://127.0.0.1:%d", abstract.AuthProxyProcessorListenPort)
-
-	n.logger.InfoWith("Function authentication is enabled, DLX will authenticate before scaling from zero",
-		"authProxy", authProxy)
-
-	return &AuthOnlyAuthenticator{
-		logger:     n.logger.GetChild("auth-only-authenticator"),
-		authProxy:  authProxy,
-		httpClient: newAuthProxyHTTPClient(),
-	}
-}
-
-// newAuthProxyHTTPClient builds the client used to query the auth-proxy.
-func newAuthProxyHTTPClient() *http.Client {
-	return &http.Client{
-
-		// the same budget the auth-proxy gives its own auth-url call. Sharing it means a verdict that
-		// lands in the last few milliseconds of the window may be missed and treated as a rejection;
-		// an auth-url that slow is already failing the caller's request, so one timeout is enough
-		Timeout: authproxy.AuthTimeout,
-
-		// a browser-mode rejection is a 302 to the sign-in page: a verdict to hand back so the caller's
-		// browser can follow it, not a hop for the DLX to take. This sentinel is not a failure - it tells
-		// Do to return the 302 as the response. Left at the default, Do would instead try to fetch the
-		// sign-in URL from inside the DLX pod, fail to reach it, and surface a redirect as a dead proxy.
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-}
-
 // AuthenticateTarget implements scalertypes.TargetAuthenticator by delegating to the co-located
-// auth-proxy. On false the rejection has already been written to res, so the caller must return
-// without touching it.
+// auth-proxy sidecar.
 func (t *AuthOnlyAuthenticator) AuthenticateTarget(res http.ResponseWriter,
 	req *http.Request,
 	functionName string) bool {
@@ -135,6 +85,38 @@ func (t *AuthOnlyAuthenticator) AuthenticateTarget(res http.ResponseWriter,
 	return false
 }
 
+// newAuthOnlyAuthenticator returns the DLX's authentication hook, or nil when function-level
+// authentication is disabled platform-wide.
+func (n *NuclioResourceScaler) newAuthOnlyAuthenticator() scalertypes.TargetAuthenticator {
+	if !n.platformConfiguration.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	authProxy := fmt.Sprintf("http://127.0.0.1:%d", abstract.AuthProxyProcessorListenPort)
+	n.logger.InfoWith("Function authentication is enabled, DLX will authenticate before scaling from zero",
+		"authProxy", authProxy)
+
+	return &AuthOnlyAuthenticator{
+		logger:     n.logger.GetChild("auth-only-authenticator"),
+		authProxy:  authProxy,
+		httpClient: newAuthProxyHTTPClient(),
+	}
+}
+
+// newAuthProxyHTTPClient builds the client used to query the auth-proxy.
+func newAuthProxyHTTPClient() *http.Client {
+	return &http.Client{
+		// sharing the same timeout for the auth-proxy auth-url call
+		Timeout: authproxy.AuthTimeout,
+
+		// A 302 from browser-mode authentication is returned to the caller so the browser can follow the sign-in redirect.
+		// It must not be treated as a failure or followed by the DLX, which cannot access the sign-in URL from inside the pod.
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
 // requestVerdict asks the auth-proxy about req. The caller's method and request line are replayed at
 // the auth-proxy's loopback address so it sees the URL the caller actually asked for, which is what a
 // browser-mode redirect has to point back at. No body is sent: the decision rests on the headers alone,
@@ -158,9 +140,6 @@ func (t *AuthOnlyAuthenticator) requestVerdict(req *http.Request,
 	// the request line carries the path, but its host is now the loopback proxy, so the caller's host
 	// travels separately - the two together are what the redirect target is built from
 	authRequest.Header.Set(headers.ForwardHost, originalHost(req))
-
-	// the DLX resolved this name from the ingress, so it is what decides - set, not forwarded, so a
-	// caller cannot name a function other than the one about to be scaled
 	authRequest.Header.Set(headers.TargetFunctionName, functionName)
 
 	authResponse, err := t.httpClient.Do(authRequest)

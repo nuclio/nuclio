@@ -106,6 +106,7 @@ func (suite *TargetAuthenticatorTestSuite) TestAPIModeInvalidCredentialRelays401
 	recorder := httptest.NewRecorder()
 	suite.Require().False(authenticator.AuthenticateTarget(recorder, suite.callerRequest("bad-token"), "api-func"))
 	suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
+	suite.Require().Equal(1, authURLCallCount)
 }
 
 // TestBrowserModeRelays302ToTheOriginalURL verifies the redirect points back at what the caller asked
@@ -126,6 +127,7 @@ func (suite *TargetAuthenticatorTestSuite) TestBrowserModeRelays302ToTheOriginal
 	suite.Require().NoError(err)
 	suite.Require().Contains(redirectTarget.String(), "signin.example.com/oauth2/start")
 	suite.Require().Equal("https://func.example.com/some/path?q=1", redirectTarget.Query().Get("rd"))
+	suite.Require().Equal(1, authURLCallCount)
 }
 
 // TestCallerRequestLineReachesTheAuthProxy verifies the DLX replays the caller's own request line
@@ -141,6 +143,7 @@ func (suite *TargetAuthenticatorTestSuite) TestCallerRequestLineReachesTheAuthPr
 	recorder := httptest.NewRecorder()
 	suite.Require().True(authenticator.AuthenticateTarget(recorder, suite.callerRequest(validToken), "api-func"))
 	suite.Require().Equal("/some/path?q=1", suite.authProxyRequestURI)
+	suite.Require().Equal(1, authURLCallCount)
 }
 
 // TestDLXResolvedTargetOverridesTheCallerHeader verifies the name the DLX resolved is the one the
@@ -164,6 +167,7 @@ func (suite *TargetAuthenticatorTestSuite) TestDLXResolvedTargetOverridesTheCall
 	recorder := httptest.NewRecorder()
 	suite.Require().False(authenticator.AuthenticateTarget(recorder, request, "api-func"))
 	suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
+	suite.Require().Equal(1, authURLCallCount)
 }
 
 // TestBasicAuthRelaysChallenge verifies the WWW-Authenticate challenge survives the relay - without it
@@ -184,6 +188,9 @@ func (suite *TargetAuthenticatorTestSuite) TestBasicAuthRelaysChallenge() {
 		request.SetBasicAuth("user", "pass")
 		recorder := httptest.NewRecorder()
 		suite.Require().True(authenticator.AuthenticateTarget(recorder, request, "basic-func"))
+
+		// basicAuth is verified locally, never via the auth-url
+		suite.Require().Zero(authURLCallCount)
 	})
 
 	suite.Run("wrong password is rejected with a challenge", func() {
@@ -193,6 +200,7 @@ func (suite *TargetAuthenticatorTestSuite) TestBasicAuthRelaysChallenge() {
 		suite.Require().False(authenticator.AuthenticateTarget(recorder, request, "basic-func"))
 		suite.Require().Equal(http.StatusUnauthorized, recorder.Code)
 		suite.Require().Contains(recorder.Header().Get("WWW-Authenticate"), "Basic realm")
+		suite.Require().Zero(authURLCallCount)
 	})
 }
 
@@ -208,6 +216,7 @@ func (suite *TargetAuthenticatorTestSuite) TestUnknownFunctionFailsClosed() {
 	recorder := httptest.NewRecorder()
 	suite.Require().False(authenticator.AuthenticateTarget(recorder, suite.callerRequest(validToken), "does-not-exist"))
 	suite.Require().Equal(http.StatusForbidden, recorder.Code)
+	suite.Require().Zero(authURLCallCount)
 }
 
 // TestUnreachableAuthProxyFailsClosed verifies the DLX rejects rather than scales when it cannot get a
