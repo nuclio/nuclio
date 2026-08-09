@@ -129,16 +129,20 @@ func newReverseProxyHandler(parentLogger logger.Logger,
 	}), nil
 }
 
-// newAuthOnlyHandler serves the DLX /auth decision endpoint. Only /auth is routed; any other path 404s.
-// It returns 200 when authorized; on reject the authenticator already wrote the 401/302/403 response.
+// newAuthOnlyHandler serves the DLX's decision endpoint: 200 when authorized, and on reject whatever
+// the authenticator already wrote (401/302/403).
+//
+// Every path is answered rather than just a fixed /auth, because the DLX asks about a request by
+// replaying the caller's own request line to this listener. That is what lets browser-mode redirects
+// point back at the URL the caller actually requested, with no out-of-band header carrying it. Serving
+// any path is safe here: the listener is bound to pod loopback and forwards nothing - it only ever
+// returns a verdict.
 func newAuthOnlyHandler(authenticator authproxy.Authenticator) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, request *http.Request) {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		if authenticator.Authenticate(responseWriter, request) {
 			responseWriter.WriteHeader(http.StatusOK)
 		}
 	})
-	return mux
 }
 
 // startServers starts every server concurrently, so a single auth-proxy process fronts all of a function's ports.
