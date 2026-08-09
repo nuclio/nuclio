@@ -196,6 +196,7 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 			ResyncInterval:                    scalertypes.Duration{Duration: resyncInterval},
 			LabelSelector:                     common.NuclioLabelKeyClass,
 			ResolveTargetsFromIngressCallback: ResolveTargetsFromIngressCallback,
+			TargetAuthenticator:               n.newAuthOnlyAuthenticator(),
 		},
 	}, nil
 }
