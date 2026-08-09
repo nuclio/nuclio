@@ -229,3 +229,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
+
+// TODO - remove this once we have a new scaler release
+replace github.com/v3io/scaler => github.com/weilerN/scaler v0.9.1-0.20260805103127-a8b11f5eb89c
