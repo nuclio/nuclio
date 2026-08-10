@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -50,6 +51,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -695,30 +697,319 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 				},
 			}
 
-			suite.client.injectAuthProxySidecar(suite.ctx, functionInstance, deploymentSpec, nil)
+			suite.Require().NoError(suite.client.injectAuthProxySidecar(suite.ctx, functionInstance, deploymentSpec, nil))
 
 			suite.Require().Len(deploymentSpec.Template.Spec.Containers, 2)
 			sidecar := deploymentSpec.Template.Spec.Containers[1]
 			suite.Require().Equal(abstract.AuthProxySidecarContainerName, sidecar.Name)
 			suite.Require().Equal("nuclio/auth-proxy:latest", sidecar.Image)
 			suite.Require().Contains(sidecar.Args, "--mode=reverseProxy")
-			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--listen-port=%d", abstract.FunctionContainerHTTPPort))
-			suite.Require().Contains(sidecar.Args,
-				fmt.Sprintf("--upstream-url=http://127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort))
+			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--routes=%d=http://127.0.0.1:%d",
+				abstract.AuthProxyProcessorListenPort,
+				abstract.FunctionContainerHTTPPort))
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-mode=%s", testCase.authenticationMode))
 			suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
 			suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
 			suite.Require().Equal([]v1.ContainerPort{
 				{
-					Name:          abstract.FunctionContainerHTTPPortName,
-					ContainerPort: abstract.FunctionContainerHTTPPort,
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxyProcessorListenPort),
+					ContainerPort: abstract.AuthProxyProcessorListenPort,
 					Protocol:      v1.ProtocolTCP,
 				},
 			}, sidecar.Ports)
 			suite.Require().Equal(testCase.expectedRestoreEnvs, sidecar.Env)
 		})
 	}
+}
+
+// TestInjectAuthProxySidecarFrontsSidecarPorts verifies the auth-proxy also listens for every user sidecar
+// port, forwarding each to that sidecar over loopback, and declares the matching container ports.
+func (suite *lazyTestSuite) TestInjectAuthProxySidecarFrontsSidecarPorts() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Authentication: &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+				AuthSidecarImage:              "nuclio/auth-proxy:latest",
+			},
+		},
+	})
+
+	functionInstance := suite.compileAuthenticatedFunction()
+
+	// listen ports are handed out in spec order, so sidecar-a's port gets the first port of the band
+	functionInstance.Spec.Sidecars = []*v1.Container{
+		{
+			Name: "sidecar-a",
+			Ports: []v1.ContainerPort{
+				{Name: "port-high", ContainerPort: 9000, Protocol: v1.ProtocolTCP},
+			},
+		},
+		{
+			Name: "sidecar-b",
+			Ports: []v1.ContainerPort{
+				{Name: "port-low", ContainerPort: 8050, Protocol: v1.ProtocolTCP},
+			},
+		},
+	}
+
+	deploymentSpec := suite.compileDeploymentSpecWithFunctionContainer()
+	suite.Require().NoError(suite.client.injectAuthProxySidecar(suite.ctx, functionInstance, deploymentSpec, nil))
+
+	suite.Require().Len(deploymentSpec.Template.Spec.Containers, 2)
+	sidecar := deploymentSpec.Template.Spec.Containers[1]
+
+	suite.Require().Contains(sidecar.Args, fmt.Sprintf("--routes=%d=http://127.0.0.1:%d,%d=http://127.0.0.1:9000,%d=http://127.0.0.1:8050",
+		abstract.AuthProxyProcessorListenPort,
+		abstract.FunctionContainerHTTPPort,
+		abstract.AuthProxySidecarListenPortRangeStart,
+		abstract.AuthProxySidecarListenPortRangeStart+1))
+
+	suite.Require().Equal([]v1.ContainerPort{
+		{
+			Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxyProcessorListenPort),
+			ContainerPort: abstract.AuthProxyProcessorListenPort,
+			Protocol:      v1.ProtocolTCP,
+		},
+		{
+			Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart),
+			ContainerPort: abstract.AuthProxySidecarListenPortRangeStart,
+			Protocol:      v1.ProtocolTCP,
+		},
+		{
+			Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart + 1),
+			ContainerPort: abstract.AuthProxySidecarListenPortRangeStart + 1,
+			Protocol:      v1.ProtocolTCP,
+		},
+	}, sidecar.Ports)
+}
+
+// TestInjectAuthProxySidecarFailsOnBadSidecarPort verifies an unusable sidecar port fails the injection
+// outright: the proxy must front every port the Service publishes, so a partially fronted pod - which would
+// leave a sidecar port reachable without authentication - is never built.
+func (suite *lazyTestSuite) TestInjectAuthProxySidecarFailsOnBadSidecarPort() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Authentication: &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+				AuthSidecarImage:              "nuclio/auth-proxy:latest",
+			},
+		},
+	})
+
+	functionInstance := suite.compileAuthenticatedFunction()
+	functionInstance.Spec.Sidecars = []*v1.Container{
+		{
+			Name: "sidecar-a",
+			Ports: []v1.ContainerPort{
+				{Name: "reserved", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart},
+			},
+		},
+	}
+
+	deploymentSpec := suite.compileDeploymentSpecWithFunctionContainer()
+	err := suite.client.injectAuthProxySidecar(suite.ctx, functionInstance, deploymentSpec, nil)
+
+	suite.Require().Error(err)
+	suite.Require().Len(deploymentSpec.Template.Spec.Containers, 1)
+}
+
+// TestAuthProxyRoutes verifies the route set: the processor's route always comes first and takes the band's
+// first slot, sidecar routes are assigned the slots after it in spec order, and the band's limits are
+// enforced. Every route forwards to the port its container already binds - none is asked to rebind.
+func (suite *lazyTestSuite) TestAuthProxyRoutes() {
+	for _, testCase := range []struct {
+		name           string
+		sidecars       []*v1.Container
+		expectedRoutes []authproxy.Route
+		expectError    bool
+	}{
+		{
+			name: "no sidecars leaves only the processor route",
+			expectedRoutes: []authproxy.Route{
+				authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort),
+			},
+		},
+		{
+			name: "sidecar ports are assigned from the band in spec order across containers",
+			sidecars: []*v1.Container{
+				{Name: "sidecar-a", Ports: []v1.ContainerPort{{Name: "high", ContainerPort: 9000}}},
+				{Name: "sidecar-b", Ports: []v1.ContainerPort{{Name: "low", ContainerPort: 8050}}},
+			},
+			expectedRoutes: []authproxy.Route{
+				authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart, 9000),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart+1, 8050),
+			},
+		},
+		{
+			name: "route order is stable across repeated calls for the same spec",
+			sidecars: []*v1.Container{
+				{Name: "sidecar-b", Ports: []v1.ContainerPort{{Name: "low", ContainerPort: 8050}}},
+				{Name: "sidecar-a", Ports: []v1.ContainerPort{{Name: "high", ContainerPort: 9000}}},
+			},
+			expectedRoutes: []authproxy.Route{
+				authproxy.LoopbackRoute(abstract.AuthProxyProcessorListenPort, abstract.FunctionContainerHTTPPort),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart, 8050),
+				authproxy.LoopbackRoute(abstract.AuthProxySidecarListenPortRangeStart+1, 9000),
+			},
+		},
+		{
+			name: "a sidecar port inside the reserved band is rejected",
+			sidecars: []*v1.Container{
+				{Name: "sidecar-a", Ports: []v1.ContainerPort{
+					{Name: "reserved", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart},
+				}},
+			},
+			expectError: true,
+		},
+		{
+			name:        "more sidecar ports than the band can hold is rejected",
+			sidecars:    []*v1.Container{suite.compileSidecarWithPortCount(abstract.AuthProxySidecarListenPortRangeEnd - abstract.AuthProxySidecarListenPortRangeStart + 2)},
+			expectError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionInstance := &nuclioio.NuclioFunction{}
+			functionInstance.Spec.Sidecars = testCase.sidecars
+
+			// repeated to catch a nondeterministic route order, which would churn the sidecar's --routes
+			// argument and roll the deployment on every reconcile
+			for range 10 {
+				routes, err := suite.client.authProxyRoutes(functionInstance)
+				if testCase.expectError {
+					suite.Require().Error(err)
+					return
+				}
+				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.expectedRoutes, routes)
+			}
+		})
+	}
+}
+
+// TestPopulateServiceSpecPorts verifies every published port keeps its client-facing number and targets the
+// auth-proxy when function-level authentication is on - the processor's HTTP port included, so the rule is
+// the same for the function and its sidecars and reaching the Service cannot bypass authentication.
+func (suite *lazyTestSuite) TestPopulateServiceSpecPorts() {
+	for _, testCase := range []struct {
+		name                string
+		functionAuthEnabled bool
+		sidecars            []*v1.Container
+		expectedPorts       []v1.ServicePort
+		expectError         bool
+	}{
+		{
+			name:                "auth off targets every port at the container binding it",
+			functionAuthEnabled: false,
+			sidecars: []*v1.Container{
+				{Name: "sidecar-a", Ports: []v1.ContainerPort{{Name: "port-1", ContainerPort: 8050}}},
+			},
+			expectedPorts: []v1.ServicePort{
+				{
+					Name:       abstract.FunctionContainerHTTPPortName,
+					Port:       abstract.FunctionContainerHTTPPort,
+					TargetPort: intstr.FromInt32(abstract.FunctionContainerHTTPPort),
+				},
+				{Name: "port-1", Port: 8050, TargetPort: intstr.FromInt32(8050)},
+			},
+		},
+		{
+			name:                "auth on repoints the http port and the sidecar ports at the auth-proxy",
+			functionAuthEnabled: true,
+			sidecars: []*v1.Container{
+				{Name: "sidecar-a", Ports: []v1.ContainerPort{
+					{Name: "port-1", ContainerPort: 9000},
+					{Name: "port-2", ContainerPort: 8050},
+				}},
+			},
+			expectedPorts: []v1.ServicePort{
+				{
+					Name:       abstract.FunctionContainerHTTPPortName,
+					Port:       abstract.FunctionContainerHTTPPort,
+					TargetPort: intstr.FromInt32(abstract.AuthProxyProcessorListenPort),
+				},
+				{Name: "port-1", Port: 9000, TargetPort: intstr.FromInt32(abstract.AuthProxySidecarListenPortRangeStart)},
+				{Name: "port-2", Port: 8050, TargetPort: intstr.FromInt32(abstract.AuthProxySidecarListenPortRangeStart + 1)},
+			},
+		},
+		{
+			name:                "auth on fails when a sidecar port cannot be fronted",
+			functionAuthEnabled: true,
+			sidecars: []*v1.Container{
+				{Name: "sidecar-a", Ports: []v1.ContainerPort{
+					{Name: "reserved", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart},
+				}},
+			},
+			expectError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+						AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					},
+				},
+			})
+
+			functionInstance := suite.compileAuthenticatedFunction()
+			functionInstance.Spec.Sidecars = testCase.sidecars
+
+			serviceSpec := &v1.ServiceSpec{}
+			err := suite.client.populateServiceSpec(suite.ctx, nil, functionInstance, serviceSpec)
+			if testCase.expectError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+
+			suite.Require().Equal(testCase.expectedPorts, serviceSpec.Ports)
+
+			// the function's spec must never be mutated while rendering the service
+			suite.Require().Equal(testCase.sidecars, functionInstance.Spec.Sidecars)
+		})
+	}
+}
+
+// compileAuthenticatedFunction returns a function whose HTTP trigger declares an authentication mode, so
+// functionAuthenticationEnabled is gated only by the platform configuration.
+func (suite *lazyTestSuite) compileAuthenticatedFunction() *nuclioio.NuclioFunction {
+	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+	httpTrigger.Attributes = map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
+	}
+
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": httpTrigger,
+	}
+	return functionInstance
+}
+
+func (suite *lazyTestSuite) compileDeploymentSpecWithFunctionContainer() *appsv1.DeploymentSpec {
+	return &appsv1.DeploymentSpec{
+		Template: v1.PodTemplateSpec{
+			Spec: v1.PodSpec{
+				Containers: []v1.Container{
+					{Name: common.FunctionContainerName},
+				},
+			},
+		},
+	}
+}
+
+func (suite *lazyTestSuite) compileSidecarWithPortCount(portCount int) *v1.Container {
+	sidecar := &v1.Container{Name: "sidecar-many-ports"}
+	for portIndex := 0; portIndex < portCount; portIndex++ {
+		sidecar.Ports = append(sidecar.Ports, v1.ContainerPort{
+			Name:          fmt.Sprintf("port-%d", portIndex),
+			ContainerPort: int32(20000 + portIndex),
+		})
+	}
+	return sidecar
 }
 
 // TestPopulateSupplementaryContainersInjectsAuthProxyWhenGated verifies the auth-proxy sidecar is only
@@ -760,7 +1051,8 @@ func (suite *lazyTestSuite) TestPopulateSupplementaryContainersInjectsAuthProxyW
 				},
 			}
 
-			suite.client.populateSupplementaryContainers(suite.ctx, functionInstance, deploymentSpec, nil)
+			suite.Require().NoError(
+				suite.client.populateSupplementaryContainers(suite.ctx, functionInstance, deploymentSpec, nil))
 
 			hasAuthProxy := false
 			for _, container := range deploymentSpec.Template.Spec.Containers {
@@ -773,16 +1065,17 @@ func (suite *lazyTestSuite) TestPopulateSupplementaryContainersInjectsAuthProxyW
 	}
 }
 
-// TestPopulateDeploymentContainerRemovesHTTPPortWhenAuthProxyFronts verifies the processor container no
-// longer declares the main HTTP port once the auth-proxy sidecar takes over listening on it.
-func (suite *lazyTestSuite) TestPopulateDeploymentContainerRemovesHTTPPortWhenAuthProxyFronts() {
+// TestPopulateDeploymentContainerKeepsHTTPPort verifies the processor keeps declaring - and binding - its own
+// HTTP port whether or not the auth-proxy fronts it. The proxy listens on a port of its own, so the processor
+// is never displaced.
+func (suite *lazyTestSuite) TestPopulateDeploymentContainerKeepsHTTPPort() {
 	for _, testCase := range []struct {
 		name                string
 		functionAuthEnabled bool
 		expectHTTPPort      bool
 	}{
 		{name: "keeps HTTP port when gate is off", functionAuthEnabled: false, expectHTTPPort: true},
-		{name: "removes HTTP port when gate is on", functionAuthEnabled: true, expectHTTPPort: false},
+		{name: "keeps HTTP port when gate is on", functionAuthEnabled: true, expectHTTPPort: true},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
@@ -817,10 +1110,77 @@ func (suite *lazyTestSuite) TestPopulateDeploymentContainerRemovesHTTPPortWhenAu
 	}
 }
 
-// TestPopulateConfigMapRewritesHTTPTriggerURLToLoopback verifies the processor's HTTP trigger is
-// configured to listen on the pod-local loopback (reachable only via the auth-proxy sidecar) once the
-// gate is on, and that the function's own Spec is never mutated in the process.
-func (suite *lazyTestSuite) TestPopulateConfigMapRewritesHTTPTriggerURLToLoopback() {
+// TestPopulateDeploymentContainerPortsAreIdempotent verifies the processor's ports are re-derived rather
+// than appended to. On update the container comes from the existing deployment, so a container already
+// carrying the ports of a previous render must come out with exactly the ports that apply now - otherwise
+// the metrics port accumulates and the pod spec is rejected for a duplicate port name.
+func (suite *lazyTestSuite) TestPopulateDeploymentContainerPortsAreIdempotent() {
+	for _, testCase := range []struct {
+		name                string
+		functionAuthEnabled bool
+		expectedPorts       []v1.ContainerPort
+	}{
+		{
+			name:                "auth off keeps the http port and one metrics port",
+			functionAuthEnabled: false,
+			expectedPorts: []v1.ContainerPort{
+				{Name: abstract.FunctionContainerHTTPPortName, ContainerPort: abstract.FunctionContainerHTTPPort, Protocol: v1.ProtocolTCP},
+				{Name: abstract.FunctionContainerMetricPortName, ContainerPort: abstract.FunctionContainerMetricPort, Protocol: v1.ProtocolTCP},
+			},
+		},
+		{
+			name:                "auth on keeps the http port and one metrics port",
+			functionAuthEnabled: true,
+			expectedPorts: []v1.ContainerPort{
+				{Name: abstract.FunctionContainerHTTPPortName, ContainerPort: abstract.FunctionContainerHTTPPort, Protocol: v1.ProtocolTCP},
+				{Name: abstract.FunctionContainerMetricPortName, ContainerPort: abstract.FunctionContainerMetricPort, Protocol: v1.ProtocolTCP},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+					},
+					Metrics: platformconfig.Metrics{
+						Sinks:     map[string]platformconfig.MetricSink{"pp": {Kind: "prometheusPull"}},
+						Functions: []string{"pp"},
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBrowser),
+			}
+			functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+				"http": httpTrigger,
+			}
+			functionLabels := suite.client.getFunctionLabels(functionInstance)
+
+			// stand in for the container read back from an existing deployment rendered before auth was on
+			container := &v1.Container{
+				Ports: []v1.ContainerPort{
+					{Name: abstract.FunctionContainerHTTPPortName, ContainerPort: abstract.FunctionContainerHTTPPort, Protocol: v1.ProtocolTCP},
+					{Name: abstract.FunctionContainerMetricPortName, ContainerPort: abstract.FunctionContainerMetricPort, Protocol: v1.ProtocolTCP},
+				},
+			}
+
+			// reconciling repeatedly must converge on the same ports
+			for range 3 {
+				suite.client.populateDeploymentContainer(suite.ctx, functionLabels, functionInstance, container)
+				suite.Require().Equal(testCase.expectedPorts, container.Ports)
+			}
+		})
+	}
+}
+
+// TestPopulateConfigMapKeepsHTTPTriggerURL verifies the processor's HTTP trigger is written through
+// untouched with the gate on: the auth-proxy takes a port of its own, so the processor is never moved off
+// the address it would otherwise listen on.
+func (suite *lazyTestSuite) TestPopulateConfigMapKeepsHTTPTriggerURL() {
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
 			Authentication: &platformconfig.Authentication{
@@ -848,11 +1208,122 @@ func (suite *lazyTestSuite) TestPopulateConfigMapRewritesHTTPTriggerURLToLoopbac
 
 	var writtenConfiguration processor.Configuration
 	suite.Require().NoError(reader.Read(strings.NewReader(configMap.Data["processor.yaml"]), &writtenConfiguration))
-	suite.Require().Equal(fmt.Sprintf("127.0.0.1:%d", abstract.FunctionContainerHTTPLoopbackPort),
-		writtenConfiguration.Config.Spec.Triggers["http"].URL)
+	suite.Require().Empty(writtenConfiguration.Config.Spec.Triggers["http"].URL)
+}
 
-	// the original function spec must remain untouched
-	suite.Require().Empty(functionInstance.Spec.Triggers["http"].URL)
+// TestPopulateServiceSpecKeepsTargetPortWhileServedByDLX verifies a scaled-to-zero function's http port is
+// not repointed at the auth-proxy: the Service selector points at the DLX pods, which listen on the
+// function's own HTTP port only, so a repointed TargetPort would black-hole the request meant to scale the
+// function back up.
+func (suite *lazyTestSuite) TestPopulateServiceSpecKeepsTargetPortWhileServedByDLX() {
+	for _, testCase := range []struct {
+		name               string
+		functionState      functionconfig.FunctionState
+		expectedTargetPort int32
+	}{
+		{
+			name:               "ready function targets the auth-proxy",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedTargetPort: abstract.AuthProxyProcessorListenPort,
+		},
+		{
+			name:               "scaled to zero targets the DLX",
+			functionState:      functionconfig.FunctionStateScaledToZero,
+			expectedTargetPort: abstract.FunctionContainerHTTPPort,
+		},
+		{
+			name:               "scaling to zero targets the DLX",
+			functionState:      functionconfig.FunctionStateWaitingForScaleResourcesToZero,
+			expectedTargetPort: abstract.FunctionContainerHTTPPort,
+		},
+		{
+			name:               "scaling from zero targets the DLX",
+			functionState:      functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
+			expectedTargetPort: abstract.FunctionContainerHTTPPort,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: true,
+						AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					},
+				},
+			})
+
+			functionInstance := suite.compileAuthenticatedFunction()
+			functionInstance.Status.State = testCase.functionState
+
+			// stand in for the service read back on update, rendered while the function was ready
+			serviceSpec := &v1.ServiceSpec{
+				Ports: []v1.ServicePort{
+					{
+						Name:       abstract.FunctionContainerHTTPPortName,
+						Port:       abstract.FunctionContainerHTTPPort,
+						NodePort:   30000,
+						TargetPort: intstr.FromInt32(abstract.AuthProxyProcessorListenPort),
+					},
+				},
+			}
+			suite.Require().NoError(
+				suite.client.populateServiceSpec(suite.ctx, nil, functionInstance, serviceSpec))
+
+			suite.Require().Equal(intstr.FromInt32(testCase.expectedTargetPort), serviceSpec.Ports[0].TargetPort)
+		})
+	}
+}
+
+// TestPopulateDeploymentContainerReadinessProbePort verifies readiness is probed through the auth-proxy when
+// one fronts the function, so the pod turns ready only once both the proxy and the processor serve. Liveness
+// stays direct on the health-check port, so a proxy fault never restarts the function container.
+func (suite *lazyTestSuite) TestPopulateDeploymentContainerReadinessProbePort() {
+	for _, testCase := range []struct {
+		name                       string
+		functionAuthEnabled        bool
+		expectedReadinessProbePort int
+	}{
+		{
+			name:                       "auth off probes the processor directly",
+			functionAuthEnabled:        false,
+			expectedReadinessProbePort: abstract.FunctionContainerHTTPPort,
+		},
+		{
+			name:                       "auth on probes through the auth-proxy",
+			functionAuthEnabled:        true,
+			expectedReadinessProbePort: abstract.AuthProxyProcessorListenPort,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBrowser),
+			}
+			functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+				"http": httpTrigger,
+			}
+
+			container := &v1.Container{}
+			suite.client.populateDeploymentContainer(suite.ctx,
+				suite.client.getFunctionLabels(functionInstance),
+				functionInstance,
+				container)
+
+			suite.Require().Equal(intstr.FromInt(testCase.expectedReadinessProbePort),
+				container.ReadinessProbe.HTTPGet.Port)
+			suite.Require().Equal(intstr.FromInt(abstract.FunctionContainerHealthCheckHTTPPort),
+				container.LivenessProbe.HTTPGet.Port)
+		})
+	}
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {

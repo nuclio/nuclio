@@ -19,13 +19,13 @@ limitations under the License.
 package app
 
 import (
-	"io"
-	"net"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/logger"
@@ -58,12 +58,22 @@ type upstreamStub struct {
 type ServerTestSuite struct {
 	suite.Suite
 	logger logger.Logger
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func (suite *ServerTestSuite) SetupTest() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("auth-proxy-test")
 	suite.Require().NoError(err)
+
+	suite.ctx, suite.cancel = context.WithCancel(context.Background())
+}
+
+func (suite *ServerTestSuite) TearDownTest() {
+	if suite.cancel != nil {
+		suite.cancel()
+	}
 }
 
 // TestModeListenAddresses verifies the only listen-address difference between the modes: reverseProxy is
@@ -108,21 +118,63 @@ func (suite *ServerTestSuite) TestUnknownModeRejected() {
 	suite.Require().Contains(err.Error(), "Unknown auth-proxy mode")
 }
 
-// TestStartServerFailsOnOccupiedPort verifies that server.start returns an error when the port is already in use.
-func (suite *ServerTestSuite) TestStartServerFailsOnOccupiedPort() {
-	upstream := suite.newTestUpstreamStub()
-	defer upstream.server.Close()
+// TestStartServersPropagatesListenerFailure verifies that if one listener fails to bind, startServers
+// closes the other listeners and returns the error instead of hanging forever. Startup is
+// all-or-nothing on purpose: a Service port with no proxy behind it would bypass authentication.
+func (suite *ServerTestSuite) TestStartServersPropagatesListenerFailure() {
+	handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: true})
 
-	handler, err := newReverseProxyHandler(suite.logger, upstream.server.URL, &fakeAuthenticator{authorized: true})
-	suite.Require().NoError(err)
+	servers := []*server{
 
-	// occupy a port so the listener deterministically fails to bind
-	occupied, err := net.Listen("tcp", "127.0.0.1:0")
-	suite.Require().NoError(err)
-	defer occupied.Close() // nolint: errcheck
+		// port 0 has the OS assign a free port, so this listener binds and then blocks serving
+		newServer(suite.logger, "127.0.0.1:0", handler),
 
-	err = newServer(suite.logger, occupied.Addr().String(), handler).start()
+		// an out-of-range port never resolves, so this listener deterministically fails to bind
+		newServer(suite.logger, "127.0.0.1:99999", handler),
+	}
+
+	err := startServers(suite.ctx, suite.logger, servers)
 	suite.Require().Error(err)
+}
+
+// TestRoutesForwardToTheirOwnUpstream verifies that when the auth-proxy fronts several ports, newServers
+// wires each listener to the upstream configured for that route - not to a shared one. The servers' handlers
+// are driven directly, so the per-route wiring is asserted without binding any port.
+func (suite *ServerTestSuite) TestRoutesForwardToTheirOwnUpstream() {
+	functionUpstream := suite.newTestUpstreamStubWithBody("function-response")
+	defer functionUpstream.server.Close()
+	sidecarUpstream := suite.newTestUpstreamStubWithBody("sidecar-response")
+	defer sidecarUpstream.server.Close()
+
+	authenticator := &fakeAuthenticator{authorized: true}
+
+	config := &Config{
+		Mode: auth.ProxyModeReverseProxy,
+		Routes: []authproxy.Route{
+			{ListenPort: 8080, UpstreamURL: functionUpstream.server.URL},
+			{ListenPort: 6081, UpstreamURL: sidecarUpstream.server.URL},
+		},
+	}
+
+	servers, err := newServers(suite.logger, config, authenticator)
+	suite.Require().NoError(err)
+	suite.Require().Len(servers, 2)
+
+	// the listen address is what binds the route to its port; assert it alongside the upstream it reaches
+	suite.Require().Equal(":8080", servers[0].httpServer.Addr)
+	suite.Require().Equal(":6081", servers[1].httpServer.Addr)
+
+	statusCode, body := suite.doRequest(servers[0].httpServer.Handler, "/invoke")
+	suite.Require().Equal(http.StatusOK, statusCode)
+	suite.Require().Equal("function-response", body)
+
+	statusCode, body = suite.doRequest(servers[1].httpServer.Handler, "/invoke")
+	suite.Require().Equal(http.StatusOK, statusCode)
+	suite.Require().Equal("sidecar-response", body)
+
+	suite.Require().Equal(1, functionUpstream.hits)
+	suite.Require().Equal(1, sidecarUpstream.hits)
+	suite.Require().Equal(2, authenticator.calls)
 }
 
 // TestReverseProxyForwardsWhenAuthorized verifies an authorized request is proxied to the upstream.
@@ -194,30 +246,25 @@ func (suite *ServerTestSuite) TestAuthOnlyHandler() {
 }
 
 func (suite *ServerTestSuite) newTestUpstreamStub() *upstreamStub {
+	return suite.newTestUpstreamStubWithBody("upstream-response")
+}
+
+// newTestUpstreamStubWithBody serves a distinguishable body so a test can tell which upstream was hit.
+func (suite *ServerTestSuite) newTestUpstreamStubWithBody(body string) *upstreamStub {
 	stub := &upstreamStub{}
 	stub.server = httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, _ *http.Request) {
 		stub.hits++
 		responseWriter.WriteHeader(http.StatusOK)
-		_, _ = responseWriter.Write([]byte("upstream-response"))
+		_, _ = responseWriter.Write([]byte(body))
 	}))
 	return stub
 }
 
+// doRequest drives the handler in-memory - no listener, no port, no client - and returns what it wrote.
 func (suite *ServerTestSuite) doRequest(handler http.Handler, path string) (int, string) {
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	response, err := http.Get(server.URL + path)
-	suite.Require().NoError(err)
-	defer func(body io.ReadCloser) {
-		if err := body.Close(); err != nil {
-			suite.logger.WarnWith("Failed to close response body", "err", err)
-		}
-	}(response.Body)
-
-	body, err := io.ReadAll(response.Body)
-	suite.Require().NoError(err)
-	return response.StatusCode, string(body)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+	return recorder.Code, recorder.Body.String()
 }
 
 func TestServerTestSuite(t *testing.T) {

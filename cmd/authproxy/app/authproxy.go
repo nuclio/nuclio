@@ -17,6 +17,8 @@ limitations under the License.
 package app
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -52,20 +54,35 @@ func Run(config *Config) error {
 		return errors.Wrap(err, "Failed to create authenticator")
 	}
 
-	handler, err := newHandler(rootLogger,
-		config.Mode,
-		config.UpstreamURL,
-		authenticator)
+	servers, err := newServers(rootLogger, config, authenticator)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create handler")
+		return errors.Wrap(err, "Failed to create servers")
 	}
 
-	listenAddress, err := resolveListenAddress(config.Mode, config.ListenPort)
-	if err != nil {
-		return errors.Wrap(err, "Failed to resolve listen address")
+	return startServers(context.Background(), rootLogger, servers)
+}
+
+// newServers builds one server per configured route.
+func newServers(rootLogger logger.Logger,
+	config *Config,
+	authenticator authproxy.Authenticator) ([]*server, error) {
+	servers := make([]*server, len(config.Routes))
+
+	for index, route := range config.Routes {
+		handler, err := newHandler(rootLogger, config.Mode, route.UpstreamURL, authenticator)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create handler for listen port %d", route.ListenPort)
+		}
+
+		listenAddress, err := resolveListenAddress(config.Mode, route.ListenPort)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to resolve listen address for listen port %d", route.ListenPort)
+		}
+
+		servers[index] = newServer(rootLogger, listenAddress, handler)
 	}
 
-	return newServer(rootLogger, listenAddress, handler).start()
+	return servers, nil
 }
 
 // newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.

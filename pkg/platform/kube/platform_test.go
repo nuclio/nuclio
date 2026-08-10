@@ -799,6 +799,104 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 	}
 }
 
+// TestValidateSidecarContainersWithFunctionAuthentication verifies the extra reservations that only apply
+// once the auth-proxy fronts the function's sidecar ports: the band it listens on, and the port names it
+// binds for the sidecar ports it fronts.
+func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainersWithFunctionAuthentication() {
+	for _, testCase := range []struct {
+		name                 string
+		authenticationMode   auth.AuthenticationMode
+		ports                []v1.ContainerPort
+		shouldFailValidation bool
+	}{
+		{
+			name:               "port outside the reserved band is allowed",
+			authenticationMode: auth.AuthenticationModeAPI,
+			ports:              []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: 8050}},
+		},
+		{
+			name:                 "port at the start of the reserved band is rejected",
+			authenticationMode:   auth.AuthenticationModeAPI,
+			ports:                []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart}},
+			shouldFailValidation: true,
+		},
+		{
+			name:                 "port at the end of the reserved band is rejected",
+			authenticationMode:   auth.AuthenticationModeAPI,
+			ports:                []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: abstract.AuthProxySidecarListenPortRangeEnd}},
+			shouldFailValidation: true,
+		},
+		{
+			name:               "port in the reserved band is allowed when authentication is off",
+			authenticationMode: auth.AuthenticationModeNone,
+			ports:              []v1.ContainerPort{{Name: "sidecar-port", ContainerPort: abstract.AuthProxySidecarListenPortRangeStart}},
+		},
+		{
+			name:               "port name the auth-proxy will not bind is allowed",
+			authenticationMode: auth.AuthenticationModeAPI,
+			ports: []v1.ContainerPort{
+				{
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeEnd),
+					ContainerPort: 8050,
+				},
+			},
+		},
+		{
+			name:               "port name the auth-proxy will bind is rejected",
+			authenticationMode: auth.AuthenticationModeAPI,
+			ports: []v1.ContainerPort{
+				{
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart),
+					ContainerPort: 8050,
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name:               "port name the auth-proxy would bind is allowed when authentication is off",
+			authenticationMode: auth.AuthenticationModeNone,
+			ports: []v1.ContainerPort{
+				{
+					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxySidecarListenPortRangeStart),
+					ContainerPort: 8050,
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			previousAuthentication := suite.platform.Config.Authentication
+			defer func() {
+				suite.platform.Config.Authentication = previousAuthentication
+			}()
+			suite.platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+			}
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(testCase.authenticationMode),
+			}
+
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"http": httpTrigger}
+			functionConfig.Spec.Sidecars = []*v1.Container{
+				{
+					Name:  "sidecar1",
+					Image: "nginx",
+					Ports: testCase.ports,
+				},
+			}
+
+			err := suite.platform.validateSidecarSpec(&functionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestEnrichContainerSpecEnvFrom() {
 	s3Secret := v1.EnvFromSource{
 		SecretRef: &v1.SecretEnvSource{
