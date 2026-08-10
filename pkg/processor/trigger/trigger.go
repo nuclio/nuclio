@@ -367,8 +367,16 @@ func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunicati
 		"kind", kind,
 		"numWorkers", len(workers))
 
+	// Workers share one broker, dedupe by identity instead of subscribing per worker.
+	seenBrokers := make(map[controlcommunication.ControlMessageBroker]bool, len(workers))
 	subs := make([]controlcommunication.Subscription, 0, len(workers))
 	for _, workerInstance := range workers {
+		broker := workerInstance.GetRuntime().GetControlMessageBroker()
+		if seenBrokers[broker] {
+			continue
+		}
+		seenBrokers[broker] = true
+
 		sub, err := workerInstance.Subscribe(kind)
 		if err != nil {
 			// release any subscriptions we already created so we don't leak
