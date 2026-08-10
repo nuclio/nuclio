@@ -1876,7 +1876,6 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGitPythonRuntime() {
 	})
 }
 
-
 // TestDeployFunctionWithSidecarBasicAuth is TestDeployFunctionWithSidecarMultiplePorts with function-level
 // basic-auth turned on: the auth-proxy is injected and fronts every port the Service publishes - the
 // function's own and both of the sidecar's - so none of them can be reached without credentials.
