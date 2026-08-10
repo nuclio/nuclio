@@ -2018,13 +2018,19 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarBasicAuth() {
 			suite.Require().NoError(err, "Port did not answer the authorized status code; portName: %s",
 				testCase.portName)
 
-			// with no credentials, and with the wrong ones, the proxy rejects before the upstream is reached
-			suite.Require().Equal(http.StatusUnauthorized,
-				suite.invokeFunctionNodePort(servicePort.NodePort, "", ""),
-				"portName: %s", testCase.portName)
-			suite.Require().Equal(http.StatusUnauthorized,
-				suite.invokeFunctionNodePort(servicePort.NodePort, username, "wrong-password"),
-				"portName: %s", testCase.portName)
+			// with no credentials or invalid credentials, the proxy rejects the request before reaching the upstream.
+			// Retry because a freshly (re)created NodePort may temporarily reset connections while it settles.
+			err = common.RetryUntilSuccessful(90*time.Second, 2*time.Second, func() bool {
+				return suite.invokeFunctionNodePort(servicePort.NodePort, "", "") == http.StatusUnauthorized
+			})
+			suite.Require().NoError(err, "Port did not answer unauthorized with no credentials; portName: %s",
+				testCase.portName)
+			err = common.RetryUntilSuccessful(90*time.Second, 2*time.Second, func() bool {
+				return suite.invokeFunctionNodePort(servicePort.NodePort, username, "wrong-password") ==
+					http.StatusUnauthorized
+			})
+			suite.Require().NoError(err, "Port did not answer unauthorized with wrong password; portName: %s",
+				testCase.portName)
 		}
 
 		return true
