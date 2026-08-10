@@ -69,13 +69,10 @@ type kafka struct {
 
 	// Drain() drains every worker regardless of partition, so P concurrent ConsumeClaim
 	// goroutines per rebalance should trigger it once, not P times. rebalanceDrainOnce is reset
-	// fresh each session (in Setup); its result is cached in rebalanceDrainResult for the
-	// other callers that block on Do.
-	rebalanceDrainOnce   *sync.Once
-	rebalanceDrainResult struct {
-		drained map[string]struct{}
-		err     error
-	}
+	// fresh each session (in Setup); rebalanceDrainErr is cached for the other callers that
+	// block on Do.
+	rebalanceDrainOnce *sync.Once
+	rebalanceDrainErr  error
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -205,8 +202,9 @@ func (k *kafka) GetConfig() map[string]interface{} {
 func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 	var err error
 
-	// fresh Once per session for the deduplicated Drain() call
+	// fresh Once and error per session for the deduplicated rebalance Drain() call
 	k.rebalanceDrainOnce = &sync.Once{}
+	k.rebalanceDrainErr = nil
 
 	k.Logger.InfoWith("Starting consumer session",
 		"claims", session.Claims(),
@@ -448,13 +446,11 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// Only the first of the P concurrent claim goroutines actually calls Drain; the
 			// rest block on Do and reuse its result.
 			k.rebalanceDrainOnce.Do(func() {
-				drained, err := k.Drain(drainingContext)
-				k.rebalanceDrainResult.drained = drained
-				k.rebalanceDrainResult.err = err
+				_, k.rebalanceDrainErr = k.Drain(drainingContext)
 			})
-			if err := k.rebalanceDrainResult.err; err != nil {
+			if k.rebalanceDrainErr != nil {
 				k.Logger.DebugWith("Failed to drain workers",
-					"err", err.Error(),
+					"err", k.rebalanceDrainErr.Error(),
 					"partition", claim.Partition())
 			}
 			wg.Done()
