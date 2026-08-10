@@ -65,8 +65,56 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.client, err = NewLazyClient(suite.logger,
 		kube.NewClientWithRetryFromClient(kubeClientset),
 		fake.NewSimpleClientset(),
-		suite.ingressManager)
+		suite.ingressManager,
+		platformConfig)
 	suite.Require().NoError(err)
+}
+
+func (suite *lazyTestSuite) TestConfigureIngressAuthenticationFunctionAuthEnabled() {
+	for _, testCase := range []struct {
+		name                   string
+		functionAuthEnabled    bool
+		authMode               auth.AuthenticationMode
+		expectedMode           auth.AuthenticationMode
+		expectedAuthentication *ingress.Authentication
+	}{
+		{
+			name:                   "Flag on: any auth mode is overridden to none",
+			functionAuthEnabled:    true,
+			authMode:               auth.AuthenticationModeIguazio,
+			expectedMode:           auth.AuthenticationModeNone,
+			expectedAuthentication: nil,
+		},
+		{
+			name:                   "Flag off: auth mode is preserved as-is (regression)",
+			functionAuthEnabled:    false,
+			authMode:               auth.AuthenticationModeAccessKey,
+			expectedMode:           auth.AuthenticationModeAccessKey,
+			expectedAuthentication: nil,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			lc := &lazyClient{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
+					},
+				},
+			}
+
+			agw := nuclioio.NuclioAPIGateway{
+				Spec: platform.APIGatewaySpec{
+					AuthenticationMode: testCase.authMode,
+					Authentication:     &platform.APIGatewayAuthenticationSpec{},
+				},
+			}
+
+			spec := ingress.Spec{}
+			suite.Require().NoError(lc.configureIngressAuthentication(agw, &spec))
+			suite.Require().Equal(testCase.expectedMode, spec.AuthenticationMode)
+			suite.Require().Equal(testCase.expectedAuthentication, spec.Authentication)
+		})
+	}
 }
 
 func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasFunctionLabels() {
