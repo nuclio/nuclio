@@ -2649,6 +2649,17 @@ func (p *Platform) validateProbeSpec(probe *v1.Probe) error {
 }
 
 func (p *Platform) validateAPIGatewayAuthentication(apiGatewayConfig *platform.APIGatewayConfig) error {
+	if p.IsFunctionAuthenticationEnabled() {
+		spec := apiGatewayConfig.Spec
+		if spec.AuthenticationMode != "" || spec.Authentication != nil {
+			return nuclio.NewErrBadRequest(
+				"API Gateway authentication is no longer supported; " +
+					"configure authentication on the function HTTP trigger " +
+					"(spec.triggers.<http>.attributes.authenticationMode) instead")
+		}
+		return nil
+	}
+
 	switch apiGatewayConfig.Spec.AuthenticationMode {
 	case auth.AuthenticationModeIguazio:
 		// In iguazio authentication mode, overriding the authentication's annotations is restricted by design

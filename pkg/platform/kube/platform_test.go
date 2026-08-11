@@ -2564,19 +2564,22 @@ func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
 
 func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication() {
 	for _, testCase := range []struct {
-		name               string
-		authenticationMode auth.AuthenticationMode
-		annotations        map[string]string
-		expectError        bool
+		name                string
+		authenticationMode  auth.AuthenticationMode
+		annotations         map[string]string
+		expectError         bool
+		authentication      *platform.APIGatewayAuthenticationSpec
+		functionAuthEnabled bool
 	}{
+		// flag off — legacy behavior
 		{
-			name:               "Valid iguazio authentication with empty annotations",
+			name:               "Flag off: valid iguazio authentication with empty annotations",
 			authenticationMode: auth.AuthenticationModeIguazio,
 			annotations:        map[string]string{},
 			expectError:        false,
 		},
 		{
-			name:               "Valid not iguazio authentication mode with overrides",
+			name:               "Flag off: valid non-iguazio authentication mode with overrides",
 			authenticationMode: auth.AuthenticationModeNone,
 			annotations: map[string]string{
 				annotations.NginxProxyBodySize: "100",
@@ -2584,7 +2587,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication
 			expectError: false,
 		},
 		{
-			name:               "Iguazio authentication with overrides",
+			name:               "Flag off: iguazio authentication with restricted annotation overrides",
 			authenticationMode: auth.AuthenticationModeIguazio,
 			annotations: map[string]string{
 				annotations.NginxAuthResponseHeaders: "test-header",
@@ -2598,21 +2601,76 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGatewayAuthentication
 			expectError: true,
 		},
 		{
-			name:               "Iguazio authentication with a different annotation",
+			name:               "Flag off: iguazio authentication with a non-restricted annotation",
 			authenticationMode: auth.AuthenticationModeIguazio,
 			annotations: map[string]string{
 				"test-annotation": "test-value",
 			},
 			expectError: false,
 		},
+
+		// flag on — any auth is rejected
+
+		{
+			name:                "Flag on: AuthenticationMode set to none is rejected",
+			authenticationMode:  auth.AuthenticationModeNone,
+			functionAuthEnabled: true,
+			expectError:         true,
+		},
+		{
+			name:                "Flag on: AuthenticationMode set to basicAuth is rejected",
+			authenticationMode:  auth.AuthenticationModeBasicAuth,
+			functionAuthEnabled: true,
+			expectError:         true,
+		},
+		{
+			name:                "Flag on: AuthenticationMode set to iguazio is rejected",
+			authenticationMode:  auth.AuthenticationModeIguazio,
+			functionAuthEnabled: true,
+			expectError:         true,
+		},
+		{
+			name:                "Flag on: AuthenticationMode set to accessKey is rejected",
+			authenticationMode:  auth.AuthenticationModeAccessKey,
+			functionAuthEnabled: true,
+			expectError:         true,
+		},
+		{
+			name:                "Flag on: AuthenticationMode set to oauth2 is rejected",
+			authenticationMode:  auth.AuthenticationModeOauth2,
+			functionAuthEnabled: true,
+			expectError:         true,
+		},
+		{
+			name:                "Flag on: empty AuthenticationMode with non-nil Authentication is rejected",
+			authentication:      &platform.APIGatewayAuthenticationSpec{BasicAuth: &platform.BasicAuth{Username: "user", Password: "pass"}},
+			functionAuthEnabled: true,
+			expectError:         true,
+		},
+		{
+			name:                "Flag on: empty AuthenticationMode and nil Authentication is accepted",
+			functionAuthEnabled: true,
+			expectError:         false,
+		},
 	} {
 		suite.Run(testCase.name, func() {
+			previousAuthentication := suite.platform.Config.Authentication
+			defer func() {
+				suite.platform.Config.Authentication = previousAuthentication
+			}()
+			if testCase.functionAuthEnabled {
+				suite.platform.Config.Authentication = &platformconfig.Authentication{
+					FunctionAuthenticationEnabled: true,
+				}
+			}
+
 			testApiGatewayConfig := &platform.APIGatewayConfig{
 				Meta: platform.APIGatewayMeta{
 					Annotations: testCase.annotations,
 				},
 				Spec: platform.APIGatewaySpec{
 					AuthenticationMode: testCase.authenticationMode,
+					Authentication:     testCase.authentication,
 				},
 			}
 
