@@ -299,6 +299,10 @@ func (lc *lazyClient) configureIngressAuthentication(apiGateway nuclioio.NuclioA
 	if lc.platformConfiguration.IsFunctionAuthenticationEnabled() {
 		// when function-level authentication is enabled, the API Gateway no longer holds auth;
 		// render the ingress without any auth annotations regardless of what the CRD carries
+		if apiGateway.Spec.AuthenticationMode != "" && apiGateway.Spec.AuthenticationMode != auth.AuthenticationModeNone {
+			lc.logger.WarnWith("Function-level authentication is enabled, ignoring API Gateway authentication settings",
+				"api gateway name", apiGateway.Name, "ignored api gateway authentication mode", apiGateway.Spec.AuthenticationMode)
+		}
 		spec.AuthenticationMode = auth.AuthenticationModeNone
 		return nil
 	}
