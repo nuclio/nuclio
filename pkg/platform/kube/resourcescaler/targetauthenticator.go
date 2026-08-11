@@ -17,17 +17,14 @@ limitations under the License.
 package resourcescaler
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/v3io/scaler/pkg/scalertypes"
 )
 
 // forwardedHeaders are the headers the auth-proxy decides on, copied verbatim from the caller's
@@ -83,24 +80,6 @@ func (t *AuthOnlyAuthenticator) AuthenticateTarget(res http.ResponseWriter,
 		"statusCode", authResponse.StatusCode)
 	t.relayRejection(res, authResponse)
 	return false
-}
-
-// newAuthOnlyAuthenticator returns the DLX's authentication hook, or nil when function-level
-// authentication is disabled platform-wide.
-func (n *NuclioResourceScaler) newAuthOnlyAuthenticator() scalertypes.TargetAuthenticator {
-	if !n.platformConfiguration.IsFunctionAuthenticationEnabled() {
-		return nil
-	}
-
-	authProxy := fmt.Sprintf("http://127.0.0.1:%d", abstract.AuthProxyProcessorListenPort)
-	n.logger.InfoWith("Function authentication is enabled, DLX will authenticate before scaling from zero",
-		"authProxy", authProxy)
-
-	return &AuthOnlyAuthenticator{
-		logger:     n.logger.GetChild("auth-only-authenticator"),
-		authProxy:  authProxy,
-		httpClient: newAuthProxyHTTPClient(),
-	}
 }
 
 // newAuthProxyHTTPClient builds the client used to query the auth-proxy.

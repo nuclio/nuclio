@@ -31,7 +31,6 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -233,40 +232,6 @@ func (suite *TargetAuthenticatorTestSuite) TestUnreachableAuthProxyFailsClosed()
 	recorder := httptest.NewRecorder()
 	suite.Require().False(authenticator.AuthenticateTarget(recorder, suite.callerRequest(validToken), "api-func"))
 	suite.Require().Equal(http.StatusBadGateway, recorder.Code)
-}
-
-// TestDisabledFeatureFlagYieldsNoAuthenticator verifies the DLX skips the check entirely when the
-// platform-wide flag is off, which is what keeps the pre-feature behavior intact.
-func (suite *TargetAuthenticatorTestSuite) TestDisabledFeatureFlagYieldsNoAuthenticator() {
-	for _, testCase := range []struct {
-		name                  string
-		authenticationConfig  *platformconfig.Authentication
-		expectedAuthenticator bool
-	}{
-		{name: "authentication config absent", authenticationConfig: nil},
-		{
-			name:                 "flag explicitly off",
-			authenticationConfig: &platformconfig.Authentication{FunctionAuthenticationEnabled: false},
-		},
-		{
-			name:                  "flag on",
-			authenticationConfig:  &platformconfig.Authentication{FunctionAuthenticationEnabled: true},
-			expectedAuthenticator: true,
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			resourceScaler := &NuclioResourceScaler{
-				logger:                suite.logger,
-				platformConfiguration: &platformconfig.Config{Authentication: testCase.authenticationConfig},
-			}
-
-			if testCase.expectedAuthenticator {
-				suite.Require().NotNil(resourceScaler.newAuthOnlyAuthenticator())
-			} else {
-				suite.Require().Nil(resourceScaler.newAuthOnlyAuthenticator())
-			}
-		})
-	}
 }
 
 // --- test helpers ---
