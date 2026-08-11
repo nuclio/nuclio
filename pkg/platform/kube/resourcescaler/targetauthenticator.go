@@ -19,6 +19,7 @@ package resourcescaler
 import (
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -96,15 +97,23 @@ func newAuthProxyHTTPClient() *http.Client {
 	}
 }
 
-// requestVerdict asks the auth-proxy about req. The caller's method and request line are replayed at
-// the auth-proxy's loopback address so it sees the URL the caller actually asked for, which is what a
-// browser-mode redirect has to point back at. No body is sent: the decision rests on the headers alone,
+// requestVerdict asks the auth-proxy about req. The request line is replayed at the auth-proxy's
+// loopback address so it sees the URL the caller actually asked for, which is what a browser-mode
+// redirect has to point back at. No body is sent: the decision rests on the headers alone,
 // and the caller's body still has to reach the function once it is running.
 func (t *AuthOnlyAuthenticator) requestVerdict(req *http.Request,
 	functionName string) (*http.Response, error) {
+	authProxyURL, err := url.Parse(t.authProxy)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse auth-proxy URL: %s", t.authProxy)
+	}
+
+	targetURL := authProxyURL.JoinPath(req.URL.EscapedPath())
+	targetURL.RawQuery = req.URL.RawQuery
+
 	authRequest, err := http.NewRequestWithContext(req.Context(),
-		req.Method,
-		t.authProxy+req.URL.RequestURI(),
+		http.MethodGet,
+		targetURL.String(),
 		nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create auth request")

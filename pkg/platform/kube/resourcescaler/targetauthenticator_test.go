@@ -52,8 +52,9 @@ type TargetAuthenticatorTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 
-	// the request line the auth-proxy actually saw, to prove the caller's own is what reaches it
-	authProxyRequestURI string
+	// the request line and method the auth-proxy actually saw, to prove what reaches it
+	authProxyRequestURI    string
+	authProxyRequestMethod string
 }
 
 func (suite *TargetAuthenticatorTestSuite) SetupTest() {
@@ -143,6 +144,54 @@ func (suite *TargetAuthenticatorTestSuite) TestCallerRequestLineReachesTheAuthPr
 	suite.Require().True(authenticator.AuthenticateTarget(recorder, suite.callerRequest(validToken), "api-func"))
 	suite.Require().Equal("/some/path?q=1", suite.authProxyRequestURI)
 	suite.Require().Equal(1, authURLCallCount)
+}
+
+// TestCallerMethodNeverReachesTheAuthProxy verifies the auth-proxy always sees GET regardless of the
+// caller's own method. The caller's method is attacker-controlled; replaying it would let a reverse
+// proxy fronting the auth-proxy special-case OPTIONS/HEAD/TRACE into an unintended allow.
+func (suite *TargetAuthenticatorTestSuite) TestCallerMethodNeverReachesTheAuthProxy() {
+	for _, callerMethod := range []string{http.MethodPost, http.MethodOptions, http.MethodHead, http.MethodTrace} {
+		suite.Run(callerMethod, func() {
+			authURLCallCount := 0
+			authenticator, closeServers := suite.newAuthOnlyAuthenticator(&authURLCallCount,
+				suite.newFunction("api-func", map[string]interface{}{
+					"authenticationMode": auth.AuthenticationModeAPI,
+				}))
+			defer closeServers()
+
+			request := suite.callerRequest(validToken)
+			request.Method = callerMethod
+
+			recorder := httptest.NewRecorder()
+			suite.Require().True(authenticator.AuthenticateTarget(recorder, request, "api-func"))
+			suite.Require().Equal(http.MethodGet, suite.authProxyRequestMethod)
+		})
+	}
+}
+
+// TestMaliciousPathCannotHijackTheAuthProxyHost verifies a caller path shaped like userinfo (containing
+// "@") lands on the auth-proxy's path rather than being reparsed into a different host. The caller's
+// path is attacker-controlled; string-concatenating it into the auth-proxy URL would let a path such as
+// "@evil.example.com/steal" silently redirect the verdict request off the loopback auth-proxy.
+func (suite *TargetAuthenticatorTestSuite) TestMaliciousPathCannotHijackTheAuthProxyHost() {
+	authURLCallCount := 0
+	authenticator, closeServers := suite.newAuthOnlyAuthenticator(&authURLCallCount,
+		suite.newFunction("api-func", map[string]interface{}{
+			"authenticationMode": auth.AuthenticationModeAPI,
+		}))
+	defer closeServers()
+
+	request := suite.callerRequest(validToken)
+	request.URL.Path = "@evil.example.com/steal"
+	request.URL.RawPath = ""
+
+	recorder := httptest.NewRecorder()
+
+	// if the malicious path were reparsed into a host, the request would never reach the real
+	// auth-proxy stub, and this would fail closed with a 502 instead of authenticating
+	suite.Require().True(authenticator.AuthenticateTarget(recorder, request, "api-func"))
+	suite.Require().Equal(1, authURLCallCount)
+	suite.Require().Equal("/@evil.example.com/steal?q=1", suite.authProxyRequestURI)
 }
 
 // TestDLXResolvedTargetOverridesTheCallerHeader verifies the name the DLX resolved is the one the
@@ -274,6 +323,7 @@ func (suite *TargetAuthenticatorTestSuite) newAuthOnlyAuthenticator(authURLCallC
 	authProxyServer := httptest.NewServer(http.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) {
 			suite.authProxyRequestURI = request.URL.RequestURI()
+			suite.authProxyRequestMethod = request.Method
 			if authenticator.Authenticate(responseWriter, request) {
 				responseWriter.WriteHeader(http.StatusOK)
 			}
