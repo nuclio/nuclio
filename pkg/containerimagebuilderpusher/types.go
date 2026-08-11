@@ -56,7 +56,6 @@ type BuildOptions struct {
 	ReadinessTimeoutSeconds                  int
 	FunctionServiceAccount                   string
 	BuilderServiceAccount                    string
-	SecurityContext                          *v1.PodSecurityContext
 	Resources                                v1.ResourceRequirements
 	ProjectName                              string
 	ProjectSecretTemplate                    string

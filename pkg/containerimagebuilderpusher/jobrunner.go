@@ -287,7 +287,6 @@ func (r *jobRunner) compileBaseJobSpec(ctx context.Context,
 		PriorityClassName:  buildOptions.PriorityClassName,
 		Tolerations:        buildOptions.Tolerations,
 		ServiceAccountName: serviceAccount,
-		SecurityContext:    buildOptions.SecurityContext,
 	}
 
 	return &batchv1.Job{
