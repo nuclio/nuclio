@@ -100,6 +100,7 @@ func (suite *lazyTestSuite) TestConfigureIngressAuthenticationFunctionAuthEnable
 						FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
 					},
 				},
+				logger: suite.logger,
 			}
 
 			agw := nuclioio.NuclioAPIGateway{
