@@ -42,9 +42,9 @@ var forwardedHeaders = []string{
 // deliberate: the DLX knows the request and which function it resolved to, the auth-proxy owns the
 // authentication logic.
 type AuthOnlyAuthenticator struct {
-	logger     logger.Logger
-	authProxy  string
-	httpClient *http.Client
+	logger       logger.Logger
+	authProxyURL string
+	httpClient   *http.Client
 }
 
 // AuthenticateTarget implements scalertypes.TargetAuthenticator by delegating to the co-located
@@ -54,7 +54,6 @@ func (t *AuthOnlyAuthenticator) AuthenticateTarget(res http.ResponseWriter,
 	functionName string) bool {
 	authResponse, err := t.requestVerdict(req, functionName)
 	if err != nil {
-
 		// no verdict at all, so there is nothing to honor - fail closed
 		t.logger.WarnWithCtx(req.Context(),
 			"Failed to reach the auth-proxy, failing closed",
@@ -103,9 +102,9 @@ func newAuthProxyHTTPClient() *http.Client {
 // and the caller's body still has to reach the function once it is running.
 func (t *AuthOnlyAuthenticator) requestVerdict(req *http.Request,
 	functionName string) (*http.Response, error) {
-	authProxyURL, err := url.Parse(t.authProxy)
+	authProxyURL, err := url.Parse(t.authProxyURL)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse auth-proxy URL: %s", t.authProxy)
+		return nil, errors.Wrapf(err, "Failed to parse auth-proxy URL: %s", t.authProxyURL)
 	}
 
 	targetURL := authProxyURL.JoinPath(req.URL.EscapedPath())

@@ -274,8 +274,8 @@ func (suite *TargetAuthenticatorTestSuite) TestUnreachableAuthProxyFailsClosed()
 		logger: suite.logger,
 
 		// nothing is listening here
-		authProxy:  "http://127.0.0.1:1",
-		httpClient: newAuthProxyHTTPClient(),
+		authProxyURL: "http://127.0.0.1:1",
+		httpClient:   newAuthProxyHTTPClient(),
 	}
 
 	recorder := httptest.NewRecorder()
@@ -330,9 +330,9 @@ func (suite *TargetAuthenticatorTestSuite) newAuthOnlyAuthenticator(authURLCallC
 		}))
 
 	return &AuthOnlyAuthenticator{
-			logger:     suite.logger,
-			authProxy:  authProxyServer.URL,
-			httpClient: newAuthProxyHTTPClient(),
+			logger:       suite.logger,
+			authProxyURL: authProxyServer.URL,
+			httpClient:   newAuthProxyHTTPClient(),
 		}, func() {
 			authProxyServer.Close()
 			authURLServer.Close()

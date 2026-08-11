@@ -215,12 +215,12 @@ func (n *NuclioResourceScaler) newAuthOnlyAuthenticator() scalertypes.TargetAuth
 
 	authProxy := fmt.Sprintf("http://127.0.0.1:%d", abstract.AuthProxyProcessorListenPort)
 	n.logger.InfoWith("Function authentication is enabled, DLX will authenticate before scaling from zero",
-		"authProxy", authProxy)
+		"authProxyURL", authProxy)
 
 	return &AuthOnlyAuthenticator{
-		logger:     n.logger.GetChild("auth-only-authenticator"),
-		authProxy:  authProxy,
-		httpClient: newAuthProxyHTTPClient(),
+		logger:       n.logger.GetChild("auth-only-authenticator"),
+		authProxyURL: authProxy,
+		httpClient:   newAuthProxyHTTPClient(),
 	}
 }
 
