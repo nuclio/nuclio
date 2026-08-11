@@ -463,6 +463,8 @@ github.com/tsenart/vegeta/v12 v12.13.0/go.mod h1:gpdfR++WHV9/RZh4oux0f6lNPhsOH8p
 github.com/ulikunitz/xz v0.5.8/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
 github.com/ulikunitz/xz v0.5.15 h1:9DNdB5s+SgV3bQ2ApL10xRc35ck0DuIX/isZvIk+ubY=
 github.com/ulikunitz/xz v0.5.15/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
+github.com/v3io/scaler v0.10.8 h1:WtHSAqlnnSYSE09ZO2mIHYr/vKNzW6A0m3H6gpWghxQ=
+github.com/v3io/scaler v0.10.8/go.mod h1:BneVZDn3qYQJcv3eta9226wsFVTQ+xgnXC2Yuca9gzU=
 github.com/v3io/v3io-go v0.3.14 h1:uKljOj7Th47Ux4TeU0BMGiMrxUFj4caccuZ6JQ2mG5E=
 github.com/v3io/v3io-go v0.3.14/go.mod h1:2yxhXiw3dI+tufu5Kk09TS82q/jyJKASEFqfmi5dQHU=
 github.com/v3io/v3io-go-http v0.0.1 h1:uE+PmPkVfGi6vIMpoFgrSot4yIow5Id48Gj9ZPt02pU=
@@ -480,8 +482,6 @@ github.com/vmihailenco/tagparser v0.1.2 h1:gnjoVuB/kljJ5wICEEOpx98oXMWPLj22G67Vb
 github.com/vmihailenco/tagparser v0.1.2/go.mod h1:OeAg3pn3UbLjkWt+rN9oFYB6u/cQgqMEUPoW2WPyhdI=
 github.com/wI2L/jsondiff v0.7.0 h1:1lH1G37GhBPqCfp/lrs91rf/2j3DktX6qYAKZkLuCQQ=
 github.com/wI2L/jsondiff v0.7.0/go.mod h1:KAEIojdQq66oJiHhDyQez2x+sRit0vIzC9KeK0yizxM=
-github.com/weilerN/scaler v0.9.1-0.20260805103127-a8b11f5eb89c h1:Xco4+uR+tnnBvF+HZXCEuuA073YhANo5+fXdNtU5mQU=
-github.com/weilerN/scaler v0.9.1-0.20260805103127-a8b11f5eb89c/go.mod h1:BneVZDn3qYQJcv3eta9226wsFVTQ+xgnXC2Yuca9gzU=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=

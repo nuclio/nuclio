@@ -53,7 +53,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tsenart/vegeta/v12 v12.13.0
-	github.com/v3io/scaler v0.10.7
+	github.com/v3io/scaler v0.10.8
 	github.com/v3io/v3io-go v0.3.14
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
@@ -229,6 +229,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
-
-// TODO - remove this once we have a new scaler release
-replace github.com/v3io/scaler => github.com/weilerN/scaler v0.9.1-0.20260805103127-a8b11f5eb89c
