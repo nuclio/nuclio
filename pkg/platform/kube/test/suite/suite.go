@@ -685,7 +685,8 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger,
 		kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
-		ingressManager)
+		ingressManager,
+		suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	controllerInstance, err := controller.NewController(suite.Logger,

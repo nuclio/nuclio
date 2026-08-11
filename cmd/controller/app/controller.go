@@ -195,7 +195,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create api gateway provisioner
-	apigatewayresClient, err := apigatewayres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, ingressManager)
+	apigatewayresClient, err := apigatewayres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet, ingressManager, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
 	}

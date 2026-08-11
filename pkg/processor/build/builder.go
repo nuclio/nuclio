@@ -1170,7 +1170,6 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuilderServiceAccount:  b.options.FunctionConfig.Spec.Build.BuilderServiceAccount,
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
-			SecurityContext:                          b.options.FunctionConfig.Spec.SecurityContext,
 			BuildLogger:                              b.logger,
 			Resources:                                b.resolveResources(),
 			ProjectName:                              projectName,
