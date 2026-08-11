@@ -607,8 +607,9 @@ func (suite *TestSuite) TestDrainOnRebalanceTimeoutDoesNotPanic() {
 			WorkerAllocator: &eventprocessor.ZeroAllocator{},
 			Statistics:      &trigger.Statistics{},
 		},
-		configuration: &Configuration{},
-		ctx:           context.Background(),
+		configuration:      &Configuration{},
+		ctx:                context.Background(),
+		rebalanceDrainOnce: &sync.Once{},
 	}
 	k.configuration.maxWaitHandlerDuringRebalance = 30 * time.Millisecond
 

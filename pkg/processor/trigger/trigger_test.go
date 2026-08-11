@@ -26,12 +26,24 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
+
+// brokerOnlyRuntime satisfies runtime.Runtime by embedding the interface (nil, so any other
+// method panics rather than silently no-op'ing) and implementing only GetControlMessageBroker.
+type brokerOnlyRuntime struct {
+	runtime.Runtime
+	broker *controlcommunication.ControlMessageBrokerBase
+}
+
+func (r *brokerOnlyRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
+	return r.broker
+}
 
 // drainTestWorker is a minimal EventProcessor whose Subscribe is backed by a real control-message
 // broker, so the test delivers drain acknowledgements exactly as the RPC reader would in
@@ -54,6 +66,12 @@ func (w *drainTestWorker) GetIndex() int {
 
 func (w *drainTestWorker) Subscribe(kind controlcommunication.ControlMessageKind) (controlcommunication.Subscription, error) {
 	return w.broker.Subscribe(kind)
+}
+
+// GetRuntime exposes this worker's broker for SubscribeToControlMessageKind's dedup - the
+// embedded mock's GetRuntime is unstubbed and would panic.
+func (w *drainTestWorker) GetRuntime() runtime.Runtime {
+	return &brokerOnlyRuntime{broker: w.broker}
 }
 
 // acknowledgeDrain simulates the Python wrapper sending its drain-complete control message.
