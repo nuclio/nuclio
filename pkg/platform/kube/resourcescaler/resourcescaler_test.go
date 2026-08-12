@@ -26,7 +26,10 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +37,13 @@ import (
 
 type ResourceScalerTestSuite struct {
 	suite.Suite
+	logger logger.Logger
+}
+
+func (suite *ResourceScalerTestSuite) SetupTest() {
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
 }
 
 func (suite *ResourceScalerTestSuite) TestGetResolveTargetsFromIngressCallback() {
@@ -90,6 +100,40 @@ func (suite *ResourceScalerTestSuite) TestGetResolveTargetsFromIngressCallback()
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().Equal(testCase.expectedResult, res)
+			}
+		})
+	}
+}
+
+// TestDisabledFeatureFlagYieldsNoAuthenticator verifies the DLX skips the check entirely when the
+// platform-wide flag is off, which is what keeps the pre-feature behavior intact.
+func (suite *ResourceScalerTestSuite) TestDisabledFeatureFlagYieldsNoAuthenticator() {
+	for _, testCase := range []struct {
+		name                  string
+		authenticationConfig  *platformconfig.Authentication
+		expectedAuthenticator bool
+	}{
+		{name: "authentication config absent", authenticationConfig: nil},
+		{
+			name:                 "flag explicitly off",
+			authenticationConfig: &platformconfig.Authentication{FunctionAuthenticationEnabled: false},
+		},
+		{
+			name:                  "flag on",
+			authenticationConfig:  &platformconfig.Authentication{FunctionAuthenticationEnabled: true},
+			expectedAuthenticator: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			resourceScaler := &NuclioResourceScaler{
+				logger:                suite.logger,
+				platformConfiguration: &platformconfig.Config{Authentication: testCase.authenticationConfig},
+			}
+
+			if testCase.expectedAuthenticator {
+				suite.Require().NotNil(resourceScaler.newAuthOnlyAuthenticator())
+			} else {
+				suite.Require().Nil(resourceScaler.newAuthOnlyAuthenticator())
 			}
 		})
 	}

@@ -34,8 +34,7 @@ import (
 
 // authOnlyAuthenticator serves the DLX (authOnly) topology: a single sidecar guards every scaled-to-zero
 // function, so it resolves each request's auth config from the target function's CRD (fresh, no cache).
-// Bind it to a specific request via bindRequest to get a TargetAuthenticator the DLX can call by
-// function name alone.
+// The target is named on the request, so a caller holding only a name sets that header itself.
 type authOnlyAuthenticator struct {
 	*abstractAuthenticator
 	nuclioClientSet nuclioioclient.Interface
@@ -43,24 +42,8 @@ type authOnlyAuthenticator struct {
 	namespace       string
 }
 
-// boundAuthenticator pairs an authOnlyAuthenticator with a specific request/response so that
-// AuthenticateTarget can be called with only a function name.
-type boundAuthenticator struct {
-	*authOnlyAuthenticator
-	responseWriter http.ResponseWriter
-	request        *http.Request
-}
-
-// AuthenticateTarget sets the target-function header and delegates to Authenticate, so the DLX needs
-// only the function name — the same code path as an inbound HTTP request to the /auth endpoint.
-func (b *boundAuthenticator) AuthenticateTarget(functionName string) bool {
-	b.request.Header.Set(headers.TargetFunctionName, functionName)
-	return b.Authenticate(b.responseWriter, b.request)
-}
-
 // NewAuthOnlyAuthenticator creates an authenticator that resolves auth config per request from the function
-// CRD. It is used both by the sidecar /auth endpoint (via Authenticate) and, bound to a request, by the
-// in-process DLX (via AuthenticateTarget). The kube client is used to restore scrubbed credentials
+// CRD, serving the sidecar's /auth endpoint. The kube client is used to restore scrubbed credentials
 // (e.g. the basicAuth password, stored as a $ref: to the function's dedicated Secret).
 func NewAuthOnlyAuthenticator(parentLogger logger.Logger,
 	authURL string,
@@ -96,16 +79,6 @@ func (a *authOnlyAuthenticator) Authenticate(responseWriter http.ResponseWriter,
 		return false
 	}
 	return a.authenticateTarget(responseWriter, request, functionName)
-}
-
-// bindRequest returns a TargetAuthenticator bound to the given request/response, so AuthenticateTarget
-// can be called with only a function name.
-func (a *authOnlyAuthenticator) bindRequest(responseWriter http.ResponseWriter, request *http.Request) TargetAuthenticator {
-	return &boundAuthenticator{
-		authOnlyAuthenticator: a,
-		responseWriter:        responseWriter,
-		request:               request,
-	}
 }
 
 // authenticateTarget authenticates the request against the named target function, resolving its

@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
@@ -196,12 +197,31 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 			ResyncInterval:                    scalertypes.Duration{Duration: resyncInterval},
 			LabelSelector:                     common.NuclioLabelKeyClass,
 			ResolveTargetsFromIngressCallback: ResolveTargetsFromIngressCallback,
+			TargetAuthenticator:               n.newAuthOnlyAuthenticator(),
 		},
 	}, nil
 }
 
 func (n *NuclioResourceScaler) ResolveServiceName(resource scalertypes.Resource) (string, error) {
 	return kube.ServiceNameFromFunctionName(resource.Name), nil
+}
+
+// newAuthOnlyAuthenticator returns the DLX's authentication hook, or nil when function-level
+// authentication is disabled platform-wide.
+func (n *NuclioResourceScaler) newAuthOnlyAuthenticator() scalertypes.TargetAuthenticator {
+	if !n.platformConfiguration.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	authProxy := fmt.Sprintf("http://127.0.0.1:%d", abstract.AuthProxyProcessorListenPort)
+	n.logger.InfoWith("Function authentication is enabled, DLX will authenticate before scaling from zero",
+		"authProxyURL", authProxy)
+
+	return &AuthOnlyAuthenticator{
+		logger:       n.logger.GetChild("auth-only-authenticator"),
+		authProxyURL: authProxy,
+		httpClient:   newAuthProxyHTTPClient(),
+	}
 }
 
 func (n *NuclioResourceScaler) parseScaleResources(function nuclioio.NuclioFunction) ([]scalertypes.ScaleResource, error) {

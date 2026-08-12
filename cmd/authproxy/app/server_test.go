@@ -224,7 +224,8 @@ func (suite *ServerTestSuite) TestReverseProxyReadinessAllowlisted() {
 	suite.Require().Equal(0, authenticator.calls)
 }
 
-// TestAuthOnlyHandler verifies /auth returns 200 when authorized, the reject code otherwise, and 404 elsewhere.
+// TestAuthOnlyHandler verifies the decision endpoint returns 200 when authorized and the reject code
+// otherwise, on whatever path the request arrives - the DLX replays the caller's own request line.
 func (suite *ServerTestSuite) TestAuthOnlyHandler() {
 	suite.Run("authorized returns 200", func() {
 		handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: true})
@@ -238,10 +239,17 @@ func (suite *ServerTestSuite) TestAuthOnlyHandler() {
 		suite.Require().Equal(http.StatusUnauthorized, statusCode)
 	})
 
-	suite.Run("other paths are not routed", func() {
+	// a scaled-to-zero function is invoked on its own path, and that path is what reaches this listener
+	suite.Run("a caller path is authorized like any other", func() {
 		handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: true})
-		statusCode, _ := suite.doRequest(handler, "/invoke")
-		suite.Require().Equal(http.StatusNotFound, statusCode)
+		statusCode, _ := suite.doRequest(handler, "/some/function/path?q=1")
+		suite.Require().Equal(http.StatusOK, statusCode)
+	})
+
+	suite.Run("a caller path is rejected like any other", func() {
+		handler := newAuthOnlyHandler(&fakeAuthenticator{authorized: false, rejectCode: http.StatusUnauthorized})
+		statusCode, _ := suite.doRequest(handler, "/some/function/path?q=1")
+		suite.Require().Equal(http.StatusUnauthorized, statusCode)
 	})
 }
 

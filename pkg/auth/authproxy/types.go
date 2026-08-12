@@ -31,11 +31,3 @@ type Authenticator interface {
 	// mode-appropriate rejection (401, or a 302 to the sign-in URL) to responseWriter.
 	Authenticate(responseWriter http.ResponseWriter, request *http.Request) bool
 }
-
-// TargetAuthenticator extends Authenticator for callers that operate in authOnly mode and know the target
-// function by name rather than by inspecting the request. AuthenticateTarget sets the target header and
-// delegates to Authenticate, keeping the caller HTTP-agnostic.
-type TargetAuthenticator interface {
-	Authenticator
-	AuthenticateTarget(functionName string) bool
-}
