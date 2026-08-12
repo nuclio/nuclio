@@ -37,6 +37,7 @@ spec:
         checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.autoscaler.automountServiceAccountToken }}
       {{- include "nuclio.imagePullSecrets" . | nindent 6 }}
       securityContext:
         {{- toYaml .Values.autoscaler.securityContext | nindent 8 }}

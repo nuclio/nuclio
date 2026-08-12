@@ -53,6 +53,12 @@ controller:
   ##
   nodeSelector: {}
 
+  ## Whether the controller pod mounts its ServiceAccount token. The controller talks to
+  ## the Kubernetes API, so this overrides any ServiceAccount-level or cluster-wide policy
+  ## that disables automount by default. Disable only if this component is not expected
+  ## to reach the Kubernetes API.
+  automountServiceAccountToken: true
+
   ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
@@ -133,6 +139,12 @@ dashboard:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Whether the dashboard pod mounts its ServiceAccount token. The dashboard talks to
+  ## the Kubernetes API, so this overrides any ServiceAccount-level or cluster-wide policy
+  ## that disables automount by default. Disable only if this component is not expected
+  ## to reach the Kubernetes API.
+  automountServiceAccountToken: true
 
   ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
@@ -424,6 +436,12 @@ autoscaler:
   ##
   nodeSelector: {}
 
+  ## Whether the autoscaler pod mounts its ServiceAccount token. The autoscaler talks to
+  ## the Kubernetes API, so this overrides any ServiceAccount-level or cluster-wide policy
+  ## that disables automount by default. Disable only if this component is not expected
+  ## to reach the Kubernetes API.
+  automountServiceAccountToken: true
+
   ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
@@ -469,6 +487,12 @@ dlx:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Whether the dlx pod mounts its ServiceAccount token. The dlx talks to
+  ## the Kubernetes API, so this overrides any ServiceAccount-level or cluster-wide policy
+  ## that disables automount by default. Disable only if this component is not expected
+  ## to reach the Kubernetes API.
+  automountServiceAccountToken: true
 
   ## Pod-level security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
