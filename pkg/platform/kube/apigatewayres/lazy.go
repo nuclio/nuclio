@@ -32,6 +32,7 @@ import (
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -43,24 +44,27 @@ import (
 //
 
 type lazyClient struct {
-	logger          logger.Logger
-	kubeClientSet   kubeclient.Client
-	nuclioClientSet nuclioio_client.Interface
-	ingressManager  *ingress.Manager
-	scrubber        *platform.APIGatewayScrubber
+	logger                logger.Logger
+	kubeClientSet         kubeclient.Client
+	nuclioClientSet       nuclioio_client.Interface
+	ingressManager        *ingress.Manager
+	scrubber              *platform.APIGatewayScrubber
+	platformConfiguration *platformconfig.Config
 }
 
 func NewLazyClient(loggerInstance logger.Logger,
 	kubeClientSet kubeclient.Client,
 	nuclioClientSet nuclioio_client.Interface,
-	ingressManager *ingress.Manager) (Client, error) {
+	ingressManager *ingress.Manager,
+	platformConfiguration *platformconfig.Config) (Client, error) {
 
 	newClient := lazyClient{
-		logger:          loggerInstance.GetChild("apigatewayres"),
-		kubeClientSet:   kubeClientSet,
-		nuclioClientSet: nuclioClientSet,
-		ingressManager:  ingressManager,
-		scrubber:        platform.NewAPIGatewayScrubber(loggerInstance, platform.GetAPIGatewaySensitiveField(), kubeClientSet),
+		logger:                loggerInstance.GetChild("apigatewayres"),
+		kubeClientSet:         kubeClientSet,
+		nuclioClientSet:       nuclioClientSet,
+		ingressManager:        ingressManager,
+		scrubber:              platform.NewAPIGatewayScrubber(loggerInstance, platform.GetAPIGatewaySensitiveField(), kubeClientSet),
+		platformConfiguration: platformConfiguration,
 	}
 
 	return &newClient, nil
@@ -239,34 +243,8 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		Labels:         upstream.ExtraLabels,
 	}
 
-	switch apiGateway.Spec.AuthenticationMode {
-	case auth.AuthenticationModeNone:
-		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeNone
-	case auth.AuthenticationModeBasicAuth:
-		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.BasicAuth == nil {
-			return nil, errors.New("Basic auth specified but missing basic auth spec")
-		}
-		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeBasicAuth
-		commonIngressSpec.Authentication = &ingress.Authentication{
-			BasicAuth: &ingress.BasicAuth{
-				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
-				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
-				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
-			},
-		}
-	case auth.AuthenticationModeOauth2:
-		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeOauth2
-		if apiGateway.Spec.Authentication != nil && apiGateway.Spec.Authentication.DexAuth != nil {
-			commonIngressSpec.Authentication = &ingress.Authentication{
-				DexAuth: apiGateway.Spec.Authentication.DexAuth,
-			}
-		}
-	case auth.AuthenticationModeAccessKey:
-		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeAccessKey
-	case auth.AuthenticationModeIguazio:
-		commonIngressSpec.AuthenticationMode = auth.AuthenticationModeIguazio
-	default:
-		return nil, errors.New("Unsupported ApiGateway authentication mode provided")
+	if err := lc.configureIngressAuthentication(apiGateway, &commonIngressSpec); err != nil {
+		return nil, errors.Wrap(err, "Failed to configure ingress authentication")
 	}
 
 	// if percentage is given, it is the canary deployment
@@ -315,6 +293,50 @@ func (lc *lazyClient) getServiceNameAndPort(upstream *platform.APIGatewayUpstrea
 	default:
 		return "", 0, errors.Errorf("Unsupported API gateway upstream kind: %s", upstream.Kind)
 	}
+}
+
+func (lc *lazyClient) configureIngressAuthentication(apiGateway nuclioio.NuclioAPIGateway, spec *ingress.Spec) error {
+	if lc.platformConfiguration.IsFunctionAuthenticationEnabled() {
+		// when function-level authentication is enabled, the API Gateway no longer holds auth;
+		// render the ingress without any auth annotations regardless of what the CRD carries
+		if apiGateway.Spec.AuthenticationMode != "" && apiGateway.Spec.AuthenticationMode != auth.AuthenticationModeNone {
+			lc.logger.WarnWith("Function-level authentication is enabled, ignoring API Gateway authentication settings",
+				"api gateway name", apiGateway.Name, "ignored api gateway authentication mode", apiGateway.Spec.AuthenticationMode)
+		}
+		spec.AuthenticationMode = auth.AuthenticationModeNone
+		return nil
+	}
+
+	switch apiGateway.Spec.AuthenticationMode {
+	case auth.AuthenticationModeNone:
+		spec.AuthenticationMode = auth.AuthenticationModeNone
+	case auth.AuthenticationModeBasicAuth:
+		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.BasicAuth == nil {
+			return errors.New("Basic auth specified but missing basic auth spec")
+		}
+		spec.AuthenticationMode = auth.AuthenticationModeBasicAuth
+		spec.Authentication = &ingress.Authentication{
+			BasicAuth: &ingress.BasicAuth{
+				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
+				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
+				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
+			},
+		}
+	case auth.AuthenticationModeOauth2:
+		spec.AuthenticationMode = auth.AuthenticationModeOauth2
+		if apiGateway.Spec.Authentication != nil && apiGateway.Spec.Authentication.DexAuth != nil {
+			spec.Authentication = &ingress.Authentication{
+				DexAuth: apiGateway.Spec.Authentication.DexAuth,
+			}
+		}
+	case auth.AuthenticationModeAccessKey:
+		spec.AuthenticationMode = auth.AuthenticationModeAccessKey
+	case auth.AuthenticationModeIguazio:
+		spec.AuthenticationMode = auth.AuthenticationModeIguazio
+	default:
+		return errors.New("Unsupported ApiGateway authentication mode provided")
+	}
+	return nil
 }
 
 func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPercentage int) map[string]string {

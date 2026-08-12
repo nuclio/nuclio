@@ -129,16 +129,14 @@ func newReverseProxyHandler(parentLogger logger.Logger,
 	}), nil
 }
 
-// newAuthOnlyHandler serves the DLX /auth decision endpoint. Only /auth is routed; any other path 404s.
-// It returns 200 when authorized; on reject the authenticator already wrote the 401/302/403 response.
+// newAuthOnlyHandler serves the DLX decision endpoint, returning the authenticator's response on reject
+// and 200 on success. It handles any path because the DLX replays the original request to preserve its URL for browser redirects.
 func newAuthOnlyHandler(authenticator authproxy.Authenticator) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/auth", func(responseWriter http.ResponseWriter, request *http.Request) {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		if authenticator.Authenticate(responseWriter, request) {
 			responseWriter.WriteHeader(http.StatusOK)
 		}
 	})
-	return mux
 }
 
 // startServers starts every server concurrently, so a single auth-proxy process fronts all of a function's ports.

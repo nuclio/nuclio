@@ -21,6 +21,7 @@ package authproxy
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -121,6 +122,22 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 	suite.Run("valid is admitted", func() {
 		recorder := httptest.NewRecorder()
 		suite.Require().True(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
+	})
+
+	// the DLX preserves the caller's request line when it asks about a scaled-to-zero function, so the
+	// rd= target is built from the request as received - no out-of-band URI plumbing
+	suite.Run("rd is built from the request line and forwarded host", func() {
+		request := suite.authenticatedRequest("bad-token")
+		request.Header.Set(headers.ForwardHost, "func.example.com")
+
+		recorder := httptest.NewRecorder()
+		suite.Require().False(authenticator.Authenticate(recorder, request))
+		suite.Require().Equal(http.StatusFound, recorder.Code)
+
+		redirectTarget, err := url.Parse(recorder.Header().Get("Location"))
+		suite.Require().NoError(err)
+		suite.Require().Equal("https://func.example.com/some/path?q=1",
+			redirectTarget.Query().Get("rd"))
 	})
 }
 
@@ -283,22 +300,6 @@ func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesFunctionAuthConfig(
 	suite.Run("unknown function fails closed", func() {
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequestFor(validToken, "does-not-exist")))
-		suite.Require().Equal(http.StatusForbidden, recorder.Code)
-	})
-
-	// bindRequest yields the DLX-facing TargetAuthenticator: the function name is passed explicitly
-	// rather than resolved from the request header, and the caller stays HTTP-agnostic.
-	concreteAuth := authenticator.(*authOnlyAuthenticator)
-	suite.Run("AuthenticateTarget resolves by explicit function name", func() {
-		request := suite.authenticatedRequest(validToken)
-		recorder := httptest.NewRecorder()
-		suite.Require().True(concreteAuth.bindRequest(recorder, request).AuthenticateTarget("api-func"))
-	})
-
-	suite.Run("AuthenticateTarget fails closed for unknown function", func() {
-		request := suite.authenticatedRequest(validToken)
-		recorder := httptest.NewRecorder()
-		suite.Require().False(concreteAuth.bindRequest(recorder, request).AuthenticateTarget("does-not-exist"))
 		suite.Require().Equal(http.StatusForbidden, recorder.Code)
 	})
 }

@@ -22,4 +22,11 @@ type Attributes struct {
 	Reference string `json:"reference,omitempty"`
 	Username  string `json:"username,omitempty"`
 	Password  string `json:"password,omitempty"`
+
+	// ClientCert and ClientKey are a PEM-encoded certificate/key pair presented for mutual TLS
+	// authentication to the git server. CABundle is an additional PEM-encoded CA bundle used
+	// (together with the system cert pool) to verify the server's certificate.
+	ClientCert string `json:"clientCert,omitempty"`
+	ClientKey  string `json:"clientKey,omitempty"`
+	CABundle   string `json:"caBundle,omitempty"`
 }

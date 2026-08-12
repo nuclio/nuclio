@@ -159,6 +159,11 @@ Set the [`spec.build.codeEntryType`](function-configuration-reference.md) functi
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository.
       The default work directory is the root directory of the git repository (`"/"`).
 
+      **Mutual TLS (client certificates):**
+      - `clientCert` (Optional) &mdash; a PEM-encoded client certificate to present to the Git server.
+      - `clientKey` (Optional) &mdash; the PEM-encoded private key matching `clientCert`.
+      - `caBundle` (Optional) &mdash; a PEM-encoded CA bundle used, together with the system cert pool, to verify the Git server's certificate. Only needed when the server's certificate isn't already trusted by the system pool (for example, a self-signed or internal CA).
+
 #### Examples of git code entry type
 
 Using Branch:
@@ -206,6 +211,32 @@ spec:
     codeEntryAttributes:
       workDir: "/go-function"
       reference: "refs/heads/go-func"
+```
+
+Using a client certificate (mutual TLS):
+```yaml
+spec:
+  description: my Go function
+  handler: main:Handler
+  runtime: golang
+  build:
+    codeEntryType: "git"
+    path: "https://git.example.com/<my-user>/<my-repo>"
+    codeEntryAttributes:
+      branch: "main"
+      clientCert: |
+        -----BEGIN CERTIFICATE-----
+        ...
+        -----END CERTIFICATE-----
+      clientKey: |
+        -----BEGIN PRIVATE KEY-----
+        ...
+        -----END PRIVATE KEY-----
+      # Only needed if the server's certificate isn't already trusted by the system cert pool
+      caBundle: |
+        -----BEGIN CERTIFICATE-----
+        ...
+        -----END CERTIFICATE-----
 ```
 
 ### GitHub code-entry type

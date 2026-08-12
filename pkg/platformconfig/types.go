@@ -452,6 +452,7 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 
 		// build
 		"^/spec/build/codeentryattributes/password$",
+		"^/spec/build/codeentryattributes/clientkey$",
 		"^/spec/build/codeentryattributes/s3secretaccesskey$",
 		"^/spec/build/codeentryattributes/s3sessiontoken$",
 		"^/spec/build/codeentryattributes/headers/authorization$",
