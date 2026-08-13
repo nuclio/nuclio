@@ -21,6 +21,7 @@ package platformconfig
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -30,11 +31,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/logger"
+	opaclient "github.com/nuclio/opa-client"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1087,6 +1090,135 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigElasticSearchMut
 	err := config.ValidatePlatformConfig()
 	suite.Require().Error(err)
 	suite.Contains(err.Error(), "Elasticsearch config")
+}
+
+func (suite *PlatformConfigTestSuite) TestElasticSearchConfigMarshalJSONRedactsSecrets() {
+	testCases := []struct {
+		name   string
+		config ElasticSearchConfig
+	}{
+		{
+			name:   "passwordOnly",
+			config: ElasticSearchConfig{URL: "https://es:9200", Username: "elastic", Password: "super-secret"},
+		},
+		{
+			name:   "apiKeyOnly",
+			config: ElasticSearchConfig{URL: "https://es:9200", Username: "elastic", APIKey: "super-secret-key"},
+		},
+		{
+			name:   "bothSet",
+			config: ElasticSearchConfig{Password: "super-secret", APIKey: "super-secret-key"},
+		},
+		{
+			name:   "neitherSet",
+			config: ElasticSearchConfig{URL: "https://es:9200", Username: "elastic"},
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			originalPassword := tc.config.Password
+			originalAPIKey := tc.config.APIKey
+
+			encoded, err := json.Marshal(tc.config)
+			suite.Require().NoError(err)
+			encodedStr := string(encoded)
+
+			if originalPassword != "" {
+				suite.Contains(encodedStr, `"password":"[redacted]"`)
+				suite.NotContains(encodedStr, originalPassword)
+			} else {
+				suite.NotContains(encodedStr, `"password"`)
+			}
+
+			if originalAPIKey != "" {
+				suite.Contains(encodedStr, `"apiKey":"[redacted]"`)
+				suite.NotContains(encodedStr, originalAPIKey)
+			} else {
+				suite.NotContains(encodedStr, `"apiKey"`)
+			}
+
+			// non-secret fields must pass through untouched
+			if tc.config.URL != "" {
+				suite.Contains(encodedStr, `"url":"`+tc.config.URL+`"`)
+			}
+			if tc.config.Username != "" {
+				suite.Contains(encodedStr, `"username":"`+tc.config.Username+`"`)
+			}
+
+			// marshaling must never mutate the live credentials
+			suite.Equal(originalPassword, tc.config.Password)
+			suite.Equal(originalAPIKey, tc.config.APIKey)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestElasticSearchConfigMarshalJSONNilPointer() {
+	var nilConfig *ElasticSearchConfig
+	encoded, err := json.Marshal(nilConfig)
+	suite.Require().NoError(err)
+	suite.Equal("null", string(encoded))
+
+	kubeConfig := PlatformKubeConfig{}
+	encoded, err = json.Marshal(kubeConfig)
+	suite.Require().NoError(err)
+	suite.NotContains(string(encoded), "elasticSearchConfig")
+}
+
+func (suite *PlatformConfigTestSuite) TestConfigMarshalJSONRedactsSecretsThroughNesting() {
+	config := &Config{
+		IguazioSessionCookie: "super-secret-session-token",
+		Kube: PlatformKubeConfig{
+			ElasticSearchConfig: &ElasticSearchConfig{
+				Password: "super-secret-es-password",
+				APIKey:   "super-secret-es-key",
+			},
+		},
+		Opa: &opa.Config{
+			Config: &opaclient.Config{
+				OverrideHeaderValue: "super-secret-opa-header",
+			},
+		},
+	}
+
+	encoded, err := json.Marshal(config)
+	suite.Require().NoError(err)
+	encodedStr := string(encoded)
+
+	suite.NotContains(encodedStr, "super-secret-session-token")
+	suite.NotContains(encodedStr, "super-secret-es-password")
+	suite.NotContains(encodedStr, "super-secret-es-key")
+	suite.NotContains(encodedStr, "super-secret-opa-header")
+	suite.Contains(encodedStr, `"iguazioSessionCookie":"[redacted]"`)
+	suite.Contains(encodedStr, `"password":"[redacted]"`)
+	suite.Contains(encodedStr, `"apiKey":"[redacted]"`)
+	suite.Contains(encodedStr, `"overrideHeaderValue":"[redacted]"`)
+
+	// marshaling must never mutate the live config
+	suite.Equal("super-secret-session-token", config.IguazioSessionCookie)
+	suite.Equal("super-secret-es-password", config.Kube.ElasticSearchConfig.Password)
+	suite.Equal("super-secret-opa-header", config.Opa.OverrideHeaderValue)
+}
+
+func (suite *PlatformConfigTestSuite) TestConfigMarshalJSONThroughLoggerRedactsSecrets() {
+	var buf bytes.Buffer
+	testLogger, err := nucliozap.NewNuclioZap("test", "json", nil, &buf, &buf, nucliozap.InfoLevel)
+	suite.Require().NoError(err)
+
+	config := &Config{
+		Kube: PlatformKubeConfig{
+			ElasticSearchConfig: &ElasticSearchConfig{
+				Username: "elastic",
+				Password: "super-secret-es-password",
+			},
+		},
+	}
+
+	testLogger.InfoWith("Starting dashboard", "platformConfiguration", config)
+
+	logLine := buf.String()
+	suite.NotContains(logLine, "super-secret-es-password")
+	suite.Contains(logLine, `"password":"[redacted]"`)
 }
 
 func (suite *PlatformConfigTestSuite) TestTrustsLeaderOrigin() {

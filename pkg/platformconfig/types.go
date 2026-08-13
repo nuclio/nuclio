@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"encoding/json"
 	"regexp"
 	"sort"
 	"time"
@@ -31,6 +32,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// redactedSecretValue mirrors the "[redacted]" convention already used in
+// pkg/restful/middleware/middleware.go and pkg/cmdrunner/shellrunner.go.
+const redactedSecretValue = "[redacted]"
 
 const (
 	DefaultFunctionReadinessTimeoutSeconds  = 120
@@ -405,6 +410,23 @@ type ElasticSearchConfig struct {
 	// If not set, the backend type is auto-detected by querying the search engine.
 	// Valid values: "elasticsearch", "opensearch"
 	Kind LogProxyKind `json:"kind,omitempty"`
+}
+
+// elasticSearchConfigAlias has ElasticSearchConfig's exact fields/tags but none of its
+// methods, so marshaling it from within MarshalJSON below can't recurse.
+type elasticSearchConfigAlias ElasticSearchConfig
+
+// MarshalJSON redacts Password and APIKey so neither ever reaches a log sink or other
+// JSON output. Value receiver: mutating a copy must never touch the live credentials
+// backing the real ElasticSearch/OpenSearch client.
+func (c ElasticSearchConfig) MarshalJSON() ([]byte, error) {
+	if c.Password != "" {
+		c.Password = redactedSecretValue
+	}
+	if c.APIKey != "" {
+		c.APIKey = redactedSecretValue
+	}
+	return json.Marshal(elasticSearchConfigAlias(c))
 }
 
 type CronTriggerCreationMode string
