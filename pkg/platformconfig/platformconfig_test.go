@@ -1218,7 +1218,40 @@ func (suite *PlatformConfigTestSuite) TestConfigMarshalJSONThroughLoggerRedactsS
 
 	logLine := buf.String()
 	suite.NotContains(logLine, "super-secret-es-password")
-	suite.Contains(logLine, `"password":"[redacted]"`)
+	suite.Contains(logLine, `password\":\"[redacted]`)
+}
+
+func (suite *PlatformConfigTestSuite) TestElasticSearchConfigStringRedactsSecrets() {
+	config := ElasticSearchConfig{Username: "elastic", Password: "super-secret-es-password", APIKey: "super-secret-es-key"}
+
+	// %+v is the exact verb a nuclio-zap logger sink configured with a flattened
+	// VarGroupMode uses to render arguments, bypassing MarshalJSON entirely - the
+	// Stringer implementation must catch what MarshalJSON alone would miss.
+	rendered := fmt.Sprintf("%+v", config)
+	suite.NotContains(rendered, "super-secret-es-password")
+	suite.NotContains(rendered, "super-secret-es-key")
+	suite.Contains(rendered, `"password":"[redacted]"`)
+	suite.Contains(rendered, `"apiKey":"[redacted]"`)
+}
+
+func (suite *PlatformConfigTestSuite) TestConfigStringRedactsSecretsUnderPlusV() {
+	config := Config{
+		IguazioSessionCookie: "super-secret-session-token",
+		Kube: PlatformKubeConfig{
+			ElasticSearchConfig: &ElasticSearchConfig{
+				Password: "super-secret-es-password",
+			},
+		},
+		Opa: &opa.Config{
+			Config: &opaclient.Config{OverrideHeaderValue: "super-secret-opa-header"},
+		},
+	}
+
+	rendered := fmt.Sprintf("%+v", config)
+	suite.NotContains(rendered, "super-secret-session-token")
+	suite.NotContains(rendered, "super-secret-es-password")
+	suite.NotContains(rendered, "super-secret-opa-header")
+	suite.Contains(rendered, redactedSecretValue)
 }
 
 func (suite *PlatformConfigTestSuite) TestTrustsLeaderOrigin() {

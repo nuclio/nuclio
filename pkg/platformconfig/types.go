@@ -429,6 +429,16 @@ func (c ElasticSearchConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(elasticSearchConfigAlias(c))
 }
 
+// String redacts the same way as MarshalJSON, so fmt's %v/%+v/%s - which format via
+// reflection and don't call json.Marshaler - can't be used to bypass the redaction.
+func (c ElasticSearchConfig) String() string {
+	encoded, err := c.MarshalJSON()
+	if err != nil {
+		return redactedSecretValue
+	}
+	return string(encoded)
+}
+
 type CronTriggerCreationMode string
 
 const (

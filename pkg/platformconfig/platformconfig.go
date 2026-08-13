@@ -95,6 +95,16 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	return json.Marshal(configAlias(c))
 }
 
+// String redacts the same way as MarshalJSON, so fmt's %v/%+v/%s - which format via
+// reflection and don't call json.Marshaler - can't be used to bypass the redaction.
+func (c Config) String() string {
+	encoded, err := c.MarshalJSON()
+	if err != nil {
+		return redactedSecretValue
+	}
+	return string(encoded)
+}
+
 func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 	// read or get default platform config
