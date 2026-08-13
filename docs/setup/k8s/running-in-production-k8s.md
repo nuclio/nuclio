@@ -11,7 +11,7 @@ This document describes advanced configuration options and best-practice guideli
 - [Multi-Tenancy](#multi-tenancy)
 - [Securing the Dashboard](#securing-the-dashboard)
 - [Air-gapped deployment](#air-gapped-deployment)
-- [Using Kaniko as an image builder](#using-kaniko-as-an-image-builder)
+- [Using in-cluster image builders](#using-in-cluster-image-builders)
 
 <a id="the-preferred-deployment-method"></a>
 ## The preferred deployment method
@@ -40,7 +40,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
 
     unset mypassword
     ```
-   > **Note:** If you are using Amazon's ECR see [using Kaniko with ECR](#Using Kaniko with amazon elastic container registry (ECR)) section.
+   > **Note:** If you are using Amazon's ECR see [Using amazon elastic container registry (ECR)](#using-amazon-elastic-container-registry-ecr).
 
 3. Add the `nuclio` Helm chart:
 
@@ -51,7 +51,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
 
     ```sh
     helm install nuclio \
-        --set registry.secretName=registry-credentials \
+        --set-json 'registry.secretNames=["registry-credentials"]' \
         --set registry.pushPullUrl=<your registry URL> \
         --namespace nuclio \
         nuclio/nuclio
@@ -165,7 +165,7 @@ If you select to handle the implementation yourself, follow these guidelines; th
 - Set `offline` to `true` to put Nuclio in "offline" mode.
 - Set `dashboard.baseImagePullPolicy` to `Never`.
 - Set `registry.pushPullUrl` to a registry URL that's reachable from your system.
-- Ensure that base, "onbuild", and processor images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or [Kaniko](#using-kaniko-as-an-image-builder)).
+- Ensure that base, "onbuild", and processor images are accessible to the dashboard in your environment, as they're required for the build process (either by `docker build` or an [in-cluster image builder](#using-in-cluster-image-builders)).
   You can achieve this using either of the following methods:
 
   - Make the images available on the host Docker daemon (local cache).
@@ -176,45 +176,119 @@ If you select to handle the implementation yourself, follow these guidelines; th
 
 - To use the Nuclio templates library (optional), package the templates into an archive; serve the templates archive via a local server whose address is accessible to your system; and set `dashboard.templatesArchiveAddress` to the address of this local server.
 
-<a id="using-kaniko-as-an-image-builder"></a>
-## Using Kaniko as an image builder
+<a id="using-in-cluster-image-builders"></a>
+## Using in-cluster image builders
 
 When dealing with production deployments, you should avoid bind-mounting the Docker socket to the service pod of the Nuclio dashboard; doing so would allow the dashboard access to the host machine's Docker daemon, which is akin to giving it root access to your machine.
 This is understandably a concern for real production use cases.
 Ideally, no pod should access the Docker daemon directly, but because Nuclio is a container-based serverless framework, it needs the ability to build [OCI images](https://github.com/opencontainers/image-spec) at run time.
-While there are several alternatives to bind-mounting the Docker socket, the selected Nuclio solution, starting with Nuclio version 1.3.15, is to integrate [Kaniko](https://github.com/GoogleContainerTools/kaniko) as a production-ready method of building OCI images in a secured way.
-Kaniko is well maintained, stable, easy to use, and provides an extensive set of features.
-Nuclio currently supports Kaniko only on Kubernetes.
 
-To deploy Nuclio and direct it to use the Kaniko engine to build images, use the following [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) parameters; replace the `<...>` placeholders with your specific values:
+Nuclio supports two in-cluster builders on Kubernetes, selected with `dashboard.containerBuilderKind`:
+
+- [Buildah](https://github.com/containers/buildah) is the preferred choice. It builds and pushes with `buildah bud` and `buildah push` inside a dedicated build job pod. Set `dashboard.containerBuilderKind=buildah` for production in-cluster builds.
+- [Kaniko](https://github.com/GoogleContainerTools/kaniko) remains available for compatibility. The upstream project is unmaintained; it still supports an extensive set of build flags via `build.flags` on the function spec.
+
+Both builders share configuration under `dashboard.build` in the [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) file, including `cacheRepo`, `jobDeletionTimeout`, `insecurePushRegistry`, `insecurePullRegistry`, `pushImagesRetries`, `defaultServiceAccount`, `podLabels`, `registryProviderSecretName`, and `initContainerImage` (CLI and Python images used by Buildah login and merge-auth init containers).
+
+You must set `registry.pushPullUrl` to the registry where built function images are pushed and pulled. In-cluster builders do not use images on the host Docker daemon.
+
+When running in an [air-gapped environment](#air-gapped-deployment):
+
+- Preload the executor image for your chosen builder (`dashboard.buildah.image` or `dashboard.kaniko.image`).
+- If you use Buildah against a cloud registry (ECR, ACR, GCR), also preload the images under `dashboard.build.initContainerImage`.
+- Set `registry.defaultBaseRegistryURL` and `registry.defaultOnbuildRegistryURL` to an accessible local registry that contains the preloaded base, "onbuild", and processor images (see [Air-gapped deployment](#air-gapped-deployment)).
+
+`quay.io` does not support nested repositories. If you use `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), set a dedicated cache repository so layer caching can push successfully (replace `<repo name>`):
+
+```sh
+--set dashboard.build.cacheRepo=quay.io/<repo name>/cache
+```
+
+### Providing registry credentials
+
+In-cluster build jobs authenticate to registries using docker-registry secrets listed in `registry.secretNames`.
+Each entry is the name of a standard Kubernetes secret created with `kubectl create secret docker-registry`:
+
+```sh
+kubectl --namespace nuclio create secret docker-registry registry-credentials \
+    --docker-username <username> \
+    --docker-password <password> \
+    --docker-server <URL> \
+    --docker-email ignored@nuclio.io
+```
+
+Pass the secret names to Helm:
 
 ```sh
 helm upgrade --install --reuse-values nuclio \
-    --set registry.secretName=<your secret name> \
+    --set-json 'registry.secretNames=["registry-credentials"]' \
     --set registry.pushPullUrl=<your registry URL> \
-    --set dashboard.containerBuilderKind=kaniko \
-    --set controller.image.tag=<version>-amd64 \
-    --set dashboard.image.tag=<version>-amd64\
     nuclio/nuclio
 ```
 
-This is rather straightforward; however, note the following:
+Use multiple names when push, base-image, and onbuild registries differ; for example, pushing to ECR while pulling base images from another registry:
 
-- When running in an [air-gapped environment](#air-gapped-deployment), Kaniko's executor image must also be available to your Kubernetes cluster.
-- Kaniko requires that you work with a registry to which push the resulting function images.
-  It doesn't support accessing images on the host Docker daemon.
-  Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.defaultBaseRegistryURL` and `registry.defaultOnbuildRegistryURL` to the URL of an accessible local registry that contains the preloaded base, "onbuild", and processor images (see [Air-gapped deployment](#air-gapped-deployment)).
-- `quay.io` doesn't support nested repositories.
-  If you're using Kaniko as a container builder and `quay.io` as a registry (`--set registry.pushPullUrl=quay.io/<repo name>`), add the following to your configuration to allow Kaniko caching to push successfully; (replace the `<repo name>` placeholder with the name of your repository):
-    ```sh
-    --set dashboard.kaniko.cacheRepo=quay.io/<repo name>/cache
-    ```
+```sh
+--set-json 'registry.secretNames=["ecr-registry-credentials","base-image-registry-credentials"]'
+```
 
-### Using Kaniko with amazon elastic container registry (ECR):
+Kubernetes secrets are namespace-scoped.
+If you deploy functions to a namespace other than the one where Nuclio runs, copy each secret into that namespace before deploying functions there.
 
-To work with ECR, you must create a secret with your AWS credentials, and a secret with ECR Token while providing both secret names to the helm install command. 
-This is relevant for instances running without attached IAM roles. 
-To work with instances running with attached IAM roles, you can skip the AWS credentials and ECR Token secrets creation. 
+### Buildah configuration
+
+Buildah is the preferred in-cluster builder (`dashboard.containerBuilderKind=buildah`).
+
+Buildah-specific [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml):
+
+- `dashboard.buildah.image`: Buildah executor image (`repository`, `tag`, `pullPolicy`).
+- `dashboard.buildah.rootlessMode`: `caps` (default, `SETUID` / `SETGID` capabilities) or `hostusers` (kubelet-owned user namespace).
+- `dashboard.buildah.storageDriver`: `overlay` (default) or `vfs` (fallback when overlay is unavailable).
+- `dashboard.buildah.isolation`: `chroot` (default) or `oci`.
+- `dashboard.buildah.appArmorProfile`: AppArmor profile for the buildah container (`unconfined` by default for overlayfs; set to `""` to keep the cluster default).
+
+When any of the push, base-image, or onbuild registry hosts is a supported cloud registry (Amazon ECR, Azure ACR, or Google GCR / Artifact Registry), the build job pod runs:
+
+1. **Login init containers**: one per cloud registry host, using the CLI images from `dashboard.build.initContainerImage` (`awscli`, `azurecli`, `gcloudcli`).
+2. **merge-authfile init container**: uses the Python image from `dashboard.build.initContainerImage.python` to run an embedded merge script. It merges **all** secrets listed in `registry.secretNames` **and** the cloud login tokens into a single authfile that Buildah uses for `buildah bud` and `buildah push`.
+
+Optional `dashboard.build.registryProviderSecretName` mounts a secret with static cloud provider credentials (a `credentials` key, following the AWS credentials file format).
+When it is not set, login init containers use ambient credentials from the build pod's service account (for example IRSA on EKS or workload identity on AKS / GKE).
+
+When the **push destination** is Amazon ECR, the AWS login init container always attempts to create the function image repository and its `/cache` sibling before pushing, so the repository exists even though the image name is determined during the build.
+
+For ECR setup, cloud workload identity, and how static secrets interact with federated auth, see the sections below.
+
+### Kaniko configuration
+
+Set `dashboard.containerBuilderKind=kaniko` to use Kaniko as the in-cluster builder.
+
+Kaniko-specific [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml):
+
+- `dashboard.kaniko.image`: Kaniko executor image (`repository`, `tag`, `pullPolicy`).
+- `dashboard.kaniko.imageFSExtractionRetries`: retries when extracting an image filesystem.
+
+Shared settings under `dashboard.build` also apply to Kaniko jobs.
+
+Example install:
+
+```sh
+helm upgrade --install --reuse-values nuclio \
+    --set-json 'registry.secretNames=["<your secret name>"]' \
+    --set registry.pushPullUrl=<your registry URL> \
+    --set dashboard.containerBuilderKind=kaniko \
+    --set controller.image.tag=<version>-amd64 \
+    --set dashboard.image.tag=<version>-amd64 \
+    nuclio/nuclio
+```
+
+For additional Kaniko build flags usable on functions, see the [Kaniko additional flags](https://github.com/GoogleContainerTools/kaniko/blob/main/README.md#additional-flags) documentation (`build.flags` in the function spec).
+
+<a id="using-amazon-elastic-container-registry-ecr"></a>
+### Using amazon elastic container registry (ECR)
+
+To work with ECR, create a generic secret with your AWS credentials (for `dashboard.build.registryProviderSecretName`) and a docker-registry secret with an ECR token (listed in `registry.secretNames` for builds and used as `imagePullSecret` on function pods).
+Skip both when the build pod has ambient AWS identity (instance role or IRSA).
 
 Before you begin, make sure you have the following IAM roles attached to your user:
 
@@ -240,13 +314,17 @@ Before you begin, make sure you have the following IAM roles attached to your us
     ]
 }
 ```
+
 Common environment variables:
+
 ```shell
 export AWS_REGION=<Your AWS region>
 export AWS_ACCOUNT=<Your AWS account ID>
 export ECR_PASSWORD=$(aws ecr get-login-password --region ${AWS_REGION})
 ```
-Create the AWS credentials secret generated from `.aws/credentials` file configured with access key id and secret access key using the following command:
+
+Create the AWS credentials secret generated from `.aws/credentials` configured with access key id and secret access key:
+
 ```shell
 cat << EOF | kubectl --namespace nuclio create secret generic aws-credentials --save-config \
 --dry-run=client --from-file=credentials=/dev/stdin -o yaml | kubectl apply -f -
@@ -255,54 +333,63 @@ aws_access_key_id = ${AWS_ACCESS_KEY_ID}
 aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
 EOF
 ```
-> **Note:** This is needed to allow Kaniko creating the image repository prior to pushing the function image. 
-> Otherwise, Kaniko will fail to push the image to ECR because the image name is being determined during the build process.
+
+> **Note:** Static AWS credentials (via `dashboard.build.registryProviderSecretName`) or ambient identity on the build pod are needed so the in-cluster builder can create the image repository prior to pushing the function image.
+> Otherwise, pushes to ECR can fail because the image name is determined during the build process.
+> With **Buildah**, it runs in the AWS login init container whenever the push destination is ECR.
+> With **Kaniko**, repository creation runs in a dedicated ECR init container.
 
 Create the ECR token secret to be used as `imagePullSecret` of function pods.
 Since ECR tokens go stale after 12 hours, the secret must be refreshed periodically (can be done with a cron job as described in [this blog post](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+
 ```shell
 kubectl -n nuclio create secret docker-registry ecr-registry-credentials \
   --docker-server=${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com \
   --docker-username=AWS \
-  --docker-password=${ECR_PASSWORD} 
+  --docker-password=${ECR_PASSWORD}
 ```
 
 Finally, install the chart with the following command:
+
 ```shell
 helm repo add nuclio https://nuclio.github.io/nuclio/charts
 helm install nuclio \
     --set dashboard.build.registryProviderSecretName=<aws-secret-name> \
-    --set registry.secretName=<ecr-secret-name>
+    --set-json 'registry.secretNames=["ecr-registry-credentials"]' \
     --set registry.pushPullUrl=<your registry URL> \
     nuclio/nuclio
 ```
 
-### Using Kaniko with cloud workload identity (Azure WI, GKE WI, AWS IRSA)
+### Using cloud workload identity (Azure WI, GKE WI, AWS IRSA)
 
-On managed Kubernetes you can authenticate Kaniko to your container registry via a cloud workload identity bound to the build pod's ServiceAccount, instead of mounting a static docker-config secret.
+On managed Kubernetes you can authenticate build job pods to your container registry via a cloud workload identity bound to the build pod's ServiceAccount, instead of relying solely on static docker-config secrets.
 This is the standard pattern on AKS with Azure Workload Identity for ACR, on GKE with Workload Identity for Artifact Registry / GCR, and on EKS with IRSA for ECR.
 
-Because Kaniko jobs are created by the Nuclio dashboard at run time (rather than rendered by the chart), the chart exposes `dashboard.build.podLabels`, a map of labels that the dashboard applies to every build pod template it creates.
+Because build jobs are created by the Nuclio dashboard at run time (rather than rendered by the chart), the chart exposes `dashboard.build.podLabels`, a map of labels that the dashboard applies to every build pod template it creates.
 On clusters where workload identity is opt-in via a pod label (e.g. AKS requires `azure.workload.identity/use: "true"`), set those labels here.
-You also need to set `dashboard.build.defaultServiceAccount` (or the per-function `BuilderServiceAccount`) to a ServiceAccount that is bound to the cloud identity with push permissions on the target registry.
+You also need to set `dashboard.build.defaultServiceAccount` (or the per-function `build.builderServiceAccount`) to a ServiceAccount that is bound to the cloud identity with push permissions on the target registry.
+The same settings apply whether `dashboard.containerBuilderKind` is `buildah` or `kaniko`.
 
 Example for AKS with Azure Workload Identity:
 
 ```sh
 helm upgrade --install --reuse-values nuclio \
     --set registry.pushPullUrl=<your-acr>.azurecr.io \
-    --set dashboard.containerBuilderKind=kaniko \
+    --set dashboard.containerBuilderKind=buildah \
     --set dashboard.build.defaultServiceAccount=<sa-bound-to-acrpush-identity> \
     --set-json 'dashboard.build.podLabels={"azure.workload.identity/use":"true"}' \
     nuclio/nuclio
 ```
 
-#### Precedence when both are configured
+#### Precedence when both static secrets and workload identity are configured
 
-It's a valid configuration to set **both** `registry.secretName` (or `registry.credentials`) **and** `dashboard.build.podLabels` + a workload-identity-bound `defaultServiceAccount`.
-Kaniko's auth resolution is the standard go-containerregistry chain, so when a docker-config secret is mounted at `/kaniko/.docker/config.json`, **those static credentials take precedence** over the federated token that workload identity would otherwise provide.
-The federated token is only consulted if the mounted config has no matching entry for the target registry.
+It's a valid configuration to set **both** `registry.secretNames` **and** `dashboard.build.podLabels` plus a workload-identity-bound `defaultServiceAccount`.
+How the two auth sources interact depends on the builder:
 
-This means the workload-identity setup is effectively shadowed when `registry.secretName` / `registry.credentials` is also set.
-If you intend to authenticate to the registry via workload identity, do **not** also set `registry.secretName` (or only set one whose docker config does not match the target registry).
-It is the responsibility of whoever configures Nuclio to choose one auth path or the other; the chart does not enforce this.
+- **Buildah**: the merge-authfile init container **combines** all secrets in `registry.secretNames` with cloud login tokens into one authfile.
+  Static and cloud credentials can coexist, for example when different registries appear in the push destination, base-image registry, and onbuild registry.
+
+- **Kaniko**: Nuclio does not run cloud login init containers for Kaniko. Kaniko relies on its own bundled credential helpers for cloud registries.
+  - **ECR push destination**: Nuclio configures an AWS CLI init container for repository creation and mounts `dashboard.build.registryProviderSecretName` onto the Kaniko container, or sets `AWS_SDK_LOAD_CONFIG` so Kaniko picks up ambient AWS credentials (for example IRSA on the build pod). Docker-registry secrets in `registry.secretNames` are **not** mounted into Kaniko on this path; they are still used for function image pull.
+  - **Other registries**: when `registry.secretNames` is set, Nuclio mounts or merges those secrets into `/kaniko/.docker/config.json`. If that file contains an entry for the target registry, Kaniko uses those static credentials and does not fall back to workload identity for that registry. When `registry.secretNames` is empty, Kaniko's bundled helpers use federated credentials from the build pod's service account.
+
