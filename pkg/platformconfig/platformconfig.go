@@ -18,6 +18,7 @@ package platformconfig
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"time"
@@ -79,6 +80,29 @@ type Config struct {
 
 	// stores the encoded ScaleToZero.ReadinessPollInterval as time.Duration
 	scaleToZeroReadinessPollInterval *time.Duration
+}
+
+// configAlias has Config's exact fields/tags but none of its methods, so marshaling it
+// from within MarshalJSON below can't recurse.
+type configAlias Config
+
+// MarshalJSON redacts IguazioSessionCookie, a live, replayable session token, so it
+// never reaches a log sink or other JSON output.
+func (c Config) MarshalJSON() ([]byte, error) {
+	if c.IguazioSessionCookie != "" {
+		c.IguazioSessionCookie = redactedSecretValue
+	}
+	return json.Marshal(configAlias(c))
+}
+
+// String redacts the same way as MarshalJSON, so fmt's %v/%+v/%s - which format via
+// reflection and don't call json.Marshaler - can't be used to bypass the redaction.
+func (c Config) String() string {
+	encoded, err := c.MarshalJSON()
+	if err != nil {
+		return redactedSecretValue
+	}
+	return string(encoded)
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
