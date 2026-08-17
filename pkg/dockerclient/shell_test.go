@@ -380,10 +380,12 @@ func (suite *ShellClientTestSuite) TestRunContainerEnvValue() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			suite.mockedCmdRunner.
-				On("Run", mock.Anything, mock.Anything, mock.Anything).
-				Return(cmdrunner.RunResult{Output: "container123"}, nil).
-				Once()
+			if !tc.shouldFail {
+				suite.mockedCmdRunner.
+					On("Run", mock.Anything, mock.Anything, mock.Anything).
+					Return(cmdrunner.RunResult{Output: "container123"}, nil).
+					Once()
+			}
 
 			result, err := suite.shellClient.RunContainer("alpine:latest",
 				&RunOptions{
@@ -425,10 +427,12 @@ func (suite *ShellClientTestSuite) TestRunContainerEnvName() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			suite.mockedCmdRunner.
-				On("Run", mock.Anything, mock.Anything, mock.Anything).
-				Return(cmdrunner.RunResult{Output: "container123"}, nil).
-				Once()
+			if !tc.shouldFail {
+				suite.mockedCmdRunner.
+					On("Run", mock.Anything, mock.Anything, mock.Anything).
+					Return(cmdrunner.RunResult{Output: "container123"}, nil).
+					Once()
+			}
 
 			result, err := suite.shellClient.RunContainer("alpine:latest",
 				&RunOptions{
@@ -478,10 +482,12 @@ func (suite *ShellClientTestSuite) TestRunContainerLabelKey() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			suite.mockedCmdRunner.
-				On("Run", mock.Anything, mock.Anything, mock.Anything).
-				Return(cmdrunner.RunResult{Output: "container123"}, nil).
-				Once()
+			if !tc.shouldFail {
+				suite.mockedCmdRunner.
+					On("Run", mock.Anything, mock.Anything, mock.Anything).
+					Return(cmdrunner.RunResult{Output: "container123"}, nil).
+					Once()
+			}
 
 			result, err := suite.shellClient.RunContainer("alpine:latest",
 				&RunOptions{
@@ -530,10 +536,12 @@ func (suite *ShellClientTestSuite) TestRunContainerVolumePath() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			suite.mockedCmdRunner.
-				On("Run", mock.Anything, mock.Anything, mock.Anything).
-				Return(cmdrunner.RunResult{Output: "container123"}, nil).
-				Once()
+			if !tc.shouldFail {
+				suite.mockedCmdRunner.
+					On("Run", mock.Anything, mock.Anything, mock.Anything).
+					Return(cmdrunner.RunResult{Output: "container123"}, nil).
+					Once()
+			}
 
 			result, err := suite.shellClient.RunContainer("alpine:latest",
 				&RunOptions{
@@ -581,12 +589,14 @@ func (suite *ShellClientTestSuite) TestBuildArg() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			suite.mockedCmdRunner.
-				On("Run", mock.Anything, mock.Anything, mock.MatchedBy(func(vars []interface{}) bool {
-					return true
-				})).
-				Return(cmdrunner.RunResult{}, nil).
-				Once()
+			if !tc.shouldFail {
+				suite.mockedCmdRunner.
+					On("Run", mock.Anything, mock.Anything, mock.MatchedBy(func(vars []interface{}) bool {
+						return true
+					})).
+					Return(cmdrunner.RunResult{}, nil).
+					Once()
+			}
 
 			err := suite.shellClient.Build(&BuildOptions{
 				Image:      "test:latest",
@@ -626,10 +636,12 @@ func (suite *ShellClientTestSuite) TestExecInContainerEnv() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			suite.mockedCmdRunner.
-				On("Run", mock.Anything, mock.Anything, mock.Anything).
-				Return(cmdrunner.RunResult{}, nil).
-				Once()
+			if !tc.shouldFail {
+				suite.mockedCmdRunner.
+					On("Run", mock.Anything, mock.Anything, mock.Anything).
+					Return(cmdrunner.RunResult{}, nil).
+					Once()
+			}
 
 			err := suite.shellClient.ExecInContainer("container123",
 				&ExecOptions{
