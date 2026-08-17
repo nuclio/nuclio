@@ -1115,6 +1115,8 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 		}
 	}
 
+	// label values don't require additional validation: they are always emitted within single quotes,
+	// and replaceSingleQuotes escapes the only character that could break out of the quoted value.
 	for labelKey := range runOptions.Labels {
 		if labelKey == "" || common.ContainsShellMetacharacters(labelKey) {
 			return errors.New("Invalid label key in run options")
