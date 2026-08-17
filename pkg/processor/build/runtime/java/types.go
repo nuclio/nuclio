@@ -23,6 +23,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/yaml"
 )
 
@@ -50,6 +51,22 @@ func newDependency(raw string) (*dependency, error) {
 
 	if err := yaml.Unmarshal([]byte(raw), &newDependency); err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse dependency: %s", raw)
+	}
+
+	// validate every field before it is rendered into build.gradle, to prevent build time code injections
+	for _, component := range []struct {
+		field string
+		value string
+	}{
+		{"group", newDependency.Group},
+		{"name", newDependency.Name},
+		{"version", newDependency.Version},
+	} {
+		if errs := validation.IsValidLabelValue(component.value); len(errs) > 0 {
+			return nil, errors.Errorf(
+				"Invalid dependency component, must be a valid label value: field=%s value=%q errors=%s",
+				component.field, component.value, strings.Join(errs, "; "))
+		}
 	}
 
 	return &newDependency, nil
