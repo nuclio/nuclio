@@ -342,6 +342,311 @@ func (suite *ShellClientTestSuite) TestGetContainersEscapesLabelFilterInjection(
 	suite.mockedCmdRunner.AssertExpectations(suite.T())
 }
 
+// TestRunContainerEnvValue tests both valid env values and injection attempts
+func (suite *ShellClientTestSuite) TestRunContainerEnvValue() {
+	testCases := []struct {
+		name       string
+		envName    string
+		envValue   string
+		shouldFail bool
+	}{
+		// Happy path - valid env values
+		{"valid safe value", "VAR1", "safe_value", false},
+		{"valid alphanumeric", "MY_VAR", "value123", false},
+		{"valid boolean", "DEBUG", "true", false},
+		{"valid port", "PORT", "8080", false},
+		{"valid path", "PATH_VAR", "/usr/local/bin:/usr/bin", false},
+		{"valid key=value", "CONFIG", "key=value", false},
+		{"valid empty", "EMPTY", "", false},
+		{"valid dots", "WITH_DOTS", "1.2.3.4", false},
+		{"valid dash", "WITH_DASH", "app-name", false},
+		{"valid underscore", "WITH_UNDERSCORE", "my_var_name", false},
+		// Malicious payloads - shell injection attempts (GHSA-87r5-jx94-x93m, GHSA-r6fg-6j3g-8g5q)
+		{"injection single quote touch", "X", "'; touch /tmp/pwned #", true},
+		{"injection single quote id", "X", "'; id; echo '", true},
+		{"injection double quote touch", "X", `"; touch /tmp/pwned; echo "`, true},
+		{"injection double quote id", "X", `"; id; echo "`, true},
+		{"injection command substitution touch", "X", "$(touch /tmp/pwned)", true},
+		{"injection command substitution redirect", "X", "$(id > /tmp/pwned)", true},
+		{"injection embedded command substitution", "X", "value$(whoami)value", true},
+		{"injection backtick touch", "X", "`touch /tmp/pwned`", true},
+		{"injection backtick id", "X", "`id`", true},
+		{"injection semicolon touch", "X", "; touch /tmp/pwned", true},
+		{"injection semicolon commands", "X", "value; id; echo", true},
+		{"injection AND operator", "X", "value && id", true},
+		{"injection OR operator", "X", "value || cat /etc/passwd", true},
+		{"injection pipe operator", "X", "value | id", true},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.mockedCmdRunner.
+				On("Run", mock.Anything, mock.Anything, mock.Anything).
+				Return(cmdrunner.RunResult{Output: "container123"}, nil).
+				Once()
+
+			result, err := suite.shellClient.RunContainer("alpine:latest",
+				&RunOptions{
+					ContainerName: "test",
+					Env:           map[string]string{tc.envName: tc.envValue},
+				})
+
+			if tc.shouldFail {
+				suite.Require().Error(err, "Env injection should be rejected: %s=%s", tc.envName, tc.envValue)
+			} else {
+				suite.Require().NoError(err, "Valid env should be accepted: %s=%s", tc.envName, tc.envValue)
+				suite.Require().Equal(result, "container123", "Expected container ID to be returned for valid env")
+			}
+			suite.mockedCmdRunner.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// TestRunContainerEnvName tests both valid env names and injection attempts
+func (suite *ShellClientTestSuite) TestRunContainerEnvName() {
+	testCases := []struct {
+		name       string
+		envName    string
+		shouldFail bool
+	}{
+		// Happy path
+		{"valid simple VAR", "VAR", false},
+		{"valid with underscore MY_VAR", "MY_VAR", false},
+		{"valid with numbers VAR_123", "VAR_123", false},
+		{"valid leading underscore _UNDERSCORE", "_UNDERSCORE", false},
+		{"valid all caps CAPS", "CAPS", false},
+		{"valid single letter X", "X", false},
+		// Malicious payloads
+		{"injection single quote touch", "X'; touch /tmp/pwned #", true},
+		{"injection double quote id", `X"; id; echo "`, true},
+		{"injection command substitution", "X$(whoami)", true},
+		{"injection backtick id", "X`id`", true},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.mockedCmdRunner.
+				On("Run", mock.Anything, mock.Anything, mock.Anything).
+				Return(cmdrunner.RunResult{Output: "container123"}, nil).
+				Once()
+
+			result, err := suite.shellClient.RunContainer("alpine:latest",
+				&RunOptions{
+					ContainerName: "test",
+					Env:           map[string]string{tc.envName: "value"},
+				})
+
+			if tc.shouldFail {
+				suite.Require().Error(err, "Env name injection should be rejected: %s", tc.envName)
+			} else {
+				suite.Require().NoError(err, "Valid env name should be accepted: %s", tc.envName)
+				suite.Require().Equal(result, "container123", "Expected container ID to be returned for valid env name")
+			}
+			suite.mockedCmdRunner.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// TestRunContainerLabelKey tests both valid label keys and injection attempts
+func (suite *ShellClientTestSuite) TestRunContainerLabelKey() {
+	testCases := []struct {
+		name       string
+		labelKey   string
+		shouldFail bool
+	}{
+		// Happy path
+		{"happy flow - app", "app", false},
+		{"happy flow - app.version", "app.version", false},
+		{"happy flow - app/name", "app/name", false},
+		{"happy flow - valid url", "com.example.app", false},
+		{"happy flow - valid label", "valid-label-123", false},
+		{"happy flow - label with underscore", "label_with_underscore", false},
+		{"happy flow - name with dash", "my-app-v1", false},
+		// Malicious payloads
+		{"Malicious payloads- echo", "x'; { echo 'INJECTED'; id; } #", true},
+		{"Malicious payloads - touch", "x'; touch /tmp/pwned #", true},
+		{"Malicious payloads - touch 2", `x"; touch /tmp/pwned; echo "`, true},
+		{"Malicious payloads - echo", `x"; id; echo "`, true},
+		{"Malicious payloads - touch3", "x$(touch /tmp/pwned)", true},
+		{"Malicious payloads - whoami", "x$(whoami)", true},
+		{"Malicious payloads - touch4", "x`touch /tmp/pwned`", true},
+		{"Malicious payloads - backquote", "x`id`", true},
+		{"Malicious payloads - &&", "x&& id", true},
+		{"Malicious payloads - pipeline", "x| cat /etc/passwd", true},
+		{"Malicious payloads - touch5", "x; touch /tmp/pwned", true},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.mockedCmdRunner.
+				On("Run", mock.Anything, mock.Anything, mock.Anything).
+				Return(cmdrunner.RunResult{Output: "container123"}, nil).
+				Once()
+
+			result, err := suite.shellClient.RunContainer("alpine:latest",
+				&RunOptions{
+					ContainerName: "test",
+					Labels:        map[string]string{tc.labelKey: "value"},
+				})
+
+			if tc.shouldFail {
+				suite.Require().Error(err, "Label key injection should be rejected: %s", tc.labelKey)
+			} else {
+				suite.Require().NoError(err, "Valid label key should be accepted: %s", tc.labelKey)
+				suite.Require().Equal(result, "container123", "Expected container ID to be returned for valid label key")
+			}
+			suite.mockedCmdRunner.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// TestRunContainerVolumePath tests both valid volume paths and injection attempts
+func (suite *ShellClientTestSuite) TestRunContainerVolumePath() {
+	testCases := []struct {
+		name          string
+		hostPath      string
+		containerPath string
+		shouldFail    bool
+	}{
+		// Happy path
+		{"valid /data to /data", "/data", "/data", false},
+		{"valid /home/user/project to /app", "/home/user/project", "/app", false},
+		{"valid /var/log to /logs", "/var/log", "/logs", false},
+		{"valid /etc/config to /config", "/etc/config", "/config", false},
+		{"valid /usr/share/app to /opt/app", "/usr/share/app", "/opt/app", false},
+		// Malicious payloads - host path injection (no whitespace, so the payload can't be
+		// caught incidentally by the loose "no whitespace allowed" volumeNameRegex check)
+		{"injection host path single quote touch", "/tmp';touch;#", "/data", true},
+		{"injection host path double quote id", `"/tmp";id;echo"`, "/data", true},
+		{"injection host path command substitution", "/tmp$(id)", "/data", true},
+		{"injection host path backtick id", "/tmp`id`", "/data", true},
+		{"injection host path semicolon rm", "/tmp;id", "/data", true},
+		// Malicious payloads - container path injection
+		{"injection container path single quote touch", "/data", "/tmp';touch;#", true},
+		{"injection container path double quote id", "/data", `"/tmp";id;echo"`, true},
+		{"injection container path command substitution", "/data", "/tmp$(whoami)", true},
+		{"injection container path backtick id", "/data", "/tmp`id`", true},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.mockedCmdRunner.
+				On("Run", mock.Anything, mock.Anything, mock.Anything).
+				Return(cmdrunner.RunResult{Output: "container123"}, nil).
+				Once()
+
+			result, err := suite.shellClient.RunContainer("alpine:latest",
+				&RunOptions{
+					ContainerName: "test",
+					Volumes:       map[string]string{tc.hostPath: tc.containerPath},
+				})
+
+			if tc.shouldFail {
+				suite.Require().Error(err, "Volume path injection should be rejected")
+			} else {
+				suite.Require().NoError(err, "Valid volume paths should be accepted")
+				suite.Require().Equal(result, "container123", "Expected container ID to be returned for valid volume paths")
+			}
+			suite.mockedCmdRunner.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// TestBuildArg tests both valid build arguments and injection attempts
+func (suite *ShellClientTestSuite) TestBuildArg() {
+	testCases := []struct {
+		name       string
+		argName    string
+		argValue   string
+		shouldFail bool
+	}{
+		// Happy path
+		{"happy flow - base image", "BASE_IMAGE", "ubuntu:20.04", false},
+		{"happy flow - version", "VERSION", "1.2.3", false},
+		{"happy flow - build date", "BUILD_DATE", "2026-08-16", false},
+		{"happy flow - commit sha", "COMMIT_SHA", "abc123def456", false},
+		{"happy flow - app name", "APP_NAME", "myapp", false},
+		// Malicious payloads - values (no whitespace, so the payload can't be caught
+		// incidentally by the loose "no whitespace allowed" restrictedBuildArgRegex check)
+		{"Malicious payloads - values - touch", "ARG", "';touch;#", true},
+		{"Malicious payloads - values - echo", "ARG", `";id;echo"`, true},
+		{"Malicious payloads - values - touch2", "ARG", "$(id)", true},
+		{"Malicious payloads - values - whoami", "ARG", "`whoami`", true},
+		{"Malicious payloads - values - rm", "ARG", ";id", true},
+		// Malicious payloads - names
+		{"Malicious payloads - names - touch", "ARG';touch;#", "value", true},
+		{"Malicious payloads - names - echo", `ARG";id;echo"`, "value", true},
+		{"Malicious payloads - names - whoami", "ARG$(whoami)", "value", true},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.mockedCmdRunner.
+				On("Run", mock.Anything, mock.Anything, mock.MatchedBy(func(vars []interface{}) bool {
+					return true
+				})).
+				Return(cmdrunner.RunResult{}, nil).
+				Once()
+
+			err := suite.shellClient.Build(&BuildOptions{
+				Image:      "test:latest",
+				ContextDir: "/tmp",
+				BuildArgs:  map[string]string{tc.argName: tc.argValue},
+			})
+
+			if tc.shouldFail {
+				suite.Require().Error(err, "Build arg injection should be rejected")
+			} else {
+				suite.Require().NoError(err, "Valid build arg should be accepted: %s=%s", tc.argName, tc.argValue)
+			}
+			suite.mockedCmdRunner.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// TestExecInContainerEnv tests both valid ExecInContainer env values and injection attempts
+func (suite *ShellClientTestSuite) TestExecInContainerEnv() {
+	testCases := []struct {
+		name       string
+		envName    string
+		envValue   string
+		shouldFail bool
+	}{
+		// Happy path
+		{"happy flow - exec", "EXEC_VAR", "exec_value", false},
+		{"happy flow - debug", "DEBUG", "true", false},
+		{"happy flow - log level", "LOG_LEVEL", "INFO", false},
+		{"happy flow - timeout", "TIMEOUT", "30", false},
+		// Malicious payloads
+		{"Malicious payloads - touch", "X", "'; touch /tmp/pwned #", true},
+		{"Malicious payloads - echo", "X", `"; id; echo "`, true},
+		{"Malicious payloads - touch2", "X", "$(touch /tmp/pwned)", true},
+		{"Malicious payloads - whoami", "X", "`whoami`", true},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.mockedCmdRunner.
+				On("Run", mock.Anything, mock.Anything, mock.Anything).
+				Return(cmdrunner.RunResult{}, nil).
+				Once()
+
+			err := suite.shellClient.ExecInContainer("container123",
+				&ExecOptions{
+					Command: "ls",
+					Env:     map[string]string{tc.envName: tc.envValue},
+				})
+
+			if tc.shouldFail {
+				suite.Require().Error(err, "ExecInContainer env injection should be rejected")
+			} else {
+				suite.Require().NoError(err, "Valid ExecInContainer env should be accepted")
+			}
+			suite.mockedCmdRunner.AssertExpectations(suite.T())
+		})
+	}
+}
+
 func TestShellRunnerTestSuite(t *testing.T) {
 	suite.Run(t, new(ShellClientTestSuite))
 }
