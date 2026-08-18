@@ -1082,12 +1082,12 @@ func (c *ShellClient) validateBuildOptions(buildOptions *BuildOptions) error {
 	}
 
 	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
-		if !restrictedBuildArgRegex.MatchString(buildArgName) {
+		if !restrictedBuildArgRegex.MatchString(buildArgName) || common.ContainsShellMetacharacters(buildArgName) {
 			message := "Invalid build arg name supplied"
 			c.logger.WarnWith(message, "buildArgName", buildArgName)
 			return errors.New(message)
 		}
-		if !restrictedBuildArgRegex.MatchString(buildArgValue) {
+		if !restrictedBuildArgRegex.MatchString(buildArgValue) || common.ContainsShellMetacharacters(buildArgValue) {
 			message := "Invalid build arg value supplied"
 			c.logger.WarnWith(message, "buildArgValue", buildArgValue)
 			return errors.New(message)
@@ -1106,17 +1106,28 @@ func (c *ShellClient) validateRunOptions(imageName string, runOptions *RunOption
 		return errors.New("Invalid container name in build options")
 	}
 
-	for envVarName := range runOptions.Env {
-		if !envVarNameRegex.MatchString(envVarName) {
+	for envVarName, envVarValue := range runOptions.Env {
+		if !envVarNameRegex.MatchString(envVarName) || common.ContainsShellMetacharacters(envVarName) {
 			return errors.New("Invalid env var name in run options")
+		}
+		if common.ContainsShellMetacharacters(envVarValue) {
+			return errors.New("Invalid env var value in run options")
+		}
+	}
+
+	// label values don't require additional validation: they are always emitted within single quotes,
+	// and replaceSingleQuotes escapes the only character that could break out of the quoted value.
+	for labelKey := range runOptions.Labels {
+		if labelKey == "" || common.ContainsShellMetacharacters(labelKey) {
+			return errors.New("Invalid label key in run options")
 		}
 	}
 
 	for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
-		if !volumeNameRegex.MatchString(volumeHostPath) {
+		if !volumeNameRegex.MatchString(volumeHostPath) || common.ContainsShellMetacharacters(volumeHostPath) {
 			return errors.New("Invalid volume host path in run options")
 		}
-		if !volumeNameRegex.MatchString(volumeContainerPath) {
+		if !volumeNameRegex.MatchString(volumeContainerPath) || common.ContainsShellMetacharacters(volumeContainerPath) {
 			return errors.New("Invalid volume container path in run options")
 		}
 	}
@@ -1135,9 +1146,12 @@ func (c *ShellClient) validateExecOptions(containerID string, execOptions *ExecO
 		return errors.New("Invalid container ID name in container exec")
 	}
 
-	for envVarName := range execOptions.Env {
-		if !envVarNameRegex.MatchString(envVarName) {
+	for envVarName, envVarValue := range execOptions.Env {
+		if !envVarNameRegex.MatchString(envVarName) || common.ContainsShellMetacharacters(envVarName) {
 			return errors.New("Invalid env var name in exec options")
+		}
+		if common.ContainsShellMetacharacters(envVarValue) {
+			return errors.New("Invalid env var value in exec options")
 		}
 	}
 	return nil
