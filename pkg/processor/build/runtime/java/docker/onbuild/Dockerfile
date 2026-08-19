@@ -76,4 +76,4 @@ RUN cp nuclio-sdk-java-1.1.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.1.0.
 
 # Download dependencies
 RUN cd /home/gradle/src/wrapper \
-    && gradle --build-cache compileJava
+    && gradle --no-daemon --build-cache compileJava

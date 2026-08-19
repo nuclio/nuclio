@@ -16,8 +16,8 @@
 
 set -e
 
-# by default, pass no flags to gradle
-GRADLE_FLAGS=""
+# pass --no-daemon to gradle
+GRADLE_FLAGS="--no-daemon"
 
 # if specified to build offline, set the offline flag
 if [ "${NUCLIO_BUILD_OFFLINE}" = "true" ]; then

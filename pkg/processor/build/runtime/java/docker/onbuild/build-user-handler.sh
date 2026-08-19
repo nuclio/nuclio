@@ -23,8 +23,8 @@ num_jars=$(ls -1 /home/gradle/src/userHandler/src/main/java/*.jar 2>/dev/null | 
 
 # if there are zero jars, assume source and build
 if [ $num_jars = "0" ]; then
-    gradle tasks
-    gradle userHandler
+    gradle --no-daemon tasks
+    gradle --no-daemon userHandler
 
 # if there is 1 jar, use it as the user handler. Move it to the place it would've been built
 elif [ $num_jars = "1" ]; then
