@@ -21,7 +21,7 @@ FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 FROM ${NUCLIO_DOCKER_JAVA_OPENJDK} as user-handler-builder
 
-ENV GRADLEVERSION=5.6.4
+ENV GRADLEVERSION=8.14.5
 
 RUN apt-get update -qqy \
     && apt-get -s dist-upgrade | \

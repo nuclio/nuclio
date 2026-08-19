@@ -230,7 +230,7 @@ func (suite *testSuite) TestGradleBuildScriptDependencyInjection() {
 		{
 			name:           "legitimate dependency renders through the template",
 			rawDependency:  "group: com.google.code.gson, name: gson, version: 2.8.9",
-			expectedRender: "compile group: 'com.google.code.gson', name: 'gson', version: '2.8.9'",
+			expectedRender: "implementation group: 'com.google.code.gson', name: 'gson', version: '2.8.9'",
 		},
 	} {
 		suite.Run(testCase.name, func() {
