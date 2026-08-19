@@ -148,7 +148,7 @@ func (j *java) createGradleBuildScript(stagingBuildDir string) error {
 
 func (j *java) getGradleBuildScriptTemplateContents() string {
 	return `plugins {
-  id 'com.github.johnrengelman.shadow' version '5.2.0'
+  id 'com.github.johnrengelman.shadow' version '8.1.1'
   id 'java'
 }
 
@@ -160,15 +160,15 @@ repositories {
 
 dependencies {
 	{{ range .Dependencies }}
-	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
+	implementation group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
 	{{ end }}
 
-    compile files('./nuclio-sdk-java-1.1.0.jar')
+    implementation files('./nuclio-sdk-java-1.1.0.jar')
 }
 
 shadowJar {
-   baseName = 'user-handler'
-   classifier = null  // Don't append "all" to jar name
+   archiveBaseName = 'user-handler'
+   archiveClassifier = ''
 }
 
 task userHandler(dependsOn: shadowJar)
