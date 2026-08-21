@@ -198,8 +198,13 @@ func (s *Server) Start() error {
 		return errors.Wrap(err, "Failed to start server")
 	}
 
-	go s.markStaleFunctionsAsError(context.Background())
-	go s.Platform.MigrateFunctionAuthentication(context.Background())
+	// one goroutine, in this order: both jobs write the same functions, so running them concurrently would
+	// make one of the two updates fail on a resource-version conflict. Running the sweep first also means
+	// the migration sees those functions in error state, and can give them a mode instead of only a label
+	go func() {
+		s.markStaleFunctionsAsError(context.Background())
+		s.Platform.MigrateFunctionAuthentication(context.Background())
+	}()
 
 	return nil
 }
