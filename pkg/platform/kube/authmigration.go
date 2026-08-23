@@ -46,6 +46,7 @@ type functionAuthMigration struct {
 	// set only for basicAuth: the credentials live in that gateway's own secret and must be re-scrubbed
 	// into the function's secret, because a $ref resolves only against the secret of its owner
 	basicAuthAPIGateway *nuclioio.NuclioAPIGateway
+	migrated            bool
 }
 
 // MigrateFunctionAuthentication moves authentication off the api gateways and onto each function's HTTP
@@ -57,7 +58,7 @@ type functionAuthMigration struct {
 // The migration has three steps:
 //  1. list the unmigrated resources and decide which authentication mode each function should get
 //  2. write that mode onto the functions
-//  3. drain the authentication off the api gateways
+//  3. drain the authentication off the api gateways whose functions all migrated
 func (p *Platform) MigrateFunctionAuthentication(ctx context.Context) {
 	if !p.IsFunctionAuthenticationEnabled() {
 		p.Logger.InfoWithCtx(ctx, "Function authentication migration skipped: feature flag is off")
@@ -85,7 +86,7 @@ func (p *Platform) MigrateFunctionAuthentication(ctx context.Context) {
 	p.migrateFunctions(ctx, namespace, functionMigrations)
 
 	p.Logger.InfoWithCtx(ctx, "Migrating api gateways (step 3/3)")
-	p.migrateAPIGateways(ctx, namespace, apiGateways)
+	p.migrateAPIGateways(ctx, namespace, apiGateways, functionMigrations)
 
 	p.Logger.InfoWithCtx(ctx, "Finished function authentication migration")
 }
@@ -118,16 +119,16 @@ func (p *Platform) listUnmigratedResources(ctx context.Context,
 // translated from the api gateways in front of it.
 func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 	functions []nuclioio.NuclioFunction,
-	apiGateways []nuclioio.NuclioAPIGateway) []*functionAuthMigration {
+	apiGateways []nuclioio.NuclioAPIGateway) map[string]*functionAuthMigration {
 
-	migrations := make([]*functionAuthMigration, 0, len(functions))
+	migrations := make(map[string]*functionAuthMigration, len(functions))
 
-	// the functions still waiting for a mode, indexed by name for the api gateway pass below
-	migrationsByFunctionName := make(map[string]*functionAuthMigration, len(functions))
+	// the subset of the above still waiting for a mode, for the api gateway pass below
+	migrationsWaitingForMode := make(map[string]*functionAuthMigration, len(functions))
 
 	for _, function := range functions {
 		migration := &functionAuthMigration{function: &function}
-		migrations = append(migrations, migration)
+		migrations[function.Name] = migration
 
 		// a stale function is mid-deploy, so its spec is not ours to write - mark it and leave the spec
 		// alone. It cannot come up unauthenticated: the stale-function sweep fails it, and the redeploy the
@@ -156,7 +157,7 @@ func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 			continue
 		}
 
-		migrationsByFunctionName[function.Name] = migration
+		migrationsWaitingForMode[function.Name] = migration
 	}
 
 	// a gateway's mode is offered to every function behind it, so a canary gateway covers both of its
@@ -177,7 +178,7 @@ func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 				continue
 			}
 
-			migration, waitingForMode := migrationsByFunctionName[upstream.NuclioFunction.Name]
+			migration, waitingForMode := migrationsWaitingForMode[upstream.NuclioFunction.Name]
 			if !waitingForMode {
 				continue
 			}
@@ -202,7 +203,7 @@ func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 		}
 	}
 
-	for _, migration := range migrationsByFunctionName {
+	for _, migration := range migrationsWaitingForMode {
 		// no gateway carried authentication, so fall back to the platform default - the same thing the
 		// deploy-time enrichment does
 		if migration.mode == "" {
@@ -251,14 +252,15 @@ func (p *Platform) chooseAuthByPriority(modeA, modeB auth.AuthenticationMode) au
 }
 
 // migrateFunctions is step 2: it writes the resolved mode onto each function. A failure is not fatal - the
-// function stays unlabeled and is retried on the next dashboard restart.
+// function stays unlabeled and is retried on the next dashboard restart, and step 3 leaves the authentication
+// on the api gateways in front of it.
 func (p *Platform) migrateFunctions(ctx context.Context,
 	namespace string,
-	migrations []*functionAuthMigration) {
+	functionsToMigrate map[string]*functionAuthMigration) {
 	var wg sync.WaitGroup
 	sem := semaphore.NewWeighted(authMigrationConcurrency)
 
-	for _, migration := range migrations {
+	for _, function := range functionsToMigrate {
 		if err := sem.Acquire(ctx, 1); err != nil {
 			p.Logger.WarnWithCtx(ctx, "Failed to acquire a migration slot, stopping function migration",
 				"err", err.Error())
@@ -267,11 +269,14 @@ func (p *Platform) migrateFunctions(ctx context.Context,
 
 		wg.Go(func() {
 			defer sem.Release(1)
-			if err := p.migrateFunction(ctx, namespace, migration); err != nil {
+			if err := p.migrateFunction(ctx, namespace, function); err != nil {
 				p.Logger.WarnWithCtx(ctx, "Failed to migrate function authentication",
-					"functionName", migration.function.Name,
+					"functionName", function.function.Name,
 					"err", err.Error())
+				return
 			}
+			p.Logger.DebugWithCtx(ctx, "Successfully migrated function", "functionName", function.function.Name)
+			function.migrated = true
 		})
 	}
 	wg.Wait()
@@ -394,15 +399,39 @@ func (p *Platform) restoreAPIGatewayBasicAuth(ctx context.Context,
 	return restoredAPIGatewayConfig.Spec.Authentication.BasicAuth, nil
 }
 
-// migrateAPIGateways is step 3: it drains the authentication configuration off the api gateway CRDs.
-// Nothing changes in enforcement - with the feature flag on the ingress is already rendered without auth
-// annotations - this only drops dead config that the dashboard would reject on the user's next update.
+// migrateAPIGateways is step 3: it drains the authentication configuration off the api gateway CRDs and
+// re-provisions them, so the controller re-renders their ingresses without the nginx auth annotations. A
+// gateway whose functions did not all migrate is skipped: draining it would leave those functions
+// unauthenticated, and the next run could no longer derive their mode from it.
 func (p *Platform) migrateAPIGateways(ctx context.Context,
 	namespace string,
-	apiGateways []nuclioio.NuclioAPIGateway) {
+	apiGateways []nuclioio.NuclioAPIGateway,
+	functionMigrations map[string]*functionAuthMigration) {
+
 	var wg sync.WaitGroup
 	sem := semaphore.NewWeighted(authMigrationConcurrency)
 	for _, apiGateway := range apiGateways {
+		unmigratedFunctionName := ""
+		for _, upstream := range apiGateway.Spec.Upstreams {
+			if upstream.NuclioFunction == nil {
+				continue
+			}
+			if migration, found := functionMigrations[upstream.NuclioFunction.Name]; found &&
+				!migration.migrated {
+				// the function behind this gateway did not migrate, so skip the gateway and leave its authentication
+				unmigratedFunctionName = upstream.NuclioFunction.Name
+				break
+			}
+		}
+		if unmigratedFunctionName != "" {
+			// left unlabeled, so the next restart lists it again and re-migrates it.
+			p.Logger.WarnWithCtx(ctx,
+				"Api gateway fronts a function that did not migrate, skipping the gateway migration",
+				"apiGatewayName", apiGateway.Name,
+				"functionName", unmigratedFunctionName)
+			continue
+		}
+
 		if err := sem.Acquire(ctx, 1); err != nil {
 			p.Logger.WarnWithCtx(ctx, "Failed to acquire a migration slot, stopping api gateway migration",
 				"err", err.Error())

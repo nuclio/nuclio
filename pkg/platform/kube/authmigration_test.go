@@ -19,8 +19,10 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -135,7 +137,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeFromSingleAPIGat
 				[]v1beta1.NuclioAPIGateway{*testCase.apiGateway})
 
 			suite.Require().Len(migrations, 1)
-			suite.Require().Equal(testCase.expectedMode, migrations[0].mode)
+			suite.Require().Equal(testCase.expectedMode, migrations["func"].mode)
 		})
 	}
 }
@@ -202,12 +204,12 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeFromDivergentAPI
 				apiGateways)
 
 			suite.Require().Len(migrations, 1)
-			suite.Require().Equal(testCase.expectedMode, migrations[0].mode)
+			suite.Require().Equal(testCase.expectedMode, migrations["func"].mode)
 
 			// the credential source is only ever read once the winning mode is basicAuth, so it is
 			// deliberately left claimed by an outranked gateway rather than cleared
 			if testCase.expectedMode == auth.AuthenticationModeBasicAuth {
-				suite.Require().NotNil(migrations[0].basicAuthAPIGateway)
+				suite.Require().NotNil(migrations["func"].basicAuthAPIGateway)
 			}
 		})
 	}
@@ -232,7 +234,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeForCanaryAPIGate
 			[]v1beta1.NuclioAPIGateway{*canaryAPIGateway})
 
 		suite.Require().Len(migrations, 1)
-		suite.Require().Equal(auth.AuthenticationModeBrowser, migrations[0].mode, functionName)
+		suite.Require().Equal(auth.AuthenticationModeBrowser, migrations[functionName].mode, functionName)
 	}
 }
 
@@ -264,7 +266,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeSkipsAlreadyMigr
 				[]v1beta1.NuclioAPIGateway{apiGateway})
 
 			suite.Require().Len(migrations, 1)
-			suite.Require().Equal(auth.AuthenticationMode(""), migrations[0].mode)
+			suite.Require().Equal(auth.AuthenticationMode(""), migrations["func"].mode)
 		})
 	}
 }
@@ -505,6 +507,68 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateBasicAuthScrubsCrede
 
 	suite.Require().Equal("test-pass",
 		functionSecrets[0].StringData[functionScrubber.EncodeSecretKey(passwordReference)])
+}
+
+// TestMigrateKeepsAPIGatewayAuthenticationWhenItsFunctionFails asserts a failed function write holds back
+// only the gateways in front of that function - draining them would leave it unauthenticated, and the next
+// restart could no longer derive its mode from them - while gateways whose functions all migrated are drained.
+func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateKeepsAPIGatewayAuthenticationWhenItsFunctionFails() {
+	suite.withFunctionAuthentication(auth.AuthenticationModeAPI)
+
+	migratedFunction := suite.compileFunction("migrated-func", functionconfig.FunctionStateReady, "")
+	failedFunction := suite.compileFunction("failed-func", functionconfig.FunctionStateReady, "")
+
+	// the canary gateway fronts both functions, so the one that fails holds it back on its own
+	canaryAPIGateway := suite.compileAPIGateway("canary-gw", "migrated-func", auth.AuthenticationModeIguazio, nil)
+	canaryAPIGateway.Spec.Upstreams = append(canaryAPIGateway.Spec.Upstreams, platform.APIGatewayUpstreamSpec{
+		Kind:           platform.APIGatewayUpstreamKindNuclioFunction,
+		NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{Name: "failed-func"},
+	})
+	migratedAPIGateway := suite.compileAPIGateway("migrated-gw", "migrated-func", auth.AuthenticationModeIguazio, nil)
+
+	suite.expectListUnmigrated(
+		[]v1beta1.NuclioFunction{*migratedFunction, *failedFunction},
+		[]v1beta1.NuclioAPIGateway{*canaryAPIGateway, *migratedAPIGateway})
+
+	suite.nuclioFunctionInterfaceMock.
+		On("Update", suite.ctx, mock.MatchedBy(func(function *v1beta1.NuclioFunction) bool {
+			return function.Name == "migrated-func"
+		}), metav1.UpdateOptions{}).
+		Return(migratedFunction, nil).
+		Once()
+	suite.nuclioFunctionInterfaceMock.
+		On("Update", suite.ctx, mock.MatchedBy(func(function *v1beta1.NuclioFunction) bool {
+			return function.Name == "failed-func"
+		}), metav1.UpdateOptions{}).
+		Return(nil, apierrors.NewBadRequest("failed to write the function")).
+		Once()
+
+	// deliberately matches any gateway, so the assertions below can pin down exactly which ones were drained
+	var updatedAPIGateways []*v1beta1.NuclioAPIGateway
+	var updatedAPIGatewaysLock sync.Mutex
+	suite.nuclioAPIGatewayInterfaceMock.
+		On("Update", suite.ctx, mock.Anything, metav1.UpdateOptions{}).
+		Return(func(_ context.Context,
+			apiGateway *v1beta1.NuclioAPIGateway,
+			_ metav1.UpdateOptions) *v1beta1.NuclioAPIGateway {
+			updatedAPIGatewaysLock.Lock()
+			defer updatedAPIGatewaysLock.Unlock()
+			updatedAPIGateways = append(updatedAPIGateways, apiGateway)
+			return apiGateway
+		}, nil)
+
+	suite.platform.MigrateFunctionAuthentication(suite.ctx)
+
+	// the canary gateway is left untouched - authentication, label and state - so the next restart lists it
+	// again and re-derives the mode from it
+	suite.Require().Len(updatedAPIGateways, 1)
+	suite.Require().Equal("migrated-gw", updatedAPIGateways[0].Name)
+	suite.Require().Equal(auth.AuthenticationMode(""), updatedAPIGateways[0].Spec.AuthenticationMode)
+	suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
+		updatedAPIGateways[0].Labels[common.NuclioLabelKeyMigrationFunctionAuth])
+
+	suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
 }
 
 // TestMigrateIsIdempotent asserts a second sweep writes nothing, because the label selector excludes
