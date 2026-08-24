@@ -150,12 +150,20 @@ func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 				"err", err.Error())
 			continue
 		}
-		if currentMode != "" {
+		if functionconfig.IsAuthenticationEnabled(currentMode) {
 			// already on the new model, whether the user set it or the deploy-time enrichment did
 			p.Logger.DebugWithCtx(ctx, "Function already declares an authentication mode, marking as migrated",
 				"functionName", function.Name,
 				"authenticationMode", currentMode)
 			continue
+		}
+		if currentMode != "" {
+			// the mode was never validated while the feature flag was off, so a mode no auth-proxy can
+			// enforce is not a declaration - drop it and let the api gateways below resolve the mode instead
+			p.Logger.WarnWithCtx(ctx,
+				"Function declares an unsupported authentication mode, resolving it from the api gateways",
+				"functionName", function.Name,
+				"authenticationMode", currentMode)
 		}
 
 		migrationsWaitingForMode[function.Name] = migration

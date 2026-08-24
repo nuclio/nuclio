@@ -375,7 +375,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeSkipsAlreadyMigr
 	}{
 		{
 			name:     "an explicit mode is not overwritten",
-			function: suite.compileFunction("func", functionconfig.FunctionStateReady, auth.AuthenticationModeNone),
+			function: suite.compileFunction("func", functionconfig.FunctionStateReady, auth.AuthenticationModeAPI),
 		},
 		{
 			name: "a function with no HTTP trigger has nowhere to put a mode",
@@ -393,6 +393,59 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeSkipsAlreadyMigr
 
 			suite.Require().Len(migrations, 1)
 			suite.Require().Equal(auth.AuthenticationMode(""), migrations["func"].mode)
+		})
+	}
+}
+
+// TestResolveModeIgnoresUnenforceableMode asserts a mode the auth-proxy cannot enforce is treated as no mode
+// at all. Nothing validated the attribute while the feature flag was off, so keeping it would label the
+// function as migrated and drain the api gateway in front of it, leaving it open.
+func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeIgnoresUnenforceableMode() {
+	for _, testCase := range []struct {
+		name         string
+		currentMode  auth.AuthenticationMode
+		gatewayMode  auth.AuthenticationMode
+		expectedMode auth.AuthenticationMode
+	}{
+		{
+			name:         "a mode that does not exist is resolved from the gateway",
+			currentMode:  "not-exist",
+			gatewayMode:  auth.AuthenticationModeIguazio,
+			expectedMode: auth.AuthenticationModeBrowser,
+		},
+		{
+			// an api gateway mode is not a function-level one, and is the likeliest value to be copied over
+			name:         "an api gateway mode is resolved from the gateway",
+			currentMode:  auth.AuthenticationModeAccessKey,
+			gatewayMode:  auth.AuthenticationModeAccessKey,
+			expectedMode: auth.AuthenticationModeAPI,
+		},
+		{
+			// none is a valid mode, but one written while the flag was off carries no intent: nothing read it,
+			// while the gateway in front of the function did authenticate
+			name:         "an explicit none is resolved from the gateway",
+			currentMode:  auth.AuthenticationModeNone,
+			gatewayMode:  auth.AuthenticationModeIguazio,
+			expectedMode: auth.AuthenticationModeBrowser,
+		},
+		{
+			name:         "with no gateway authentication the function is left unauthenticated",
+			currentMode:  "not-exist",
+			gatewayMode:  auth.AuthenticationModeNone,
+			expectedMode: "",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.abstractPlatform.Config.Authentication.DefaultMode = auth.AuthenticationModeAPI
+
+			migrations := suite.platform.resolveFunctionAuthMigrations(suite.ctx,
+				[]v1beta1.NuclioFunction{
+					*suite.compileFunction("func", functionconfig.FunctionStateReady, testCase.currentMode),
+				},
+				[]v1beta1.NuclioAPIGateway{*suite.compileAPIGateway("gw", "func", testCase.gatewayMode, nil)})
+
+			suite.Require().Len(migrations, 1)
+			suite.Require().Equal(testCase.expectedMode, migrations["func"].mode)
 		})
 	}
 }
@@ -540,7 +593,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionWithNoAPIGat
 // marked without its spec being touched, so the sweep never overwrites an explicit choice.
 func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionAlreadyOnTheNewModelOnlyMarksIt() {
 	suite.withFunctionAuthentication(auth.AuthenticationModeAPI)
-	function := suite.compileFunction("func", functionconfig.FunctionStateReady, auth.AuthenticationModeNone)
+	function := suite.compileFunction("func", functionconfig.FunctionStateReady, auth.AuthenticationModeBrowser)
 	apiGateway := suite.compileAPIGateway("gw", "func", auth.AuthenticationModeIguazio, nil)
 	suite.expectListUnmigrated([]v1beta1.NuclioFunction{*function}, []v1beta1.NuclioAPIGateway{*apiGateway})
 
@@ -556,7 +609,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionAlreadyOnThe
 
 	suite.platform.MigrateFunctionAuthentication(suite.ctx)
 
-	suite.Require().Equal(string(auth.AuthenticationModeNone),
+	suite.Require().Equal(string(auth.AuthenticationModeBrowser),
 		updatedFunction.Spec.Triggers["http"].Attributes[auth.AttributeAuthenticationMode])
 	suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
 		updatedFunction.Labels[common.NuclioLabelKeyMigrationFunctionAuth])
