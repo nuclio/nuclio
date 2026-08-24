@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -109,22 +110,25 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeFromSingleAPIGat
 			expectedMode: auth.AuthenticationModeBasicAuth,
 		},
 		{
-			name:         "a gateway with no authentication falls back to the platform default",
+			// a function no gateway carries authentication for is left unauthenticated, not stamped with
+			// the platform default - it was open before the migration and stays open after it
+			name:         "a gateway with no authentication leaves the function unauthenticated",
 			apiGateway:   suite.compileAPIGateway("gw", "func", auth.AuthenticationModeNone, nil),
 			defaultMode:  auth.AuthenticationModeAPI,
-			expectedMode: auth.AuthenticationModeAPI,
+			expectedMode: "",
 		},
 		{
-			name:         "an unknown gateway mode fails secure to the platform default",
+			// and the platform default does not leak in through the gateway pass either
+			name:         "a non-none platform default is not used as a fallback",
+			apiGateway:   suite.compileAPIGateway("gw", "func", auth.AuthenticationModeNone, nil),
+			defaultMode:  auth.AuthenticationModeBrowser,
+			expectedMode: "",
+		},
+		{
+			name:         "an unknown gateway mode is skipped, contributing nothing",
 			apiGateway:   suite.compileAPIGateway("gw", "func", auth.AuthenticationMode("bogus"), nil),
 			defaultMode:  auth.AuthenticationModeAPI,
-			expectedMode: auth.AuthenticationModeAPI,
-		},
-		{
-			name:         "a none default is written explicitly, never left empty",
-			apiGateway:   suite.compileAPIGateway("gw", "func", auth.AuthenticationModeNone, nil),
-			defaultMode:  auth.AuthenticationModeNone,
-			expectedMode: auth.AuthenticationModeNone,
+			expectedMode: "",
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -215,6 +219,128 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeFromDivergentAPI
 	}
 }
 
+// TestResolveBasicAuthFromMultipleAPIGateways asserts a function fronted by more than one basicAuth gateway
+// takes the newest gateway's credentials. The function's HTTP trigger holds a single username and password,
+// so exactly one gateway can win, and which one must not depend on the order they were listed in.
+func (suite *AuthMigrationKubePlatformTestSuite) TestResolveBasicAuthFromMultipleAPIGateways() {
+	type apiGatewayTestCase struct {
+		name string
+		mode auth.AuthenticationMode
+
+		// minutes after a fixed base, so the newest gateway is stated rather than implied by list order
+		createdAfterMinutes int
+	}
+
+	for _, testCase := range []struct {
+		name        string
+		apiGateways []apiGatewayTestCase
+
+		expectedMode auth.AuthenticationMode
+
+		// asserted only when it is set, since the credential source is read only once basicAuth is the mode
+		// that won
+		expectedBasicAuthAPIGatewayName string
+	}{
+		{
+			name: "a single basicAuth gateway resolves",
+			apiGateways: []apiGatewayTestCase{
+				{name: "only-gw", mode: auth.AuthenticationModeBasicAuth},
+			},
+			expectedMode:                    auth.AuthenticationModeBasicAuth,
+			expectedBasicAuthAPIGatewayName: "only-gw",
+		},
+		{
+			name: "the newest of two basicAuth gateways carries the credentials",
+			apiGateways: []apiGatewayTestCase{
+				{name: "older-gw", mode: auth.AuthenticationModeBasicAuth},
+				{name: "newer-gw", mode: auth.AuthenticationModeBasicAuth, createdAfterMinutes: 10},
+			},
+			expectedMode:                    auth.AuthenticationModeBasicAuth,
+			expectedBasicAuthAPIGatewayName: "newer-gw",
+		},
+		{
+			// same gateways, reversed, so the answer is proven to come from the timestamps
+			name: "regardless of the order the gateways are listed in",
+			apiGateways: []apiGatewayTestCase{
+				{name: "newer-gw", mode: auth.AuthenticationModeBasicAuth, createdAfterMinutes: 10},
+				{name: "older-gw", mode: auth.AuthenticationModeBasicAuth},
+			},
+			expectedMode:                    auth.AuthenticationModeBasicAuth,
+			expectedBasicAuthAPIGatewayName: "newer-gw",
+		},
+		{
+			// creationTimestamp is only second-granular, so gateways created together must still resolve
+			name: "the greater name breaks a tie between gateways created at the same time",
+			apiGateways: []apiGatewayTestCase{
+				{name: "gw-b", mode: auth.AuthenticationModeBasicAuth},
+				{name: "gw-a", mode: auth.AuthenticationModeBasicAuth},
+			},
+			expectedMode:                    auth.AuthenticationModeBasicAuth,
+			expectedBasicAuthAPIGatewayName: "gw-b",
+		},
+		{
+			// the newer gateway carries no credentials of its own, so it must not displace the claim
+			name: "a newer gateway with no authentication is not a basicAuth claim",
+			apiGateways: []apiGatewayTestCase{
+				{name: "basic-auth-gw", mode: auth.AuthenticationModeBasicAuth},
+				{name: "none-gw", mode: auth.AuthenticationModeNone, createdAfterMinutes: 10},
+			},
+			expectedMode:                    auth.AuthenticationModeBasicAuth,
+			expectedBasicAuthAPIGatewayName: "basic-auth-gw",
+		},
+		{
+			// basicAuth lost, so no credentials are ever read and the choice between them does not matter
+			name: "two basicAuth gateways outranked by another mode still resolve",
+			apiGateways: []apiGatewayTestCase{
+				{name: "first-basic-auth-gw", mode: auth.AuthenticationModeBasicAuth},
+				{name: "second-basic-auth-gw", mode: auth.AuthenticationModeBasicAuth, createdAfterMinutes: 10},
+				{name: "iguazio-gw", mode: auth.AuthenticationModeIguazio},
+			},
+			expectedMode: auth.AuthenticationModeBrowser,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.abstractPlatform.Config.Authentication.DefaultMode = auth.AuthenticationModeAPI
+
+			baseCreationTime := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+			var apiGateways []v1beta1.NuclioAPIGateway
+			for _, apiGatewayTestCase := range testCase.apiGateways {
+				var authentication *platform.APIGatewayAuthenticationSpec
+				if apiGatewayTestCase.mode == auth.AuthenticationModeBasicAuth {
+
+					// distinct credentials per gateway, so exactly one of them can be the winner
+					authentication = suite.compileBasicAuthentication(
+						fmt.Sprintf("%s-user", apiGatewayTestCase.name),
+						fmt.Sprintf("%s-pass", apiGatewayTestCase.name))
+				}
+				apiGateway := suite.compileAPIGateway(apiGatewayTestCase.name,
+					"func",
+					apiGatewayTestCase.mode,
+					authentication)
+				apiGateway.CreationTimestamp = metav1.NewTime(
+					baseCreationTime.Add(time.Duration(apiGatewayTestCase.createdAfterMinutes) * time.Minute))
+				apiGateways = append(apiGateways, *apiGateway)
+			}
+
+			migrations := suite.platform.resolveFunctionAuthMigrations(suite.ctx,
+				[]v1beta1.NuclioFunction{
+					*suite.compileFunction("func", functionconfig.FunctionStateReady, ""),
+				},
+				apiGateways)
+
+			suite.Require().Len(migrations, 1)
+			suite.Require().Equal(testCase.expectedMode, migrations["func"].mode)
+
+			if testCase.expectedBasicAuthAPIGatewayName != "" {
+				suite.Require().NotNil(migrations["func"].basicAuthAPIGateway)
+				suite.Require().Equal(testCase.expectedBasicAuthAPIGatewayName,
+					migrations["func"].basicAuthAPIGateway.Name)
+			}
+		})
+	}
+}
+
 // TestResolveModeForCanaryAPIGateway asserts a canary gateway contributes its mode to both of its targets.
 func (suite *AuthMigrationKubePlatformTestSuite) TestResolveModeForCanaryAPIGateway() {
 	suite.abstractPlatform.Config.Authentication.DefaultMode = auth.AuthenticationModeAPI
@@ -298,7 +424,12 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateLabelsStaleFunctions
 			suite.abstractPlatform.DefaultNamespace = suite.Namespace
 
 			function := suite.compileFunction("func", testCase.functionState, "")
-			suite.expectListUnmigrated([]v1beta1.NuclioFunction{*function}, nil)
+
+			// the gateway is what supplies the mode - nothing falls back to the platform default anymore,
+			// so without one every state would look the same and the assertion below would prove nothing
+			apiGateway := suite.compileAPIGateway("gw", "func", auth.AuthenticationModeIguazio, nil)
+			suite.expectListUnmigrated([]v1beta1.NuclioFunction{*function},
+				[]v1beta1.NuclioAPIGateway{*apiGateway})
 
 			updatedFunction := &v1beta1.NuclioFunction{}
 			suite.nuclioFunctionInterfaceMock.
@@ -308,11 +439,12 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateLabelsStaleFunctions
 				}), metav1.UpdateOptions{}).
 				Return(updatedFunction, nil).
 				Once()
+			suite.expectAPIGatewayUpdate()
 
 			suite.platform.MigrateFunctionAuthentication(suite.ctx)
 
 			if testCase.expectModeSet {
-				suite.Require().Equal(string(auth.AuthenticationModeAPI),
+				suite.Require().Equal(string(auth.AuthenticationModeBrowser),
 					updatedFunction.Spec.Triggers["http"].Attributes[auth.AttributeAuthenticationMode])
 			} else {
 				suite.Require().Empty(
@@ -366,9 +498,11 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionStampsModeAn
 	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
 }
 
-// TestMigrateFunctionWithNoAPIGatewayUsesPlatformDefault asserts a function no gateway speaks for still
-// ends up with a mode - the platform-wide default - rather than being left with none.
-func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionWithNoAPIGatewayUsesPlatformDefault() {
+// TestMigrateFunctionWithNoAPIGatewayIsLeftUnauthenticated asserts a function no gateway carries
+// authentication for is only labeled, never given a mode. It was reachable without credentials before the
+// migration and stays that way after it - an absent mode is the same as none - so the platform default is
+// deliberately not used as a fallback, whatever it is set to.
+func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionWithNoAPIGatewayIsLeftUnauthenticated() {
 	for _, defaultMode := range []auth.AuthenticationMode{
 		auth.AuthenticationModeAPI,
 		auth.AuthenticationModeBrowser,
@@ -393,8 +527,8 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionWithNoAPIGat
 
 			suite.platform.MigrateFunctionAuthentication(suite.ctx)
 
-			suite.Require().Equal(string(defaultMode),
-				updatedFunction.Spec.Triggers["http"].Attributes[auth.AttributeAuthenticationMode])
+			suite.Require().NotContains(updatedFunction.Spec.Triggers["http"].Attributes,
+				auth.AttributeAuthenticationMode)
 			suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
 				updatedFunction.Labels[common.NuclioLabelKeyMigrationFunctionAuth])
 			suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
@@ -566,6 +700,135 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateKeepsAPIGatewayAuthe
 	suite.Require().Equal(auth.AuthenticationMode(""), updatedAPIGateways[0].Spec.AuthenticationMode)
 	suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
 		updatedAPIGateways[0].Labels[common.NuclioLabelKeyMigrationFunctionAuth])
+
+	suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+}
+
+// TestMigrateBasicAuthTakesTheNewestAPIGatewayCredentials asserts a function fronted by two basicAuth
+// gateways migrates with the newest gateway's credentials, and that both gateways are still drained - the
+// older gateway's credentials stop working, which is the cost of the function holding a single pair.
+func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateBasicAuthTakesTheNewestAPIGatewayCredentials() {
+	suite.withFunctionAuthentication(auth.AuthenticationModeAPI)
+
+	function := suite.compileFunction("func", functionconfig.FunctionStateReady, "")
+
+	olderAPIGateway := suite.compileAPIGateway("older-gw",
+		"func",
+		auth.AuthenticationModeBasicAuth,
+		suite.compileBasicAuthentication("older-user", "older-pass"))
+	olderAPIGateway.CreationTimestamp = metav1.NewTime(
+		time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC))
+
+	newerAPIGateway := suite.compileAPIGateway("newer-gw",
+		"func",
+		auth.AuthenticationModeBasicAuth,
+		suite.compileBasicAuthentication("newer-user", "newer-pass"))
+	newerAPIGateway.CreationTimestamp = metav1.NewTime(
+		time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC))
+
+	// listed oldest last, so the winner cannot come from list order
+	suite.expectListUnmigrated([]v1beta1.NuclioFunction{*function},
+		[]v1beta1.NuclioAPIGateway{*newerAPIGateway, *olderAPIGateway})
+
+	updatedFunction := &v1beta1.NuclioFunction{}
+	suite.nuclioFunctionInterfaceMock.
+		On("Update", suite.ctx, mock.MatchedBy(func(function *v1beta1.NuclioFunction) bool {
+			*updatedFunction = *function
+			return true
+		}), metav1.UpdateOptions{}).
+		Return(updatedFunction, nil).
+		Once()
+
+	// matches any gateway, so the assertion below can pin down exactly which ones were drained
+	var updatedAPIGatewayNames []string
+	var updatedAPIGatewayNamesLock sync.Mutex
+	suite.nuclioAPIGatewayInterfaceMock.
+		On("Update", suite.ctx, mock.Anything, metav1.UpdateOptions{}).
+		Return(func(_ context.Context,
+			apiGateway *v1beta1.NuclioAPIGateway,
+			_ metav1.UpdateOptions) *v1beta1.NuclioAPIGateway {
+			updatedAPIGatewayNamesLock.Lock()
+			defer updatedAPIGatewayNamesLock.Unlock()
+			updatedAPIGatewayNames = append(updatedAPIGatewayNames, apiGateway.Name)
+			return apiGateway
+		}, nil)
+
+	suite.platform.MigrateFunctionAuthentication(suite.ctx)
+
+	suite.Require().Equal(string(auth.AuthenticationModeBasicAuth),
+		updatedFunction.Spec.Triggers["http"].Attributes[auth.AttributeAuthenticationMode])
+
+	basicAuthAttributes := updatedFunction.Spec.Triggers["http"].
+		Attributes[auth.AttributeAuthentication].(map[string]interface{})[auth.AttributeBasicAuth].(map[string]interface{})
+	suite.Require().Equal("newer-user", basicAuthAttributes["username"])
+	suite.Require().Equal("newer-pass", basicAuthAttributes["password"])
+
+	// the function migrated, so nothing holds either gateway back - including the one whose credentials lost
+	suite.Require().ElementsMatch([]string{"newer-gw", "older-gw"}, updatedAPIGatewayNames)
+
+	suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+}
+
+// TestMigrateFunctionOutranksMultipleBasicAuthAPIGateways asserts the choice between several basicAuth
+// gateways is never made when basicAuth is not the mode that wins: two basicAuth gateways alongside one that
+// maps to api leave the function on api, with neither set of credentials copied onto it.
+func (suite *AuthMigrationKubePlatformTestSuite) TestMigrateFunctionOutranksMultipleBasicAuthAPIGateways() {
+
+	// deliberately not api, so the winning mode is proven to come from the gateway ranking rather than from
+	// the platform default
+	suite.withFunctionAuthentication(auth.AuthenticationModeBrowser)
+
+	function := suite.compileFunction("func", functionconfig.FunctionStateReady, "")
+	suite.expectListUnmigrated([]v1beta1.NuclioFunction{*function},
+		[]v1beta1.NuclioAPIGateway{
+			*suite.compileAPIGateway("first-basic-auth-gw", "func", auth.AuthenticationModeBasicAuth,
+				suite.compileBasicAuthentication("first-user", "first-pass")),
+			*suite.compileAPIGateway("second-basic-auth-gw", "func", auth.AuthenticationModeBasicAuth,
+				suite.compileBasicAuthentication("second-user", "second-pass")),
+			*suite.compileAPIGateway("access-key-gw", "func", auth.AuthenticationModeAccessKey, nil),
+		})
+
+	updatedFunction := &v1beta1.NuclioFunction{}
+	suite.nuclioFunctionInterfaceMock.
+		On("Update", suite.ctx, mock.MatchedBy(func(function *v1beta1.NuclioFunction) bool {
+			*updatedFunction = *function
+			return true
+		}), metav1.UpdateOptions{}).
+		Return(updatedFunction, nil).
+		Once()
+
+	// matches any gateway, so the assertion below can pin down exactly which ones were drained
+	var updatedAPIGatewayNames []string
+	var updatedAPIGatewayNamesLock sync.Mutex
+	suite.nuclioAPIGatewayInterfaceMock.
+		On("Update", suite.ctx, mock.Anything, metav1.UpdateOptions{}).
+		Return(func(_ context.Context,
+			apiGateway *v1beta1.NuclioAPIGateway,
+			_ metav1.UpdateOptions) *v1beta1.NuclioAPIGateway {
+			updatedAPIGatewayNamesLock.Lock()
+			defer updatedAPIGatewayNamesLock.Unlock()
+			updatedAPIGatewayNames = append(updatedAPIGatewayNames, apiGateway.Name)
+			return apiGateway
+		}, nil)
+
+	suite.platform.MigrateFunctionAuthentication(suite.ctx)
+
+	// api outranks basicAuth, so neither gateway's credentials are ever read
+	suite.Require().Equal(string(auth.AuthenticationModeAPI),
+		updatedFunction.Spec.Triggers["http"].Attributes[auth.AttributeAuthenticationMode])
+	suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
+		updatedFunction.Labels[common.NuclioLabelKeyMigrationFunctionAuth])
+
+	// and no credentials are carried over, since api needs none - the losing gateways' claims are dropped
+	// with them
+	suite.Require().NotContains(updatedFunction.Spec.Triggers["http"].Attributes,
+		auth.AttributeAuthentication)
+
+	// the function migrated, so nothing holds any of the three gateways back
+	suite.Require().ElementsMatch([]string{"first-basic-auth-gw", "second-basic-auth-gw", "access-key-gw"},
+		updatedAPIGatewayNames)
 
 	suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())

@@ -44,7 +44,8 @@ type functionAuthMigration struct {
 	mode auth.AuthenticationMode
 
 	// set only for basicAuth: the credentials live in that gateway's own secret and must be re-scrubbed
-	// into the function's secret, because a $ref resolves only against the secret of its owner
+	// into the function's secret, because a $ref resolves only against the secret of its owner. When
+	// several basicAuth gateways front the function, this holds the newest one
 	basicAuthAPIGateway *nuclioio.NuclioAPIGateway
 	migrated            bool
 }
@@ -163,14 +164,15 @@ func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 	// a gateway's mode is offered to every function behind it, so a canary gateway covers both of its
 	// targets, and a function behind gateways that disagree keeps the highest ranked mode
 	for _, apiGateway := range apiGateways {
-		candidateMode, err := translateAPIGatewayAuthenticationMode(&apiGateway)
+		gatewayAuthenticationMode, err := translateAPIGatewayAuthenticationMode(&apiGateway)
 		if err != nil {
 			// an unmappable mode must never leave a function unauthenticated
 			p.Logger.ErrorWithCtx(ctx,
-				"Failed to translate api gateway authentication mode, falling back to the platform default",
+				"Failed to translate api gateway authentication mode, skipping the gateway authentication resolving",
 				"apiGatewayName", apiGateway.Name,
+				"gatewayAuthenticationMode", apiGateway.Spec.AuthenticationMode,
 				"err", err.Error())
-			candidateMode = p.Config.Authentication.DefaultMode
+			continue
 		}
 
 		for _, upstream := range apiGateway.Spec.Upstreams {
@@ -183,33 +185,44 @@ func (p *Platform) resolveFunctionAuthMigrations(ctx context.Context,
 				continue
 			}
 
-			chosenMode := p.chooseAuthByPriority(migration.mode, candidateMode)
-			if migration.mode != "" && migration.mode != candidateMode {
-				p.Logger.WarnWithCtx(ctx,
+			chosenMode := p.chooseAuthByPriority(migration.mode, gatewayAuthenticationMode)
+			if migration.mode != "" && migration.mode != gatewayAuthenticationMode {
+				p.Logger.DebugWithCtx(ctx,
 					"Function is fronted by api gateways with divergent authentication, taking the higher priority",
 					"functionName", migration.function.Name,
 					"apiGatewayName", apiGateway.Name,
 					"previousMode", migration.mode,
-					"candidateMode", candidateMode,
+					"gatewayAuthenticationMode", gatewayAuthenticationMode,
 					"chosenMode", chosenMode)
 			}
 			migration.mode = chosenMode
 
-			// the first basicAuth gateway keeps the claim, and it is never cleared when a later gateway
-			// outranks it, because this field is only read once the final mode is basicAuth
-			if chosenMode == auth.AuthenticationModeBasicAuth && migration.basicAuthAPIGateway == nil {
-				migration.basicAuthAPIGateway = &apiGateway
+			if gatewayAuthenticationMode == auth.AuthenticationModeBasicAuth {
+				if migration.basicAuthAPIGateway == nil {
+					migration.basicAuthAPIGateway = &apiGateway
+				} else {
+					// the function's HTTP trigger holds a single username and password, so only one
+					// gateway's credentials can move onto it
+					chosen, dropped := migration.basicAuthAPIGateway, &apiGateway
+					if isPreferredBasicAuthAPIGateway(dropped, chosen) {
+						chosen, dropped = dropped, chosen
+					}
+					p.Logger.WarnWithCtx(ctx,
+						"Function is fronted by multiple basicAuth api gateways, keeping the newest one's credentials",
+						"functionName", migration.function.Name,
+						"chosenAPIGatewayName", chosen.Name,
+						"droppedAPIGatewayName", dropped.Name)
+					migration.basicAuthAPIGateway = chosen
+				}
 			}
 		}
 	}
 
 	for _, migration := range migrationsWaitingForMode {
-		// no gateway carried authentication, so fall back to the platform default - the same thing the
-		// deploy-time enrichment does
 		if migration.mode == "" {
-			migration.mode = p.Config.Authentication.DefaultMode
+			// no gateway carried authentication, so the function keeps no authentication
 			p.Logger.DebugWithCtx(ctx,
-				"No api gateway carries authentication for function, using the platform default",
+				"No api gateway with authentication fronted the function, leaving it unauthenticated",
 				"functionName", migration.function.Name)
 		}
 
@@ -249,6 +262,17 @@ func (p *Platform) chooseAuthByPriority(modeA, modeB auth.AuthenticationMode) au
 		return modeB
 	}
 	return modeA
+}
+
+// isPreferredBasicAuthAPIGateway reports whether candidate should replace chosen as the credential source of
+// a function fronted by several basicAuth gateways: the newest gateway wins, and because creationTimestamp
+// is only second-granular, the greater name breaks a tie. Both keys are immutable, so the answer is the same
+// on every run and never depends on the order the gateways were listed in.
+func isPreferredBasicAuthAPIGateway(candidate, chosen *nuclioio.NuclioAPIGateway) bool {
+	if candidate.CreationTimestamp.Equal(&chosen.CreationTimestamp) {
+		return candidate.Name > chosen.Name
+	}
+	return chosen.CreationTimestamp.Before(&candidate.CreationTimestamp)
 }
 
 // migrateFunctions is step 2: it writes the resolved mode onto each function. A failure is not fatal - the
@@ -564,7 +588,7 @@ func translateAPIGatewayAuthenticationMode(
 
 	switch apiGateway.Spec.AuthenticationMode {
 	case "", auth.AuthenticationModeNone:
-		return "", nil
+		return auth.AuthenticationModeNone, nil
 	case auth.AuthenticationModeIguazio:
 		return auth.AuthenticationModeBrowser, nil
 	case auth.AuthenticationModeAccessKey:
