@@ -38,6 +38,11 @@ const (
 
 	// AttributeAuthenticationMode is the key for the authentication mode in HTTP trigger attributes.
 	AttributeAuthenticationMode = "authenticationMode"
+
+	// AttributeAuthentication and AttributeBasicAuth are the keys of the mode-specific authentication
+	// config nested inside the HTTP trigger attributes.
+	AttributeAuthentication = "authentication"
+	AttributeBasicAuth      = "basicAuth"
 )
 
 type Kind string

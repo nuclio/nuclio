@@ -244,6 +244,22 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
 
+	// block the deploy while the function still waits for the authentication migration, or the two writes
+	// would race and one of them would be lost. Checked here, before the deploy starts, so a rejection
+	// never leaves the function in error state
+	if existingFunctionInstance != nil {
+		if err := p.checkNotMigratedToFunctionAuthentication("Function",
+			existingFunctionInstance.Name,
+			existingFunctionInstance.Labels); err != nil {
+			return nil, err
+		}
+	} else {
+
+		// created while function-level authentication is already on, so there is nothing to migrate on it
+		createFunctionOptions.FunctionConfig.Meta.Labels = p.stampMigratedToFunctionAuthentication(
+			createFunctionOptions.FunctionConfig.Meta.Labels)
+	}
+
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
 	if err != nil {
@@ -952,6 +968,9 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 
 	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, newAPIGateway)
 
+	// created while function-level authentication is already on, so there is nothing to migrate on it
+	newAPIGateway.Labels = p.stampMigratedToFunctionAuthentication(newAPIGateway.Labels)
+
 	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
@@ -971,6 +990,12 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		updateAPIGatewayOptions.APIGatewayConfig.Meta.Name)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway to update")
+	}
+
+	if err := p.checkNotMigratedToFunctionAuthentication("Api gateway",
+		apiGateway.Name,
+		apiGateway.Labels); err != nil {
+		return err
 	}
 
 	projectName := apiGateway.Labels[common.NuclioResourceLabelKeyProjectName]
@@ -1027,7 +1052,11 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
-	apiGateway.Labels = updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels
+
+	// the request replaces the whole label map. Migration labels are internal bookkeeping, not part of the
+	// client-facing API, so they must be kept regardless of the labels the client sent
+	apiGateway.Labels = preserveMigrationLabel(updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels,
+		apiGateway.Labels)
 	apiGateway.Spec = updateAPIGatewayOptions.APIGatewayConfig.Spec
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource

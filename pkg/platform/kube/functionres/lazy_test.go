@@ -643,6 +643,26 @@ func (suite *lazyTestSuite) TestFunctionAuthenticationEnabled() {
 	}
 }
 
+// TestGetFunctionLabelsStripsMigrationLabels pins that migration labels never reach the rendered resources.
+// They would end up in the service selector, which an update rewrites without touching the labels of the
+// running pods - leaving the service with no pods at all.
+func (suite *lazyTestSuite) TestGetFunctionLabelsStripsMigrationLabels() {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func"
+	functionInstance.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName:                       "some-project",
+		common.NuclioLabelKeyMigrationFunctionAuth:                     common.NuclioLabelValueMigrationApplied,
+		common.NuclioLabelKeyMigrationPrefix + "some-future-migration": "true",
+	}
+
+	functionLabels := suite.client.getFunctionLabels(functionInstance)
+
+	suite.Require().Equal("some-project", functionLabels[common.NuclioResourceLabelKeyProjectName])
+	for labelKey := range functionLabels {
+		suite.Require().NotContains(labelKey, common.NuclioLabelKeyMigrationPrefix)
+	}
+}
+
 // TestInjectAuthProxySidecar verifies the auth-proxy sidecar is appended with the expected image/args/ports,
 // and that the config-restore env var is only set for basicAuth mode (api/browser have no credentials to
 // restore).

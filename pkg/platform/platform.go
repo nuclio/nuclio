@@ -190,6 +190,10 @@ type Platform interface {
 	// GetAllowedAuthenticationModes returns allowed authentication modes
 	GetAllowedAuthenticationModes() []string
 
+	// MigrateFunctionAuthentication moves authentication from the api gateways onto the functions' HTTP
+	// triggers. Runs in the background on startup, idempotent.
+	MigrateFunctionAuthentication(ctx context.Context)
+
 	// GetNamespaces returns all the namespaces in the platform
 	GetNamespaces(context.Context) ([]string, error)
 
