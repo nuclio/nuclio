@@ -419,6 +419,26 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 	}
 }
 
+func (suite *ClientTestSuite) TestGetUpdatedAfterEscalatesServiceAccountAuth() {
+	mockSAClient := &serviceaccounttoken.MockClient{}
+	mockSAClient.On("EscalateAuthHeaders", mock.Anything).Return(nil)
+	suite.client.serviceAccountTokenClient = mockSAClient
+
+	*suite.client.httpClient = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       suite.mockIgzAPIGetProject(false),
+		}
+	})
+	suite.client.leaderOps = suite.generateMocksForClient(getUpdatedAfter, true, 0)
+
+	now := time.Now()
+	_, err := suite.client.GetUpdatedAfter(context.TODO(), &now)
+	suite.Require().NoError(err)
+
+	mockSAClient.AssertCalled(suite.T(), "EscalateAuthHeaders", mock.Anything)
+}
+
 func (suite *ClientTestSuite) TestGet() {
 	for _, testCase := range []struct {
 		name   string
