@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.26.6
+go 1.26.7
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.6.0
@@ -66,7 +66,7 @@ require (
 	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.40.0
 	google.golang.org/api v0.291.0
-	google.golang.org/grpc v1.82.1
+	google.golang.org/grpc v1.83.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3
