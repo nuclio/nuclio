@@ -95,6 +95,13 @@ func ContainsPathTraversal(path string) bool {
 	return strings.Contains(path, "..")
 }
 
+// ContainsShellMetacharacters reports whether the given string contains characters that
+// have special meaning to a POSIX shell (/bin/sh -c). Such characters must never appear
+// in values that are interpolated into a shell command string.
+func ContainsShellMetacharacters(s string) bool {
+	return strings.ContainsAny(s, ";|&$`(){}\\\"' \t\n*?[]<>~!")
+}
+
 // IsPathWithinDir reports whether targetPath resolves to a location strictly inside dir.
 // Both arguments are resolved to absolute paths first, so the check is robust against
 // "../" traversal sequences in targetPath. A path equal to dir is not considered within it.
