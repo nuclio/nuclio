@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -40,6 +41,30 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/opa-client"
 )
+
+// projectFollowerResourceName is the second mount point this type serves, for the dedicated
+// /api/v1/follower/projects/* surface.
+// It is the same NuclioProject CRD with another registration with its own SA-only auth gate and custom routes.
+const projectFollowerResourceName = "api/v1/follower/projects"
+
+// projectFollowerStatus carries the request's op_id, nested under "status" per the wire
+// contract (confirmed against orca's feature/project-sync HTTPFollowerClient.projectBody,
+// which sends op_id as status.op_id, not top-level).
+type projectFollowerStatus struct {
+	OpID string `json:"op_id"`
+}
+
+// projectFollowerRequest is the request body shape shared by prepare-create, commit-create,
+// update, prepare-delete and commit-delete; each operation only populates the fields it needs.
+// Metadata/Spec reuse platform.ProjectMeta/platform.ProjectSpec: their json tags already match
+// the wire contract's metadata.{labels,annotations} and spec.{owner,description}. Name is never
+// read from the body — every operation but list-states takes it from the {name} URL segment.
+type projectFollowerRequest struct {
+	Metadata *platform.ProjectMeta  `json:"metadata,omitempty"`
+	Spec     *platform.ProjectSpec  `json:"spec,omitempty"`
+	Status   *projectFollowerStatus `json:"status,omitempty"`
+	PrevOpID string                 `json:"prev_op_id,omitempty"`
+}
 
 type projectResource struct {
 	*resource
@@ -64,7 +89,27 @@ type ProjectImportOptions struct {
 
 func (pr *projectResource) ExtendMiddlewares() error {
 	pr.addAuthMiddleware(nil)
+
+	// The follower surface is SA-only (no user token): every request must be the trusted
+	// Oris leader identity, with no fallback (unlike the legacy X-Projects-Role header path
+	// on api/projects).
+	if pr.GetName() == projectFollowerResourceName {
+		pr.GetRouter().Use(pr.requireTrustedLeaderOrigin)
+	}
 	return nil
+}
+
+func (pr *projectResource) requireTrustedLeaderOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		projectsLeader := pr.getDashboard().GetPlatformConfiguration().ProjectsLeader
+		if projectsLeader == nil ||
+			projectsLeader.Kind != platformconfig.ProjectsLeaderKindOris ||
+			!projectsLeader.TrustsLeaderOrigin(pr.getCtxSession(request.Context())) {
+			responseWriter.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(responseWriter, request)
+	})
 }
 
 // GetAll returns all projects
@@ -210,6 +255,17 @@ func (pr *projectResource) Update(request *http.Request, id string) (restful.Att
 // GetCustomRoutes returns a list of custom routes for the resource
 func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
+	if pr.GetName() == projectFollowerResourceName {
+		return []restful.CustomRoute{
+			{Pattern: "/{name}/prepare-create", Method: http.MethodPost, RouteFunc: pr.PrepareCreateProject},
+			{Pattern: "/{name}/commit-create", Method: http.MethodPost, RouteFunc: pr.CommitCreateProject},
+			{Pattern: "/{name}", Method: http.MethodPut, RouteFunc: pr.CommitUpdateProject},
+			{Pattern: "/{name}/prepare-delete", Method: http.MethodPost, RouteFunc: pr.PrepareDeleteProject},
+			{Pattern: "/{name}", Method: http.MethodDelete, RouteFunc: pr.CommitDeleteProject},
+			{Pattern: "/states", Method: http.MethodGet, RouteFunc: pr.ListProjectStates},
+		}, nil
+	}
+
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
@@ -225,6 +281,178 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			RouteFunc: pr.deleteProject,
 		},
 	}, nil
+}
+
+// PrepareCreateProject provisions a new project CRD (2PC step 1).
+func (pr *projectResource) PrepareCreateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	reqBody, err := pr.readFollowerRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := pr.getPlatform().PrepareCreateProject(request.Context(), &platform.PrepareCreateProjectOptions{
+		ProjectConfig: platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:        pr.GetRouterURLParam(request, "name"),
+				Namespace:   pr.getNamespaceFromRequest(request),
+				Labels:      reqBody.Metadata.Labels,
+				Annotations: reqBody.Metadata.Annotations,
+			},
+			Spec: platform.ProjectSpec{Owner: reqBody.Spec.Owner, Description: reqBody.Spec.Description},
+		},
+		OpID: reqBody.Status.OpID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pr.followerStateResponse(state), nil
+}
+
+// CommitCreateProject activates a provisioned project (2PC step 2) to online.
+func (pr *projectResource) CommitCreateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	reqBody, err := pr.readFollowerRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := pr.getPlatform().CommitCreateProject(request.Context(), &platform.CommitCreateProjectOptions{
+		Meta: platform.ProjectMeta{Name: pr.GetRouterURLParam(request, "name"), Namespace: pr.getNamespaceFromRequest(request)},
+		OpID: reqBody.Status.OpID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pr.followerStateResponse(state), nil
+}
+
+// CommitUpdateProject applies a common-set update to an online project.
+func (pr *projectResource) CommitUpdateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	reqBody, err := pr.readFollowerRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := pr.getPlatform().CommitUpdateProject(request.Context(), &platform.CommitUpdateProjectOptions{
+		ProjectConfig: platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:        pr.GetRouterURLParam(request, "name"),
+				Namespace:   pr.getNamespaceFromRequest(request),
+				Labels:      reqBody.Metadata.Labels,
+				Annotations: reqBody.Metadata.Annotations,
+			},
+			Spec: platform.ProjectSpec{Owner: reqBody.Spec.Owner, Description: reqBody.Spec.Description},
+		},
+		OpID:     reqBody.Status.OpID,
+		PrevOpID: reqBody.PrevOpID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pr.followerStateResponse(state), nil
+}
+
+// PrepareDeleteProject marks a project deleting (2PC delete step 1).
+func (pr *projectResource) PrepareDeleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	reqBody, err := pr.readFollowerRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := pr.getPlatform().PrepareDeleteProject(request.Context(), &platform.PrepareDeleteProjectOptions{
+		Meta:     platform.ProjectMeta{Name: pr.GetRouterURLParam(request, "name"), Namespace: pr.getNamespaceFromRequest(request)},
+		OpID:     reqBody.Status.OpID,
+		PrevOpID: reqBody.PrevOpID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pr.followerStateResponse(state), nil
+}
+
+// CommitDeleteProject purges the project CRD (2PC delete step 2).
+func (pr *projectResource) CommitDeleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	reqBody, err := pr.readFollowerRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := pr.getPlatform().CommitDeleteProject(request.Context(), &platform.CommitDeleteProjectOptions{
+		Meta: platform.ProjectMeta{Name: pr.GetRouterURLParam(request, "name"), Namespace: pr.getNamespaceFromRequest(request)},
+		OpID: reqBody.Status.OpID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pr.followerStateResponse(state), nil
+}
+
+// ListProjectStates lists this follower's projects for the leader's reconciliation sweep.
+func (pr *projectResource) ListProjectStates(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	options := &platform.ListProjectStatesOptions{
+		Namespace: pr.getNamespaceFromRequest(request),
+		Cursor:    pr.GetURLParamStringOrDefault(request, "cursor", ""),
+		Limit:     int(pr.GetURLParamInt64OrDefault(request, "limit", 0)),
+	}
+	if updatedAfter := pr.GetURLParamStringOrDefault(request, "updated_after", ""); updatedAfter != "" {
+		parsed, err := time.Parse(time.RFC3339, updatedAfter)
+		if err != nil {
+			return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse updated_after"))
+		}
+		options.UpdatedAfter = &parsed
+	}
+
+	page, err := pr.getPlatform().ListProjectStates(request.Context(), options)
+	if err != nil {
+		return nil, err
+	}
+
+	projects := make([]restful.Attributes, len(page.States))
+	for i, state := range page.States {
+		projects[i] = restful.Attributes{"name": state.Name, "op_id": state.OpID, "sync_status": state.SyncStatus}
+	}
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "project",
+		Single:       true,
+		StatusCode:   http.StatusOK,
+		Resources: map[string]restful.Attributes{
+			"projects": {"projects": projects, "next_cursor": page.NextCursor},
+		},
+	}, nil
+}
+
+func (pr *projectResource) readFollowerRequest(request *http.Request) (*projectFollowerRequest, error) {
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read body")
+	}
+
+	reqBody := projectFollowerRequest{}
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &reqBody); err != nil {
+			return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse request JSON body"))
+		}
+	}
+	if reqBody.Metadata == nil {
+		reqBody.Metadata = &platform.ProjectMeta{}
+	}
+	if reqBody.Spec == nil {
+		reqBody.Spec = &platform.ProjectSpec{}
+	}
+	if reqBody.Status == nil {
+		reqBody.Status = &projectFollowerStatus{}
+	}
+	return &reqBody, nil
+}
+
+func (pr *projectResource) followerStateResponse(state *platform.Project2PCState) *restful.CustomRouteFuncResponse {
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "project",
+		Single:       true,
+		StatusCode:   http.StatusOK,
+		Resources: map[string]restful.Attributes{
+			state.Name: {"name": state.Name, "op_id": state.OpID, "sync_status": state.SyncStatus},
+		},
+	}
 }
 
 func (pr *projectResource) export(request *http.Request, project platform.Project) restful.Attributes {
@@ -879,4 +1107,15 @@ var projectResourceInstance = &projectResource{
 func init() {
 	projectResourceInstance.Resource = projectResourceInstance
 	projectResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+}
+
+// register the follower resource: same projectResource type and CRD, second mount point
+// (see projectFollowerResourceName).
+var projectFollowerResourceInstance = &projectResource{
+	resource: newResource(projectFollowerResourceName, []restful.ResourceMethod{}),
+}
+
+func init() {
+	projectFollowerResourceInstance.Resource = projectFollowerResourceInstance
+	projectFollowerResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
 }
