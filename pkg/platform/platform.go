@@ -121,6 +121,30 @@ type Platform interface {
 	// GetFunctionProject returns project instance for specific function
 	GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (Project, error)
 
+	// 2PC project operations: the dedicated /api/v1/follower/projects/* surface. Only a
+	// platform actually driving that surface (kube, with Oris configured as leader) implements
+	// these for real; every other platform returns ErrUnsupportedMethod.
+
+	// PrepareCreateProject provisions a new project CRD (2PC step 1); not yet online.
+	PrepareCreateProject(ctx context.Context, options *PrepareCreateProjectOptions) (*Project2PCState, error)
+
+	// CommitCreateProject activates a provisioned project (2PC step 2) -> online.
+	CommitCreateProject(ctx context.Context, options *CommitCreateProjectOptions) (*Project2PCState, error)
+
+	// CommitUpdateProject applies a common-set update to an online project.
+	CommitUpdateProject(ctx context.Context, options *CommitUpdateProjectOptions) (*Project2PCState, error)
+
+	// PrepareDeleteProject marks a project deleting (2PC delete step 1); blocks new
+	// logical resource creation but removes nothing yet.
+	PrepareDeleteProject(ctx context.Context, options *PrepareDeleteProjectOptions) (*Project2PCState, error)
+
+	// CommitDeleteProject purges the project CRD (2PC delete step 2).
+	CommitDeleteProject(ctx context.Context, options *CommitDeleteProjectOptions) (*Project2PCState, error)
+
+	// ListProjectStates lists this follower's project states for the leader's
+	// reconciliation sweep.
+	ListProjectStates(ctx context.Context, options *ListProjectStatesOptions) (*Project2PCStatesPage, error)
+
 	//
 	// Function event
 	//

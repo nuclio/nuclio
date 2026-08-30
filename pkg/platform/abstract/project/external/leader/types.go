@@ -56,6 +56,32 @@ type Client interface {
 	// pass-through and callers can skip fetching the existing CRD before invoking it.
 	// True only for MLRun with the 2PC feature flag on; Iguazio and disabled-MLRun return false.
 	ProjectSync2PCEnabled() bool
+
+	// 2PC project operations: the leader calling this Nuclio dashboard directly, on the
+	// dedicated /api/v1/follower/projects/* surface. Only meaningful when this leader kind
+	// is the one actually driving that surface (Oris); every other kind returns
+	// platform.ErrUnsupportedMethod via the abstract default. Options/results are defined in
+	// the platform package (not here) since it cannot import this package back.
+
+	// PrepareCreateProject2PC provisions a new project CRD (2PC step 1); not yet online.
+	PrepareCreateProject2PC(ctx context.Context, options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitCreateProject2PC activates a provisioned project (2PC step 2) -> online.
+	CommitCreateProject2PC(ctx context.Context, options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error)
+
+	// UpdateProject2PC applies a common-set update to an online project.
+	UpdateProject2PC(ctx context.Context, options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error)
+
+	// PrepareDeleteProject2PC marks a project deleting (2PC delete step 1); blocks new
+	// logical resource creation but removes nothing yet.
+	PrepareDeleteProject2PC(ctx context.Context, options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitDeleteProject2PC purges the project CRD (2PC delete step 2).
+	CommitDeleteProject2PC(ctx context.Context, options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error)
+
+	// ListProject2PCStates lists this follower's project states for the leader's
+	// reconciliation sweep.
+	ListProject2PCStates(ctx context.Context, options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error)
 }
 
 type LeaderOps interface {
@@ -144,6 +170,28 @@ type LeaderOps interface {
 
 	// GenerateGetUpdatedAfterRequestURL generates the request URL for getting projects
 	GenerateGetUpdatedAfterRequestURL(string) string
+
+	// Oris 2PC project operations
+	// Only Oris implements these for real; every other kind returns platform.ErrUnsupportedMethod
+	// via the abstract leader.
+
+	// PrepareCreateProject2PC provisions a new project CRD (2PC step 1); not yet online.
+	PrepareCreateProject2PC(ctx context.Context, options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitCreateProject2PC activates a provisioned project (2PC step 2) -> online.
+	CommitCreateProject2PC(ctx context.Context, options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error)
+
+	// UpdateProject2PC applies a common-set update to an online project.
+	UpdateProject2PC(ctx context.Context, options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error)
+
+	// PrepareDeleteProject2PC marks a project deleting (2PC delete step 1).
+	PrepareDeleteProject2PC(ctx context.Context, options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitDeleteProject2PC purges the project CRD (2PC delete step 2).
+	CommitDeleteProject2PC(ctx context.Context, options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error)
+
+	// ListProject2PCStates lists this follower's project states for the leader's reconciliation sweep.
+	ListProject2PCStates(ctx context.Context, options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error)
 }
 
 type CreateProjectResponse interface {

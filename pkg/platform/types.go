@@ -400,6 +400,70 @@ type GetProjectsOptions struct {
 	ServiceAccountAuthentication bool
 }
 
+// Follower operations: options/results for the dedicated /api/v1/follower/projects/*
+// surface. Only the Oris leader kind drives this surface; every other platform/leader kind
+// returns ErrUnsupportedMethod.
+// Need to be added to the platform package since there are new endpoints.
+
+// PrepareCreateProjectOptions carries the provision (prepare-create) request options.
+type PrepareCreateProjectOptions struct {
+	ProjectConfig ProjectConfig
+	OpID          string
+}
+
+// CommitCreateProjectOptions carries the commit-create request options.
+type CommitCreateProjectOptions struct {
+	Meta ProjectMeta
+	OpID string
+}
+
+// CommitUpdateProjectOptions carries a common-set update request options.
+type CommitUpdateProjectOptions struct {
+	ProjectConfig ProjectConfig
+	OpID          string
+	PrevOpID      string
+}
+
+// PrepareDeleteProjectOptions carries the mark-delete request options.
+type PrepareDeleteProjectOptions struct {
+	Meta     ProjectMeta
+	OpID     string
+	PrevOpID string
+}
+
+// CommitDeleteProjectOptions carries the final-delete request options.
+type CommitDeleteProjectOptions struct {
+	Meta ProjectMeta
+	OpID string
+}
+
+// ListProjectStatesOptions carries list request options for the follower's project states, for the leader's reconciliation sweep.
+type ListProjectStatesOptions struct {
+	Namespace    string
+	UpdatedAfter *time.Time
+	Cursor       string
+
+	// Limit caps the page size; 0 means no limit. Orca's leader-side client only sends the
+	// "limit" query param when it wants a bounded page (Limit > 0), so 0 is both the Go zero
+	// value and the wire's "unspecified" case, not a request for zero results.
+	Limit int
+}
+
+// Project2PCState is the (name, op_id, sync_status) triple returned by every mutating
+// follower operation and by each entry of the states list.
+type Project2PCState struct {
+	Name       string
+	OpID       string
+	SyncStatus string
+}
+
+// Project2PCStatesPage is one page of the follower's project states, for the leader's
+// reconciliation sweep.
+type Project2PCStatesPage struct {
+	States     []*Project2PCState
+	NextCursor string
+}
+
 // DeepCopyInto to appease k8s
 func (ps *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 
