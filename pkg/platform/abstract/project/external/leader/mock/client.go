@@ -109,3 +109,45 @@ func (c *Client) ProjectSync2PCEnabled() bool {
 	args := c.Called()
 	return args.Bool(0)
 }
+
+// PrepareCreateProject2PC mocks leader.Client.PrepareCreateProject2PC.
+func (c *Client) PrepareCreateProject2PC(ctx context.Context,
+	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitCreateProject2PC mocks leader.Client.CommitCreateProject2PC.
+func (c *Client) CommitCreateProject2PC(ctx context.Context,
+	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// UpdateProject2PC mocks leader.Client.UpdateProject2PC.
+func (c *Client) UpdateProject2PC(ctx context.Context,
+	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// PrepareDeleteProject2PC mocks leader.Client.PrepareDeleteProject2PC.
+func (c *Client) PrepareDeleteProject2PC(ctx context.Context,
+	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitDeleteProject2PC mocks leader.Client.CommitDeleteProject2PC.
+func (c *Client) CommitDeleteProject2PC(ctx context.Context,
+	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// ListProject2PCStates mocks leader.Client.ListProject2PCStates.
+func (c *Client) ListProject2PCStates(ctx context.Context,
+	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCStatesPage), args.Error(1)
+}

@@ -19,7 +19,6 @@ package oris
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/platform"
