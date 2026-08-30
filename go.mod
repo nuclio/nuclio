@@ -44,7 +44,7 @@ require (
 	github.com/nuclio/zap v0.3.1
 	github.com/opensearch-project/opensearch-go/v4 v4.6.0
 	github.com/prometheus/client_golang v1.24.1
-	github.com/rabbitmq/amqp091-go v1.11.0
+	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.6.0
