@@ -140,7 +140,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 					return errors.Wrap(err, "Failed parsing function config file")
 				}
 
-				commandeer.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Successfully loaded function config", "functionConfig", commandeer.functionConfig)
+				commandeer.logFunctionConfigSummary(ctx, "Successfully loaded function config")
 			}
 
 			// Populate initial defaults in the function spec, but consider existing values
@@ -166,7 +166,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
-			commandeer.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Deploying function", "functionConfig", commandeer.functionConfig)
+			commandeer.logFunctionConfigSummary(ctx, "Deploying function")
 			_, deployErr := rootCommandeer.platform.CreateFunction(ctx, &platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -191,6 +191,17 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 	commandeer.cmd = cmd
 
 	return commandeer
+}
+
+func (d *deployCommandeer) logFunctionConfigSummary(ctx context.Context, message string) {
+	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		message,
+		"functionName", d.functionConfig.Meta.Name,
+		"functionNamespace", d.functionConfig.Meta.Namespace,
+		"runtime", d.functionConfig.Spec.Runtime,
+		"handler", d.functionConfig.Spec.Handler,
+		"codeEntryType", d.functionConfig.Spec.Build.CodeEntryType,
+		"hasCodeEntryAttributes", len(d.functionConfig.Spec.Build.CodeEntryAttributes) > 0)
 }
 
 func addDeployFlags(cmd *cobra.Command,
