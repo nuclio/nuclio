@@ -100,6 +100,19 @@ func (pr *projectResource) ExtendMiddlewares() error {
 	return nil
 }
 
+func (pr *projectResource) requireTrustedLeaderOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		projectsLeader := pr.getDashboard().GetPlatformConfiguration().ProjectsLeader
+		if projectsLeader == nil ||
+			projectsLeader.Kind != platformconfig.ProjectsLeaderKindOris ||
+			!projectsLeader.TrustsLeaderOrigin(pr.getCtxSession(request.Context())) {
+			responseWriter.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(responseWriter, request)
+	})
+}
+
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	ctx := request.Context()
