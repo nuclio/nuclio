@@ -35,7 +35,6 @@ type Attributes struct {
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty"`
 	// SSHPassphrase decrypts SSHPrivateKey when it is passphrase-protected.
 	SSHPassphrase string `json:"sshPassphrase,omitempty"`
-	// SSHKnownHosts holds known_hosts file contents; when provided, host key
-	// verification is enforced. When empty, host key verification is skipped.
+	// SSHKnownHosts holds known_hosts file contents used to verify the server's host key.
 	SSHKnownHosts string `json:"sshKnownHosts,omitempty"`
 }

@@ -18,7 +18,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -130,10 +129,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.functionLogger = newProcessor.logger
 	newProcessor.logger.InfoWith("Starting processor", "version", version.Get())
 
-	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
-
 	newProcessor.logger.DebugWith("Read configuration",
-		"config", string(indentedProcessorConfiguration))
+		"functionName", processorConfiguration.Meta.Name,
+		"runtime", processorConfiguration.Spec.Runtime,
+		"handler", processorConfiguration.Spec.Handler,
+		"codeEntryType", processorConfiguration.Spec.Build.CodeEntryType,
+		"hasCodeEntryAttributes", len(processorConfiguration.Spec.Build.CodeEntryAttributes) > 0)
 
 	// restore function configuration from secret if needed
 	if !processorConfiguration.Spec.DisableSensitiveFieldsMasking {

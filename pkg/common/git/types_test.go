@@ -69,6 +69,22 @@ func (suite *AttributesTestSuite) TestDecodeCodeEntryAttributesWithoutMTLSFields
 	suite.Require().Empty(attributes.CABundle)
 }
 
+func (suite *AttributesTestSuite) TestDecodeCodeEntryAttributesWithSSHFields() {
+	codeEntryAttributes := map[string]interface{}{
+		"sshPrivateKey": "private-key",
+		"sshPassphrase": "passphrase",
+		"sshKnownHosts": "known-hosts",
+	}
+
+	var attributes Attributes
+	err := mapstructure.Decode(codeEntryAttributes, &attributes)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal("private-key", attributes.SSHPrivateKey)
+	suite.Require().Equal("passphrase", attributes.SSHPassphrase)
+	suite.Require().Equal("known-hosts", attributes.SSHKnownHosts)
+}
+
 // TestBuildCloneOptionsSetsMTLSFields guards against a future refactor of buildCloneOptions
 // (e.g. reordering fields, or swapping ClientCert/ClientKey) silently breaking mutual TLS --
 // git.PlainClone itself isn't mockable, so this is the only seam that can catch that class of

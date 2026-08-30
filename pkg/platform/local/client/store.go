@@ -393,7 +393,7 @@ func (s *Store) getResources(resourceDir string,
 }
 
 func (s *Store) writeFileContents(filePath string, contents []byte) error {
-	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", string(contents))
+	s.logger.DebugWith("Writing file contents", "path", filePath)
 
 	tempFile, err := os.CreateTemp(".", "nuclio-contents-temp-file-*")
 	if err != nil {

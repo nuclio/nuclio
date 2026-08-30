@@ -799,6 +799,17 @@ test-coverage: $(GOTESTSUM_BIN)
 test-unit: modules ensure-gopath $(GOTESTSUM_BIN)
 	$(GOTESTSUM_BIN) --format testname -- -race -tags=test_unit -v ./cmd/... ./pkg/... -short
 
+.PHONY: test-git-ssh
+test-git-ssh:
+	go test -tags="test_integration,test_local" -v ./pkg/common/git -run '^TestCloneFromRealSSHGitServer$$'
+
+.PHONY: test-dashboard-git-ssh
+test-dashboard-git-ssh: NUCLIO_OS=linux
+test-dashboard-git-ssh: dashboard processor
+	NUCLIO_DASHBOARD_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
+	NUCLIO_TEST_BASE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
+	go test -tags="test_integration,test_local" -v ./test/e2e -run '^TestDashboardGitSSH$$'
+
 .PHONY: test-k8s-nuctl
 test-k8s-nuctl: $(GOTESTSUM_BIN)
 	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \

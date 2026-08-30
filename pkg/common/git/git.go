@@ -18,6 +18,7 @@ package git
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -70,17 +71,21 @@ func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *At
 		return errors.Wrap(err, "Failed to resolve git reference")
 	}
 
-	// HACK: if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
-	// TODO: remove when the issue is resolved - https://github.com/go-git/go-git/issues/64
-	// Azure Devops cloning shells out to the git CLI and only supports HTTP basic auth
-	if isAzureDevopsRepositoryURL(repositoryURL) {
-		return agc.cloneFromAzureDevops(outputDir, repositoryURL, referenceName, agc.parseCredentials(attributes), agc.cmdRunner)
-	}
-
 	// resolve the auth method (SSH public key or HTTP basic auth) when credentials are given
 	gitAuth, err := agc.resolveAuthMethod(repositoryURL, attributes)
 	if err != nil {
 		return errors.Wrap(err, "Failed to resolve git auth method")
+	}
+
+	// HACK: if it's Azure Devops repo - clone differently (the normal go-git client doesn't support it yet)
+	// TODO: remove when the issue is resolved - https://github.com/go-git/go-git/issues/64
+	// Azure Devops cloning shells out to the git CLI and only supports HTTP basic auth
+	if isAzureDevopsRepositoryURL(repositoryURL) && !IsSSHRepositoryURL(repositoryURL) {
+		basicAuth, ok := gitAuth.(*githttp.BasicAuth)
+		if gitAuth != nil && !ok {
+			return errors.New("Unexpected git auth method for Azure DevOps repository")
+		}
+		return agc.cloneFromAzureDevops(outputDir, repositoryURL, referenceName, basicAuth, agc.cmdRunner)
 	}
 
 	return agc.clone(outputDir, repositoryURL, referenceName, gitAuth, attributes)
@@ -211,13 +216,18 @@ func (agc *AbstractClient) logCurrentCommitSHA(gitDir, repositoryURL, referenceN
 }
 
 // resolveAuthMethod picks the git auth method based on the given attributes and repository URL.
-// SSH public key auth is used when an SSH private key is provided or the URL is an SSH-scheme URL;
-// otherwise HTTP basic auth is used (username/password or a personal access token).
+// SSH public key auth is used when the repository URL is an SSH URL; otherwise HTTP basic auth is
+// used (username/password or a personal access token). SSH credentials with an HTTP URL are rejected
+// rather than silently selecting an auth method that cannot work with that URL.
 func (agc *AbstractClient) resolveAuthMethod(repositoryURL string, attributes *Attributes) (transport.AuthMethod, error) {
 
-	// SSH auth - when an SSH private key is provided or the repository URL is an SSH URL
-	if attributes.SSHPrivateKey != "" || isSSHRepositoryURL(repositoryURL) {
-		return agc.parseSSHAuth(attributes)
+	// SSH auth - the repository URL determines the transport.
+	if IsSSHRepositoryURL(repositoryURL) {
+		return agc.parseSSHAuth(attributes, sshUserFromRepositoryURL(repositoryURL))
+	}
+
+	if attributes.SSHPrivateKey != "" || attributes.SSHPassphrase != "" || attributes.SSHKnownHosts != "" {
+		return nil, nuclio.NewErrBadRequest("SSH authentication fields require an SSH repository URL")
 	}
 
 	// HTTP basic auth - returns nil when no credentials are given (e.g. public repositories)
@@ -248,15 +258,14 @@ func (agc *AbstractClient) parseCredentials(attributes *Attributes) *githttp.Bas
 	return nil
 }
 
-// parseSSHAuth builds an SSH public key auth method from the given attributes, configuring
-// host key verification based on whether known hosts were provided.
-func (agc *AbstractClient) parseSSHAuth(attributes *Attributes) (transport.AuthMethod, error) {
+// parseSSHAuth builds an SSH public key auth method from the given attributes and configures strict
+// host key verification from the supplied known hosts.
+func (agc *AbstractClient) parseSSHAuth(attributes *Attributes, username string) (transport.AuthMethod, error) {
 	if attributes.SSHPrivateKey == "" {
 		return nil, nuclio.NewErrBadRequest("An SSH private key must be provided for SSH-based git authentication")
 	}
 
-	// "git" is the conventional SSH user for git hosting providers (e.g. git@github.com)
-	publicKeys, err := gitssh.NewPublicKeys("git", []byte(attributes.SSHPrivateKey), attributes.SSHPassphrase)
+	publicKeys, err := gitssh.NewPublicKeys(username, []byte(attributes.SSHPrivateKey), attributes.SSHPassphrase)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create SSH public key auth method")
 	}
@@ -271,13 +280,12 @@ func (agc *AbstractClient) parseSSHAuth(attributes *Attributes) (transport.AuthM
 	return publicKeys, nil
 }
 
-// resolveHostKeyCallback returns a host key verification callback. When known hosts are provided,
-// strict verification is enforced; otherwise verification is skipped (insecure, but pragmatic for
-// ephemeral build environments that have no pre-populated known_hosts).
+// resolveHostKeyCallback returns a host key verification callback using the caller-provided known
+// hosts. SSH clones require known hosts so that public-key authentication is not exposed to a
+// man-in-the-middle server.
 func (agc *AbstractClient) resolveHostKeyCallback(attributes *Attributes) (cryptossh.HostKeyCallback, error) {
 	if attributes.SSHKnownHosts == "" {
-		agc.logger.Warn("SSH host key verification is disabled; provide sshKnownHosts to enable strict verification")
-		return cryptossh.InsecureIgnoreHostKey(), nil // nolint: gosec
+		return nil, nuclio.NewErrBadRequest("SSH known hosts must be provided for SSH-based git authentication")
 	}
 
 	knownHostsPath, err := writeTempKnownHostsFile(attributes.SSHKnownHosts)
@@ -285,7 +293,15 @@ func (agc *AbstractClient) resolveHostKeyCallback(attributes *Attributes) (crypt
 		return nil, errors.Wrap(err, "Failed to write known hosts file")
 	}
 
-	return gitssh.NewKnownHostsCallback(knownHostsPath)
+	hostKeyCallback, err := gitssh.NewKnownHostsCallback(knownHostsPath)
+	if removeErr := os.Remove(knownHostsPath); removeErr != nil {
+		agc.logger.WarnWith("Failed to remove temporary known hosts file", "path", knownHostsPath, "err", removeErr)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return hostKeyCallback, nil
 }
 
 // writeTempKnownHostsFile writes the given known_hosts contents to a temporary file and returns its
@@ -304,10 +320,11 @@ func writeTempKnownHostsFile(knownHostsContents string) (string, error) {
 	return tempFile.Name(), nil
 }
 
-// isSSHRepositoryURL reports whether the repository URL uses SSH, either via an ssh:// scheme or the
+// IsSSHRepositoryURL reports whether the repository URL uses SSH, either via an ssh:// scheme or the
 // scp-like syntax (e.g. git@github.com:org/repo.git).
-func isSSHRepositoryURL(repositoryURL string) bool {
-	if strings.HasPrefix(repositoryURL, "ssh://") {
+func IsSSHRepositoryURL(repositoryURL string) bool {
+	repositoryURL = strings.TrimSpace(repositoryURL)
+	if strings.HasPrefix(strings.ToLower(repositoryURL), "ssh://") {
 		return true
 	}
 
@@ -317,8 +334,25 @@ func isSSHRepositoryURL(repositoryURL string) bool {
 		strings.Contains(repositoryURL, ":")
 }
 
+// sshUserFromRepositoryURL returns the SSH user from the repository URL. Git hosting providers
+// conventionally use "git", which is also the fallback for URLs without an explicit user.
+func sshUserFromRepositoryURL(repositoryURL string) string {
+	repositoryURL = strings.TrimSpace(repositoryURL)
+	if strings.HasPrefix(strings.ToLower(repositoryURL), "ssh://") {
+		if parsedURL, err := url.Parse(repositoryURL); err == nil && parsedURL.User != nil && parsedURL.User.Username() != "" {
+			return parsedURL.User.Username()
+		}
+	}
+
+	if atIndex := strings.IndexByte(repositoryURL, '@'); atIndex > 0 {
+		return repositoryURL[:atIndex]
+	}
+
+	return "git"
+}
+
 func ResolveReference(repositoryURL string, attributes *Attributes) (string, error) {
-	addReferencePrefix := !isAzureDevopsRepositoryURL(repositoryURL)
+	addReferencePrefix := !isAzureDevopsRepositoryURL(repositoryURL) || IsSSHRepositoryURL(repositoryURL)
 
 	// branch
 	if ref := attributes.Branch; ref != "" {

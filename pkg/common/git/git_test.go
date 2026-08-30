@@ -28,6 +28,7 @@ import (
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	cryptossh "golang.org/x/crypto/ssh"
 )
@@ -37,6 +38,8 @@ type AuthMethodTestSuite struct {
 	logger logger.Logger
 	client *AbstractClient
 }
+
+const testKnownHosts = "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n"
 
 func (suite *AuthMethodTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
@@ -86,8 +89,9 @@ func (suite *AuthMethodTestSuite) TestHTTPBasicAuthDefaultUsername() {
 }
 
 func (suite *AuthMethodTestSuite) TestSSHAuthFromPrivateKey() {
-	authMethod, err := suite.client.resolveAuthMethod("https://github.com/org/repo", &Attributes{
+	authMethod, err := suite.client.resolveAuthMethod("ssh://git@github.com/org/repo.git", &Attributes{
 		SSHPrivateKey: suite.generateTestSSHPrivateKey(),
+		SSHKnownHosts: testKnownHosts,
 	})
 	suite.Require().NoError(err)
 
@@ -95,19 +99,46 @@ func (suite *AuthMethodTestSuite) TestSSHAuthFromPrivateKey() {
 	suite.Require().True(ok, "expected SSH public key auth")
 	suite.Require().Equal("git", publicKeys.User)
 
-	// without known hosts, host key verification must be configured (insecure callback)
 	suite.Require().NotNil(publicKeys.HostKeyCallback)
+}
+
+func (suite *AuthMethodTestSuite) TestSSHAuthWithoutKnownHostsFails() {
+	_, err := suite.client.resolveAuthMethod("ssh://git@github.com/org/repo.git", &Attributes{
+		SSHPrivateKey: suite.generateTestSSHPrivateKey(),
+	})
+	suite.Require().Error(err)
+}
+
+func (suite *AuthMethodTestSuite) TestSSHCredentialsWithHTTPURLFails() {
+	_, err := suite.client.resolveAuthMethod("https://github.com/org/repo", &Attributes{
+		SSHPrivateKey: suite.generateTestSSHPrivateKey(),
+	})
+	suite.Require().Error(err)
+	suite.Require().Contains(err.Error(), "require an SSH repository URL")
 }
 
 func (suite *AuthMethodTestSuite) TestSSHAuthInferredFromURL() {
 	// an scp-like SSH URL selects SSH auth even when SSHPrivateKey was not explicitly checked first
 	authMethod, err := suite.client.resolveAuthMethod("git@github.com:org/repo.git", &Attributes{
 		SSHPrivateKey: suite.generateTestSSHPrivateKey(),
+		SSHKnownHosts: testKnownHosts,
 	})
 	suite.Require().NoError(err)
 
 	_, ok := authMethod.(*gitssh.PublicKeys)
 	suite.Require().True(ok)
+}
+
+func (suite *AuthMethodTestSuite) TestSSHUserFromURL() {
+	authMethod, err := suite.client.resolveAuthMethod("ssh://builder@github.com/org/repo.git", &Attributes{
+		SSHPrivateKey: suite.generateTestSSHPrivateKey(),
+		SSHKnownHosts: testKnownHosts,
+	})
+	suite.Require().NoError(err)
+
+	publicKeys, ok := authMethod.(*gitssh.PublicKeys)
+	suite.Require().True(ok)
+	suite.Require().Equal("builder", publicKeys.User)
 }
 
 func (suite *AuthMethodTestSuite) TestSSHURLWithoutKeyFails() {
@@ -117,10 +148,9 @@ func (suite *AuthMethodTestSuite) TestSSHURLWithoutKeyFails() {
 }
 
 func (suite *AuthMethodTestSuite) TestSSHAuthWithKnownHosts() {
-	knownHosts := "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n"
 	authMethod, err := suite.client.resolveAuthMethod("git@github.com:org/repo.git", &Attributes{
 		SSHPrivateKey: suite.generateTestSSHPrivateKey(),
-		SSHKnownHosts: knownHosts,
+		SSHKnownHosts: testKnownHosts,
 	})
 	suite.Require().NoError(err)
 
@@ -135,13 +165,22 @@ func (suite *AuthMethodTestSuite) TestIsSSHRepositoryURL() {
 		expected bool
 	}{
 		{"ssh://git@github.com/org/repo.git", true},
+		{"SSH://git@github.com/org/repo.git", true},
+		{"  ssh://git@github.com/org/repo.git  ", true},
 		{"git@github.com:org/repo.git", true},
+		{"git@ssh.dev.azure.com:v3/org/project/repo", true},
 		{"https://github.com/org/repo.git", false},
 		{"http://github.com/org/repo.git", false},
 		{"https://user@github.com/org/repo.git", false},
 	} {
-		suite.Require().Equal(testCase.expected, isSSHRepositoryURL(testCase.url), "url: %s", testCase.url)
+		suite.Require().Equal(testCase.expected, IsSSHRepositoryURL(testCase.url), "url: %s", testCase.url)
 	}
+}
+
+func TestResolveReferenceForAzureDevOpsSSH(t *testing.T) {
+	reference, err := ResolveReference("git@ssh.dev.azure.com:v3/org/project/repo", &Attributes{Branch: "main"})
+	require.NoError(t, err)
+	require.Equal(t, "refs/heads/main", reference)
 }
 
 func TestAuthMethodTestSuite(t *testing.T) {

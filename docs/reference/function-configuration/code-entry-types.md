@@ -157,14 +157,14 @@ Set the [`spec.build.codeEntryType`](function-configuration-reference.md) functi
       - `workDir` (dashboard: **Work directory**) (Optional) &mdash; the relative path to the function-code directory within the configured repository.
       The default work directory is the root directory of the git repository (`"/"`).
 
-      // for HTTP(S) authentication (e.g. a username and a personal access token)
+      For HTTP(S) authentication (e.g. a username and a personal access token):
       - `username` (dashboard: **Username**) (Optional) Git username
       - `password` (dashboard: **Password**) (Optional) Git password
 
-      // for SSH authentication &mdash; used when the repository URL is an SSH URL (`ssh://...` or `git@host:...`)
+      For SSH authentication &mdash; used when the repository URL is an SSH URL (`ssh://...` or `git@host:...`):
       - `sshPrivateKey` (Optional) &mdash; the PEM-encoded contents of an SSH private key (for example, a deploy key) used to clone the repository over SSH.
       - `sshPassphrase` (Optional) &mdash; the passphrase that decrypts `sshPrivateKey`, when the key is passphrase-protected.
-      - `sshKnownHosts` (Optional) &mdash; the contents of a `known_hosts` file. When set, the server's host key is verified against it; when omitted, host-key verification is skipped.
+      - `sshKnownHosts` (Required) &mdash; the contents of a `known_hosts` file used to verify the server's host key.
 
       **Mutual TLS (client certificates):**
       - `clientCert` (Optional) &mdash; a PEM-encoded client certificate to present to the Git server.
@@ -257,7 +257,7 @@ spec:
     # use an SSH URL (`ssh://...` or `git@host:...`)
     path: "git@github.com:<my-organization>/<my-repository>.git"
     codeEntryAttributes:
-      workDir: "/go-function"
+      workDir: "go-function"
       branch: "go-func"
       sshPrivateKey: |
         -----BEGIN OPENSSH PRIVATE KEY-----
@@ -267,9 +267,8 @@ spec:
       # Uncomment if the key is passphrase-protected
       # sshPassphrase: "mypassphrase"
 
-      # Uncomment to enforce host-key verification (otherwise it is skipped)
-      # sshKnownHosts: |
-      #   github.com ssh-ed25519 AAAAC3Nza...
+      sshKnownHosts: |
+        github.com ssh-ed25519 AAAAC3Nza...
 ```
 
 ### GitHub code-entry type
