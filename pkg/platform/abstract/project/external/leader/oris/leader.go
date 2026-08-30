@@ -128,3 +128,44 @@ func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string 
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
+
+// Follower operations are dummy placeholders for now (real CAS/CRD logic lands in a
+// follow-up change): they return a distinct, identifiable error so routing to Oris can be
+// verified in dev/testing, separately from platform.ErrUnsupportedMethod (returned by every
+// other leader kind via the abstract default).
+
+// PrepareCreateProject2PC is a dummy placeholder pending the real CAS/CRD implementation.
+func (l *LeaderOps) PrepareCreateProject2PC(context.Context,
+	*platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, nuclio.NewErrNotImplemented("oris: PrepareCreateProject2PC not yet implemented")
+}
+
+// CommitCreateProject2PC is a dummy placeholder pending the real CAS/CRD implementation.
+func (l *LeaderOps) CommitCreateProject2PC(context.Context,
+	*platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, nuclio.NewErrNotImplemented("oris: CommitCreateProject2PC not yet implemented")
+}
+
+// UpdateProject2PC is a dummy placeholder pending the real CAS/CRD implementation.
+func (l *LeaderOps) UpdateProject2PC(context.Context,
+	*platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, nuclio.NewErrNotImplemented("oris: UpdateProject2PC not yet implemented")
+}
+
+// PrepareDeleteProject2PC is a dummy placeholder pending the real CAS/CRD implementation.
+func (l *LeaderOps) PrepareDeleteProject2PC(context.Context,
+	*platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, nuclio.NewErrNotImplemented("oris: PrepareDeleteProject2PC not yet implemented")
+}
+
+// CommitDeleteProject2PC is a dummy placeholder pending the real CAS/CRD implementation.
+func (l *LeaderOps) CommitDeleteProject2PC(context.Context,
+	*platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, nuclio.NewErrNotImplemented("oris: CommitDeleteProject2PC not yet implemented")
+}
+
+// ListProject2PCStates is a dummy placeholder pending the real CAS/CRD implementation.
+func (l *LeaderOps) ListProject2PCStates(context.Context,
+	*platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return nil, nuclio.NewErrNotImplemented("oris: ListProject2PCStates not yet implemented")
+}

@@ -97,3 +97,42 @@ func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, _ map[string]string
 
 // ProjectSync2PCEnabled defaults to false: two-phase-commit support is opt-in per leader.
 func (l *LeaderOps) ProjectSync2PCEnabled() bool { return false }
+
+// Follower operations default to unsupported: only a leader that actually drives the
+// dedicated /api/v1/follower/projects/* surface (Oris) overrides these.
+
+// PrepareCreateProject2PC is unsupported by default; only a leader driving the follower surface (Oris) overrides it.
+func (l *LeaderOps) PrepareCreateProject2PC(_ context.Context,
+	_ *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitCreateProject2PC is unsupported by default; only a leader driving the follower surface (Oris) overrides it.
+func (l *LeaderOps) CommitCreateProject2PC(_ context.Context,
+	_ *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// UpdateProject2PC is unsupported by default; only a leader driving the follower surface (Oris) overrides it.
+func (l *LeaderOps) UpdateProject2PC(_ context.Context,
+	_ *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// PrepareDeleteProject2PC is unsupported by default; only a leader driving the follower surface (Oris) overrides it.
+func (l *LeaderOps) PrepareDeleteProject2PC(_ context.Context,
+	_ *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitDeleteProject2PC is unsupported by default; only a leader driving the follower surface (Oris) overrides it.
+func (l *LeaderOps) CommitDeleteProject2PC(_ context.Context,
+	_ *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// ListProject2PCStates is unsupported by default; only a leader driving the follower surface (Oris) overrides it.
+func (l *LeaderOps) ListProject2PCStates(_ context.Context,
+	_ *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return nil, platform.ErrUnsupportedMethod
+}

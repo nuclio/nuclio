@@ -174,6 +174,46 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	return nil
 }
 
+// Follower operations are unsupported on this plain CRD client: the dedicated
+// /api/v1/follower/projects/* surface is implemented by external.Client (when Oris is the
+// configured leader), which wraps this client as its internalClient rather than being it.
+
+// PrepareCreate is unsupported on the plain CRD client: implemented by external.Client instead.
+func (c *Client) PrepareCreate(context.Context,
+	*platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitCreate is unsupported on the plain CRD client: implemented by external.Client instead.
+func (c *Client) CommitCreate(context.Context,
+	*platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitUpdate is unsupported on the plain CRD client: implemented by external.Client instead.
+func (c *Client) CommitUpdate(context.Context,
+	*platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// PrepareDelete is unsupported on the plain CRD client: implemented by external.Client instead.
+func (c *Client) PrepareDelete(context.Context,
+	*platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitDelete is unsupported on the plain CRD client: implemented by external.Client instead.
+func (c *Client) CommitDelete(context.Context,
+	*platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// List is unsupported on the plain CRD client: implemented by external.Client instead.
+func (c *Client) List(context.Context,
+	*platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
 func (c *Client) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
 	project.Name = platformProject.Meta.Name
 	project.Namespace = platformProject.Meta.Namespace

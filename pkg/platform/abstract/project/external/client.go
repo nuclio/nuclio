@@ -96,6 +96,46 @@ func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjec
 	return c.internalClient.Get(ctx, getProjectsOptions)
 }
 
+// Follower operations delegate straight to the configured leader client — no OPA, no
+// leader-evaluation routing, since the /follower/projects/* dashboard resource is already
+// SA-gated and each operation validates (CAS/ordering) itself.
+
+// PrepareCreate delegates to the leader client's PrepareCreateProject2PC.
+func (c *Client) PrepareCreate(ctx context.Context,
+	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return c.leaderClient.PrepareCreateProject2PC(ctx, options)
+}
+
+// CommitCreate delegates to the leader client's CommitCreateProject2PC.
+func (c *Client) CommitCreate(ctx context.Context,
+	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return c.leaderClient.CommitCreateProject2PC(ctx, options)
+}
+
+// CommitUpdate delegates to the leader client's UpdateProject2PC.
+func (c *Client) CommitUpdate(ctx context.Context,
+	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return c.leaderClient.UpdateProject2PC(ctx, options)
+}
+
+// PrepareDelete delegates to the leader client's PrepareDeleteProject2PC.
+func (c *Client) PrepareDelete(ctx context.Context,
+	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return c.leaderClient.PrepareDeleteProject2PC(ctx, options)
+}
+
+// CommitDelete delegates to the leader client's CommitDeleteProject2PC.
+func (c *Client) CommitDelete(ctx context.Context,
+	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return c.leaderClient.CommitDeleteProject2PC(ctx, options)
+}
+
+// List delegates to the leader client's ListProject2PCStates.
+func (c *Client) List(ctx context.Context,
+	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return c.leaderClient.ListProject2PCStates(ctx, options)
+}
+
 // Create routes the request through 2PC evaluation when the request originates from the
 // leader and the caller has not opted out via x-mlrun-force-sync; otherwise (non-leader
 // origin) the request is forwarded to the external leader HTTP client.
