@@ -44,6 +44,32 @@ You can now access the dashboard by opening `localhost:8000` in a browser.
 
 Note: if you want to use `nuctl`, you need to add `--platform local` to every command (or `export NUCTL_PLATFORM="local"`). See more in [Nuctl](../reference/nuctl/nuctl.md).
 
+## Testing SSH Git code entry
+
+The Git SSH integration test starts a disposable real `sshd` process, serves a local bare Git
+repository through `git-upload-pack`, and verifies public-key authentication, passphrase-protected
+keys, and strict `known_hosts` verification:
+
+```sh
+make test-git-ssh
+```
+
+The test requires `sshd`, `ssh-keygen`, and `git` on the host. It is deliberately
+opt-in because the standard test container does not necessarily include an SSH server.
+
+The dashboard-level check builds the dashboard and processor images, starts the dashboard with the
+Docker socket mounted, and deploys a function through `POST /api/functions` using an SSH URL and the
+`sshPrivateKey` and `sshKnownHosts` attributes. It uses the same disposable real SSH Git server and
+invokes the resulting function:
+
+```sh
+make test-dashboard-git-ssh
+```
+
+The test uses `host.docker.internal` plus a Docker host-gateway mapping so the dashboard container
+can reach the host's SSH server. The lower-level test also covers passphrase-protected keys and
+incorrect private or host keys.
+
 If you're changing code in nuctl, you can build a `nuctl` binary locally by running:
 
 ```sh

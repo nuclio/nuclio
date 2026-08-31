@@ -142,7 +142,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	report *nuctlcommon.FunctionReports) error {
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
 		"Importing functions",
-		"functions", functionConfigs)
+		"functionCount", len(functionConfigs))
 	wg := sync.WaitGroup{}
 	var sem = semaphore.NewWeighted(int64(i.rootCommandeer.concurrency))
 	for _, functionConfig := range functionConfigs {

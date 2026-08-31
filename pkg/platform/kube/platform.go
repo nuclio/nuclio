@@ -560,7 +560,8 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	p.Logger.DebugWithCtx(ctx, "Deleting function",
-		"functionConfig", deleteFunctionOptions.FunctionConfig)
+		"functionName", deleteFunctionOptions.FunctionConfig.Meta.Name,
+		"functionNamespace", deleteFunctionOptions.FunctionConfig.Meta.Namespace)
 
 	// pre delete validation
 	functionToDelete, err := p.ValidateDeleteFunctionOptions(ctx, deleteFunctionOptions)

@@ -411,6 +411,37 @@ func (suite *ScrubberTestSuite) TestScrubHTTPTriggerBasicAuthPassword() {
 	suite.Require().Equal("s3cr3t", restoredAuth["password"])
 }
 
+func (suite *ScrubberTestSuite) TestScrubGitSSHCredentials() {
+	functionConfig := &Config{
+		Spec: Spec{
+			Build: Build{
+				CodeEntryAttributes: map[string]interface{}{
+					"sshPrivateKey": "private-key",
+					"sshPassphrase": "passphrase",
+					"sshKnownHosts": "host-key",
+				},
+			},
+		},
+	}
+
+	scrubbedInterface, _, secretMap, err := suite.scrubber.Scrub(suite.ctx, functionConfig, "name", "namespace")
+	suite.Require().NoError(err)
+	scrubbedFunctionConfig := GetFunctionConfigFromInterface(scrubbedInterface)
+	scrubbedAttributes := scrubbedFunctionConfig.Spec.Build.CodeEntryAttributes
+
+	suite.Require().Contains(scrubbedAttributes["sshPrivateKey"], ReferencePrefix)
+	suite.Require().Contains(scrubbedAttributes["sshPassphrase"], ReferencePrefix)
+	suite.Require().Equal("host-key", scrubbedAttributes["sshKnownHosts"])
+	suite.Require().Len(secretMap, 2)
+
+	restoredInterface, err := suite.scrubber.Restore(scrubbedFunctionConfig, secretMap)
+	suite.Require().NoError(err)
+	restoredFunctionConfig := GetFunctionConfigFromInterface(restoredInterface)
+	restoredAttributes := restoredFunctionConfig.Spec.Build.CodeEntryAttributes
+	suite.Require().Equal("private-key", restoredAttributes["sshPrivateKey"])
+	suite.Require().Equal("passphrase", restoredAttributes["sshPassphrase"])
+}
+
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
 // this is implemented here to avoid a circular dependency between platformconfig and functionconfig
 func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
@@ -420,6 +451,8 @@ func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp 
 		// Path nested in a map
 		"^/Spec/Build/CodeEntryAttributes/password$",
 		"^/spec/build/codeentryattributes/password$",
+		"^/spec/build/codeentryattributes/sshprivatekey$",
+		"^/spec/build/codeentryattributes/sshpassphrase$",
 		"^/spec/build/codeentryattributes/s3secretaccesskey$",
 		"^/spec/build/codeentryattributes/s3sessiontoken$",
 		"^/spec/build/codeentryattributes/headers/authorization$",

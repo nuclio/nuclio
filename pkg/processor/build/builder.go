@@ -564,7 +564,12 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	}
 
 	b.logger.DebugWith("Enriched configuration",
-		"functionConfig", b.options.FunctionConfig,
+		"functionName", b.options.FunctionConfig.Meta.Name,
+		"runtime", b.options.FunctionConfig.Spec.Runtime,
+		"handler", b.options.FunctionConfig.Spec.Handler,
+		"buildPath", b.options.FunctionConfig.Spec.Build.Path,
+		"codeEntryType", b.options.FunctionConfig.Spec.Build.CodeEntryType,
+		"hasCodeEntryAttributes", len(b.options.FunctionConfig.Spec.Build.CodeEntryAttributes) > 0,
 		"platform", b.options.PlatformName,
 		"dependantImagesRegistryURL", b.options.DependantImagesRegistryURL,
 		"outputImageFile", b.options.OutputImageFile,
@@ -705,7 +710,8 @@ func (b *Builder) resolveFunctionPath(ctx context.Context, functionPath string) 
 	}
 
 	// user has to provide valid url when code entry type is github or archive
-	isURL := common.IsURL(functionPath)
+	isURL := common.IsURL(functionPath) ||
+		(codeEntryType == GitEntryType && gitcommon.IsSSHRepositoryURL(functionPath))
 	if !isURL && (codeEntryType == GithubEntryType || codeEntryType == ArchiveEntryType) {
 		return "", "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
@@ -1667,7 +1673,9 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 func (b *Builder) resolveFunctionPathFromURL(ctx context.Context, functionPath string, codeEntryType string) (string, error) {
 	var err error
 
-	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
+	if common.IsURL(functionPath) ||
+		(codeEntryType == GitEntryType && gitcommon.IsSSHRepositoryURL(functionPath)) ||
+		codeEntryType == S3EntryType {
 		if codeEntryType == GithubEntryType {
 			b.logger.WarnCtx(ctx, "'GitHub' code entry type is deprecated and will be removed in Nuclio 1.16.x, "+
 				"please use 'Git' entry type instead")
@@ -1758,7 +1766,8 @@ func (b *Builder) cloneFunctionFromGit(outputDir, repositoryURL string) error {
 		return errors.Wrap(err, "Failed to parse git attributes")
 	}
 
-	// avoid logging the full struct: Password and ClientKey carry secret/private-key material
+	// Avoid logging the full struct: Password, ClientKey, SSHPrivateKey, and SSHPassphrase carry
+	// secret/private-key material.
 	b.logger.DebugWith("Parsed git attributes",
 		"branch", gitAttributes.Branch,
 		"tag", gitAttributes.Tag,
@@ -1767,7 +1776,10 @@ func (b *Builder) cloneFunctionFromGit(outputDir, repositoryURL string) error {
 		"hasPassword", gitAttributes.Password != "",
 		"hasClientCert", gitAttributes.ClientCert != "",
 		"hasClientKey", gitAttributes.ClientKey != "",
-		"hasCABundle", gitAttributes.CABundle != "")
+		"hasCABundle", gitAttributes.CABundle != "",
+		"hasSSHPrivateKey", gitAttributes.SSHPrivateKey != "",
+		"hasSSHPassphrase", gitAttributes.SSHPassphrase != "",
+		"hasSSHKnownHosts", gitAttributes.SSHKnownHosts != "")
 
 	return b.gitClient.Clone(outputDir, repositoryURL, gitAttributes)
 }

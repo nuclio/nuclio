@@ -29,4 +29,12 @@ type Attributes struct {
 	ClientCert string `json:"clientCert,omitempty"`
 	ClientKey  string `json:"clientKey,omitempty"`
 	CABundle   string `json:"caBundle,omitempty"`
+
+	// SSH auth - used when cloning over an SSH URL (e.g. git@github.com:org/repo.git)
+	// SSHPrivateKey holds the PEM-encoded private key contents.
+	SSHPrivateKey string `json:"sshPrivateKey,omitempty"`
+	// SSHPassphrase decrypts SSHPrivateKey when it is passphrase-protected.
+	SSHPassphrase string `json:"sshPassphrase,omitempty"`
+	// SSHKnownHosts holds known_hosts file contents used to verify the server's host key.
+	SSHKnownHosts string `json:"sshKnownHosts,omitempty"`
 }
