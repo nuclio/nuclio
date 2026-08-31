@@ -76,11 +76,11 @@ func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(result)
-				var resultProject OrisProject
-				suite.Require().NoError(json.Unmarshal(result, &resultProject))
-				suite.Require().Equal(testCase.project.Meta.Name, resultProject.Metadata.Name)
-				suite.Require().Equal(testCase.project.Spec.Owner, resultProject.Spec.Owner)
-				suite.Require().Equal(testCase.project.Spec.Description, resultProject.Spec.Description)
+				var resultProjectRequest OrisProjectRequest
+				suite.Require().NoError(json.Unmarshal(result, &resultProjectRequest))
+				suite.Require().Equal(testCase.project.Meta.Name, resultProjectRequest.Name)
+				suite.Require().Equal(testCase.project.Spec.Owner, resultProjectRequest.Owner)
+				suite.Require().Equal(testCase.project.Spec.Description, resultProjectRequest.Description)
 			}
 		})
 	}
