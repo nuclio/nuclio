@@ -18,7 +18,7 @@
     "angularjs-slider": "~6.6.1",
     "ansi-colors": "4.1.1",
     "babel-plugin-angularjs-annotate": "^0.8.2",
-    "bootstrap": "~3.4.1",
+    "bootstrap": "~5.0.0",
     "del": "^6.1.1",
     "es6-promise": "^4.2.8",
     "eslint-plugin-angular": "^4.0.1",
