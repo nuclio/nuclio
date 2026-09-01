@@ -50,48 +50,6 @@ func (l *LeaderOps) ProjectSync2PCEnabled() bool {
 	return args.Bool(0)
 }
 
-// PrepareCreateProject2PC mocks leader.LeaderOps.PrepareCreateProject2PC.
-func (l *LeaderOps) PrepareCreateProject2PC(ctx context.Context,
-	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
-	args := l.Called(ctx, options)
-	return args.Get(0).(*platform.Project2PCState), args.Error(1)
-}
-
-// CommitCreateProject2PC mocks leader.LeaderOps.CommitCreateProject2PC.
-func (l *LeaderOps) CommitCreateProject2PC(ctx context.Context,
-	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
-	args := l.Called(ctx, options)
-	return args.Get(0).(*platform.Project2PCState), args.Error(1)
-}
-
-// UpdateProject2PC mocks leader.LeaderOps.UpdateProject2PC.
-func (l *LeaderOps) UpdateProject2PC(ctx context.Context,
-	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
-	args := l.Called(ctx, options)
-	return args.Get(0).(*platform.Project2PCState), args.Error(1)
-}
-
-// PrepareDeleteProject2PC mocks leader.LeaderOps.PrepareDeleteProject2PC.
-func (l *LeaderOps) PrepareDeleteProject2PC(ctx context.Context,
-	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
-	args := l.Called(ctx, options)
-	return args.Get(0).(*platform.Project2PCState), args.Error(1)
-}
-
-// CommitDeleteProject2PC mocks leader.LeaderOps.CommitDeleteProject2PC.
-func (l *LeaderOps) CommitDeleteProject2PC(ctx context.Context,
-	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
-	args := l.Called(ctx, options)
-	return args.Get(0).(*platform.Project2PCState), args.Error(1)
-}
-
-// ListProject2PCStates mocks leader.LeaderOps.ListProject2PCStates.
-func (l *LeaderOps) ListProject2PCStates(ctx context.Context,
-	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
-	args := l.Called(ctx, options)
-	return args.Get(0).(*platform.Project2PCStatesPage), args.Error(1)
-}
-
 func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	args := l.Called(projectConfig)
 	return args.Get(0).([]byte), args.Error(1)
