@@ -71,11 +71,8 @@ func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *At
 	}
 
 	// reject malicious/malformed input before it can reach a log line or the git client
-	if err := validateRepositoryURL(repositoryURL); err != nil {
+	if err := validateRepositoryURL(repositoryURL, referenceName); err != nil {
 		return errors.Wrap(err, "Failed to validate git clone inputs")
-	}
-	if containsControlCharacters(referenceName) {
-		return errors.New("Invalid git reference: contains control characters")
 	}
 
 	// resolve git credentials when given
@@ -267,10 +264,14 @@ func isAzureDevopsRepositoryURL(repositoryURL string) bool {
 
 // validateRepositoryURL rejects malformed URLs and, as a side effect of net/url's own
 // validation, raw control characters (CR/LF, ANSI escapes, etc.) that would otherwise let this
-// value forge additional log lines when logged.
-func validateRepositoryURL(repositoryURL string) error {
+// value forge additional log lines when logged. It also rejects control characters in the
+// resolved git reference, which isn't a URL and so isn't covered by url.Parse.
+func validateRepositoryURL(repositoryURL string, referenceName string) error {
 	if _, err := url.Parse(repositoryURL); err != nil {
 		return errors.Wrap(err, "Invalid repository URL")
+	}
+	if containsControlCharacters(referenceName) {
+		return errors.New("Invalid git reference: contains control characters")
 	}
 	return nil
 }

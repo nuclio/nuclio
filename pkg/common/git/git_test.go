@@ -49,7 +49,7 @@ func (suite *CloneValidationTestSuite) TestValidateRepositoryURLAcceptsLegitimat
 		{name: "PlainHTTP", repositoryURL: "http://github.com/my-org/my-repo"},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.Require().NoError(validateRepositoryURL(testCase.repositoryURL))
+			suite.Require().NoError(validateRepositoryURL(testCase.repositoryURL, "refs/heads/main"))
 		})
 	}
 }
@@ -58,13 +58,15 @@ func (suite *CloneValidationTestSuite) TestValidateRepositoryURLRejectsMalicious
 	for _, testCase := range []struct {
 		name          string
 		repositoryURL string
+		referenceName string
 	}{
-		{name: "CRLFInjection", repositoryURL: "https://github.com/org/repo.git\r\n[FAKE] admin login"},
-		{name: "ANSIEscapeInjection", repositoryURL: "https://github.com/org/repo.git\x1b[31mFAKE\x1b[0m"},
-		{name: "MalformedPercentEncoding", repositoryURL: "https://github.com/org/repo.git%zz"},
+		{name: "CRLFInjection", repositoryURL: "https://github.com/org/repo.git\r\n[FAKE] admin login", referenceName: "refs/heads/main"},
+		{name: "ANSIEscapeInjection", repositoryURL: "https://github.com/org/repo.git\x1b[31mFAKE\x1b[0m", referenceName: "refs/heads/main"},
+		{name: "MalformedPercentEncoding", repositoryURL: "https://github.com/org/repo.git%zz", referenceName: "refs/heads/main"},
+		{name: "MaliciousReferenceName", repositoryURL: "https://github.com/org/repo.git", referenceName: "refs/heads/main\n2024 ERROR fake"},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.Require().Error(validateRepositoryURL(testCase.repositoryURL))
+			suite.Require().Error(validateRepositoryURL(testCase.repositoryURL, testCase.referenceName))
 		})
 	}
 }
@@ -103,14 +105,8 @@ func (suite *CloneValidationTestSuite) TestContainsControlCharactersRejectsMalic
 	}
 }
 
-// TestCloneLogsLegitimateInputAndRejectsMaliciousInput proves the "Cloning" log statement can no
-// longer be forged, while confirming every legitimate branch/tag/reference shape this repo
-// supports still reaches that log line unmodified. Uses a real nucliozap logger writing into a
-// buffer. Legitimate cases target a closed local port (127.0.0.1:1, which refuses instantly)
-// instead of a real git host: Clone must pass validation and log first - git.PlainClone only
-// dials out afterward - so the resulting connection-refused error is expected and irrelevant to
-// what's under test here. This keeps the test hermetic (no real network dependency) while still
-// exercising the exact same code path a real clone would take.
+// TestCloneLogsLegitimateInputAndRejectsMaliciousInput proves malicious input is rejected before
+// the "Cloning" log line, while every legitimate case still reaches that log line unmodified.
 func (suite *CloneValidationTestSuite) TestCloneLogsLegitimateInputAndRejectsMaliciousInput() {
 	const unreachableRepositoryURL = "https://127.0.0.1:1/test-org/test-repo.git"
 
@@ -137,7 +133,7 @@ func (suite *CloneValidationTestSuite) TestCloneLogsLegitimateInputAndRejectsMal
 			name:            "MaliciousReferenceName",
 			repositoryURL:   "https://github.com/org/repo.git",
 			attributes:      &Attributes{Branch: "main\n2024 ERROR fake"},
-			wantErrContains: "contains control characters",
+			wantErrContains: "Failed to validate git clone inputs",
 			wantLogAbsent:   []string{"ERROR fake"},
 		},
 		{
