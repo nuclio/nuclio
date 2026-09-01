@@ -711,6 +711,7 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 		newClient.On("GenerateCreateProjectRequestURL", mock.Anything).Return("test-url" + projectSuffix)
 		newClient.On("ResolveCreateProjectResponse", mock.Anything, mock.Anything).Return(mockClient.CreateProjectResponseMock{}, nil)
 		newClient.On("ShouldWaitForCreateCompletion").Return(true)
+		newClient.On("GetExpectedStatusCode", leader.ProjectOperationCreate).Return(http.StatusCreated)
 		newClient.On("GetJobIdUrl", mock.Anything, mock.Anything).Return("test-url" + getCreateProjectSuffix)
 		newClient.On("IsJobCompleted", mock.Anything, mock.Anything, mock.Anything).
 			Return(func(_ context.Context, jobResponse leader.JobResponse, _ string) error {
@@ -735,6 +736,7 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 	case updateTestSuite:
 		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
 		newClient.On("GenerateUpdateProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("GetExpectedStatusCode", leader.ProjectOperationUpdate).Return(http.StatusOK)
 		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
 			func(_ context.Context, _ []byte, resp *http.Response, _ error) error {
 				if resp.StatusCode != http.StatusOK {
@@ -747,7 +749,7 @@ func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failu
 		newClient.On("GenerateDeleteProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
 		newClient.On("GenerateProjectDeletionRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
 		newClient.On("GetDeleteStrategyHeaderName", mock.Anything, mock.Anything).Return("test-header")
-		newClient.On("GetDeleteExpectedStatusCode").Return(statusCode)
+		newClient.On("GetExpectedStatusCode", leader.ProjectOperationDelete).Return(statusCode)
 	}
 
 	return newClient

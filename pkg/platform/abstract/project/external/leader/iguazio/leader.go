@@ -186,8 +186,19 @@ func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName stri
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects/__name__", projectName)
 }
 
-func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
-	return http.StatusAccepted
+// GetExpectedStatusCode returns the expected HTTP status code from Iguazio's response for
+// the given project write operation.
+func (l *LeaderOps) GetExpectedStatusCode(operation leadercommon.ProjectOperation) int {
+	switch operation {
+	case leadercommon.ProjectOperationCreate:
+		return http.StatusCreated
+	case leadercommon.ProjectOperationUpdate:
+		return http.StatusOK
+	case leadercommon.ProjectOperationDelete:
+		return http.StatusAccepted
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
