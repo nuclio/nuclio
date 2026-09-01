@@ -111,8 +111,19 @@ func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName stri
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
 
-func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
-	return http.StatusNoContent
+// GetExpectedStatusCode returns the expected HTTP status code from MLRun's response for
+// the given project write operation.
+func (l *LeaderOps) GetExpectedStatusCode(operation leaderCommon.ProjectOperation) int {
+	switch operation {
+	case leaderCommon.ProjectOperationCreate:
+		return http.StatusCreated
+	case leaderCommon.ProjectOperationUpdate:
+		return http.StatusOK
+	case leaderCommon.ProjectOperationDelete:
+		return http.StatusNoContent
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func (l *LeaderOps) GetDeleteStrategyHeaderName() string {

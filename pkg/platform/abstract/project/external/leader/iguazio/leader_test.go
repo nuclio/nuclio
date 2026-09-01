@@ -371,11 +371,21 @@ func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 	}
 }
 
-func (suite *LeaderTestSuite) TestGetDeleteExpectedStatusCode() {
-	suite.Run("AlwaysAccepted", func() {
-		code := suite.leaderOps.GetDeleteExpectedStatusCode()
-		suite.Require().Equal(http.StatusAccepted, code)
-	})
+func (suite *LeaderTestSuite) TestGetExpectedStatusCode() {
+	for _, testCase := range []struct {
+		name      string
+		operation leaderCommon.ProjectOperation
+		expected  int
+	}{
+		{name: "Create", operation: leaderCommon.ProjectOperationCreate, expected: http.StatusCreated},
+		{name: "Update", operation: leaderCommon.ProjectOperationUpdate, expected: http.StatusOK},
+		{name: "Delete", operation: leaderCommon.ProjectOperationDelete, expected: http.StatusAccepted},
+	} {
+		suite.Run(testCase.name, func() {
+			code := suite.leaderOps.GetExpectedStatusCode(testCase.operation)
+			suite.Require().Equal(testCase.expected, code)
+		})
+	}
 }
 
 func (suite *LeaderTestSuite) TestGetDeleteStrategyHeaderName() {

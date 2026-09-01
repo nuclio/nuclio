@@ -120,8 +120,20 @@ func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
-	return http.StatusNoContent
+// GetExpectedStatusCode returns the expected HTTP status code from Oris's response for
+// the given project write operation. Oris accepts every write asynchronously, so all
+// known operations expect the same 202.
+func (l *LeaderOps) GetExpectedStatusCode(operation leaderCommon.ProjectOperation) int {
+	switch operation {
+	case leaderCommon.ProjectOperationCreate:
+		return http.StatusAccepted
+	case leaderCommon.ProjectOperationUpdate:
+		return http.StatusAccepted
+	case leaderCommon.ProjectOperationDelete:
+		return http.StatusAccepted
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
