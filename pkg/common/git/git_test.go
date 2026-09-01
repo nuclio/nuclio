@@ -71,36 +71,28 @@ func (suite *CloneValidationTestSuite) TestValidateRepositoryURLRejectsMalicious
 	}
 }
 
-// TestContainsControlCharactersAcceptsLegitimateReferenceNames guards against a future
-// tightening of containsControlCharacters breaking any branch/tag/reference shape this repo
-// already supports (see builder_test.go's TestResolveFunctionPathGitCodeEntry).
-func (suite *CloneValidationTestSuite) TestContainsControlCharactersAcceptsLegitimateReferenceNames() {
+// TestContainsControlCharacters guards against a future tightening of containsControlCharacters
+// breaking any branch/tag/reference shape this repo already supports (see builder_test.go's
+// TestResolveFunctionPathGitCodeEntry), while confirming it still rejects control characters.
+func (suite *CloneValidationTestSuite) TestContainsControlCharacters() {
 	for _, testCase := range []struct {
 		name          string
 		referenceName string
+		expected      bool
 	}{
+		// happy flows
 		{name: "Branch", referenceName: "refs/heads/go-func"},
 		{name: "BranchWithSlash", referenceName: "refs/heads/feature/foo"},
 		{name: "Tag", referenceName: "refs/tags/0.0.1"},
 		{name: "FullReference", referenceName: "refs/heads/go-func"},
 		{name: "PercentSignNotPercentEncoded", referenceName: "refs/heads/release%2024"},
-	} {
-		suite.Run(testCase.name, func() {
-			suite.Require().False(containsControlCharacters(testCase.referenceName))
-		})
-	}
-}
 
-func (suite *CloneValidationTestSuite) TestContainsControlCharactersRejectsMaliciousInput() {
-	for _, testCase := range []struct {
-		name          string
-		referenceName string
-	}{
-		{name: "NewlineInjection", referenceName: "refs/heads/main\n2024 ERROR fake"},
-		{name: "ANSIEscapeInjection", referenceName: "refs/heads/main\x1b[31mFAKE\x1b[0m"},
+		// malicious inputs
+		{name: "NewlineInjection", referenceName: "refs/heads/main\n2024 ERROR fake", expected: true},
+		{name: "ANSIEscapeInjection", referenceName: "refs/heads/main\x1b[31mFAKE\x1b[0m", expected: true},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.Require().True(containsControlCharacters(testCase.referenceName))
+			suite.Equal(testCase.expected, containsControlCharacters(testCase.referenceName))
 		})
 	}
 }
