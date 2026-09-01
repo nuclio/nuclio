@@ -174,41 +174,45 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	return nil
 }
 
-// Follower operations are unsupported on this plain CRD client: the dedicated
-// /api/v1/follower/projects/* surface is implemented by external.Client (when Oris is the
-// configured leader), which wraps this client as its internalClient rather than being it.
+// Follower operations: the dedicated /api/v1/follower/projects/* surface is only ever
+// reachable when Oris is the configured leader. This is the only client that implements
+// these for real -- external.Client and the local platform's client are permanently
+// unsupported. The CAS validation against the existing CRD state (comparing stored vs.
+// incoming OpID/SyncStatus, enforcing phase ordering) is this client's own private concern;
+// not yet implemented (NUC-988), along with the CRD mutation itself.
 
-// PrepareCreate is unsupported on the plain CRD client: implemented by external.Client instead.
+// PrepareCreate is not yet implemented: provisions a new project CRD (2PC step 1).
 func (c *Client) PrepareCreate(context.Context,
 	*platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// CommitCreate is unsupported on the plain CRD client: implemented by external.Client instead.
+// CommitCreate is not yet implemented: activates a provisioned project (2PC step 2).
 func (c *Client) CommitCreate(context.Context,
 	*platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// CommitUpdate is unsupported on the plain CRD client: implemented by external.Client instead.
+// CommitUpdate is not yet implemented: applies a common-set update to an online project.
 func (c *Client) CommitUpdate(context.Context,
 	*platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// PrepareDelete is unsupported on the plain CRD client: implemented by external.Client instead.
+// PrepareDelete is not yet implemented: marks a project deleting (2PC delete step 1).
 func (c *Client) PrepareDelete(context.Context,
 	*platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// CommitDelete is unsupported on the plain CRD client: implemented by external.Client instead.
+// CommitDelete is not yet implemented: purges the project CRD (2PC delete step 2).
 func (c *Client) CommitDelete(context.Context,
 	*platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// List is unsupported on the plain CRD client: implemented by external.Client instead.
+// List is not yet implemented: lists this follower's project states for the leader's
+// reconciliation sweep.
 func (c *Client) List(context.Context,
 	*platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
 	return nil, platform.ErrUnsupportedMethod

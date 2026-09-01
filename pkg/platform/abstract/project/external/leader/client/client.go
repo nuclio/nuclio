@@ -286,44 +286,6 @@ func (c *Client) ProjectSync2PCEnabled() bool {
 	return c.leaderOps.ProjectSync2PCEnabled()
 }
 
-// Follower operations delegate to the configured LeaderOps. See leader.LeaderOps for docs.
-
-// PrepareCreateProject2PC delegates to the configured LeaderOps.
-func (c *Client) PrepareCreateProject2PC(ctx context.Context,
-	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
-	return c.leaderOps.PrepareCreateProject2PC(ctx, options)
-}
-
-// CommitCreateProject2PC delegates to the configured LeaderOps.
-func (c *Client) CommitCreateProject2PC(ctx context.Context,
-	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
-	return c.leaderOps.CommitCreateProject2PC(ctx, options)
-}
-
-// UpdateProject2PC delegates to the configured LeaderOps.
-func (c *Client) UpdateProject2PC(ctx context.Context,
-	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
-	return c.leaderOps.UpdateProject2PC(ctx, options)
-}
-
-// PrepareDeleteProject2PC delegates to the configured LeaderOps.
-func (c *Client) PrepareDeleteProject2PC(ctx context.Context,
-	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
-	return c.leaderOps.PrepareDeleteProject2PC(ctx, options)
-}
-
-// CommitDeleteProject2PC delegates to the configured LeaderOps.
-func (c *Client) CommitDeleteProject2PC(ctx context.Context,
-	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
-	return c.leaderOps.CommitDeleteProject2PC(ctx, options)
-}
-
-// ListProject2PCStates delegates to the configured LeaderOps.
-func (c *Client) ListProject2PCStates(ctx context.Context,
-	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
-	return c.leaderOps.ListProject2PCStates(ctx, options)
-}
-
 func (c *Client) logLeaderResponseError(ctx context.Context,
 	response *http.Response,
 	errMessage string) {

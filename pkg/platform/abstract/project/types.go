@@ -40,7 +40,9 @@ type Client interface {
 	Get(context.Context, *platform.GetProjectsOptions) ([]platform.Project, error)
 
 	// 2PC project operations: the dedicated /api/v1/follower/projects/* surface. Only
-	// external.Client (when Oris is the configured leader) implements these for real.
+	// internalc/kube.Client (when Oris is the configured leader) implements these for real,
+	// including the CAS validation against the existing CRD state, which is this client's
+	// own private concern.
 
 	// PrepareCreate prepares a project follower creation, returning the state of the follower
 	PrepareCreate(context.Context, *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error)
