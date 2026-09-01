@@ -268,7 +268,7 @@ func isAzureDevopsRepositoryURL(repositoryURL string) bool {
 // resolved git reference, which isn't a URL and so isn't covered by url.Parse.
 func validateRepositoryURL(repositoryURL string, referenceName string) error {
 	if _, err := url.Parse(repositoryURL); err != nil {
-		return errors.Wrap(err, "Invalid repository URL")
+		return errors.New("Invalid repository URL")
 	}
 	if containsControlCharacters(referenceName) {
 		return errors.New("Invalid git reference: contains control characters")
