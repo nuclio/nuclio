@@ -97,37 +97,36 @@ func (suite *CloneValidationTestSuite) TestContainsControlCharacters() {
 	}
 }
 
-// TestCloneLogsLegitimateInputAndRejectsMaliciousInput proves malicious input is rejected before
-// the "Cloning" log line, while every legitimate case still reaches that log line unmodified.
+// TestCloneLogsLegitimateInputAndRejectsMaliciousInput proves malicious input is rejected by
+// validateRepositoryURL before Clone ever calls the logger, while every legitimate case still
+// reaches the "Cloning" log line unmodified. Legitimate cases target 127.0.0.1:1 (nothing listens
+// there) so Clone still errors afterward on the refused connection - that failure is expected and
+// irrelevant here; what matters is that it happens only after validation passed and logging ran.
 func (suite *CloneValidationTestSuite) TestCloneLogsLegitimateInputAndRejectsMaliciousInput() {
 	const unreachableRepositoryURL = "https://127.0.0.1:1/test-org/test-repo.git"
-
-	// every legitimate case must not be blocked by our own validation, whatever happens
-	// afterward when git.PlainClone dials the (deliberately unreachable) host
-	validationErrors := []string{"Failed to validate git clone inputs", "contains control characters"}
 
 	for _, testCase := range []struct {
 		name            string
 		repositoryURL   string
 		attributes      *Attributes
-		wantErrContains string // set only for cases validation must reject
+		malicious       bool
 		wantLogContains []string
-		wantLogAbsent   []string // injected payloads that must never reach the log
 	}{
+		// malicious inputs: rejected before anything is logged
 		{
-			name:            "MaliciousRepositoryURL",
-			repositoryURL:   "https://github.com/org/repo.git\r\n[FAKE] admin login",
-			attributes:      &Attributes{Branch: "main"},
-			wantErrContains: "Failed to validate git clone inputs",
-			wantLogAbsent:   []string{"[FAKE]"},
+			name:          "MaliciousRepositoryURL",
+			repositoryURL: "https://github.com/org/repo.git\r\n[FAKE] admin login",
+			attributes:    &Attributes{Branch: "main"},
+			malicious:     true,
 		},
 		{
-			name:            "MaliciousReferenceName",
-			repositoryURL:   "https://github.com/org/repo.git",
-			attributes:      &Attributes{Branch: "main\n2024 ERROR fake"},
-			wantErrContains: "Failed to validate git clone inputs",
-			wantLogAbsent:   []string{"ERROR fake"},
+			name:          "MaliciousReferenceName",
+			repositoryURL: "https://github.com/org/repo.git",
+			attributes:    &Attributes{Branch: "main\n2024 ERROR fake"},
+			malicious:     true,
 		},
+
+		// happy flows: pass validation and reach the "Cloning" log line unmodified
 		{
 			name:            "LegitimateRepositoryURL",
 			repositoryURL:   unreachableRepositoryURL,
@@ -161,22 +160,17 @@ func (suite *CloneValidationTestSuite) TestCloneLogsLegitimateInputAndRejectsMal
 			abstractClient := &AbstractClient{logger: captureLogger}
 
 			err = abstractClient.Clone(suite.T().TempDir(), testCase.repositoryURL, testCase.attributes)
-			suite.Require().Error(err) // malicious: rejected by validation; legitimate: connection refused after logging
+			suite.Require().Error(err)
 
-			if testCase.wantErrContains != "" {
-				suite.Contains(err.Error(), testCase.wantErrContains)
-			} else {
-				for _, validationErr := range validationErrors {
-					suite.NotContains(err.Error(), validationErr)
-				}
+			if testCase.malicious {
+				suite.Contains(err.Error(), "Failed to validate git clone inputs")
+				suite.Empty(logBuf.String(), "malicious input must be rejected before anything is logged")
+				return
 			}
 
 			logLine := logBuf.String()
 			for _, substr := range testCase.wantLogContains {
 				suite.Contains(logLine, substr)
-			}
-			for _, substr := range testCase.wantLogAbsent {
-				suite.NotContains(logLine, substr)
 			}
 		})
 	}
