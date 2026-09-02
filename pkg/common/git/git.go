@@ -18,7 +18,9 @@ package git
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
+	"unicode"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -66,6 +68,11 @@ func (agc *AbstractClient) Clone(outputDir, repositoryURL string, attributes *At
 	referenceName, err = ResolveReference(repositoryURL, attributes)
 	if err != nil {
 		return errors.Wrap(err, "Failed to resolve git reference")
+	}
+
+	// reject malicious/malformed input before it can reach a log line or the git client
+	if err := validateRepositoryURL(repositoryURL, referenceName); err != nil {
+		return errors.Wrap(err, "Failed to validate git clone inputs")
 	}
 
 	// resolve git credentials when given
@@ -235,4 +242,26 @@ func ResolveReference(repositoryURL string, attributes *Attributes) (string, err
 
 func isAzureDevopsRepositoryURL(repositoryURL string) bool {
 	return strings.Contains(repositoryURL, "dev.azure.com")
+}
+
+// validateRepositoryURL rejects malformed URLs and, as a side effect of net/url's own
+// validation, raw control characters (CR/LF, ANSI escapes, etc.) that would otherwise let this
+// value forge additional log lines when logged. It also rejects control characters in the
+// resolved git reference, which isn't a URL and so isn't covered by url.Parse.
+func validateRepositoryURL(repositoryURL string, referenceName string) error {
+	if _, err := url.Parse(repositoryURL); err != nil {
+		return errors.New("Invalid repository URL")
+	}
+	if containsControlCharacters(referenceName) {
+		return errors.New("Invalid git reference: contains control characters")
+	}
+	return nil
+}
+
+// containsControlCharacters reports whether s contains raw control characters (e.g. CR/LF or
+// ANSI escape codes) that could be used to forge log lines when s is later logged. Reference
+// names aren't URLs, so they're checked directly rather than via url.Parse, which would also
+// reject legal-but-URL-unfriendly ref names (e.g. ones containing a bare '%').
+func containsControlCharacters(s string) bool {
+	return strings.ContainsFunc(s, unicode.IsControl)
 }
