@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -388,10 +389,17 @@ func (pr *projectResource) CommitDeleteProject(request *http.Request) (*restful.
 
 // ListProjectStates lists this follower's projects for the leader's reconciliation sweep.
 func (pr *projectResource) ListProjectStates(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	limit := pr.GetURLParamInt64OrDefault(request, "limit", 0)
+	if limit < 0 {
+		limit = 0
+	} else if limit > int64(math.MaxInt) {
+		limit = int64(math.MaxInt)
+	}
+
 	options := &platform.ListProjectStatesOptions{
 		Namespace: pr.getNamespaceFromRequest(request),
 		Cursor:    pr.GetURLParamStringOrDefault(request, "cursor", ""),
-		Limit:     int(pr.GetURLParamInt64OrDefault(request, "limit", 0)),
+		Limit:     int(limit),
 	}
 	if updatedAfter := pr.GetURLParamStringOrDefault(request, "updated_after", ""); updatedAfter != "" {
 		parsed, err := time.Parse(time.RFC3339, updatedAfter)
