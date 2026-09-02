@@ -100,19 +100,6 @@ func (pr *projectResource) ExtendMiddlewares() error {
 	return nil
 }
 
-func (pr *projectResource) requireTrustedLeaderOrigin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		projectsLeader := pr.getDashboard().GetPlatformConfiguration().ProjectsLeader
-		if projectsLeader == nil ||
-			projectsLeader.Kind != platformconfig.ProjectsLeaderKindOris ||
-			!projectsLeader.TrustsLeaderOrigin(pr.getCtxSession(request.Context())) {
-			responseWriter.WriteHeader(http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(responseWriter, request)
-	})
-}
-
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	ctx := request.Context()
@@ -288,7 +275,7 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (pr *projectResource) PrepareCreateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	reqBody, err := pr.readFollowerRequest(request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to read prepare-create request for project")
 	}
 
 	state, err := pr.getPlatform().PrepareCreateProject(request.Context(), &platform.PrepareCreateProjectOptions{
@@ -304,7 +291,7 @@ func (pr *projectResource) PrepareCreateProject(request *http.Request) (*restful
 		OpID: reqBody.Status.OpID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to prepare create project")
 	}
 	return pr.followerStateResponse(state), nil
 }
@@ -313,7 +300,7 @@ func (pr *projectResource) PrepareCreateProject(request *http.Request) (*restful
 func (pr *projectResource) CommitCreateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	reqBody, err := pr.readFollowerRequest(request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to read commit-create request for project")
 	}
 
 	state, err := pr.getPlatform().CommitCreateProject(request.Context(), &platform.CommitCreateProjectOptions{
@@ -321,7 +308,7 @@ func (pr *projectResource) CommitCreateProject(request *http.Request) (*restful.
 		OpID: reqBody.Status.OpID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to commit create project")
 	}
 	return pr.followerStateResponse(state), nil
 }
@@ -330,7 +317,7 @@ func (pr *projectResource) CommitCreateProject(request *http.Request) (*restful.
 func (pr *projectResource) CommitUpdateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	reqBody, err := pr.readFollowerRequest(request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to read commit-update request for project")
 	}
 
 	state, err := pr.getPlatform().CommitUpdateProject(request.Context(), &platform.CommitUpdateProjectOptions{
@@ -347,7 +334,7 @@ func (pr *projectResource) CommitUpdateProject(request *http.Request) (*restful.
 		PrevOpID: reqBody.PrevOpID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to commit update project")
 	}
 	return pr.followerStateResponse(state), nil
 }
@@ -356,7 +343,7 @@ func (pr *projectResource) CommitUpdateProject(request *http.Request) (*restful.
 func (pr *projectResource) PrepareDeleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	reqBody, err := pr.readFollowerRequest(request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to read prepare-delete request for project")
 	}
 
 	state, err := pr.getPlatform().PrepareDeleteProject(request.Context(), &platform.PrepareDeleteProjectOptions{
@@ -365,7 +352,7 @@ func (pr *projectResource) PrepareDeleteProject(request *http.Request) (*restful
 		PrevOpID: reqBody.PrevOpID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to prepare delete project")
 	}
 	return pr.followerStateResponse(state), nil
 }
@@ -374,7 +361,7 @@ func (pr *projectResource) PrepareDeleteProject(request *http.Request) (*restful
 func (pr *projectResource) CommitDeleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	reqBody, err := pr.readFollowerRequest(request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to read commit-delete request for project")
 	}
 
 	state, err := pr.getPlatform().CommitDeleteProject(request.Context(), &platform.CommitDeleteProjectOptions{
@@ -382,7 +369,7 @@ func (pr *projectResource) CommitDeleteProject(request *http.Request) (*restful.
 		OpID: reqBody.Status.OpID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to commit delete project")
 	}
 	return pr.followerStateResponse(state), nil
 }
@@ -412,7 +399,7 @@ func (pr *projectResource) ListProjectStates(request *http.Request) (*restful.Cu
 
 	page, err := pr.getPlatform().ListProjectStates(request.Context(), options)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to list project states")
 	}
 
 	projects := make([]restful.Attributes, len(page.States))
@@ -1103,6 +1090,19 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(ctx context.Co
 	}
 }
 
+func (pr *projectResource) requireTrustedLeaderOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		projectsLeader := pr.getDashboard().GetPlatformConfiguration().ProjectsLeader
+		if projectsLeader == nil ||
+			projectsLeader.Kind != platformconfig.ProjectsLeaderKindOris ||
+			!projectsLeader.TrustsLeaderOrigin(pr.getCtxSession(request.Context())) {
+			responseWriter.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(responseWriter, request)
+	})
+}
+
 // register the resource
 var projectResourceInstance = &projectResource{
 	resource: newResource("api/projects", []restful.ResourceMethod{
@@ -1113,11 +1113,6 @@ var projectResourceInstance = &projectResource{
 	}),
 }
 
-func init() {
-	projectResourceInstance.Resource = projectResourceInstance
-	projectResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
-}
-
 // register the follower resource: same projectResource type and CRD, second mount point
 // (see projectFollowerResourceName).
 var projectFollowerResourceInstance = &projectResource{
@@ -1125,6 +1120,9 @@ var projectFollowerResourceInstance = &projectResource{
 }
 
 func init() {
+	projectResourceInstance.Resource = projectResourceInstance
+	projectResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+
 	projectFollowerResourceInstance.Resource = projectFollowerResourceInstance
 	projectFollowerResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
 }
