@@ -13,11 +13,12 @@ pip install -r hack/scripts/patch-remote/requirements.txt
 * Create a `patch_env.yml` based on `patch_env_template.yml`, and fill in the required and optional fields
 * Have a docker registry you can push to (e.g. docker.io via account on docker.com)
 * Make sure you are logged in into your registry (docker login --username user --password user_password), or optionally add username/password to config
+* The script can reach the remote system in two ways: over SSH, or directly via `kubectl` using a local kubeconfig - a more convenient and secure alternative, since it avoids ssh key/password management entirely. To use it, set `KUBECONFIG` in `patch_env.yml` to a local kubeconfig file pointed at the remote cluster; in that case `HOST_IP`/`SSH_USER` and the private key file are not required. If `KUBECONFIG` is not set (or the path doesn't exist), the script falls back to SSH.
 * From nuclio root dir run:
 ~~~bash
 make patch-remote-nuclio
 ~~~
-* On first run, you will need to manually input the remote system's password. This will create a new ssh key that will be used for future connections, so you will not need to input the password again.
+* On first run (SSH mode only), you will need to manually input the remote system's password. This will create a new ssh key that will be used for future connections, so you will not need to input the password again.
 * The script will automatically patch the remote system with your current code changes
 
 For ease of use, you can add the specific make commands to patch only the dashboard or the controller:
