@@ -48,7 +48,9 @@ class NuclioPatcher:
     class Consts:
         log_level = logging.INFO
         fmt = "%(asctime)s %(levelname)s %(message)s"
-        mandatory_fields = {"HOST_IP", "SSH_USER", "DOCKER_REGISTRY"}
+        mandatory_fields = {"DOCKER_REGISTRY"}
+        # only required when KUBECONFIG is not set/resolved, since ssh is then unused
+        ssh_mandatory_fields = {"HOST_IP", "SSH_USER"}
         nuclio_version_annotation = "nuclio.io/version"
         deployment_policy_patch_dict = {
             "spec": {
@@ -84,6 +86,18 @@ class NuclioPatcher:
         self._private_key = private_key
         self._os = self._get_config_value_or_default("NUCLIO_OS", "linux")
 
+        kubeconfig_path = self._get_config_value_or_default("KUBECONFIG", "")
+        self._kubeconfig = self._resolve_kubeconfig(kubeconfig_path)
+        if not kubeconfig_path:
+            self._logger.warning("KUBECONFIG is not set, falling back to SSH")
+        elif not self._kubeconfig:
+            self._logger.warning(
+                "KUBECONFIG path '%s' does not exist, falling back to SSH", kubeconfig_path
+            )
+
+        if not self._kubeconfig and not self._private_key:
+            raise RuntimeError("--private-key-file is required when KUBECONFIG is not set")
+
     def patch_nuclio(self):
         self._logger.info(
             f"Patching Nuclio targets to remote system: {', '.join(self._targets)}"
@@ -110,7 +124,10 @@ class NuclioPatcher:
         )
 
     def _validate_config(self):
-        missing_fields = self.Consts.mandatory_fields - set(self._config.keys())
+        mandatory_fields = set(self.Consts.mandatory_fields)
+        if not self._resolve_kubeconfig(self._config.get("KUBECONFIG", "")):
+            mandatory_fields |= self.Consts.ssh_mandatory_fields
+        missing_fields = mandatory_fields - set(self._config.keys())
         if len(missing_fields) > 0:
             raise RuntimeError(f"Mandatory options not defined: {missing_fields}")
 
@@ -179,6 +196,12 @@ class NuclioPatcher:
             ],
         )
         self._tag = version.strip()
+
+    @staticmethod
+    def _resolve_kubeconfig(path: str) -> typing.Optional[str]:
+        if not path or not os.path.exists(path):
+            return None
+        return path
 
     def _get_config_value_or_default(self, key: str, default):
         value = self._config.get(key, default)
@@ -389,33 +412,52 @@ class NuclioPatcher:
         output = buf.getvalue()
         return output
 
-    def _exec_remote(self, cmd: list[str], live=False) -> str:
-        # run the command on the remote machine using ssh in a subprocess
-        cmd_str = " ".join(cmd)
-        self._logger.debug("Executing remote command: %s", cmd_str)
-        ssh_cmd = [
-            "/usr/bin/ssh",
-            "-i",
-            self._private_key,
-            f"{self._user}@{self._node}",
-        ]
-        ssh_cmd.extend(cmd)
-        proc = subprocess.Popen(
-            ssh_cmd,
+    def _popen_kubectl(self, cmd_str: str) -> subprocess.Popen:
+        self._logger.debug("Executing kubectl command (via kubeconfig): %s", cmd_str)
+        env = os.environ | {"KUBECONFIG": self._kubeconfig}
+        return subprocess.Popen(
+            cmd_str,
+            shell=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env=env,
         )
+
+    def _exec_remote(self, cmd: list[str], live=False) -> str:
+        cmd_str = " ".join(cmd)
+        if self._kubeconfig:
+            proc = self._popen_kubectl(cmd_str)
+        else:
+            # run the command on the remote machine using ssh in a subprocess
+            self._logger.debug("Executing remote command: %s", cmd_str)
+            ssh_cmd = [
+                "/usr/bin/ssh",
+                "-i",
+                self._private_key,
+                f"{self._user}@{self._node}",
+            ]
+            ssh_cmd.extend(cmd)
+            proc = subprocess.Popen(
+                ssh_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        return self._wait_for_proc_output(proc, cmd_str, live)
+
+    @staticmethod
+    def _wait_for_proc_output(proc, cmd_str, live) -> str:
         stdout = ""
         if live:
             for line in proc.stdout:
                 stdout += line
                 print(line, end="")
+            _, stderr = proc.communicate()
         else:
-            stdout = proc.stdout.read()
-        stderr = proc.stderr.read()
-        proc.wait()
+            stdout, stderr = proc.communicate()
         if proc.returncode:
             raise RuntimeError(
                 f"Command '{cmd_str}' finished with failure ({proc.returncode})\n{stderr}"
@@ -435,9 +477,10 @@ class NuclioPatcher:
 @click.option(
     "-p",
     "--private-key-file",
-    help="Private ssh key file",
+    help="Private ssh key file (required unless KUBECONFIG is set)",
     type=str,
-    required=True,
+    required=False,
+    default=None,
 )
 @click.option(
     "-t",
