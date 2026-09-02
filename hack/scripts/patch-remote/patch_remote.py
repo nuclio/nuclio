@@ -88,12 +88,9 @@ class NuclioPatcher:
 
         kubeconfig_path = self._get_config_value_or_default("KUBECONFIG", "")
         self._kubeconfig = self._resolve_kubeconfig(kubeconfig_path)
-        if not kubeconfig_path:
-            self._logger.warning("KUBECONFIG is not set, falling back to SSH")
-        elif not self._kubeconfig:
-            self._logger.warning(
-                "KUBECONFIG path '%s' does not exist, falling back to SSH", kubeconfig_path
-            )
+        if not self._kubeconfig:
+            reason = f"KUBECONFIG path '{kubeconfig_path}' does not exist" if kubeconfig_path else "KUBECONFIG is not set"
+            self._logger.warning("%s, falling back to SSH", reason)
 
         if not self._kubeconfig and not self._private_key:
             raise RuntimeError("--private-key-file is required when KUBECONFIG is not set")
