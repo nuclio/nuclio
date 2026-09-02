@@ -56,7 +56,7 @@ func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectCo
 	return json.Marshal(project)
 }
 
-func (l *LeaderOps) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
+func (l *LeaderOps) GenerateProjectDeletionRequestBody(_ string) ([]byte, error) {
 	return []byte{}, nil
 }
 
@@ -132,6 +132,15 @@ func (l *LeaderOps) GetExpectedStatusCode(operation leaderCommon.ProjectOperatio
 	}
 }
 
+// GetDeleteStrategyHeaderName overrides the abstract default ("", meaning no header): an
+// empty header name reaching Client.Delete's requestHeaders map becomes a header with an
+// empty key, which Go's http.Client rejects outright before ever sending the request. Oris's
+// legacy delete endpoint has no deletion-strategy concept and never reads this header, so the
+// name only needs to be valid, not meaningful to the leader.
+func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
+	return "x-oris-deletion-strategy"
+}
+
 func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
@@ -146,4 +155,25 @@ func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string 
 
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
+}
+
+// ErrLegacySurfaceForbidden is returned by EvaluateLeaderRequest for every leader-origin call
+// on the legacy label-inferred surface. Exported as a sentinel (rather than constructed fresh
+// per call) so callers, including tests, can identify it with errors.Is instead of inspecting
+// the status code or message.
+var ErrLegacySurfaceForbidden = nuclio.GetByStatusCode(http.StatusForbidden)(
+	"leader writes must use /api/v1/follower/projects/*")
+
+// EvaluateLeaderRequest rejects every leader-origin call on this legacy surface: with Oris as
+// leader, project writes from the leader belong exclusively on the dedicated
+// /api/v1/follower/projects/* surface, never on the label-inferred api/projects path.
+func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, _ map[string]string, _ platform.Project) (bool, error) {
+	return false, ErrLegacySurfaceForbidden
+}
+
+// ProjectSync2PCEnabled returns true so the caller always runs EvaluateLeaderRequest above
+// instead of short-circuiting past it — unlike MLRun, Oris has no legacy pass-through mode to
+// preserve on this surface.
+func (l *LeaderOps) ProjectSync2PCEnabled() bool {
+	return true
 }
