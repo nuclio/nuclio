@@ -201,6 +201,23 @@ const (
 	MLRunSyncStatusDeleting = "deleting"
 )
 
+// 2PC sync label keys written on NuclioProject CRDs by internalc/kube.Client's follower
+// operations (the dedicated /api/v1/follower/projects/* surface).
+const (
+	OrisLabelKeySyncStatus = "oris/sync-status"
+	OrisLabelKeyOpID       = "oris/op-id"
+)
+
+// OrisSyncStatus is the 2PC phase stamped on a NuclioProject CRD's labels by internalc/kube.Client's
+// follower operations.
+type OrisSyncStatus string
+
+const (
+	OrisSyncStatusCreating OrisSyncStatus = "creating"
+	OrisSyncStatusOnline   OrisSyncStatus = "online"
+	OrisSyncStatusDeleting OrisSyncStatus = "deleting"
+)
+
 func ParseTimeFromTimestamp(timestamp string) time.Time {
 	t, _ := time.Parse(ProjectTimeLayout, timestamp)
 	return t
