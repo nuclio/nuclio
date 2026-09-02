@@ -392,7 +392,8 @@ func (pr *projectResource) ListProjectStates(request *http.Request) (*restful.Cu
 	limit := pr.GetURLParamInt64OrDefault(request, "limit", 0)
 	if limit < 0 {
 		limit = 0
-	} else if limit > int64(math.MaxInt) {
+	}
+	if limit > int64(math.MaxInt) {
 		limit = int64(math.MaxInt)
 	}
 
