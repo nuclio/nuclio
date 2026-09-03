@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	leadercommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	leaderabstract "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -35,12 +36,14 @@ import (
 )
 
 type LeaderOps struct {
+	*leaderabstract.LeaderOps
 	logger logger.Logger
 }
 
 func NewLeaderOps(parentLogger logger.Logger) *LeaderOps {
 	return &LeaderOps{
-		logger: parentLogger.GetChild("iguazio"),
+		LeaderOps: leaderabstract.NewLeaderOps(),
+		logger:    parentLogger.GetChild("iguazio"),
 	}
 }
 

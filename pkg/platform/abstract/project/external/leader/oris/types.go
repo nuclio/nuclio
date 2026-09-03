@@ -30,6 +30,17 @@ type OrisProject struct {
 	Status   OrisProjectStatus   `json:"status"`
 }
 
+// OrisProjectRequest is the flat wire shape Oris expects for CreateProject/UpdateProject
+// requests: its gRPC proxy unmarshals the request body directly into the (unnested)
+// CreateProjectOptions/UpdateProjectOptions proto message.
+type OrisProjectRequest struct {
+	Name        string            `json:"name"`
+	Owner       string            `json:"owner,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 // GetLastJobID satisfies the leader.CreateProjectResponse interface.
 // TODO: Oris does not yet have async job handling; revisit if it gains one.
 func (p *OrisProject) GetLastJobID() string {
@@ -62,22 +73,18 @@ func (p *OrisProject) IsProjectOnline() bool {
 	return true
 }
 
-// NewProjectFromProjectConfig converts a platform.ProjectConfig into the Oris wire format.
-func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (OrisProject, error) {
+// NewProjectRequestFromProjectConfig converts a platform.ProjectConfig into the flat Oris request wire format.
+func NewProjectRequestFromProjectConfig(projectConfig *platform.ProjectConfig) (OrisProjectRequest, error) {
 	if projectConfig == nil {
-		return OrisProject{}, errors.New("ProjectConfig is nil")
+		return OrisProjectRequest{}, errors.New("ProjectConfig is nil")
 	}
 
-	return OrisProject{
-		Metadata: OrisProjectMetadata{
-			Name:        projectConfig.Meta.Name,
-			Labels:      projectConfig.Meta.Labels,
-			Annotations: projectConfig.Meta.Annotations,
-		},
-		Spec: OrisProjectSpec{
-			Description: projectConfig.Spec.Description,
-			Owner:       projectConfig.Spec.Owner,
-		},
+	return OrisProjectRequest{
+		Name:        projectConfig.Meta.Name,
+		Owner:       projectConfig.Spec.Owner,
+		Description: projectConfig.Spec.Description,
+		Labels:      projectConfig.Meta.Labels,
+		Annotations: projectConfig.Meta.Annotations,
 	}, nil
 }
 

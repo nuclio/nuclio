@@ -76,11 +76,11 @@ func (suite *LeaderTestSuite) TestGenerateProjectRequestBody() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(result)
-				var resultProject OrisProject
-				suite.Require().NoError(json.Unmarshal(result, &resultProject))
-				suite.Require().Equal(testCase.project.Meta.Name, resultProject.Metadata.Name)
-				suite.Require().Equal(testCase.project.Spec.Owner, resultProject.Spec.Owner)
-				suite.Require().Equal(testCase.project.Spec.Description, resultProject.Spec.Description)
+				var resultProjectRequest OrisProjectRequest
+				suite.Require().NoError(json.Unmarshal(result, &resultProjectRequest))
+				suite.Require().Equal(testCase.project.Meta.Name, resultProjectRequest.Name)
+				suite.Require().Equal(testCase.project.Spec.Owner, resultProjectRequest.Owner)
+				suite.Require().Equal(testCase.project.Spec.Description, resultProjectRequest.Description)
 			}
 		})
 	}
@@ -216,27 +216,27 @@ func (suite *LeaderTestSuite) TestParseJobStatusResponse() {
 
 func (suite *LeaderTestSuite) TestGenerateCreateProjectRequestURL() {
 	url := suite.leaderOps.GenerateCreateProjectRequestURL("http://localhost/api")
-	suite.Require().Equal("http://localhost/api/v1/projects", url)
+	suite.Require().Equal("http://localhost/api/v1/projects/projects", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateUpdateProjectRequestURL() {
 	url := suite.leaderOps.GenerateUpdateProjectRequestURL("http://localhost/api", "test-project")
-	suite.Require().Equal("http://localhost/api/v1/projects/test-project", url)
+	suite.Require().Equal("http://localhost/api/v1/projects/projects/test-project", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateGetProjectsRequestURL() {
 	url := suite.leaderOps.GenerateGetProjectsRequestURL("http://localhost/api", "test-project")
-	suite.Require().Equal("http://localhost/api/v1/projects/test-project", url)
+	suite.Require().Equal("http://localhost/api/v1/projects/projects/test-project", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateDeleteProjectRequestURL() {
 	url := suite.leaderOps.GenerateDeleteProjectRequestURL("http://localhost/api", "test-project")
-	suite.Require().Equal("http://localhost/api/v1/projects/test-project", url)
+	suite.Require().Equal("http://localhost/api/v1/projects/projects/test-project", url)
 }
 
 func (suite *LeaderTestSuite) TestGenerateGetUpdatedAfterRequestURL() {
 	url := suite.leaderOps.GenerateGetUpdatedAfterRequestURL("http://localhost/api")
-	suite.Require().Equal("http://localhost/api/v1/projects", url)
+	suite.Require().Equal("http://localhost/api/v1/projects/projects", url)
 }
 
 func (suite *LeaderTestSuite) TestShouldWaitForCreateCompletion() {

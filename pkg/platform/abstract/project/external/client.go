@@ -173,6 +173,46 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	return platform.ErrSuccessfulDeleteProjectLeader
 }
 
+// Follower operations delegate straight to the configured internal client — no OPA, no
+// leader-evaluation routing, since the /follower/projects/* dashboard resource is already
+// SA-gated and internalc/kube.Client validates (CAS/ordering) each request itself.
+
+// PrepareCreate applies a provision (prepare-create) request through the internal client.
+func (c *Client) PrepareCreate(ctx context.Context,
+	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return c.internalClient.PrepareCreate(ctx, options)
+}
+
+// CommitCreate applies a commit-create request through the internal client.
+func (c *Client) CommitCreate(ctx context.Context,
+	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return c.internalClient.CommitCreate(ctx, options)
+}
+
+// CommitUpdate applies a commit-update request through the internal client.
+func (c *Client) CommitUpdate(ctx context.Context,
+	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return c.internalClient.CommitUpdate(ctx, options)
+}
+
+// PrepareDelete applies a prepare-delete request through the internal client.
+func (c *Client) PrepareDelete(ctx context.Context,
+	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return c.internalClient.PrepareDelete(ctx, options)
+}
+
+// CommitDelete applies a commit-delete request through the internal client.
+func (c *Client) CommitDelete(ctx context.Context,
+	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return c.internalClient.CommitDelete(ctx, options)
+}
+
+// List has no follower state to validate against, so it reads straight through.
+func (c *Client) List(ctx context.Context,
+	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return c.internalClient.List(ctx, options)
+}
+
 // isLeaderOriginRequest decides whether a project write should be treated as leader-origin
 // (write directly) or forwarded to the leader. For a legacy (mlrun/iguazio/mock) leader this is
 // the claimed X-Projects-Role header, unchanged. For an Oris leader the header plays no role at
