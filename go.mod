@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.26.6
+go 1.26.8
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.6.0
@@ -44,7 +44,7 @@ require (
 	github.com/nuclio/zap v0.3.1
 	github.com/opensearch-project/opensearch-go/v4 v4.6.0
 	github.com/prometheus/client_golang v1.24.1
-	github.com/rabbitmq/amqp091-go v1.11.0
+	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.6.0
@@ -67,7 +67,7 @@ require (
 	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.40.0
 	google.golang.org/api v0.291.0
-	google.golang.org/grpc v1.82.1
+	google.golang.org/grpc v1.83.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3

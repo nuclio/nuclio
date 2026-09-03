@@ -1123,6 +1123,15 @@ func FunctionStateProvisioning(functionState FunctionState) bool {
 	return !FunctionStateProvisioned(functionState)
 }
 
+// FunctionStateStale reports whether the function is in stale state
+func FunctionStateStale(functionState FunctionState) bool {
+	return FunctionStateInSlice(functionState,
+		[]FunctionState{
+			FunctionStateWaitingForBuild,
+			FunctionStateBuilding,
+		})
+}
+
 func IsPreviousFunctionStateAllowedToBeSet(prevState FunctionState) bool {
 	allowedPreviousStates := []FunctionState{
 		FunctionStateScaledToZero,

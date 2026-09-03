@@ -1098,6 +1098,9 @@ func (ap *Platform) GetAllowedAuthenticationModes() []string {
 	return nil
 }
 
+// MigrateFunctionAuthentication is a no-op, since it is relevant only for the kube platform.
+func (ap *Platform) MigrateFunctionAuthentication(_ context.Context) {}
+
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return ap.ContainerBuilder.BuildAndPushContainerImage(ctx,

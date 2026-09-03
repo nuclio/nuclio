@@ -191,13 +191,20 @@ func NewServer(parentLogger logger.Logger,
 	return newServer, nil
 }
 
-// Start Starts the server and launches background job to mark stale functions as errored
+// Start Starts the server and launches the background jobs: marking stale functions as errored, and
+// migrating existing functions and api gateways to function-level authentication
 func (s *Server) Start() error {
 	if err := s.AbstractServer.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start server")
 	}
 
-	go s.markStaleFunctionsAsError(context.Background())
+	// one goroutine, in this order: both jobs write the same functions, so running them concurrently would
+	// make one of the two updates fail on a resource-version conflict. Running the sweep first also means
+	// the migration sees those functions in error state, and can give them a mode instead of only a label
+	go func() {
+		s.markStaleFunctionsAsError(context.Background())
+		s.Platform.MigrateFunctionAuthentication(context.Background())
+	}()
 
 	return nil
 }
@@ -316,19 +323,13 @@ func (s *Server) markStaleFunctionsAsError(ctx context.Context) {
 		return
 	}
 
-	// states from which no process can advance the function after a dashboard restart
-	staleStates := map[functionconfig.FunctionState]struct{}{
-		functionconfig.FunctionStateWaitingForBuild: {},
-		functionconfig.FunctionStateBuilding:        {},
-	}
-
 	// update stale functions concurrently, bounded by a semaphore
 	var wg sync.WaitGroup
 	sem := semaphore.NewWeighted(staleFunctionUpdateConcurrency)
 
 	for _, function := range functions {
 		functionStatus := function.GetStatus()
-		if _, isStale := staleStates[functionStatus.State]; !isStale {
+		if !functionconfig.FunctionStateStale(functionStatus.State) {
 			continue
 		}
 
@@ -345,8 +346,11 @@ func (s *Server) markStaleFunctionsAsError(ctx context.Context) {
 			functionStatus.Message = "Function deployment was interrupted and could not be completed. Please redeploy the function."
 
 			if err := s.Platform.UpdateFunction(ctx, &platform.UpdateFunctionOptions{
-				FunctionMeta:   &functionConfig.Meta,
-				FunctionSpec:   &functionConfig.Spec,
+				FunctionMeta: &functionConfig.Meta,
+
+				// status only, no spec: the spec was read before this sweep started, so sending it back would
+				// revert any spec change made in between - a redeploy, a controller write, or the startup
+				// authentication migration
 				FunctionStatus: functionStatus,
 
 				// the sweep runs at startup with no user session; mark it as a system call so it

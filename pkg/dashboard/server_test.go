@@ -123,6 +123,11 @@ func (suite *DashboardServerTestSuite) TestMarkStaleFunctionsAsError() {
 		suite.Require().True(expected, "unexpected function flipped to error: %s", name)
 		suite.Require().Equal(functionconfig.FunctionStateError, updateFunctionOptions.FunctionStatus.State)
 		suite.Require().NotEmpty(updateFunctionOptions.FunctionStatus.Message)
+
+		// status only: the spec was read before the sweep started, so sending it back would revert any spec
+		// change made in between
+		suite.Require().Nil(updateFunctionOptions.FunctionSpec)
+
 		expectedFlipped[name] = true
 		return true
 	}
