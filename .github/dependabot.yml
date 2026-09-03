@@ -24,3 +24,14 @@ updates:
     commit-message:
       prefix: "[Dependabot] "
     open-pull-requests-limit: 6
+
+  - package-ecosystem: "npm"
+    directory: "/pkg/dashboard/ui"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[Dependabot] "
+    open-pull-requests-limit: 6
+    ignore:
+      # bootstrap 5.x is a breaking major bump that broke the UI (see PR #4306, #4321, #4322)
+      - dependency-name: "bootstrap"
