@@ -66,6 +66,9 @@ linkcheck_ignore = [
     # httpie.org blocks automated link checking
     r"https://httpie\.org.*",
 
+    # Slack links are not accessible via GH Actions, since they tightened bot detection
+    "https://nuclio-io.slack.com/",
+
 ]
 linkcheck_anchors = True
 linkcheck_timeout = 60
