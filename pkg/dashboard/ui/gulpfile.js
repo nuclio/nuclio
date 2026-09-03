@@ -46,7 +46,9 @@ var ngHtml2Js = require('gulp-ng-html2js');
 var merge2 = require('merge2');
 var uglify = require('gulp-uglify');
 var revCollector = require('gulp-rev-collector');
-var imagemin = require('gulp-imagemin');
+var sharp = require('sharp');
+var svgo = require('svgo');
+var Transform = require('stream').Transform;
 var iRequire = require('./resources/installRequire');
 var lodash = require('lodash');
 var del = require('del');
@@ -275,11 +277,7 @@ function images() {
 
     return gulp.src(config.app_files.images, {allowEmpty: true})
         .pipe(errorHandler(handleError))
-        .pipe(gulpIf(!state.isDevMode, imagemin({
-            optimizationLevel: 3,
-            progressive: true,
-            interlaced: true
-        })))
+        .pipe(gulpIf(!state.isDevMode, optimizeImages()))
         .pipe(gulp.dest(distFolder));
 }
 
@@ -554,6 +552,75 @@ function updateWebDriver(next) {
 //
 
 /**
+ * Create a stream transform that losslessly optimizes PNG/JPEG images via sharp and SVG images via svgo.
+ * Any other file type passes through untouched.
+ */
+function optimizeImages() {
+    return new Transform({
+        objectMode: true,
+        transform: function (file, encoding, callback) {
+            if (file.isNull() || file.isStream()) {
+                return callback(null, file);
+            }
+
+            var ext = path.extname(file.path).toLowerCase();
+            var original = file.contents;
+
+            if (ext === '.svg') {
+                try {
+                    file.contents = smallestBuffer([original, Buffer.from(svgo.optimize(original.toString(), {path: file.path}).data)]);
+                    callback(null, file);
+                } catch (error) {
+                    callback(error);
+                }
+
+                return;
+            }
+
+            if (ext === '.png') {
+                Promise.all([
+                    sharp(original).png({compressionLevel: 9, adaptiveFiltering: true, progressive: true}).toBuffer(),
+                    sharp(original).png({compressionLevel: 9, adaptiveFiltering: true, progressive: true, palette: true}).toBuffer()
+                ])
+                    .then(function (variants) {
+                        file.contents = smallestBuffer([original].concat(variants));
+                        callback(null, file);
+                    })
+                    .catch(callback);
+
+                return;
+            }
+
+            if (ext === '.jpg' || ext === '.jpeg') {
+                sharp(original)
+                    .jpeg({progressive: true, mozjpeg: true})
+                    .toBuffer()
+                    .then(function (buffer) {
+                        file.contents = smallestBuffer([original, buffer]);
+                        callback(null, file);
+                    })
+                    .catch(callback);
+
+                return;
+            }
+
+            callback(null, file);
+        }
+    });
+}
+
+/**
+ * Return the smallest of the given buffers, so optimization never produces a file larger than the original
+ * @param {Buffer[]} buffers
+ * @returns {Buffer}
+ */
+function smallestBuffer(buffers) {
+    return buffers.reduce(function (smallest, candidate) {
+        return candidate.length < smallest.length ? candidate : smallest;
+    });
+}
+
+/**
  * Build index.html
  */
 function buildIndexHtml(isVersionForTests) {
@@ -759,11 +826,7 @@ function imagesShared() {
 
     return gulp.src(config.shared_files.images, {allowEmpty: true})
         .pipe(errorHandler(handleError))
-        .pipe(imagemin({
-            optimizationLevel: 3,
-            progressive: true,
-            interlaced: true
-        }))
+        .pipe(optimizeImages())
         .pipe(gulp.dest(distFolder));
 }
 
