@@ -73,6 +73,22 @@ func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 	return ""
 }
 
+// GetExpectedStatusCode returns the expected HTTP status code from the leader's response
+// for the given project write operation. This default mirrors Iguazio's contract; leaders
+// whose codes differ per operation (e.g. MLRun's delete, Oris's async-always-202) override it.
+func (l *LeaderOps) GetExpectedStatusCode(operation leaderCommon.ProjectOperation) int {
+	switch operation {
+	case leaderCommon.ProjectOperationCreate:
+		return http.StatusCreated
+	case leaderCommon.ProjectOperationUpdate:
+		return http.StatusOK
+	case leaderCommon.ProjectOperationDelete:
+		return http.StatusAccepted
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 // ParseJobStatusResponse defaults to "no job, not terminated": leaders without an
 // async job system never have a job to poll.
 func (l *LeaderOps) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {

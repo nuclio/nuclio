@@ -20,9 +20,11 @@ package abstract
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -61,6 +63,24 @@ func (suite *LeaderOpsTestSuite) TestGetJobStatusRequestCookies() {
 
 func (suite *LeaderOpsTestSuite) TestGetJobRequestFilter() {
 	suite.Require().Equal("", suite.leaderOps.GetJobRequestFilter(nil))
+}
+
+func (suite *LeaderOpsTestSuite) TestGetExpectedStatusCode() {
+	for _, testCase := range []struct {
+		name      string
+		operation leaderCommon.ProjectOperation
+		expected  int
+	}{
+		{name: "Create", operation: leaderCommon.ProjectOperationCreate, expected: http.StatusCreated},
+		{name: "Update", operation: leaderCommon.ProjectOperationUpdate, expected: http.StatusOK},
+		{name: "Delete", operation: leaderCommon.ProjectOperationDelete, expected: http.StatusAccepted},
+		{name: "Unknown", operation: leaderCommon.ProjectOperation("unknown"), expected: http.StatusInternalServerError},
+	} {
+		suite.Run(testCase.name, func() {
+			code := suite.leaderOps.GetExpectedStatusCode(testCase.operation)
+			suite.Require().Equal(testCase.expected, code)
+		})
+	}
 }
 
 func (suite *LeaderOpsTestSuite) TestGetAuthSessionCookie() {

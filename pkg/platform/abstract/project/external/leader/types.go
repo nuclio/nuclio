@@ -126,8 +126,9 @@ type LeaderOps interface {
 	// GenerateProjectDeletionRequestBody generates the request body for project deletion
 	GenerateProjectDeletionRequestBody(string) ([]byte, error)
 
-	// GetDeleteExpectedStatusCode returns the expected status code from the http response
-	GetDeleteExpectedStatusCode() int
+	// GetExpectedStatusCode returns the expected status code from the http response for
+	// the given project write operation
+	GetExpectedStatusCode(ProjectOperation) int
 
 	// GetDeleteStrategyHeaderName gets the delete strategy header to the request
 	GetDeleteStrategyHeaderName() string
@@ -169,6 +170,16 @@ type APIVersion string
 const (
 	APIVersionV1 APIVersion = "v1"
 	APIVersionV2 APIVersion = "v2"
+)
+
+// ProjectOperation identifies a project write operation, so a leader can report the
+// HTTP status code it expects to see for that specific operation.
+type ProjectOperation string
+
+const (
+	ProjectOperationCreate ProjectOperation = "create"
+	ProjectOperationUpdate ProjectOperation = "update"
+	ProjectOperationDelete ProjectOperation = "delete"
 )
 
 const (
