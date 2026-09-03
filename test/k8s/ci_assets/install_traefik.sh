@@ -32,7 +32,7 @@ helm install traefik traefik/traefik \
   --set providers.kubernetesGateway.enabled=true \
   --set gateway.enabled=false \
   --set gatewayClass.enabled=true \
-  --version 40.2.0
+  --version 41.4.0
 
 # create nginx IngressClass standalone resource mapping to Traefik
 kubectl apply -f - <<EOF
