@@ -1,4 +1,4 @@
 mock==2.0.0
 nuclio-sdk==0.6.3
-pip==26.1.2
+pip==26.2
 msgpack==1.2.1

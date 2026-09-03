@@ -2057,6 +2057,14 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	result := labels.Set{}
 
 	for labelKey, labelValue := range function.Labels {
+
+		// migration labels are platform bookkeeping on the CRD. They must not reach the rendered resources:
+		// this label set becomes the Service's selector and, on create, the pod template's labels, but the
+		// update path rewrites the Service selector without rewriting the pod labels - so a label added to
+		// an existing function would leave the Service selecting no pods at all
+		if strings.HasPrefix(labelKey, common.NuclioLabelKeyMigrationPrefix) {
+			continue
+		}
 		result[labelKey] = labelValue
 	}
 

@@ -47,6 +47,14 @@ const NuclioLabelKeyComponent = "nuclio.io/component"
 const NuclioLabelKeyFunctionCronTriggerName = "nuclio.io/function-cron-trigger-name"
 const NuclioLabelKeyFunctionCronJobPod = "nuclio.io/function-cron-job-pod"
 
+// NuclioLabelKeyMigrationPrefix prefixes the labels recording which one-time CRD migrations already ran on
+// a resource. Labels and not annotations, so a migration can list only the resources it has not marked yet.
+const NuclioLabelKeyMigrationPrefix = "nuclio.io/migration-"
+
+// NuclioLabelKeyMigrationFunctionAuth marks a CRD as already migrated to function-level authentication.
+const NuclioLabelKeyMigrationFunctionAuth = NuclioLabelKeyMigrationPrefix + "function-auth"
+const NuclioLabelValueMigrationApplied = "true"
+
 // Nuclio Annotations
 
 const NuclioAnnotationKeyVersion = "nuclio.io/version"

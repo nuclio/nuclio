@@ -332,6 +332,11 @@ func (mp *Platform) GetAllowedAuthenticationModes() []string {
 	return args.Get(0).([]string)
 }
 
+// MigrateFunctionAuthentication migrates the function authentication to the new platform authentication
+func (mp *Platform) MigrateFunctionAuthentication(ctx context.Context) {
+	mp.Called(ctx)
+}
+
 // GetHealthCheckMode returns the healthcheck mode the platform requires
 func (mp *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 	args := mp.Called()

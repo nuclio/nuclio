@@ -15,10 +15,10 @@
 # The patch script expects the yaml file to be in the same directory
 # this is a template file for the patch env file
 
-# REQUIRED: Remote host IPs/hostnames (e.g. 1.1.1.3)
+# REQUIRED unless KUBECONFIG below is set: Remote host IPs/hostnames (e.g. 1.1.1.3)
 HOST_IP:
 
-# REQUIRED: Username for ssh
+# REQUIRED unless KUBECONFIG below is set: Username for ssh
 SSH_USER:
 
 # REQUIRED: Docker registry you can push images to.
@@ -58,6 +58,10 @@ REGISTRY_USERNAME:
 
 # Optional: will attempt docker login if defined
 REGISTRY_PASSWORD:
+
+# Optional: path to a kubeconfig file. When it exists, kubectl runs against the remote cluster directly.
+# If it is not set, or the path does not exist, the script falls back to SSH.
+KUBECONFIG:
 
 # Optional: set to true to enable verbose logging
 VERBOSE:
