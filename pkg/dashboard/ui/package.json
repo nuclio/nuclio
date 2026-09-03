@@ -34,7 +34,7 @@
     "gulp-file-transform-cache": "^2.0.0",
     "gulp-htmlmin": "^5.0.1",
     "gulp-if": "^3.0.0",
-    "gulp-imagemin": "^7.1.0",
+    "gulp-imagemin": "^9.2.0",
     "gulp-less": "^5.0.0",
     "gulp-less-import": "^1.0.0",
     "gulp-ng-html2js": "^0.2.0",
