@@ -21,6 +21,7 @@ package oris
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"net/http"
 	"testing"
 
@@ -262,13 +263,13 @@ func (suite *LeaderTestSuite) TestGetExpectedStatusCode() {
 }
 
 func (suite *LeaderTestSuite) TestProjectSync2PCEnabled() {
-	suite.Require().False(suite.leaderOps.ProjectSync2PCEnabled())
+	suite.Require().True(suite.leaderOps.ProjectSync2PCEnabled())
 }
 
-func (suite *LeaderTestSuite) TestEvaluateLeaderRequestPassesThrough() {
+func (suite *LeaderTestSuite) TestEvaluateLeaderRequestRejectsLegacySurface() {
 	shouldApply, err := suite.leaderOps.EvaluateLeaderRequest(context.TODO(), map[string]string{}, nil)
-	suite.Require().NoError(err)
-	suite.Require().True(shouldApply)
+	suite.Require().False(shouldApply)
+	suite.Require().True(stderrors.Is(err, ErrLegacySurfaceForbidden))
 }
 
 func (suite *LeaderTestSuite) TestIsJobCompleted() {

@@ -239,7 +239,7 @@ func (l *LeaderOps) validateProvision(labels map[string]string, existing platfor
 
 	// Replay protection: the incoming op_id is older than what is already stored.
 	// This means an out-of-order or stale request arrived. Reject it.
-	if !l.isOpIDOrdered(requestedOpID, storedOpID) {
+	if !leaderCommon.IsOpIDOrdered(requestedOpID, storedOpID) {
 		return false, nuclio.GetByStatusCode(http.StatusConflict)(
 			fmt.Sprintf("Provision rejected: op_id %q is older than stored op_id %q (replay protection)",
 				requestedOpID, storedOpID))
@@ -357,9 +357,9 @@ func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platfo
 	// CAS check: the current-op-id in the request must equal the op_id stored on the CRD.
 	// This ensures the caller is operating on the exact version it last read, preventing
 	// a concurrent update from being silently overwritten. The CAS is skipped on legacy
-	// CRDs that have no stored op_id yet — see requireCASOpIDMatch for the rationale.
-	if err := l.requireCASOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Mark-delete"); err != nil {
-		return false, err
+	// CRDs that have no stored op_id yet — see leaderCommon.RequireCASMatch for the rationale.
+	if err := leaderCommon.RequireCASMatch(storedOpID, labels[leaderCommon.MLRunLabelKeyCurrentOpID]); err != nil {
+		return false, errors.Wrap(err, "Mark-delete CAS check failed")
 	}
 
 	// The new op_id must be strictly newer than the stored one, preventing replayed or
@@ -418,9 +418,9 @@ func (l *LeaderOps) validateSpecUpdate(labels map[string]string, existing platfo
 	// CAS check: the current-op-id in the request must equal the op_id stored on the CRD.
 	// This ensures the caller is operating on the exact version it last read, preventing
 	// a concurrent update from being silently overwritten. The CAS is skipped on legacy
-	// CRDs that have no stored op_id yet — see requireCASOpIDMatch for the rationale.
-	if err := l.requireCASOpIDMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID, "Update"); err != nil {
-		return false, err
+	// CRDs that have no stored op_id yet — see leaderCommon.RequireCASMatch for the rationale.
+	if err := leaderCommon.RequireCASMatch(storedOpID, labels[leaderCommon.MLRunLabelKeyCurrentOpID]); err != nil {
+		return false, errors.Wrap(err, "Update CAS check failed")
 	}
 
 	// The new op_id must be strictly newer than the stored one, preventing replayed or
@@ -520,7 +520,7 @@ func (l *LeaderOps) requireSyncStatus(effectiveStatus, expectedStatus, operation
 // equal the one already written on the CRD — by the matching Provision or Mark-delete.
 // For these callers an empty storedOpID is unreachable in practice (the preceding
 // requireSyncStatus check already excludes legacy / pre-2PC CRDs), so this helper does
-// not accommodate that case; use requireCASOpIDMatch for CAS-style mutations instead.
+// not accommodate that case; use leaderCommon.RequireCASMatch for CAS-style mutations instead.
 func (l *LeaderOps) requireOpIDMatch(requestedOpID, storedOpID, operation string) error {
 	if storedOpID != requestedOpID {
 		return nuclio.GetByStatusCode(http.StatusConflict)(
@@ -530,28 +530,12 @@ func (l *LeaderOps) requireOpIDMatch(requestedOpID, storedOpID, operation string
 	return nil
 }
 
-// requireCASOpIDMatch is a Compare-And-Swap variant of requireOpIDMatch for the CAS-style
-// mutation phases (Mark-delete, Spec-update). It treats an empty storedOpID as
-// "no CAS key has been written yet" and accepts the request unconditionally, which is the
-// one-shot migration path for legacy CRDs that pre-date 2PC: their op_id label is unset
-// because nothing has stamped it. The current write is what stamps it, so there is nothing
-// to CAS against and any non-empty current-op-id the leader sent is necessarily based on a
-// stale read — rejecting it would permanently block the CRD from ever being mutated again.
-// After the first leader-driven write the op_id is on the CRD and normal CAS enforcement
-// resumes for every subsequent operation.
-func (l *LeaderOps) requireCASOpIDMatch(requestedOpID, storedOpID, operation string) error {
-	if storedOpID == "" {
-		return nil
-	}
-	return l.requireOpIDMatch(requestedOpID, storedOpID, operation)
-}
-
 // requireNewerOpID returns a 409 Conflict when the incoming op_id is not strictly newer
 // than the one already stored on the CRD. This is the replay-protection guard: because
 // UUIDv7 embeds a millisecond timestamp in its most-significant bits, a lexicographically
 // smaller value means the request is older and must be rejected to prevent stale writes.
 func (l *LeaderOps) requireNewerOpID(newOpID, storedOpID, operation string) error {
-	if newOpID != "" && !l.isOpIDOrdered(newOpID, storedOpID) {
+	if newOpID != "" && !leaderCommon.IsOpIDOrdered(newOpID, storedOpID) {
 		return nuclio.GetByStatusCode(http.StatusConflict)(
 			fmt.Sprintf("new op_id %q is not newer than stored op_id %q, replay protection [%s]",
 				newOpID, storedOpID, operation))
@@ -567,11 +551,4 @@ func (l *LeaderOps) resolveSyncStatus(labels map[string]string) string {
 		return status
 	}
 	return leaderCommon.MLRunSyncStatusOnline
-}
-
-// isOpIDOrdered returns true when newOpID is strictly newer than storedOpID.
-// UUIDv7 encodes a millisecond-precision timestamp in the most-significant bits,
-// making lexicographic string comparison equivalent to chronological ordering.
-func (l *LeaderOps) isOpIDOrdered(newOpID, storedOpID string) bool {
-	return newOpID > storedOpID
 }
