@@ -174,7 +174,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	return nil
 }
 
-// Follower operations: the dedicated /api/v1/follower/projects/* surface is only ever
+// Follower operations: the dedicated /api/follower/projects/* surface is only ever
 // reachable when Oris is the configured leader. This is the only client that implements
 // these for real -- external.Client and the local platform's client are permanently
 // unsupported. The CAS validation against the existing CRD state (comparing stored vs.

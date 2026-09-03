@@ -39,7 +39,7 @@ type Client interface {
 	// Get projects
 	Get(context.Context, *platform.GetProjectsOptions) ([]platform.Project, error)
 
-	// 2PC project operations: the dedicated /api/v1/follower/projects/* surface. Only
+	// 2PC project operations: the dedicated /api/follower/projects/* surface. Only
 	// internalc/kube.Client (when Oris is the configured leader) implements these for real,
 	// including the CAS validation against the existing CRD state, which is this client's
 	// own private concern.

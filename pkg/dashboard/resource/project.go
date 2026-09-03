@@ -44,7 +44,7 @@ import (
 )
 
 // projectFollowerResourceName is the second mount point this type serves, for the dedicated
-// /api/v1/follower/projects/* surface.
+// /api/follower/projects/* surface.
 // It is the same NuclioProject CRD with another registration with its own SA-only auth gate and custom routes.
 const projectFollowerResourceName = "api/v1/follower/projects"
 

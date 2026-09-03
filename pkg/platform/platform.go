@@ -121,7 +121,7 @@ type Platform interface {
 	// GetFunctionProject returns project instance for specific function
 	GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (Project, error)
 
-	// 2PC project operations: the dedicated /api/v1/follower/projects/* surface. Only a
+	// 2PC project operations: the dedicated /api/follower/projects/* surface. Only a
 	// platform actually driving that surface (kube, with Oris configured as leader) implements
 	// these for real; every other platform returns ErrUnsupportedMethod.
 

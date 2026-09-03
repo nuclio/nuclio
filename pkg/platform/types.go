@@ -400,11 +400,6 @@ type GetProjectsOptions struct {
 	ServiceAccountAuthentication bool
 }
 
-// Follower operations: options/results for the dedicated /api/v1/follower/projects/*
-// surface. Only the Oris leader kind drives this surface; every other platform/leader kind
-// returns ErrUnsupportedMethod.
-// Need to be added to the platform package since there are new endpoints.
-
 // PrepareCreateProjectOptions carries the provision (prepare-create) request options.
 type PrepareCreateProjectOptions struct {
 	ProjectConfig ProjectConfig
