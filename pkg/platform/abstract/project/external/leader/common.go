@@ -34,7 +34,7 @@ func RequireCASMatch(storedOpID, prevOpID string) error {
 		return nil
 	}
 	return nuclio.GetByStatusCode(http.StatusConflict)(
-		fmt.Sprintf("op_id mismatch (requested %q, stored %q)", prevOpID, storedOpID))
+		fmt.Sprintf("op_id mismatch; requested:(%q), stored:(%q)", prevOpID, storedOpID))
 }
 
 // IsOpIDOrdered returns true when newOpID is strictly newer than storedOpID. UUIDv7 encodes a
