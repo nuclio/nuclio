@@ -79,6 +79,11 @@ func (p *Platform) MigrateFunctionAuthentication(ctx context.Context) {
 		return
 	}
 
+	if len(functions) == 0 && len(apiGateways) == 0 {
+		p.Logger.InfoWithCtx(ctx, "No unmigrated functions or api gateways found; skipping migration")
+		return
+	}
+
 	functionMigrations := p.resolveFunctionAuthMigrations(ctx, functions, apiGateways)
 
 	// functions first: a gateway keeps its authentication until every function behind it carries the mode
