@@ -297,7 +297,7 @@ func (c *Client) CommitCreate(ctx context.Context,
 func (c *Client) CommitUpdate(ctx context.Context,
 	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
 	name := options.ProjectConfig.Meta.Name
-	c.Logger.DebugWithCtx(ctx, "CommitUpdate received", "name", name, "new opID", options.OpID, "new opID", options.PrevOpID)
+	c.Logger.DebugWithCtx(ctx, "CommitUpdate received", "name", name, "new opID", options.OpID, "prev opID", options.PrevOpID)
 
 	existing, err := c.getProject(ctx, name, options.ProjectConfig.Meta.Namespace)
 	if err != nil {
@@ -331,7 +331,7 @@ func (c *Client) CommitUpdate(ctx context.Context,
 
 	if err := leaderCommon.RequireCASMatch(currentOpID, options.PrevOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "CommitUpdate CAS check failed", "name", name, "new opID", options.OpID,
-			"new opID", options.PrevOpID, "current opID", currentOpID, "err", err.Error())
+			"prev opID", options.PrevOpID, "current opID", currentOpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Update CAS check failed")
 	}
 	if !leaderCommon.IsOpIDOrdered(options.OpID, currentOpID) {
@@ -353,7 +353,7 @@ func (c *Client) CommitUpdate(ctx context.Context,
 func (c *Client) PrepareDelete(ctx context.Context,
 	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
 	name := options.Meta.Name
-	c.Logger.DebugWithCtx(ctx, "PrepareDelete received", "name", name, "new opID", options.OpID, "new opID", options.PrevOpID)
+	c.Logger.DebugWithCtx(ctx, "PrepareDelete received", "name", name, "new opID", options.OpID, "prev opID", options.PrevOpID)
 
 	existing, err := c.getProject(ctx, name, options.Meta.Namespace)
 	if err != nil {
@@ -399,7 +399,7 @@ func (c *Client) PrepareDelete(ctx context.Context,
 
 	if err := leaderCommon.RequireCASMatch(currentOpID, options.PrevOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "PrepareDelete CAS check failed", "name", name,
-			"current opID", currentOpID, "new OpID", options.PrevOpID, "err", err.Error())
+			"current opID", currentOpID, "prev opID", options.PrevOpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Mark-delete CAS check failed")
 	}
 	if !leaderCommon.IsOpIDOrdered(options.OpID, currentOpID) {
