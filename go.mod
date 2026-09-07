@@ -60,12 +60,12 @@ require (
 	github.com/valyala/fasthttp v1.73.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
 	github.com/xdg-go/scram v1.2.0
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/image v0.41.0
 	golang.org/x/net v0.57.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.22.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 	google.golang.org/api v0.291.0
 	google.golang.org/grpc v1.83.1
 	gopkg.in/yaml.v3 v3.0.1
