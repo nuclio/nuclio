@@ -940,6 +940,42 @@ func (ap *Platform) GetProjects(ctx context.Context, getProjectsOptions *platfor
 	return nil, platform.ErrUnsupportedMethod
 }
 
+// PrepareCreateProject is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) PrepareCreateProject(_ context.Context,
+	_ *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitCreateProject is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) CommitCreateProject(_ context.Context,
+	_ *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitUpdateProject is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) CommitUpdateProject(_ context.Context,
+	_ *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// PrepareDeleteProject is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) PrepareDeleteProject(_ context.Context,
+	_ *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitDeleteProject is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) CommitDeleteProject(_ context.Context,
+	_ *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// ListProjectStates is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) ListProjectStates(_ context.Context,
+	_ *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
 // CreateAPIGateway creates and deploys a new api gateway
 func (ap *Platform) CreateAPIGateway(ctx context.Context, createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod

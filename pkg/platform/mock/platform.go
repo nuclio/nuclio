@@ -200,6 +200,48 @@ func (mp *Platform) GetProjects(ctx context.Context, getProjectsOptions *platfor
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
+// PrepareCreateProject will create the project in a two-phase commit manner
+func (mp *Platform) PrepareCreateProject(ctx context.Context,
+	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitCreateProject will commit the project creation in a two-phase commit manner
+func (mp *Platform) CommitCreateProject(ctx context.Context,
+	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitUpdateProject will commit the project update
+func (mp *Platform) CommitUpdateProject(ctx context.Context,
+	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// PrepareDeleteProject will prepare the project deletion in a two-phase commit manner
+func (mp *Platform) PrepareDeleteProject(ctx context.Context,
+	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitDeleteProject will commit the project deletion in a two-phase commit manner
+func (mp *Platform) CommitDeleteProject(ctx context.Context,
+	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// ListProjectStates will list the project sync states in a two-phase commit manner
+func (mp *Platform) ListProjectStates(ctx context.Context,
+	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCStatesPage), args.Error(1)
+}
+
 // GetFunctionProject returns project instance for specific function
 func (mp *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
 	args := mp.Called(ctx, functionConfig)

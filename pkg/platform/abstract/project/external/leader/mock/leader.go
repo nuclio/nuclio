@@ -112,8 +112,8 @@ func (l *LeaderOps) GenerateProjectDeletionRequestBody(projectID string) ([]byte
 	return args.Get(0).([]byte), args.Error(1)
 }
 
-func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
-	args := l.Called()
+func (l *LeaderOps) GetExpectedStatusCode(operation leaderCommon.ProjectOperation) int {
+	args := l.Called(operation)
 	return args.Int(0)
 }
 

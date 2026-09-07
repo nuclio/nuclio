@@ -38,4 +38,27 @@ type Client interface {
 
 	// Get projects
 	Get(context.Context, *platform.GetProjectsOptions) ([]platform.Project, error)
+
+	// 2PC project operations: the dedicated /api/follower/projects/* surface. Only
+	// internalc/kube.Client (when Oris is the configured leader) implements these for real,
+	// including the CAS validation against the existing CRD state, which is this client's
+	// own private concern.
+
+	// PrepareCreate prepares a project follower creation, returning the state of the follower
+	PrepareCreate(context.Context, *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitCreate commits a project follower creation, returning the state of the follower
+	CommitCreate(context.Context, *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitUpdate updates a project follower, returning the state of the follower
+	CommitUpdate(context.Context, *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error)
+
+	// PrepareDelete prepares a project follower deletion, returning the state of the follower
+	PrepareDelete(context.Context, *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error)
+
+	// CommitDelete commits a project follower deletion, returning the state of the follower
+	CommitDelete(context.Context, *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error)
+
+	// List lists the states of project followers
+	List(context.Context, *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error)
 }

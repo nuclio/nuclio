@@ -83,3 +83,39 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 
 	return nil
 }
+
+// PrepareCreate is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) PrepareCreate(_ context.Context,
+	_ *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitCreate is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) CommitCreate(_ context.Context,
+	_ *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitUpdate is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) CommitUpdate(_ context.Context,
+	_ *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// PrepareDelete is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) PrepareDelete(_ context.Context,
+	_ *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// CommitDelete is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) CommitDelete(_ context.Context,
+	_ *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
+// List is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) List(_ context.Context,
+	_ *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return nil, platform.ErrUnsupportedMethod
+}

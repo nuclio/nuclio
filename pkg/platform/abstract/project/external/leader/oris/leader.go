@@ -19,6 +19,7 @@ package oris
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -48,9 +49,9 @@ func NewLeaderOps(parentLogger logger.Logger, namespace string) *LeaderOps {
 }
 
 func (l *LeaderOps) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
-	project, err := NewProjectFromProjectConfig(projectConfig)
+	project, err := NewProjectRequestFromProjectConfig(projectConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create project from project config")
+		return nil, errors.Wrap(err, "Failed to create project request from project config")
 	}
 	return json.Marshal(project)
 }
@@ -78,6 +79,16 @@ func (l *LeaderOps) ResolveGetProjectResponse(_ bool, body []byte) ([]platform.P
 	}
 
 	return projects.ToProjectList(l.namespace), nil
+}
+
+// ProjectRequestURL overrides the shared default: Oris routes projects under its
+// "projects" subdomain, so the path is .../projects/projects[/<name>].
+func (l *LeaderOps) ProjectRequestURL(apiAddress string, apiVersion leaderCommon.APIVersion, projectName string) string {
+	url := fmt.Sprintf("%s/%s/projects/projects", apiAddress, apiVersion)
+	if projectName != "" {
+		url += fmt.Sprintf("/%s", projectName)
+	}
+	return url
 }
 
 func (l *LeaderOps) GenerateCreateProjectRequestURL(apiAddress string) string {
@@ -109,8 +120,16 @@ func (l *LeaderOps) HandleCreateResponseErr(ctx context.Context, responseBody []
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
-	return http.StatusNoContent
+// GetExpectedStatusCode returns the expected HTTP status code from Oris's response for
+// the given project write operation. Oris accepts every write asynchronously, so all
+// known operations expect the same 202.
+func (l *LeaderOps) GetExpectedStatusCode(operation leaderCommon.ProjectOperation) int {
+	switch operation {
+	case leaderCommon.ProjectOperationCreate, leaderCommon.ProjectOperationUpdate, leaderCommon.ProjectOperationDelete:
+		return http.StatusAccepted
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {

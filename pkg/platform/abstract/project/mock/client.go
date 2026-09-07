@@ -52,3 +52,45 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	args := c.Called(ctx, deleteProjectOptions)
 	return args.Error(0)
 }
+
+// PrepareCreate mocks project.Client.PrepareCreate.
+func (c *Client) PrepareCreate(ctx context.Context,
+	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitCreate mocks project.Client.CommitCreate.
+func (c *Client) CommitCreate(ctx context.Context,
+	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitUpdate mocks project.Client.CommitUpdate.
+func (c *Client) CommitUpdate(ctx context.Context,
+	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// PrepareDelete mocks project.Client.PrepareDelete.
+func (c *Client) PrepareDelete(ctx context.Context,
+	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// CommitDelete mocks project.Client.CommitDelete.
+func (c *Client) CommitDelete(ctx context.Context,
+	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
+// List mocks project.Client.List.
+func (c *Client) List(ctx context.Context,
+	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCStatesPage), args.Error(1)
+}

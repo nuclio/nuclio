@@ -931,6 +931,48 @@ func (p *Platform) GetProjects(ctx context.Context,
 	return filteredProjectList, nil
 }
 
+// Follower operations delegate straight to p.projectsClient, bypassing the OPA checks and
+// leader-evaluation routing that CreateProject/UpdateProject/DeleteProject run above — the
+// /follower/projects/* dashboard resource is SA-gated and each operation validates itself.
+// When no leader is configured, or the configured leader isn't Oris, this resolves to
+// platform.ErrUnsupportedMethod.
+
+// PrepareCreateProject delegates to p.projectsClient.PrepareCreate.
+func (p *Platform) PrepareCreateProject(ctx context.Context,
+	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
+	return p.projectsClient.PrepareCreate(ctx, options)
+}
+
+// CommitCreateProject delegates to p.projectsClient.CommitCreate.
+func (p *Platform) CommitCreateProject(ctx context.Context,
+	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
+	return p.projectsClient.CommitCreate(ctx, options)
+}
+
+// CommitUpdateProject delegates to p.projectsClient.CommitUpdate.
+func (p *Platform) CommitUpdateProject(ctx context.Context,
+	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
+	return p.projectsClient.CommitUpdate(ctx, options)
+}
+
+// PrepareDeleteProject delegates to p.projectsClient.PrepareDelete.
+func (p *Platform) PrepareDeleteProject(ctx context.Context,
+	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return p.projectsClient.PrepareDelete(ctx, options)
+}
+
+// CommitDeleteProject delegates to p.projectsClient.CommitDelete.
+func (p *Platform) CommitDeleteProject(ctx context.Context,
+	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
+	return p.projectsClient.CommitDelete(ctx, options)
+}
+
+// ListProjectStates delegates to p.projectsClient.List.
+func (p *Platform) ListProjectStates(ctx context.Context,
+	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
+	return p.projectsClient.List(ctx, options)
+}
+
 // CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(ctx context.Context,
 	createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
