@@ -19,13 +19,135 @@ limitations under the License.
 package containerimagebuilderpusher
 
 import (
+	"context"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher/registryhelpers"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 type KanikoTestSuite struct {
 	suite.Suite
+	logger logger.Logger
+	kaniko *Kaniko
+}
+
+func (suite *KanikoTestSuite) SetupTest() {
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+
+	suite.T().Setenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
+	dashboardDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: "nuclio-dashboard", Namespace: "default", UID: "dashboard-uid"},
+	}
+
+	suite.kaniko = &Kaniko{
+		jobRunner: &jobRunner{
+			builderName:   KanikoKind,
+			logger:        suite.logger,
+			kubeClientSet: kube.NewClientWithRetryFromClient(k8sfake.NewClientset(dashboardDeployment)),
+			builderConfiguration: &ContainerBuilderConfiguration{
+				BusyBoxImage: "busybox:stable",
+				AuthConfig: registryhelpers.AuthConfig{
+					AWSCLIImage: "amazon/aws-cli:2.17.16",
+				},
+				Kaniko: KanikoConfig{
+					Image:           "gcr.io/kaniko-project/executor:latest",
+					ImagePullPolicy: "IfNotPresent",
+				},
+			},
+		},
+		awsHelper: &registryhelpers.AWSHelper{},
+	}
+}
+
+func (suite *KanikoTestSuite) newBuildOptions() *BuildOptions {
+	return &BuildOptions{
+		Image:       "my-func:latest",
+		ContextDir:  "/some/context",
+		RegistryURL: "123456789012.dkr.ecr.us-east-1.amazonaws.com",
+		RepoName:    "my-func",
+		DockerfileInfo: &runtime.ProcessorDockerfileInfo{
+			DockerfilePath: "/some/context/Dockerfile",
+		},
+	}
+}
+
+func createReposContainer(initContainers []v1.Container) *v1.Container {
+	for i := range initContainers {
+		if initContainers[i].Name == "create-repos" {
+			return &initContainers[i]
+		}
+	}
+	return nil
+}
+
+func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationECRPathSuffixedRegistryURL() {
+	buildOptions := suite.newBuildOptions()
+	buildOptions.RegistryURL = "934638699319.dkr.ecr.us-east-2.amazonaws.com/iguazio-cloud/qa/vmdev214.lab.iguazeng.com"
+	buildOptions.RepoName = "iguazio-cloud/qa/vmdev214.lab.iguazeng.com/evfnivykxu-yxizqvjg-processor"
+
+	jobSpec, err := suite.kaniko.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
+	suite.Require().NoError(err)
+
+	podSpec := jobSpec.Spec.Template.Spec
+	createRepos := createReposContainer(podSpec.InitContainers)
+	suite.Require().NotNil(createRepos, "expected an ECR create-repos init container for a path-suffixed ECR registry URL")
+
+	command := createRepos.Args[1]
+	suite.Contains(command, "aws ecr create-repository --repository-name iguazio-cloud/qa/vmdev214.lab.iguazeng.com/evfnivykxu-yxizqvjg-processor --region us-east-2 --registry-id 934638699319")
+	suite.Contains(command, "aws ecr create-repository --repository-name iguazio-cloud/qa/vmdev214.lab.iguazeng.com/evfnivykxu-yxizqvjg-processor/cache --region us-east-2 --registry-id 934638699319")
+}
+
+func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationECRBareHostname() {
+	buildOptions := suite.newBuildOptions()
+
+	jobSpec, err := suite.kaniko.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
+	suite.Require().NoError(err)
+
+	podSpec := jobSpec.Spec.Template.Spec
+	createRepos := createReposContainer(podSpec.InitContainers)
+	suite.Require().NotNil(createRepos, "expected an ECR create-repos init container for a bare ECR hostname")
+	suite.Contains(createRepos.Args[1], "--region us-east-1 --registry-id 123456789012")
+}
+
+func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationNonECRHostWithSecret() {
+	buildOptions := suite.newBuildOptions()
+	buildOptions.RegistryURL = "myregistry.example.com"
+	buildOptions.SecretName = "my-registry-secret"
+
+	jobSpec, err := suite.kaniko.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
+	suite.Require().NoError(err)
+
+	podSpec := jobSpec.Spec.Template.Spec
+	suite.Nil(createReposContainer(podSpec.InitContainers), "non-ECR host must not get an ECR create-repos init container")
+
+	suite.Require().Len(podSpec.Containers[0].VolumeMounts, 2)
+	authMount := podSpec.Containers[0].VolumeMounts[1]
+	suite.Equal(registryhelpers.AuthVolumeName, authMount.Name)
+}
+
+func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationNonECRHostWithPathSuffix() {
+	buildOptions := suite.newBuildOptions()
+	buildOptions.RegistryURL = "registry.example.com/team/project"
+	buildOptions.SecretName = "my-registry-secret"
+
+	jobSpec, err := suite.kaniko.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
+	suite.Require().NoError(err)
+
+	podSpec := jobSpec.Spec.Template.Spec
+	suite.Nil(createReposContainer(podSpec.InitContainers),
+		"a non-AWS host with a path suffix must not be misdetected as ECR")
 }
 
 func (suite *KanikoTestSuite) TestNewContainerBuilderConfigurationParsesKanikoPodLabels() {
