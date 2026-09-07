@@ -139,7 +139,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 		requestBody,
 		requestHeaders,
 		cookies,
-		http.StatusCreated)
+		c.leaderOps.GetExpectedStatusCode(leader.ProjectOperationCreate))
 	if err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to create project on leader")
 		return c.leaderOps.HandleCreateResponseErr(ctx, responseBody, response, err)
@@ -192,7 +192,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 		requestBody,
 		requestHeaders,
 		cookies,
-		http.StatusOK)
+		c.leaderOps.GetExpectedStatusCode(leader.ProjectOperationUpdate))
 	if err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to update project on leader")
 		return errors.Wrap(err, "Failed to send update project request to leader")
@@ -237,7 +237,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 		requestBody,
 		requestHeaders,
 		cookies,
-		c.leaderOps.GetDeleteExpectedStatusCode()); err != nil {
+		c.leaderOps.GetExpectedStatusCode(leader.ProjectOperationDelete)); err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to delete project on leader")
 		return errors.Wrap(err, "Failed to send delete project request to leader")
 	}

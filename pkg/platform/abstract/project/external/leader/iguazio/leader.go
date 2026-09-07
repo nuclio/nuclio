@@ -186,10 +186,6 @@ func (l *LeaderOps) GenerateUpdateProjectRequestURL(apiAddress, projectName stri
 	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects/__name__", projectName)
 }
 
-func (l *LeaderOps) GetDeleteExpectedStatusCode() int {
-	return http.StatusAccepted
-}
-
 func (l *LeaderOps) GetDeleteStrategyHeaderName() string {
 	return "igz-project-deletion-strategy"
 }

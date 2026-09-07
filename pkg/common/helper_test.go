@@ -913,6 +913,11 @@ func (suite *NormalizeHostsTestSuite) TestNormalizeHostsStripsRepoPathAndDedupes
 			expected: []string{"us-central1-docker.pkg.dev"},
 		},
 		{
+			name:     "StripsECRTenantPath",
+			urls:     []string{"934638699319.dkr.ecr.us-east-2.amazonaws.com/iguazio-cloud/qa/vmdev214.lab.iguazeng.com"},
+			expected: []string{"934638699319.dkr.ecr.us-east-2.amazonaws.com"},
+		},
+		{
 			name:     "DropsEmptyAndDuplicates",
 			urls:     []string{"myregistry.azurecr.io", "", "myregistry.azurecr.io"},
 			expected: []string{"myregistry.azurecr.io"},

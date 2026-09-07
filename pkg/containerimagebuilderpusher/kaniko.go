@@ -154,7 +154,7 @@ func (k *Kaniko) compileKanikoContainer(buildOptions *BuildOptions) v1.Container
 // configureRegistryAuthentication wires the registry authfile into the kaniko container. Kaniko has
 // its own bundled cloud credential helpers, hence the nil cloudHosts - no login containers needed.
 func (k *Kaniko) configureRegistryAuthentication(ctx context.Context, namespace string, buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) error {
-	if k.awsHelper.Matches(buildOptions.RegistryURL) {
+	if k.awsHelper.Matches(common.GetHostname(buildOptions.RegistryURL)) {
 		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 		return nil
 	}
