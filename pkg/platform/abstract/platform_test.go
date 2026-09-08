@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -1727,6 +1728,75 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			continue
 		}
 		suite.Require().NoError(err)
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigProjectSyncStatus() {
+
+	// start from a clean mock: other tests in this suite may leave unconsumed "GetProjects"
+	// expectations behind when they error out before reaching project-existence validation
+	suite.initializeMockedPlatform()
+
+	for _, testCase := range []struct {
+		name          string
+		syncStatus    leaderCommon.OrisSyncStatus
+		expectedError string
+	}{
+		{
+			name:          "Creating",
+			syncStatus:    leaderCommon.OrisSyncStatusCreating,
+			expectedError: "Project is being created",
+		},
+		{
+			name:          "Deleting",
+			syncStatus:    leaderCommon.OrisSyncStatusDeleting,
+			expectedError: "Project is being deleted",
+		},
+		{
+			name:       "Online",
+			syncStatus: leaderCommon.OrisSyncStatusOnline,
+		},
+		{
+			name: "MissingLabel",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer func() {
+				suite.initializeMockedPlatform()
+			}()
+
+			functionConfig := *functionconfig.NewConfig()
+
+			projectLabels := map[string]string{}
+			if testCase.syncStatus != "" {
+				projectLabels[leaderCommon.OrisLabelKeySyncStatus] = string(testCase.syncStatus)
+			}
+
+			suite.mockedPlatform.
+				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{Namespace: "default"},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{
+						ProjectConfig: platform.ProjectConfig{
+							Meta: platform.ProjectMeta{Labels: projectLabels},
+						},
+					},
+				}, nil).
+				Once()
+
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &functionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+			if testCase.expectedError != "" {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.expectedError, errors.RootCause(err).Error())
+			} else {
+				suite.Require().NoError(err)
+			}
+			suite.mockedPlatform.AssertExpectations(suite.T())
+		})
 	}
 }
 
