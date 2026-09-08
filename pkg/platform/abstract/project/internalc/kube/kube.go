@@ -496,6 +496,14 @@ func (c *Client) extractProjectLabels(existing platform.Project) (currentOpID st
 	return currentOpID, leaderCommon.OrisSyncStatusOnline
 }
 
+// unexpectedStateError builds the error returned when a project's currentStatus is not the
+// expectedStatus for the operation being attempted.
+func unexpectedStateError(statusCode int, name string, currentStatus, expectedStatus leaderCommon.OrisSyncStatus) error {
+	return nuclio.GetByStatusCode(statusCode)(
+		fmt.Sprintf("project is in unexpected state (project %q, state %q, expected %q)",
+			name, currentStatus, expectedStatus))
+}
+
 // writeFollowerProject creates or updates the project CRD, stamped with the given opID/sync-status labels.
 func (c *Client) writeFollowerProject(ctx context.Context, isUpdate bool,
 	projectConfig platform.ProjectConfig, opID string, syncStatus leaderCommon.OrisSyncStatus) error {
