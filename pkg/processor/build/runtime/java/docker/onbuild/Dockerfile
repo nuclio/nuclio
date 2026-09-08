@@ -21,7 +21,15 @@ FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 FROM ${NUCLIO_DOCKER_JAVA_OPENJDK} as user-handler-builder
 
+# Debian 11 "bullseye" reached LTS end-of-life on 2026-08-31 and was pulled from
+# deb.debian.org; pin apt to the last snapshot.debian.org snapshot taken before EOL.
+ARG DEBIAN_SNAPSHOT=20260831T204404Z
+ARG DEBIAN_SECURITY_SNAPSHOT=20260831T211327Z
+
 ENV GRADLEVERSION=8.14.5
+
+RUN echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bullseye main" > /etc/apt/sources.list \
+    && echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SECURITY_SNAPSHOT} bullseye-security main" >> /etc/apt/sources.list
 
 RUN apt-get update -qqy \
     && apt-get -s dist-upgrade | \
