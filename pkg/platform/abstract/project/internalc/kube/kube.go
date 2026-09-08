@@ -216,10 +216,10 @@ func (c *Client) PrepareCreate(ctx context.Context,
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
-	if !leaderCommon.IsOpIDOrdered(options.OpID, currentOpID) {
+	if err := leaderCommon.RequireOpIDOrdered(options.OpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "PrepareCreate rejected: op_id older than stored", "name", name, "new opID", options.OpID, "current opID", currentOpID)
 		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Provision rejected: op_id is older than stored op_id (requested %q, stored %q)", options.OpID, currentOpID))
+			fmt.Sprintf("Provision rejected: %s", err.Error()))
 	}
 
 	// The incoming op_id is newer. If the CRD is still "creating" this is a recovery scenario:
@@ -262,10 +262,9 @@ func (c *Client) CommitCreate(ctx context.Context,
 	currentOpID, currentStatus := c.extractProjectLabels(existing)
 	c.Logger.DebugWithCtx(ctx, "CommitCreate read current state", "name", name, "new opID", options.OpID,
 		"current opID", currentOpID, "currentStatus", currentStatus)
-	if currentOpID != options.OpID {
+	if err := leaderCommon.RequireOpIDMatch(options.OpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "CommitCreate rejected: op_id mismatch", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Commit rejected: op_id mismatch (requested %q, stored %q)", options.OpID, currentOpID))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Commit rejected: %s", err.Error()))
 	}
 
 	switch currentStatus {
@@ -278,9 +277,7 @@ func (c *Client) CommitCreate(ctx context.Context,
 		c.Logger.DebugWithCtx(ctx, "CommitCreate: project status is creating", "name", name, "new opID", options.OpID)
 	default:
 		c.Logger.DebugWithCtx(ctx, "CommitCreate rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
-		return nil, nuclio.GetByStatusCode(http.StatusPreconditionFailed)(
-			fmt.Sprintf("Commit rejected: project is in unexpected state (project %q, state %q, expected %q)",
-				name, currentStatus, leaderCommon.OrisSyncStatusCreating))
+		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusCreating)
 	}
 
 	c.Logger.DebugWithCtx(ctx, "CommitCreate writing project online", "name", name, "new opID", options.OpID)
@@ -316,9 +313,7 @@ func (c *Client) CommitUpdate(ctx context.Context,
 	// "must be online" precondition by design
 	if currentStatus != leaderCommon.OrisSyncStatusOnline {
 		c.Logger.DebugWithCtx(ctx, "CommitUpdate rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
-		return nil, nuclio.GetByStatusCode(http.StatusPreconditionFailed)(
-			fmt.Sprintf("Update rejected: project is in unexpected state (project %q, state %q, expected %q)",
-				name, currentStatus, leaderCommon.OrisSyncStatusOnline))
+		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusOnline)
 	}
 
 	// Idempotency: already applied — must be checked before CAS, since after a successful
@@ -329,15 +324,14 @@ func (c *Client) CommitUpdate(ctx context.Context,
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
-	if err := leaderCommon.RequireCASMatch(currentOpID, options.PrevOpID); err != nil {
+	if err := leaderCommon.RequireCASMatch(options.PrevOpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "CommitUpdate CAS check failed", "name", name, "new opID", options.OpID,
 			"prev opID", options.PrevOpID, "current opID", currentOpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Update CAS check failed")
 	}
-	if !leaderCommon.IsOpIDOrdered(options.OpID, currentOpID) {
+	if err := leaderCommon.RequireOpIDOrdered(options.OpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "CommitUpdate rejected: op_id not newer than stored", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Update rejected: op_id is not newer than stored op_id (requested %q, stored %q)", options.OpID, currentOpID))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Update rejected: %s", err.Error()))
 	}
 
 	c.Logger.DebugWithCtx(ctx, "CommitUpdate writing project", "name", name, "new opID", options.OpID)
@@ -392,20 +386,17 @@ func (c *Client) PrepareDelete(ctx context.Context,
 		c.Logger.DebugWithCtx(ctx, "PrepareDelete: project status is online", "name", name, "new opID", options.OpID)
 	default:
 		c.Logger.DebugWithCtx(ctx, "PrepareDelete rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
-		return nil, nuclio.GetByStatusCode(http.StatusPreconditionFailed)(
-			fmt.Sprintf("Mark-delete rejected: project is in unexpected state (project %q, state %q, expected %q)",
-				name, currentStatus, leaderCommon.OrisSyncStatusOnline))
+		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusOnline)
 	}
 
-	if err := leaderCommon.RequireCASMatch(currentOpID, options.PrevOpID); err != nil {
+	if err := leaderCommon.RequireCASMatch(options.PrevOpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "PrepareDelete CAS check failed", "name", name,
 			"current opID", currentOpID, "prev opID", options.PrevOpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Mark-delete CAS check failed")
 	}
-	if !leaderCommon.IsOpIDOrdered(options.OpID, currentOpID) {
+	if err := leaderCommon.RequireOpIDOrdered(options.OpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "PrepareDelete rejected: op_id not newer than stored", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Mark-delete rejected: op_id is not newer than stored op_id (requested %q, stored %q)", options.OpID, currentOpID))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Mark-delete rejected: %s", err.Error()))
 	}
 
 	c.Logger.DebugWithCtx(ctx, "PrepareDelete writing project deleting", "name", name, "new opID", options.OpID)
@@ -441,14 +432,11 @@ func (c *Client) CommitDelete(ctx context.Context,
 
 	if currentStatus != leaderCommon.OrisSyncStatusDeleting {
 		c.Logger.DebugWithCtx(ctx, "CommitDelete rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Final-delete rejected: project is in unexpected state (project %q, state %q, expected %q)",
-				name, currentStatus, leaderCommon.OrisSyncStatusDeleting))
+		return nil, unexpectedStateError(http.StatusConflict, name, currentStatus, leaderCommon.OrisSyncStatusDeleting)
 	}
-	if currentOpID != options.OpID {
+	if err := leaderCommon.RequireOpIDMatch(options.OpID, currentOpID); err != nil {
 		c.Logger.DebugWithCtx(ctx, "CommitDelete rejected: op_id mismatch", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Final-delete rejected: op_id mismatch (requested %q, stored %q)", options.OpID, currentOpID))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Final-delete rejected: %s", err.Error()))
 	}
 
 	c.Logger.DebugWithCtx(ctx, "CommitDelete deleting project CRD", "name", name, "new opID", options.OpID)
@@ -563,6 +551,14 @@ func (c *Client) extractProjectLabels(existing platform.Project) (currentOpID st
 	// absent sync-status label means the CRD pre-dates this follower surface — treated as
 	// "online", the same convention MLRun's evaluator uses for its own legacy labels.
 	return currentOpID, leaderCommon.OrisSyncStatusOnline
+}
+
+// unexpectedStateError builds the error returned when a project's currentStatus is not the
+// expectedStatus for the operation being attempted.
+func unexpectedStateError(statusCode int, name string, currentStatus, expectedStatus leaderCommon.OrisSyncStatus) error {
+	return nuclio.GetByStatusCode(statusCode)(
+		fmt.Sprintf("project is in unexpected state (project %q, state %q, expected %q)",
+			name, currentStatus, expectedStatus))
 }
 
 // writeFollowerProject creates or updates the project CRD, stamped with the given op_id/sync-status labels.
