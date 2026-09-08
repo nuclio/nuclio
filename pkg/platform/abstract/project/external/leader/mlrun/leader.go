@@ -358,7 +358,7 @@ func (l *LeaderOps) validateMarkDelete(labels map[string]string, existing platfo
 	// This ensures the caller is operating on the exact version it last read, preventing
 	// a concurrent update from being silently overwritten. The CAS is skipped on legacy
 	// CRDs that have no stored op_id yet — see leaderCommon.RequireCASMatch for the rationale.
-	if err := leaderCommon.RequireCASMatch(storedOpID, labels[leaderCommon.MLRunLabelKeyCurrentOpID]); err != nil {
+	if err := leaderCommon.RequireCASMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID); err != nil {
 		return false, errors.Wrap(err, "Mark-delete CAS check failed")
 	}
 
@@ -419,7 +419,7 @@ func (l *LeaderOps) validateSpecUpdate(labels map[string]string, existing platfo
 	// This ensures the caller is operating on the exact version it last read, preventing
 	// a concurrent update from being silently overwritten. The CAS is skipped on legacy
 	// CRDs that have no stored op_id yet — see leaderCommon.RequireCASMatch for the rationale.
-	if err := leaderCommon.RequireCASMatch(storedOpID, labels[leaderCommon.MLRunLabelKeyCurrentOpID]); err != nil {
+	if err := leaderCommon.RequireCASMatch(labels[leaderCommon.MLRunLabelKeyCurrentOpID], storedOpID); err != nil {
 		return false, errors.Wrap(err, "Update CAS check failed")
 	}
 

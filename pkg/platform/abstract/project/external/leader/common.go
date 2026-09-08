@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -29,7 +30,7 @@ import (
 // that pre-date 2PC, where nothing has stamped an op_id, so there is nothing to CAS against;
 // the request is accepted unconditionally and the current write is what stamps it. After that
 // first write, normal CAS enforcement resumes for every subsequent operation.
-func RequireCASMatch(storedOpID, prevOpID string) error {
+func RequireCASMatch(prevOpID, storedOpID string) error {
 	if storedOpID == "" || storedOpID == prevOpID {
 		return nil
 	}
@@ -42,4 +43,25 @@ func RequireCASMatch(storedOpID, prevOpID string) error {
 // comparison is equivalent to chronological ordering.
 func IsOpIDOrdered(newOpID, storedOpID string) bool {
 	return newOpID > storedOpID
+}
+
+// RequireOpIDMatch returns a simple error when requestedOpID does not equal storedOpID, the
+// phase-binding check shared by callers where the request must match the op_id already
+// written on the CRD by a preceding phase. The caller wraps the result with its own status
+// code and operation-specific message.
+func RequireOpIDMatch(requestedOpID, storedOpID string) error {
+	if requestedOpID == storedOpID {
+		return nil
+	}
+	return errors.Errorf("op_id mismatch (requested %q, stored %q)", requestedOpID, storedOpID)
+}
+
+// RequireOpIDOrdered returns a simple error when newOpID is not strictly newer than storedOpID,
+// the replay-protection guard shared by every phase that advances the stored op_id. The caller
+// wraps the result with its own status code and operation-specific message.
+func RequireOpIDOrdered(newOpID, storedOpID string) error {
+	if IsOpIDOrdered(newOpID, storedOpID) {
+		return nil
+	}
+	return errors.Errorf("op_id is not newer than stored op_id (requested %q, stored %q)", newOpID, storedOpID)
 }
