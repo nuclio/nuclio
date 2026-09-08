@@ -2068,6 +2068,17 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 		}
 	}
 
+	// applies to both create and update: a project stuck creating/deleting should not accept
+	// new api gateway config, whether that's creating or updating a gateway
+	if err := p.ValidateProjectExists(ctx, &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Namespace: apiGateway.Meta.Namespace,
+			Labels:    apiGateway.Meta.Labels,
+		},
+	}); err != nil {
+		return errors.Wrap(err, "Project existence validation failed")
+	}
+
 	// get upstream functions for validating functions existence
 	if _, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence); err != nil {
 		return errors.Wrap(err, "Failed to get api gateway upstream functions")
