@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
@@ -3023,6 +3024,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		On("List", suite.ctx, metav1.ListOptions{}).
 		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
 
+	// project existence validation (not tested here)
+	suite.mockedPlatform.
+		On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{Namespace: suite.Namespace},
+		}).
+		Return([]platform.Project{&platform.AbstractProject{}}, nil)
+
 	// set the template for api gateway host generation
 	suite.platform.GetConfig().Kube.DefaultHTTPIngressHostTemplate = "{{ .ResourceName }}.{{ .Namespace }}.app.dev.com"
 	defer func() {
@@ -3434,6 +3442,136 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 		})
 	}
+	suite.mockedPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *APIGatewayKubePlatformTestSuite) TestValidateAPIGatewayConfigProjectSyncStatus() {
+
+	// start from a clean mock: other tests in this suite register a persistent "GetProjects"
+	// expectation on the shared suite.mockedPlatform that would otherwise shadow this test's
+	// case-specific ones. suite.abstractPlatform already holds a reference to this exact
+	// mock instance, so its expectations must be cleared in place, not replaced.
+	suite.mockedPlatform.Mock = mock.Mock{}
+
+	for _, testCase := range []struct {
+		name               string
+		syncStatus         leaderCommon.OrisSyncStatus
+		existingAPIGateway *v1beta1.NuclioAPIGateway
+		expectedError      string
+	}{
+		{
+			name:          "Creating",
+			syncStatus:    leaderCommon.OrisSyncStatusCreating,
+			expectedError: "Project is being created",
+		},
+		{
+			name:       "CreatingOnUpdate",
+			syncStatus: leaderCommon.OrisSyncStatusCreating,
+			existingAPIGateway: &v1beta1.NuclioAPIGateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: "some-project",
+					},
+				},
+			},
+			expectedError: "Project is being created",
+		},
+		{
+			name:          "Deleting",
+			syncStatus:    leaderCommon.OrisSyncStatusDeleting,
+			expectedError: "Project is being deleted",
+		},
+		{
+			name:       "DeletingOnUpdate",
+			syncStatus: leaderCommon.OrisSyncStatusDeleting,
+			existingAPIGateway: &v1beta1.NuclioAPIGateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: "some-project",
+					},
+				},
+			},
+			expectedError: "Project is being deleted",
+		},
+		{
+			name:       "Online",
+			syncStatus: leaderCommon.OrisSyncStatusOnline,
+		},
+		{
+			name:       "OnlineOnUpdate",
+			syncStatus: leaderCommon.OrisSyncStatusOnline,
+			existingAPIGateway: &v1beta1.NuclioAPIGateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: "some-project",
+					},
+				},
+			},
+		},
+		{
+			name: "MissingLabel",
+		},
+		{
+			name: "MissingLabelOnUpdate",
+			existingAPIGateway: &v1beta1.NuclioAPIGateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: "some-project",
+					},
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer suite.ResetCRDMocks()
+
+			apiGatewayConfig := suite.compileAPIGatewayConfig()
+			apiGatewayConfig.Meta.Labels = map[string]string{
+				common.NuclioResourceLabelKeyProjectName: "some-project",
+			}
+
+			projectLabels := map[string]string{}
+			if testCase.syncStatus != "" {
+				projectLabels[leaderCommon.OrisLabelKeySyncStatus] = string(testCase.syncStatus)
+			}
+
+			suite.mockedPlatform.
+				On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      "some-project",
+						Namespace: suite.Namespace,
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{
+						ProjectConfig: platform.ProjectConfig{
+							Meta: platform.ProjectMeta{Labels: projectLabels},
+						},
+					},
+				}, nil).
+				Once()
+
+			// only reached when project-existence validation passes
+			suite.nuclioFunctionInterfaceMock.
+				On("Get", suite.ctx, "default-func-name", metav1.GetOptions{}).
+				Return(nil, &apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}})
+
+			err := suite.platform.validateAPIGatewayConfig(suite.ctx, &apiGatewayConfig, false, testCase.existingAPIGateway)
+			if testCase.expectedError != "" {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.expectedError, errors.RootCause(err).Error())
+			} else {
+				suite.Require().NoError(err)
+			}
+			suite.mockedPlatform.AssertExpectations(suite.T())
+
+			// the nuclioFunction Get call is only reached once sync-status validation
+			// passes, i.e. when the project is online
+			if testCase.syncStatus == leaderCommon.OrisSyncStatusOnline {
+				suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
+			}
+		})
+	}
 }
 
 func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
@@ -3492,6 +3630,17 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 					mock.AnythingOfType("*opaclient.PermissionOptions")).
 				Return(true, nil).
 				Once()
+
+			suite.mockedPlatform.
+				On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      "some-test",
+						Namespace: apiGatewayConfig.Meta.Namespace,
+					},
+				}).
+				Return([]platform.Project{&platform.AbstractProject{}}, nil).
+				Once()
+			defer suite.mockedPlatform.AssertExpectations(suite.T())
 
 			verifyAPIGatewayToUpdate := func(apiGatewayToUpdate *v1beta1.NuclioAPIGateway) bool {
 				suite.Require().Empty(cmp.Diff(updateAPIGatewayOptions.APIGatewayConfig.Spec, apiGatewayToUpdate.Spec))
@@ -3669,6 +3818,17 @@ func (suite *APIGatewayKubePlatformTestSuite) TestCreateAPIGatewayPermissions() 
 
 			if testCase.opaResponse {
 
+				suite.mockedPlatform.
+					On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+						Meta: platform.ProjectMeta{
+							Name:      projectName,
+							Namespace: apiGatewayConfig.Meta.Namespace,
+						},
+					}).
+					Return([]platform.Project{&platform.AbstractProject{}}, nil).
+					Once()
+				defer suite.mockedPlatform.AssertExpectations(suite.T())
+
 				suite.nuclioFunctionInterfaceMock.
 					On("Get",
 						suite.ctx,
@@ -3762,6 +3922,17 @@ func (suite *APIGatewayKubePlatformTestSuite) TestUpdateAPIGatewayPermissions() 
 			defer suite.mockedOpaClient.AssertExpectations(suite.T())
 
 			if testCase.opaResponse {
+
+				suite.mockedPlatform.
+					On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+						Meta: platform.ProjectMeta{
+							Name:      projectName,
+							Namespace: apiGatewayConfig.Meta.Namespace,
+						},
+					}).
+					Return([]platform.Project{&platform.AbstractProject{}}, nil).
+					Once()
+				defer suite.mockedPlatform.AssertExpectations(suite.T())
 
 				suite.nuclioFunctionInterfaceMock.
 					On("Get",
