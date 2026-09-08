@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/logprocessing"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -476,7 +477,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
-	if err := ap.validateProjectExists(ctx, functionConfig); err != nil {
+	if err := ap.ValidateProjectExists(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
 	}
 
@@ -1754,9 +1755,9 @@ func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functio
 	return nil
 }
 
-func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *functionconfig.Config) error {
-
-	// validate the project exists
+// ValidateProjectExists validates that the project referenced by functionConfig exists and,
+// per the Oris follower sync-status label, is not in the process of being created or deleted.
+func (ap *Platform) ValidateProjectExists(ctx context.Context, functionConfig *functionconfig.Config) error {
 	getProjectsOptions := &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
@@ -1779,6 +1780,15 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 	if len(projects) == 0 {
 		return nuclio.NewErrPreconditionFailed("Project does not exist")
 	}
+
+	// block resource creation if the project is still being created or deleted
+	switch leaderCommon.OrisSyncStatus(projects[0].GetConfig().Meta.Labels[leaderCommon.OrisLabelKeySyncStatus]) {
+	case leaderCommon.OrisSyncStatusCreating:
+		return nuclio.NewErrPreconditionFailed("Project is being created")
+	case leaderCommon.OrisSyncStatusDeleting:
+		return nuclio.NewErrPreconditionFailed("Project is being deleted")
+	}
+
 	return nil
 }
 
