@@ -31,6 +31,13 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+// ErrLegacySurfaceForbidden is returned by EvaluateLeaderRequest for every leader-origin call
+// on the legacy label-inferred surface. Exported as a sentinel (rather than constructed fresh
+// per call) so callers, including tests, can identify it with errors.Is instead of inspecting
+// the status code or message.
+var ErrLegacySurfaceForbidden = nuclio.GetByStatusCode(http.StatusForbidden)(
+	"leader writes must use /api/v1/follower/projects/*")
+
 // LeaderOps implements leader.LeaderOps for the Oris projects leader.
 type LeaderOps struct {
 	*leaderabstract.LeaderOps
@@ -156,13 +163,6 @@ func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string 
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
-
-// ErrLegacySurfaceForbidden is returned by EvaluateLeaderRequest for every leader-origin call
-// on the legacy label-inferred surface. Exported as a sentinel (rather than constructed fresh
-// per call) so callers, including tests, can identify it with errors.Is instead of inspecting
-// the status code or message.
-var ErrLegacySurfaceForbidden = nuclio.GetByStatusCode(http.StatusForbidden)(
-	"leader writes must use /api/v1/follower/projects/*")
 
 // EvaluateLeaderRequest rejects every leader-origin call on this legacy surface: with Oris as
 // leader, project writes from the leader belong exclusively on the dedicated
