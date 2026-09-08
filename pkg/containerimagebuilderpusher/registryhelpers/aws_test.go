@@ -54,6 +54,11 @@ func (suite *AWSTestSuite) TestECRRegistryID() {
 			registryURL: "111222333444.dkr.ecr.ap-southeast-1.amazonaws.com",
 			expected:    "111222333444",
 		},
+		{
+			name:        "PathSuffixedURL",
+			registryURL: "934638699319.dkr.ecr.us-east-2.amazonaws.com/iguazio-cloud/qa/vmdev214.lab.iguazeng.com",
+			expected:    "934638699319",
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Require().Equal(testCase.expected, suite.helper.ECRRegistryID(testCase.registryURL))
@@ -82,6 +87,11 @@ func (suite *AWSTestSuite) TestECRRegion() {
 			registryURL: "111222333444.dkr.ecr.ap-southeast-1.amazonaws.com",
 			expected:    "ap-southeast-1",
 		},
+		{
+			name:        "PathSuffixedURL",
+			registryURL: "934638699319.dkr.ecr.us-east-2.amazonaws.com/iguazio-cloud/qa/vmdev214.lab.iguazeng.com",
+			expected:    "us-east-2",
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Require().Equal(testCase.expected, suite.helper.ECRRegion(testCase.registryURL))
@@ -98,6 +108,16 @@ func (suite *AWSTestSuite) TestMatches() {
 		{name: "ECRHost", url: "123456789012.dkr.ecr.us-east-1.amazonaws.com", expected: true},
 		{name: "ArtifactoryHost", url: "system-registry.artifactory.example.com", expected: false},
 		{name: "AzureHost", url: "myregistry.azurecr.io", expected: false},
+		{
+			name:     "ECRHostWithPath",
+			url:      "123456789012.dkr.ecr.us-east-1.amazonaws.com/some/repo/path",
+			expected: false,
+		},
+		{
+			name:     "AWSLookalikeAccountWithPath",
+			url:      "12345.dkr.ecr.us-east-1.amazonaws.com/some/path",
+			expected: false,
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Require().Equal(testCase.expected, suite.helper.Matches(testCase.url))
