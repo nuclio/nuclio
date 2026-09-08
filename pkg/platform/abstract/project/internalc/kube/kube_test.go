@@ -118,35 +118,16 @@ func (suite *FollowerTestSuite) TestPrepareCreate() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			mockClient := &nuclioclientmock.Client{}
-			var getErr error
-			if testCase.existing == nil {
-				getErr = apierrors.NewNotFound(schema.GroupResource{}, testProject)
-			}
-			mockClient.On("GetNuclioProject", mock.Anything, testNamespace, testProject).Return(testCase.existing, getErr)
-			if testCase.mockWrites != nil {
-				testCase.mockWrites(mockClient)
-			}
-
-			client := suite.newClient(mockClient)
-			state, err := client.PrepareCreate(context.TODO(), &platform.PrepareCreateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
-					Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
-					Spec: platform.ProjectSpec{Owner: testCase.owner},
-				},
-				OpID: testCase.opID,
-			})
-
-			if testCase.expectedError {
-				suite.Require().Error(err)
-				var statusErr nuclio.WithStatusCode
-				suite.Require().True(errors.As(err, &statusErr))
-				suite.Require().Equal(testCase.expectedCode, statusErr.StatusCode())
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(testCase.expectedState, state)
-			}
-			mockClient.AssertExpectations(suite.T())
+			suite.runFollowerTestCase(testCase.existing, testCase.mockWrites, testCase.expectedError, testCase.expectedCode, testCase.expectedState,
+				func(client project.Client) (*platform.Project2PCState, error) {
+					return client.PrepareCreate(context.TODO(), &platform.PrepareCreateProjectOptions{
+						ProjectConfig: platform.ProjectConfig{
+							Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+							Spec: platform.ProjectSpec{Owner: testCase.owner},
+						},
+						OpID: testCase.opID,
+					})
+				})
 		})
 	}
 }
@@ -194,32 +175,13 @@ func (suite *FollowerTestSuite) TestCommitCreate() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			mockClient := &nuclioclientmock.Client{}
-			var getErr error
-			if testCase.existing == nil {
-				getErr = apierrors.NewNotFound(schema.GroupResource{}, testProject)
-			}
-			mockClient.On("GetNuclioProject", mock.Anything, testNamespace, testProject).Return(testCase.existing, getErr)
-			if testCase.mockWrites != nil {
-				testCase.mockWrites(mockClient)
-			}
-
-			client := suite.newClient(mockClient)
-			state, err := client.CommitCreate(context.TODO(), &platform.CommitCreateProjectOptions{
-				Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
-				OpID: testCase.opID,
-			})
-
-			if testCase.expectedError {
-				suite.Require().Error(err)
-				var statusErr nuclio.WithStatusCode
-				suite.Require().True(errors.As(err, &statusErr))
-				suite.Require().Equal(testCase.expectedCode, statusErr.StatusCode())
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(testCase.expectedState, state)
-			}
-			mockClient.AssertExpectations(suite.T())
+			suite.runFollowerTestCase(testCase.existing, testCase.mockWrites, testCase.expectedError, testCase.expectedCode, testCase.expectedState,
+				func(client project.Client) (*platform.Project2PCState, error) {
+					return client.CommitCreate(context.TODO(), &platform.CommitCreateProjectOptions{
+						Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+						OpID: testCase.opID,
+					})
+				})
 		})
 	}
 }
@@ -263,6 +225,7 @@ func (suite *FollowerTestSuite) TestCommitUpdate() {
 			opID:          "op-1",
 			prevOpID:      "",
 			expectedError: true,
+			expectedCode:  404,
 		},
 		{
 			name:          "RejectedOnCASMismatch",
@@ -282,38 +245,17 @@ func (suite *FollowerTestSuite) TestCommitUpdate() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			mockClient := &nuclioclientmock.Client{}
-			var getErr error
-			if testCase.existing == nil {
-				getErr = apierrors.NewNotFound(schema.GroupResource{}, testProject)
-			}
-			mockClient.On("GetNuclioProject", mock.Anything, testNamespace, testProject).Return(testCase.existing, getErr)
-			if testCase.mockWrites != nil {
-				testCase.mockWrites(mockClient)
-			}
-
-			client := suite.newClient(mockClient)
-			state, err := client.CommitUpdate(context.TODO(), &platform.CommitUpdateProjectOptions{
-				ProjectConfig: platform.ProjectConfig{
-					Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
-					Spec: platform.ProjectSpec{Owner: testCase.owner},
-				},
-				OpID:     testCase.opID,
-				PrevOpID: testCase.prevOpID,
-			})
-
-			if testCase.expectedError {
-				suite.Require().Error(err)
-				if testCase.expectedCode != 0 {
-					var statusErr nuclio.WithStatusCode
-					suite.Require().True(errors.As(err, &statusErr))
-					suite.Require().Equal(testCase.expectedCode, statusErr.StatusCode())
-				}
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(testCase.expectedState, state)
-			}
-			mockClient.AssertExpectations(suite.T())
+			suite.runFollowerTestCase(testCase.existing, testCase.mockWrites, testCase.expectedError, testCase.expectedCode, testCase.expectedState,
+				func(client project.Client) (*platform.Project2PCState, error) {
+					return client.CommitUpdate(context.TODO(), &platform.CommitUpdateProjectOptions{
+						ProjectConfig: platform.ProjectConfig{
+							Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+							Spec: platform.ProjectSpec{Owner: testCase.owner},
+						},
+						OpID:     testCase.opID,
+						PrevOpID: testCase.prevOpID,
+					})
+				})
 		})
 	}
 }
@@ -372,33 +314,14 @@ func (suite *FollowerTestSuite) TestPrepareDelete() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			mockClient := &nuclioclientmock.Client{}
-			var getErr error
-			if testCase.existing == nil {
-				getErr = apierrors.NewNotFound(schema.GroupResource{}, testProject)
-			}
-			mockClient.On("GetNuclioProject", mock.Anything, testNamespace, testProject).Return(testCase.existing, getErr)
-			if testCase.mockWrites != nil {
-				testCase.mockWrites(mockClient)
-			}
-
-			client := suite.newClient(mockClient)
-			state, err := client.PrepareDelete(context.TODO(), &platform.PrepareDeleteProjectOptions{
-				Meta:     platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
-				OpID:     testCase.opID,
-				PrevOpID: testCase.prevOpID,
-			})
-
-			if testCase.expectedError {
-				suite.Require().Error(err)
-				var statusErr nuclio.WithStatusCode
-				suite.Require().True(errors.As(err, &statusErr))
-				suite.Require().Equal(testCase.expectedCode, statusErr.StatusCode())
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(testCase.expectedState, state)
-			}
-			mockClient.AssertExpectations(suite.T())
+			suite.runFollowerTestCase(testCase.existing, testCase.mockWrites, testCase.expectedError, testCase.expectedCode, testCase.expectedState,
+				func(client project.Client) (*platform.Project2PCState, error) {
+					return client.PrepareDelete(context.TODO(), &platform.PrepareDeleteProjectOptions{
+						Meta:     platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+						OpID:     testCase.opID,
+						PrevOpID: testCase.prevOpID,
+					})
+				})
 		})
 	}
 }
@@ -443,32 +366,13 @@ func (suite *FollowerTestSuite) TestCommitDelete() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			mockClient := &nuclioclientmock.Client{}
-			var getErr error
-			if testCase.existing == nil {
-				getErr = apierrors.NewNotFound(schema.GroupResource{}, testProject)
-			}
-			mockClient.On("GetNuclioProject", mock.Anything, testNamespace, testProject).Return(testCase.existing, getErr)
-			if testCase.mockWrites != nil {
-				testCase.mockWrites(mockClient)
-			}
-
-			client := suite.newClient(mockClient)
-			state, err := client.CommitDelete(context.TODO(), &platform.CommitDeleteProjectOptions{
-				Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
-				OpID: testCase.opID,
-			})
-
-			if testCase.expectedError {
-				suite.Require().Error(err)
-				var statusErr nuclio.WithStatusCode
-				suite.Require().True(errors.As(err, &statusErr))
-				suite.Require().Equal(testCase.expectedCode, statusErr.StatusCode())
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(testCase.expectedState, state)
-			}
-			mockClient.AssertExpectations(suite.T())
+			suite.runFollowerTestCase(testCase.existing, testCase.mockWrites, testCase.expectedError, testCase.expectedCode, testCase.expectedState,
+				func(client project.Client) (*platform.Project2PCState, error) {
+					return client.CommitDelete(context.TODO(), &platform.CommitDeleteProjectOptions{
+						Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+						OpID: testCase.opID,
+					})
+				})
 		})
 	}
 }
@@ -536,6 +440,41 @@ func (suite *FollowerTestSuite) TestList() {
 }
 
 // --- test helpers (private, below public functions) ---
+
+// runFollowerTestCase runs the mock setup, method invocation, and assertions shared by every
+// follower 2PC test (TestPrepareCreate/TestCommitCreate/TestCommitUpdate/TestPrepareDelete/
+// TestCommitDelete): it wires GetNuclioProject and mockWrites into a fresh mock client, invokes
+// call with the resulting client, and asserts the expected error/state. Only the client call
+// under test varies between those five.
+func (suite *FollowerTestSuite) runFollowerTestCase(existingProject *nuclioio.NuclioProject,
+	mockWrites func(*nuclioclientmock.Client), expectedError bool, expectedCode int,
+	expectedState *platform.Project2PCState, call func(project.Client) (*platform.Project2PCState, error)) {
+
+	mockClient := &nuclioclientmock.Client{}
+	var getErr error
+	if existingProject == nil {
+		getErr = apierrors.NewNotFound(schema.GroupResource{}, testProject)
+	}
+	mockClient.On("GetNuclioProject", mock.Anything, testNamespace, testProject).Return(existingProject, getErr)
+	if mockWrites != nil {
+		mockWrites(mockClient)
+	}
+
+	state, err := call(suite.newClient(mockClient))
+
+	if expectedError {
+		suite.Require().Error(err)
+		if expectedCode != 0 {
+			var statusErr nuclio.WithStatusCode
+			suite.Require().True(errors.As(err, &statusErr))
+			suite.Require().Equal(expectedCode, statusErr.StatusCode())
+		}
+	} else {
+		suite.Require().NoError(err)
+		suite.Require().Equal(expectedState, state)
+	}
+	mockClient.AssertExpectations(suite.T())
+}
 
 // newClient builds a follower Client backed by the given mock.
 func (suite *FollowerTestSuite) newClient(nuclioClientSet nuclioclient.Client) project.Client {
