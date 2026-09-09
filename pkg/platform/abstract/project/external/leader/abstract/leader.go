@@ -113,3 +113,7 @@ func (l *LeaderOps) EvaluateLeaderRequest(_ context.Context, _ map[string]string
 
 // ProjectSync2PCEnabled defaults to false: two-phase-commit support is opt-in per leader.
 func (l *LeaderOps) ProjectSync2PCEnabled() bool { return false }
+
+// GenerateSyncRequestURL defaults to an empty URL: leaders other than Oris do not support
+// the leader-driven follower-sync trigger.
+func (l *LeaderOps) GenerateSyncRequestURL(_ string) string { return "" }

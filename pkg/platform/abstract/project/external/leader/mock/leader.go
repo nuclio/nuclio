@@ -137,6 +137,11 @@ func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(updatedAfter string) strin
 	return args.String(0)
 }
 
+func (l *LeaderOps) GenerateSyncRequestURL(apiAddress string) string {
+	args := l.Called(apiAddress)
+	return args.String(0)
+}
+
 func (l *LeaderOps) GetJobStatusRequestCookies(_ *platformconfig.Config) []*http.Cookie {
 	args := l.Called()
 	return args.Get(0).([]*http.Cookie)
