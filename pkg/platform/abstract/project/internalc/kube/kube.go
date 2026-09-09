@@ -187,105 +187,86 @@ func (c *Client) PrepareCreate(ctx context.Context,
 	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
 	name := options.ProjectConfig.Meta.Name
 	namespace := options.ProjectConfig.Meta.Namespace
-	c.Logger.DebugWithCtx(ctx, "PrepareCreate received", "name", name, "new opID", options.OpID)
-
-	existProject, err := c.getProject(ctx, name, namespace)
+	existingProject, err := c.getProject(ctx, name, namespace)
 	if err != nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate failed to fetch project", "name", name, "new opID", options.OpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to prepare create")
 	}
 
-	// no CRD exists yet — this is the first time we see this existProject.
-	if existProject == nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate writing new project", "name", name, "new opID", options.OpID)
+	if existingProject == nil {
 		if err := c.writeFollowerProject(ctx, false, options.ProjectConfig, options.OpID, leaderCommon.OrisSyncStatusCreating); err != nil {
-			c.Logger.WarnWithCtx(ctx, "PrepareCreate failed to write project", "name", name, "new opID", options.OpID, "err", err.Error())
 			return nil, errors.Wrap(err, "Failed to prepare create")
 		}
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate completed successfully", "name", name, "new opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusCreating)}, nil
 	}
 
-	currentOpID, currentStatus := c.extractProjectLabels(existProject)
-	c.Logger.DebugWithCtx(ctx, "PrepareCreate read current state", "name", name, "new opID", options.OpID,
-		"current opID", currentOpID, "currentStatus", currentStatus)
+	currentOpID, currentStatus := c.extractProjectLabels(existingProject)
 
-	// The CRD is already in the correct state — skip the write and return the existing state.
+	// Idempotency: the project already exists with this opID
 	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate completed successfully", "name", name, "new opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "opID already applied, considered as completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
 	if err := leaderCommon.RequireOpIDOrdered(options.OpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate rejected: op_id older than stored", "name", name, "new opID", options.OpID, "current opID", currentOpID)
 		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Provision rejected: %s", err.Error()))
+			fmt.Sprintf("opID ordering check failed for project %q: %s", name, err.Error()))
 	}
 
-	// The incoming op_id is newer. If the CRD is still "creating" this is a recovery scenario:
-	// the leader abandoned the previous provision and is starting fresh with a new op_id.
-	// Allow the overwrite so the existProject is not stuck.
+	// The incoming opID is newer. If the project is still "creating" this is a recovery scenario:
+	// the leader abandoned the previous provision and is starting fresh with a new opID.
+	// Allow the overwrite so the existingProject is not stuck.
 	if currentStatus == leaderCommon.OrisSyncStatusCreating {
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate overwriting abandoned provision", "name", name, "new opID", options.OpID, "current opID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "overwriting abandoned provision", "name", name, "opID", options.OpID, "currentOpID", currentOpID)
 		if err := c.writeFollowerProject(ctx, true, options.ProjectConfig, options.OpID, leaderCommon.OrisSyncStatusCreating); err != nil {
-			c.Logger.WarnWithCtx(ctx, "PrepareCreate failed to write project", "name", name, "new opID", options.OpID, "err", err.Error())
 			return nil, errors.Wrap(err, "Failed to prepare create")
 		}
-		c.Logger.DebugWithCtx(ctx, "PrepareCreate completed successfully", "name", name, "new opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusCreating)}, nil
 	}
 
-	// The op_id is newer, but the project isn't in "creating" state — it's already
+	// The opID is newer, but the project isn't in "creating" state — it's already
 	// provisioned (online or deleting) and cannot be re-provisioned.
-	c.Logger.DebugWithCtx(ctx, "PrepareCreate rejected: already provisioned", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
 	return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-		fmt.Sprintf("Provision rejected: project already provisioned and not in creating state (state %q)", currentStatus))
+		fmt.Sprintf("opID is newer than stored opID, but project is not in creating state (opID %q, storedOpID %q, status %q)",
+			options.OpID, currentOpID, currentStatus))
 }
 
 // CommitCreate activates a provisioned project (2PC step 2): flips its sync-status from creating to online.
 func (c *Client) CommitCreate(ctx context.Context,
 	options *platform.CommitCreateProjectOptions) (*platform.Project2PCState, error) {
 	name := options.Meta.Name
-	c.Logger.DebugWithCtx(ctx, "CommitCreate received", "name", name, "new opID", options.OpID)
-
-	existing, err := c.getProject(ctx, name, options.Meta.Namespace)
+	existingProject, err := c.getProject(ctx, name, options.Meta.Namespace)
 	if err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitCreate failed to fetch project", "name", name, "new opID", options.OpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to commit create")
 	}
-	if existing == nil {
-		c.Logger.DebugWithCtx(ctx, "CommitCreate rejected: no CRD", "name", name, "new opID", options.OpID)
+	if existingProject == nil {
 		return nil, nuclio.GetByStatusCode(http.StatusPreconditionFailed)(
-			fmt.Sprintf("Commit rejected: project has no CRD, provision must run first (project %q)", name))
+			fmt.Sprintf("project does not exist, prepare create must run first (project %q)", name))
 	}
 
-	currentOpID, currentStatus := c.extractProjectLabels(existing)
-	c.Logger.DebugWithCtx(ctx, "CommitCreate read current state", "name", name, "new opID", options.OpID,
-		"current opID", currentOpID, "currentStatus", currentStatus)
+	currentOpID, currentStatus := c.extractProjectLabels(existingProject)
 	if err := leaderCommon.RequireOpIDMatch(options.OpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitCreate rejected: op_id mismatch", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Commit rejected: %s", err.Error()))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(err.Error())
 	}
 
 	switch currentStatus {
 	case leaderCommon.OrisSyncStatusOnline:
-		// Idempotency: already online with this op_id — the commit was already applied.
-		c.Logger.DebugWithCtx(ctx, "CommitCreate idempotent: already applied", "name", name, "new opID", options.OpID, "current opID", currentOpID)
+		// Idempotency: already online with this opID — the commit was already applied.
+		c.Logger.DebugWithCtx(ctx, "project status is already online, considered as completed successfully",
+			"name", name, "opID", options.OpID, "current opID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	case leaderCommon.OrisSyncStatusCreating:
 		// Expected state — fall through and complete the commit.
-		c.Logger.DebugWithCtx(ctx, "CommitCreate: project status is creating", "name", name, "new opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "project status is creating, committing to online", "name", name, "opID", options.OpID)
 	default:
-		c.Logger.DebugWithCtx(ctx, "CommitCreate rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
 		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusCreating)
 	}
 
-	c.Logger.DebugWithCtx(ctx, "CommitCreate writing project online", "name", name, "new opID", options.OpID)
-	if err := c.updateFollowerProjectLabels(ctx, existing, options.OpID, leaderCommon.OrisSyncStatusOnline); err != nil {
-		c.Logger.WarnWithCtx(ctx, "CommitCreate failed to write project", "name", name, "new opID", options.OpID, "err", err.Error())
+	if err := c.updateFollowerProjectLabels(ctx, existingProject, options.OpID, leaderCommon.OrisSyncStatusOnline); err != nil {
 		return nil, errors.Wrap(err, "Failed to commit create")
 	}
-	c.Logger.DebugWithCtx(ctx, "CommitCreate completed successfully", "name", name, "new opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusOnline)}, nil
 }
 
@@ -294,52 +275,40 @@ func (c *Client) CommitCreate(ctx context.Context,
 func (c *Client) CommitUpdate(ctx context.Context,
 	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
 	name := options.ProjectConfig.Meta.Name
-	c.Logger.DebugWithCtx(ctx, "CommitUpdate received", "name", name, "new opID", options.OpID, "prev opID", options.PrevOpID)
-
-	existing, err := c.getProject(ctx, name, options.ProjectConfig.Meta.Namespace)
+	existingProject, err := c.getProject(ctx, name, options.ProjectConfig.Meta.Namespace)
 	if err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitUpdate failed to fetch project", "name", name, "new opID", options.OpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to commit update")
 	}
-	if existing == nil {
-		c.Logger.DebugWithCtx(ctx, "CommitUpdate rejected: project not found", "name", name, "new opID", options.OpID)
+	if existingProject == nil {
 		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Update rejected: project not found (project %q)", name))
 	}
 
-	currentOpID, currentStatus := c.extractProjectLabels(existing)
-	c.Logger.DebugWithCtx(ctx, "CommitUpdate read current state", "name", name, "new opID", options.OpID,
-		"current opID", currentOpID, "currentStatus", currentStatus)
+	currentOpID, currentStatus := c.extractProjectLabels(existingProject)
 
 	// "must be online" precondition by design
 	if currentStatus != leaderCommon.OrisSyncStatusOnline {
-		c.Logger.DebugWithCtx(ctx, "CommitUpdate rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
 		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusOnline)
 	}
 
 	// Idempotency: already applied — must be checked before CAS, since after a successful
-	// update the stored op_id has advanced past the request's PrevOpID.
+	// update the stored opID has advanced past the request's PrevOpID.
 	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
-		c.Logger.DebugWithCtx(ctx, "CommitUpdate idempotent: already applied", "name", name,
-			"new opID", options.OpID, "current opID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "opID already applied, considered as completed successfully",
+			"name", name, "opID", options.OpID, "current opID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
 	if err := leaderCommon.RequireCASMatch(options.PrevOpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitUpdate CAS check failed", "name", name, "new opID", options.OpID,
-			"prev opID", options.PrevOpID, "current opID", currentOpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Update CAS check failed")
 	}
 	if err := leaderCommon.RequireOpIDOrdered(options.OpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitUpdate rejected: op_id not newer than stored", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Update rejected: %s", err.Error()))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("opID ordering check failed for project %q: %s", name, err.Error()))
 	}
 
-	c.Logger.DebugWithCtx(ctx, "CommitUpdate writing project", "name", name, "new opID", options.OpID)
 	if err := c.writeFollowerProject(ctx, true, options.ProjectConfig, options.OpID, leaderCommon.OrisSyncStatusOnline); err != nil {
-		c.Logger.WarnWithCtx(ctx, "CommitUpdate failed to write project", "name", name, "new opID", options.OpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to commit update")
 	}
-	c.Logger.DebugWithCtx(ctx, "CommitUpdate completed successfully", "name", name, "new opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusOnline)}, nil
 }
 
@@ -347,64 +316,52 @@ func (c *Client) CommitUpdate(ctx context.Context,
 func (c *Client) PrepareDelete(ctx context.Context,
 	options *platform.PrepareDeleteProjectOptions) (*platform.Project2PCState, error) {
 	name := options.Meta.Name
-	c.Logger.DebugWithCtx(ctx, "PrepareDelete received", "name", name, "new opID", options.OpID, "prev opID", options.PrevOpID)
-
-	existing, err := c.getProject(ctx, name, options.Meta.Namespace)
+	existingProject, err := c.getProject(ctx, name, options.Meta.Namespace)
 	if err != nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete failed to fetch project", "name", name, "new opID", options.OpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to prepare delete")
 	}
 
-	// Idempotency: the CRD does not exist - no need to mark it deleting, the commit will be a no-op.
-	if existing == nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete completed successfully", "name", name, "new opID", options.OpID)
+	// Idempotency: the CRD does not exist - no need to mark it deleting, the commit delete will be a no-op.
+	if existingProject == nil {
+		c.Logger.DebugWithCtx(ctx, "project does not exist, considered as completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusDeleting)}, nil
 	}
 
-	currentOpID, currentStatus := c.extractProjectLabels(existing)
-	c.Logger.DebugWithCtx(ctx, "PrepareDelete read current state", "name", name,
-		"new opID", options.OpID, "current opID", currentOpID, "currentStatus", currentStatus)
+	currentOpID, currentStatus := c.extractProjectLabels(existingProject)
 
 	// Idempotency: this exact mark-delete already applied. Only a prior, successful call to
-	// this function could have stamped this op_id, so the status is guaranteed to be deleting.
+	// this function could have stamped this opID, so the status is guaranteed to be deleting.
 	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete idempotent: already applied", "name", name, "new opID", options.OpID, "current opID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "opID with deleting status already applied, considered as completed successfully",
+			"name", name, "opID", options.OpID, "current opID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
 	switch currentStatus {
 	case leaderCommon.OrisSyncStatusDeleting:
-		// Conflict: already deleting under a different op_id — a different delete is in
+		// Conflict: already deleting under a different opID — a different delete is in
 		// progress, must not be silently overwritten (mlrun's validateMarkDelete rejects the
 		// same way, rather than treating any in-progress delete as idempotent).
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete rejected: different delete in progress", "name", name, "current opID", currentOpID, "new opID", options.OpID)
 		return nil, nuclio.GetByStatusCode(http.StatusConflict)(
-			fmt.Sprintf("Mark-delete rejected: different delete already in progress (requested %q, stored %q)",
-				options.OpID, currentOpID))
+			fmt.Sprintf("project status is already deleting under a different opID (current opID %q, opID %q)", currentOpID, options.OpID))
 	case leaderCommon.OrisSyncStatusOnline:
 		// Expected state — fall through and continue below.
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete: project status is online", "name", name, "new opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "project status is online, marking deleting", "name", name, "opID", options.OpID)
 	default:
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
 		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusOnline)
 	}
 
 	if err := leaderCommon.RequireCASMatch(options.PrevOpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete CAS check failed", "name", name,
-			"current opID", currentOpID, "prev opID", options.PrevOpID, "err", err.Error())
-		return nil, errors.Wrap(err, "Mark-delete CAS check failed")
+		return nil, errors.Wrap(err, "CAS check failed")
 	}
 	if err := leaderCommon.RequireOpIDOrdered(options.OpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "PrepareDelete rejected: op_id not newer than stored", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Mark-delete rejected: %s", err.Error()))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("opID ordering check failed for project %q: %s", name, err.Error()))
 	}
 
-	c.Logger.DebugWithCtx(ctx, "PrepareDelete writing project deleting", "name", name, "new opID", options.OpID)
-	if err := c.updateFollowerProjectLabels(ctx, existing, options.OpID, leaderCommon.OrisSyncStatusDeleting); err != nil {
-		c.Logger.WarnWithCtx(ctx, "PrepareDelete failed to write project", "name", name, "new opID", options.OpID, "err", err.Error())
+	if err := c.updateFollowerProjectLabels(ctx, existingProject, options.OpID, leaderCommon.OrisSyncStatusDeleting); err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare delete")
 	}
-	c.Logger.DebugWithCtx(ctx, "PrepareDelete completed successfully", "name", name, "new opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusDeleting)}, nil
 }
 
@@ -412,51 +369,38 @@ func (c *Client) PrepareDelete(ctx context.Context,
 func (c *Client) CommitDelete(ctx context.Context,
 	options *platform.CommitDeleteProjectOptions) (*platform.Project2PCState, error) {
 	name := options.Meta.Name
-	c.Logger.DebugWithCtx(ctx, "CommitDelete received", "name", name, "new opID", options.OpID)
-
-	existing, err := c.getProject(ctx, name, options.Meta.Namespace)
+	existingProject, err := c.getProject(ctx, name, options.Meta.Namespace)
 	if err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitDelete failed to fetch project", "name", name, "new opID", options.OpID, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to commit delete")
 	}
 
 	// Idempotency: already gone, a previous call already deleted it.
-	if existing == nil {
-		c.Logger.DebugWithCtx(ctx, "CommitDelete idempotent: already deleted", "name", name, "new opID", options.OpID)
+	if existingProject == nil {
+		c.Logger.DebugWithCtx(ctx, "project does not exist, considered as completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID}, nil
 	}
 
-	currentOpID, currentStatus := c.extractProjectLabels(existing)
-	c.Logger.DebugWithCtx(ctx, "CommitDelete read current state", "name", name, "new opID", options.OpID,
-		"current opID", currentOpID, "currentStatus", currentStatus)
-
+	currentOpID, currentStatus := c.extractProjectLabels(existingProject)
 	if currentStatus != leaderCommon.OrisSyncStatusDeleting {
-		c.Logger.DebugWithCtx(ctx, "CommitDelete rejected: unexpected state", "name", name, "new opID", options.OpID, "currentStatus", currentStatus)
 		return nil, unexpectedStateError(http.StatusConflict, name, currentStatus, leaderCommon.OrisSyncStatusDeleting)
 	}
 	if err := leaderCommon.RequireOpIDMatch(options.OpID, currentOpID); err != nil {
-		c.Logger.DebugWithCtx(ctx, "CommitDelete rejected: op_id mismatch", "name", name, "new opID", options.OpID, "current opID", currentOpID)
-		return nil, nuclio.GetByStatusCode(http.StatusConflict)(fmt.Sprintf("Final-delete rejected: %s", err.Error()))
+		return nil, nuclio.GetByStatusCode(http.StatusConflict)(err.Error())
 	}
 
-	c.Logger.DebugWithCtx(ctx, "CommitDelete deleting project CRD", "name", name, "new opID", options.OpID)
 	if err := c.Delete(ctx, &platform.DeleteProjectOptions{Meta: options.Meta}); err != nil {
-		c.Logger.WarnWithCtx(ctx, "CommitDelete failed to delete project CRD", "name", name, "new opID", options.OpID, "err", err.Error())
-		return nil, errors.Wrap(err, "Failed to delete project CRD")
+		return nil, errors.Wrap(err, "Failed to delete project")
 	}
 
-	c.Logger.DebugWithCtx(ctx, "CommitDelete completed successfully", "name", name, "new opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID}, nil
 }
 
 // List lists this follower's project states for the leader's reconciliation sweep.
 func (c *Client) List(ctx context.Context,
 	options *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
-	c.Logger.DebugWithCtx(ctx, "List received", "namespace", options.Namespace, "cursor", options.Cursor, "limit", options.Limit)
-
 	projects, err := c.Get(ctx, &platform.GetProjectsOptions{Meta: platform.ProjectMeta{Namespace: options.Namespace}})
 	if err != nil {
-		c.Logger.DebugWithCtx(ctx, "List failed to fetch projects", "namespace", options.Namespace, "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to list projects")
 	}
 
@@ -501,7 +445,6 @@ func (c *Client) List(ctx context.Context,
 		nextCursor = states[len(states)-1].Name
 	}
 
-	c.Logger.DebugWithCtx(ctx, "List returning page", "namespace", options.Namespace, "count", len(states), "nextCursor", nextCursor)
 	return &platform.Project2PCStatesPage{States: states, NextCursor: nextCursor}, nil
 }
 
@@ -541,7 +484,7 @@ func (c *Client) getProject(ctx context.Context, name, namespace string) (platfo
 	return projects[0], nil
 }
 
-// extractProjectLabels reads the op_id and oris/sync-status labels off an existing CRD.
+// extractProjectLabels reads the opID and oris/sync-status labels off an existing CRD.
 func (c *Client) extractProjectLabels(existing platform.Project) (currentOpID string, syncStatus leaderCommon.OrisSyncStatus) {
 	labels := existing.GetConfig().Meta.Labels
 	currentOpID = labels[leaderCommon.OrisLabelKeyOpID]
@@ -553,22 +496,14 @@ func (c *Client) extractProjectLabels(existing platform.Project) (currentOpID st
 	return currentOpID, leaderCommon.OrisSyncStatusOnline
 }
 
-// unexpectedStateError builds the error returned when a project's currentStatus is not the
-// expectedStatus for the operation being attempted.
-func unexpectedStateError(statusCode int, name string, currentStatus, expectedStatus leaderCommon.OrisSyncStatus) error {
-	return nuclio.GetByStatusCode(statusCode)(
-		fmt.Sprintf("project is in unexpected state (project %q, state %q, expected %q)",
-			name, currentStatus, expectedStatus))
-}
-
-// writeFollowerProject creates or updates the project CRD, stamped with the given op_id/sync-status labels.
+// writeFollowerProject creates or updates the project CRD, stamped with the given opID/sync-status labels.
 func (c *Client) writeFollowerProject(ctx context.Context, isUpdate bool,
 	projectConfig platform.ProjectConfig, opID string, syncStatus leaderCommon.OrisSyncStatus) error {
 	projectConfig.Meta.Labels = c.stampFollowerLabels(projectConfig.Meta.Labels, opID, syncStatus)
 
 	if isUpdate {
 		_, err := c.Update(ctx, &platform.UpdateProjectOptions{ProjectConfig: projectConfig})
-		return errors.Wrap(err, "Failed to update project CRD")
+		return errors.Wrap(err, "Failed to update project")
 	}
 
 	// Update always stamps UpdatedAt itself; Create doesn't, so stamp it here too, keeping
@@ -576,10 +511,10 @@ func (c *Client) writeFollowerProject(ctx context.Context, isUpdate bool,
 	now := time.Now()
 	projectConfig.Status.UpdatedAt = &now
 	_, err := c.Create(ctx, &platform.CreateProjectOptions{ProjectConfig: &projectConfig})
-	return errors.Wrap(err, "Failed to create project CRD")
+	return errors.Wrap(err, "Failed to create project")
 }
 
-// updateFollowerProjectLabels re-writes an existing project's full config with only its op_id/
+// updateFollowerProjectLabels re-writes an existing project's full config with only its opID/
 // sync-status labels advanced, leaving Spec and every other label/annotation untouched.
 func (c *Client) updateFollowerProjectLabels(ctx context.Context, existing platform.Project,
 	opID string, syncStatus leaderCommon.OrisSyncStatus) error {
@@ -591,7 +526,7 @@ func (c *Client) updateFollowerProjectLabels(ctx context.Context, existing platf
 	// Update replaces Spec/Labels/Annotations/Status wholesale rather than merging, so this must start
 	// from the existing CRD's full ProjectConfig, not a labels-only partial one.
 	_, err := c.Update(ctx, &platform.UpdateProjectOptions{ProjectConfig: projectConfig})
-	return errors.Wrap(err, "Failed to update project CRD")
+	return errors.Wrap(err, "Failed to update project")
 }
 
 // stampFollowerLabels returns a copy of labels with the oris/* 2PC labels set to opID/
@@ -604,4 +539,12 @@ func (c *Client) stampFollowerLabels(labels map[string]string, opID string, sync
 	stamped[leaderCommon.OrisLabelKeyOpID] = opID
 	stamped[leaderCommon.OrisLabelKeySyncStatus] = string(syncStatus)
 	return stamped
+}
+
+// unexpectedStateError builds the error returned when a project's currentStatus is not the
+// expectedStatus for the operation being attempted.
+func unexpectedStateError(statusCode int, name string, currentStatus, expectedStatus leaderCommon.OrisSyncStatus) error {
+	return nuclio.GetByStatusCode(statusCode)(
+		fmt.Sprintf("project is in unexpected state (project %q, state %q, expected %q)",
+			name, currentStatus, expectedStatus))
 }
