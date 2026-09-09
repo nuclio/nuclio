@@ -196,7 +196,7 @@ func (c *Client) PrepareCreate(ctx context.Context,
 		if err := c.writeFollowerProject(ctx, false, options.ProjectConfig, options.OpID, leaderCommon.OrisSyncStatusCreating); err != nil {
 			return nil, errors.Wrap(err, "Failed to prepare create")
 		}
-		c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "Successfully prepared project for creation", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusCreating)}, nil
 	}
 
@@ -204,7 +204,7 @@ func (c *Client) PrepareCreate(ctx context.Context,
 
 	// Idempotency: the project already exists with this opID
 	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
-		c.Logger.DebugWithCtx(ctx, "opID already applied, considered as completed successfully", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "OpID already applied, considered as completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
@@ -217,11 +217,11 @@ func (c *Client) PrepareCreate(ctx context.Context,
 	// the leader abandoned the previous provision and is starting fresh with a new opID.
 	// Allow the overwrite so the existingProject is not stuck.
 	if currentStatus == leaderCommon.OrisSyncStatusCreating {
-		c.Logger.DebugWithCtx(ctx, "overwriting abandoned provision", "name", name, "opID", options.OpID, "currentOpID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "Overwriting abandoned provision", "name", name, "opID", options.OpID, "currentOpID", currentOpID)
 		if err := c.writeFollowerProject(ctx, true, options.ProjectConfig, options.OpID, leaderCommon.OrisSyncStatusCreating); err != nil {
 			return nil, errors.Wrap(err, "Failed to prepare create")
 		}
-		c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "Successfully prepared project for creation", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusCreating)}, nil
 	}
 
@@ -253,12 +253,12 @@ func (c *Client) CommitCreate(ctx context.Context,
 	switch currentStatus {
 	case leaderCommon.OrisSyncStatusOnline:
 		// Idempotency: already online with this opID — the commit was already applied.
-		c.Logger.DebugWithCtx(ctx, "project status is already online, considered as completed successfully",
-			"name", name, "opID", options.OpID, "current opID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "Project status is already online, considered as completed successfully",
+			"name", name, "opID", options.OpID, "currentOpID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	case leaderCommon.OrisSyncStatusCreating:
 		// Expected state — fall through and complete the commit.
-		c.Logger.DebugWithCtx(ctx, "project status is creating, committing to online", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "Project status is creating, committing to online", "name", name, "opID", options.OpID)
 	default:
 		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusCreating)
 	}
@@ -266,7 +266,7 @@ func (c *Client) CommitCreate(ctx context.Context,
 	if err := c.updateFollowerProjectLabels(ctx, existingProject, options.OpID, leaderCommon.OrisSyncStatusOnline); err != nil {
 		return nil, errors.Wrap(err, "Failed to commit create")
 	}
-	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "Successfully committed project creation", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusOnline)}, nil
 }
 
@@ -293,8 +293,8 @@ func (c *Client) CommitUpdate(ctx context.Context,
 	// Idempotency: already applied — must be checked before CAS, since after a successful
 	// update the stored opID has advanced past the request's PrevOpID.
 	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
-		c.Logger.DebugWithCtx(ctx, "opID already applied, considered as completed successfully",
-			"name", name, "opID", options.OpID, "current opID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "OpID already applied, considered as completed successfully",
+			"name", name, "opID", options.OpID, "currentOpID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
@@ -308,7 +308,7 @@ func (c *Client) CommitUpdate(ctx context.Context,
 	if err := c.writeFollowerProject(ctx, true, options.ProjectConfig, options.OpID, leaderCommon.OrisSyncStatusOnline); err != nil {
 		return nil, errors.Wrap(err, "Failed to commit update")
 	}
-	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "Successfully committed project update", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusOnline)}, nil
 }
 
@@ -323,7 +323,7 @@ func (c *Client) PrepareDelete(ctx context.Context,
 
 	// Idempotency: the CRD does not exist - no need to mark it deleting, the commit delete will be a no-op.
 	if existingProject == nil {
-		c.Logger.DebugWithCtx(ctx, "project does not exist, considered as completed successfully", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "Project does not exist, considered as completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusDeleting)}, nil
 	}
 
@@ -332,8 +332,8 @@ func (c *Client) PrepareDelete(ctx context.Context,
 	// Idempotency: this exact mark-delete already applied. Only a prior, successful call to
 	// this function could have stamped this opID, so the status is guaranteed to be deleting.
 	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
-		c.Logger.DebugWithCtx(ctx, "opID with deleting status already applied, considered as completed successfully",
-			"name", name, "opID", options.OpID, "current opID", currentOpID)
+		c.Logger.DebugWithCtx(ctx, "OpID with deleting status already applied, considered as completed successfully",
+			"name", name, "opID", options.OpID, "currentOpID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
 
@@ -346,7 +346,7 @@ func (c *Client) PrepareDelete(ctx context.Context,
 			fmt.Sprintf("project status is already deleting under a different opID (current opID %q, opID %q)", currentOpID, options.OpID))
 	case leaderCommon.OrisSyncStatusOnline:
 		// Expected state — fall through and continue below.
-		c.Logger.DebugWithCtx(ctx, "project status is online, marking deleting", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "Project status is online, marking deleting", "name", name, "opID", options.OpID)
 	default:
 		return nil, unexpectedStateError(http.StatusPreconditionFailed, name, currentStatus, leaderCommon.OrisSyncStatusOnline)
 	}
@@ -361,7 +361,7 @@ func (c *Client) PrepareDelete(ctx context.Context,
 	if err := c.updateFollowerProjectLabels(ctx, existingProject, options.OpID, leaderCommon.OrisSyncStatusDeleting); err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare delete")
 	}
-	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "Successfully prepared project for deletion", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID, SyncStatus: string(leaderCommon.OrisSyncStatusDeleting)}, nil
 }
 
@@ -376,7 +376,7 @@ func (c *Client) CommitDelete(ctx context.Context,
 
 	// Idempotency: already gone, a previous call already deleted it.
 	if existingProject == nil {
-		c.Logger.DebugWithCtx(ctx, "project does not exist, considered as completed successfully", "name", name, "opID", options.OpID)
+		c.Logger.DebugWithCtx(ctx, "Project does not exist, considered as completed successfully", "name", name, "opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: options.OpID}, nil
 	}
 
@@ -392,7 +392,7 @@ func (c *Client) CommitDelete(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to delete project")
 	}
 
-	c.Logger.DebugWithCtx(ctx, "completed successfully", "name", name, "opID", options.OpID)
+	c.Logger.DebugWithCtx(ctx, "Successfully committed project deletion", "name", name, "opID", options.OpID)
 	return &platform.Project2PCState{Name: name, OpID: options.OpID}, nil
 }
 
