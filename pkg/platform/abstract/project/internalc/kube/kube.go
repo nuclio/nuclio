@@ -211,7 +211,7 @@ func (c *Client) PrepareCreate(ctx context.Context,
 		"current opID", currentOpID, "currentStatus", currentStatus)
 
 	// The CRD is already in the correct state — skip the write and return the existing state.
-	if currentOpID == options.OpID {
+	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
 		c.Logger.DebugWithCtx(ctx, "PrepareCreate completed successfully", "name", name, "new opID", options.OpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}
@@ -318,7 +318,7 @@ func (c *Client) CommitUpdate(ctx context.Context,
 
 	// Idempotency: already applied — must be checked before CAS, since after a successful
 	// update the stored op_id has advanced past the request's PrevOpID.
-	if currentOpID == options.OpID {
+	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
 		c.Logger.DebugWithCtx(ctx, "CommitUpdate idempotent: already applied", "name", name,
 			"new opID", options.OpID, "current opID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
@@ -367,7 +367,7 @@ func (c *Client) PrepareDelete(ctx context.Context,
 
 	// Idempotency: this exact mark-delete already applied. Only a prior, successful call to
 	// this function could have stamped this op_id, so the status is guaranteed to be deleting.
-	if currentOpID == options.OpID {
+	if leaderCommon.IsOpIDEqual(currentOpID, options.OpID) {
 		c.Logger.DebugWithCtx(ctx, "PrepareDelete idempotent: already applied", "name", name, "new opID", options.OpID, "current opID", currentOpID)
 		return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
 	}

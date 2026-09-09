@@ -31,7 +31,7 @@ import (
 // the request is accepted unconditionally and the current write is what stamps it. After that
 // first write, normal CAS enforcement resumes for every subsequent operation.
 func RequireCASMatch(prevOpID, storedOpID string) error {
-	if storedOpID == "" || storedOpID == prevOpID {
+	if storedOpID == "" || IsOpIDEqual(storedOpID, prevOpID) {
 		return nil
 	}
 	return nuclio.GetByStatusCode(http.StatusConflict)(
@@ -43,6 +43,11 @@ func RequireCASMatch(prevOpID, storedOpID string) error {
 // comparison is equivalent to chronological ordering.
 func IsOpIDOrdered(newOpID, storedOpID string) bool {
 	return newOpID > storedOpID
+}
+
+// IsOpIDEqual returns true when newOpID is equal to storedOpID.
+func IsOpIDEqual(newOpID, storedOpID string) bool {
+	return newOpID == storedOpID
 }
 
 // RequireOpIDMatch returns a simple error when requestedOpID does not equal storedOpID, the
