@@ -56,6 +56,10 @@ type Client interface {
 	// pass-through and callers can skip fetching the existing CRD before invoking it.
 	// True only for MLRun with the 2PC feature flag on; Iguazio and disabled-MLRun return false.
 	ProjectSync2PCEnabled() bool
+
+	// SendLeaderSyncRequest asks the leader to run its own reconciliation sweep for this
+	// follower and push per-project changes back, instead of the caller computing a local diff.
+	SendLeaderSyncRequest(ctx context.Context) error
 }
 
 type LeaderOps interface {
@@ -145,6 +149,11 @@ type LeaderOps interface {
 
 	// GenerateGetUpdatedAfterRequestURL generates the request URL for getting projects
 	GenerateGetUpdatedAfterRequestURL(string) string
+
+	// Sync operations
+
+	// GenerateSyncRequestURL generates the request URL for triggering a leader-driven sync
+	GenerateSyncRequestURL(string) string
 }
 
 type CreateProjectResponse interface {
