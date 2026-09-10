@@ -303,8 +303,9 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 	// readiness flag for init containers
 	var initContainersDone bool
-	if len(function.Spec.InitContainers) == 0 {
-		// if there are no any init containers defined, then set to true (so we don't wait for any)
+	if !hasNonSidecarInitContainers(function.Spec.InitContainers) {
+		// if there are no regular init containers defined (only native sidecars or none at all),
+		// then set to true (so we don't wait for any)
 		initContainersDone = true
 	}
 
@@ -695,6 +696,34 @@ func (lc *lazyClient) getFunctionDeployment(ctx context.Context, function *nucli
 	return lc.kubeClientSet.GetDeployment(ctx, function.Namespace, kube.DeploymentNameFromFunctionName(function.Name))
 }
 
+// isNativeSidecarContainer checks if an init container is a Kubernetes native sidecar container.
+// Native sidecar containers are init containers with restartPolicy set to Always.
+// They run continuously alongside the main container and should not be waited for to complete.
+func isNativeSidecarContainer(container *v1.Container) bool {
+	return container.RestartPolicy != nil && *container.RestartPolicy == v1.ContainerRestartPolicyAlways
+}
+
+// hasNonSidecarInitContainers checks if there are any regular init containers (non-sidecar)
+// that we need to wait for to complete.
+func hasNonSidecarInitContainers(initContainers []*v1.Container) bool {
+	for _, container := range initContainers {
+		if !isNativeSidecarContainer(container) {
+			return true
+		}
+	}
+	return false
+}
+
+// getInitContainerByName finds an init container by name from the spec.
+func getInitContainerByName(initContainers []*v1.Container, name string) *v1.Container {
+	for _, container := range initContainers {
+		if container.Name == name {
+			return container
+		}
+	}
+	return nil
+}
+
 // checkFunctionInitContainersDone checks that all function init containers are in terminated status
 // returns (IsDone, reasonNotDone, error)
 // Possible combinations and their meaning:
@@ -702,6 +731,8 @@ func (lc *lazyClient) getFunctionDeployment(ctx context.Context, function *nucli
 // (false, notDoneReason, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
 // (false, "", err) - we can stop waiting here since something is broken, so function won't be successfully started
 // (true, err) - impossible
+// Note: Native sidecar containers (init containers with restartPolicy: Always) are skipped as they
+// are designed to run continuously alongside the main container.
 func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, function *nuclioio.NuclioFunction) (bool, string, error) {
 	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
 	if err != nil {
@@ -716,8 +747,8 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 		return false, notDoneReason, nil
 	}
 
-	// if initContainers aren't defined or replicas number is equal to 0, skip
-	if len(function.Spec.InitContainers) == 0 || functionDeployment.Spec.Replicas == nil {
+	// if no regular init containers are defined (only native sidecars or none at all), or replicas is 0, skip
+	if !hasNonSidecarInitContainers(function.Spec.InitContainers) || functionDeployment.Spec.Replicas == nil {
 		return true, "", nil
 	}
 
@@ -741,8 +772,15 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 	}
 
 	// going through each pod's init containers and check that they all were terminated with exit code 0
+	// Note: native sidecar containers (restartPolicy: Always) are skipped as they run continuously
 	for _, pod := range functionPods.Items {
 		for _, initContainerStatus := range pod.Status.InitContainerStatuses {
+			// Skip native sidecar containers - they are meant to run continuously
+			initContainerSpec := getInitContainerByName(function.Spec.InitContainers, initContainerStatus.Name)
+			if initContainerSpec != nil && isNativeSidecarContainer(initContainerSpec) {
+				continue
+			}
+
 			switch {
 			case initContainerStatus.State.Terminated != nil:
 				if initContainerStatus.State.Terminated.ExitCode == 0 {
