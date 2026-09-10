@@ -246,6 +246,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode auth.Authe
 		"description":         "some-desc-1",
 		"function":            functionName,
 		"authentication-mode": string(authenticationMode),
+		"project":             suite.projectName,
 	}
 
 	// fill basic auth args depending on authentication mode
