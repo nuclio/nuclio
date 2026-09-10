@@ -48,7 +48,7 @@ func NewSynchronizer(parentLogger logger.Logger,
 	managedNamespaces []string,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client,
-	leaderKind platformconfig.ProjectsLeaderKind,) (*Synchronizer, error) {
+	leaderKind platformconfig.ProjectsLeaderKind) (*Synchronizer, error) {
 
 	newSynchronizer := Synchronizer{
 		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
