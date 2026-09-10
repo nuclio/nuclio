@@ -109,3 +109,8 @@ func (c *Client) ProjectSync2PCEnabled() bool {
 	args := c.Called()
 	return args.Bool(0)
 }
+
+func (c *Client) SendLeaderSyncRequest(ctx context.Context) error {
+	args := c.Called(ctx)
+	return args.Error(0)
+}

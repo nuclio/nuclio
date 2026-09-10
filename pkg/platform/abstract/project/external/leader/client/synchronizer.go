@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -38,6 +39,7 @@ type Synchronizer struct {
 	managedNamespaces          []string
 	leaderClient               leader.Client
 	internalProjectsClient     project.Client
+	leaderKind                 platformconfig.ProjectsLeaderKind
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
@@ -45,7 +47,8 @@ func NewSynchronizer(parentLogger logger.Logger,
 	syncOnStartup bool,
 	managedNamespaces []string,
 	leaderClient leader.Client,
-	internalProjectsClient project.Client) (*Synchronizer, error) {
+	internalProjectsClient project.Client,
+	leaderKind platformconfig.ProjectsLeaderKind) (*Synchronizer, error) {
 
 	newSynchronizer := Synchronizer{
 		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
@@ -54,6 +57,7 @@ func NewSynchronizer(parentLogger logger.Logger,
 		leaderClient:               leaderClient,
 		internalProjectsClient:     internalProjectsClient,
 		managedNamespaces:          managedNamespaces,
+		leaderKind:                 leaderKind,
 	}
 
 	return &newSynchronizer, nil
@@ -90,12 +94,24 @@ func (c *Synchronizer) Start() error {
 // syncOnce performs a single synchronization pass for all managed namespaces. Intended for startup recovery.
 func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
 	c.logger.InfoWithCtx(ctx, "Running one-time project sync from leader", "namespaces", namespaces)
-	for _, namespace := range namespaces {
-		if _, err := c.synchronizeProjectsFromLeader(ctx, namespace, nil); err != nil {
+
+	switch c.leaderKind {
+	case platformconfig.ProjectsLeaderKindOris:
+		// the follower-sync trigger is leader-wide, not per-namespace - call it once per
+		// syncOnce rather than once per managed namespace
+		if err := c.leaderClient.SendLeaderSyncRequest(ctx); err != nil {
 			c.logger.WarnWithCtx(ctx,
-				"Failed to sync projects from leader on startup",
-				"namespace", namespace,
+				"Failed to trigger leader-driven project sync",
 				"err", errors.GetErrorStackString(err, 10))
+		}
+	default:
+		for _, namespace := range namespaces {
+			if _, err := c.synchronizeProjectsFromLeader(ctx, namespace, nil); err != nil {
+				c.logger.WarnWithCtx(ctx,
+					"Failed to sync projects from leader on startup",
+					"namespace", namespace,
+					"err", errors.GetErrorStackString(err, 10))
+			}
 		}
 	}
 	c.logger.InfoWithCtx(ctx, "One-time project sync from leader completed")

@@ -274,6 +274,35 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 	return c.leaderOps.ResolveGetProjectResponse(false, responseBody)
 }
 
+// SendLeaderSyncRequest asks the leader to run its own reconciliation sweep for this
+// follower, instead of computing a local diff. The response (which carries a correlation
+// id for the leader's async sweep) is intentionally not inspected: callers do not poll it
+// to completion, they only care whether the trigger request itself succeeded.
+func (c *Client) SendLeaderSyncRequest(ctx context.Context) error {
+	requestURL := c.leaderOps.GenerateSyncRequestURL(c.apiAddress)
+	requestHeaders, cookies, err := c.generateRequestHeadersAndCookies(ctx, nil, nil, true)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate request headers")
+	}
+
+	c.logger.DebugWithCtx(ctx, "Sending leader sync request")
+	// since SendLeaderSyncRequest is gated by ProjectsLeaderKindOris, we expect the leader to respond with 202.
+	if _, response, err := common.SendHTTPRequestWithContext(ctx,
+		c.httpClient,
+		http.MethodPost,
+		requestURL,
+		nil,
+		requestHeaders,
+		cookies,
+		http.StatusAccepted); err != nil {
+		c.logLeaderResponseError(ctx, response, "Failed to send leader sync request")
+		return errors.Wrap(err, "Failed to send leader sync request to leader")
+	}
+
+	c.logger.DebugWithCtx(ctx, "Successfully sent leader sync request to leader")
+	return nil
+}
+
 // EvaluateLeaderRequest determines the 2PC phase from labels and delegates to the
 // configured LeaderOps implementation, returning whether the caller should apply the change.
 func (c *Client) EvaluateLeaderRequest(ctx context.Context, labels map[string]string, existingProject platform.Project) (bool, error) {
