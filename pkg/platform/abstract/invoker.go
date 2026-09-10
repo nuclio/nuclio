@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Nuclio Authors.
+Copyright 2026 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,15 +77,19 @@ func (i *invoker) invoke(ctx context.Context,
 		fullpath += "/" + createFunctionInvocationOptions.Path
 	}
 
-	client := &http.Client{
-		Timeout: createFunctionInvocationOptions.Timeout,
+	// a fresh transport, never http.DefaultTransport, and with keep-alives disabled: the target
+	// pod can be replaced by a redeploy between invocations, and a pooled connection to a
+	// replaced pod hangs for ~17s before failing instead of dialing the new pod
+	transport := &http.Transport{
+		DisableKeepAlives: true,
+	}
+	if createFunctionInvocationOptions.SkipTLSVerification {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: createFunctionInvocationOptions.SkipTLSVerification}
 	}
 
-	// if tls verification is disabled, skip verification
-	if createFunctionInvocationOptions.SkipTLSVerification {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: createFunctionInvocationOptions.SkipTLSVerification},
-		}
+	client := &http.Client{
+		Timeout:   createFunctionInvocationOptions.Timeout,
+		Transport: transport,
 	}
 
 	var req *http.Request
