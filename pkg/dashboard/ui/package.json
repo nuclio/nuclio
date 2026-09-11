@@ -37,7 +37,7 @@
     "gulp-less": "^5.0.0",
     "gulp-less-import": "^1.0.0",
     "gulp-ng-html2js": "^0.2.0",
-    "gulp-preprocess": "^4.0.2",
+    "gulp-preprocess": "^6.0.0",
     "gulp-rename": "~1.2.2",
     "gulp-rev": "^9.0.0",
     "gulp-rev-collector": "^1.0.2",
