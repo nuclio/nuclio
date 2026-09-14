@@ -45,6 +45,10 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) SetupSuite() {
 	suite.Suite.SetupSuite()
 }
 
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) TearDownSuite() {
+	suite.Suite.TearDownSuite()
+}
+
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	numOfAPIGateways := 3
 
@@ -63,6 +67,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 			"function":            fmt.Sprintf("function-%d", apiGatewayIdx),
 			"canary-function":     fmt.Sprintf("canary-function-%d", apiGatewayIdx),
 			"canary-percentage":   "25",
+			"project":             suite.projectName,
 		}
 
 		err := suite.ExecuteNuctl([]string{
@@ -108,6 +113,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateWithWrongPath() {
 		"basic-auth-username": "basic-username",
 		"basic-auth-password": "basic-password",
 		"function":            "function-x",
+		"project":             suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{
@@ -140,6 +146,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 			"function":            functionName,
 			"canary-function":     fmt.Sprintf("canary-function-%d", apiGatewayIdx),
 			"canary-percentage":   "25",
+			"project":             suite.projectName,
 		}
 
 		err := suite.ExecuteNuctl([]string{
@@ -196,6 +203,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateFailsOnReservedRes
 		"function":            "function",
 		"canary-function":     "canary-function",
 		"canary-percentage":   "25",
+		"project":             suite.projectName,
 	}
 
 	// remove leftovers in case test failed for any reason
@@ -216,6 +224,10 @@ type apiGatewayInvokeTestSuite struct {
 func (suite *apiGatewayInvokeTestSuite) SetupSuite() {
 	suite.platformKindOverride = common.KubePlatformName
 	suite.Suite.SetupSuite()
+}
+
+func (suite *apiGatewayInvokeTestSuite) TearDownSuite() {
+	suite.Suite.TearDownSuite()
 }
 
 func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeBasicAuth() {
@@ -246,6 +258,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode auth.Authe
 		"description":         "some-desc-1",
 		"function":            functionName,
 		"authentication-mode": string(authenticationMode),
+		"project":             suite.projectName,
 	}
 
 	// fill basic auth args depending on authentication mode
