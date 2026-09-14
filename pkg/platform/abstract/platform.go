@@ -477,7 +477,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
-	if err := ap.ValidateProjectExists(ctx, functionConfig); err != nil {
+	if err := ap.ValidateProjectExistsAndSynced(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
 	}
 
@@ -1755,9 +1755,9 @@ func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functio
 	return nil
 }
 
-// ValidateProjectExists validates that the project referenced by functionConfig exists and,
+// ValidateProjectExistsAndSynced validates that the project referenced by functionConfig exists and,
 // per the Oris follower sync-status label, is not in the process of being created or deleted.
-func (ap *Platform) ValidateProjectExists(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (ap *Platform) ValidateProjectExistsAndSynced(ctx context.Context, functionConfig *functionconfig.Config) error {
 	getProjectsOptions := &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
@@ -1784,9 +1784,11 @@ func (ap *Platform) ValidateProjectExists(ctx context.Context, functionConfig *f
 	// block resource creation if the project is still being created or deleted
 	switch leaderCommon.OrisSyncStatus(projects[0].GetConfig().Meta.Labels[leaderCommon.OrisLabelKeySyncStatus]) {
 	case leaderCommon.OrisSyncStatusCreating:
-		return nuclio.NewErrPreconditionFailed("Project is being created")
+		return nuclio.NewErrPreconditionFailed(
+			"Project is still being created and has not yet reached a stable status - retry once creation completes")
 	case leaderCommon.OrisSyncStatusDeleting:
-		return nuclio.NewErrPreconditionFailed("Project is being deleted")
+		return nuclio.NewErrPreconditionFailed(
+			"Project is being deleted and can no longer be used for this operation")
 	}
 
 	return nil
