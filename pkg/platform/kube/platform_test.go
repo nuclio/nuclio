@@ -3462,7 +3462,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestValidateAPIGatewayConfigProjec
 		{
 			name:          "Creating",
 			syncStatus:    leaderCommon.OrisSyncStatusCreating,
-			expectedError: "Project is being created",
+			expectedError: "Project is still being created and has not yet reached a stable status - retry once creation completes",
 		},
 		{
 			name:       "CreatingOnUpdate",
@@ -3474,12 +3474,12 @@ func (suite *APIGatewayKubePlatformTestSuite) TestValidateAPIGatewayConfigProjec
 					},
 				},
 			},
-			expectedError: "Project is being created",
+			expectedError: "Project is still being created and has not yet reached a stable status - retry once creation completes",
 		},
 		{
 			name:          "Deleting",
 			syncStatus:    leaderCommon.OrisSyncStatusDeleting,
-			expectedError: "Project is being deleted",
+			expectedError: "Project is being deleted and can no longer be used for this operation",
 		},
 		{
 			name:       "DeletingOnUpdate",
@@ -3491,7 +3491,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestValidateAPIGatewayConfigProjec
 					},
 				},
 			},
-			expectedError: "Project is being deleted",
+			expectedError: "Project is being deleted and can no longer be used for this operation",
 		},
 		{
 			name:       "Online",
