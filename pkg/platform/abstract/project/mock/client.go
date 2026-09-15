@@ -28,8 +28,8 @@ type Client struct {
 	mock.Mock
 }
 
-func (c *Client) Initialize() error {
-	args := c.Called()
+func (c *Client) Initialize(ctx context.Context) error {
+	args := c.Called(ctx)
 	return args.Error(0)
 }
 

@@ -25,7 +25,7 @@ import (
 type Client interface {
 
 	// Initialize client
-	Initialize() error
+	Initialize(context.Context) error
 
 	// Create a new project
 	Create(context.Context, *platform.CreateProjectOptions) (platform.Project, error)
