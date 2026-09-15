@@ -80,8 +80,11 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 
 	if platformConfiguration.ProjectsLeader != nil {
 
-		// wrap external client around local projects client as internal client
-		return externalproject.NewClient(platform.Logger, localProjectsClient, platformConfiguration)
+		// wrap external client around local projects client as internal client - there is no
+		// Kubernetes Service in front of the local platform, so there's nothing to wait on: it
+		// is always ready
+		alwaysReady := func(context.Context) (bool, error) { return true, nil }
+		return externalproject.NewClient(platform.Logger, localProjectsClient, platformConfiguration, alwaysReady)
 	}
 
 	return localProjectsClient, nil
@@ -155,8 +158,8 @@ func NewPlatform(ctx context.Context,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize(_ context.Context) error {
-	if err := p.projectsClient.Initialize(); err != nil {
+func (p *Platform) Initialize(ctx context.Context) error {
+	if err := p.projectsClient.Initialize(ctx); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
