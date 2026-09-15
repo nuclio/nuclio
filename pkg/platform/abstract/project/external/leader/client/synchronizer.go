@@ -32,6 +32,9 @@ import (
 	"github.com/nuclio/logger"
 )
 
+// serverReadyPollInterval is how often checkServerReady is polled.
+var serverReadyPollInterval = 2 * time.Second
+
 type Synchronizer struct {
 	logger                     logger.Logger
 	synchronizationIntervalStr string
@@ -40,6 +43,13 @@ type Synchronizer struct {
 	leaderClient               leader.Client
 	internalProjectsClient     project.Client
 	leaderKind                 platformconfig.ProjectsLeaderKind
+
+	// checkServerReady reports whether this follower can actually be reached by the leader.
+	// The Oris leader-sync trigger polls it before firing: the leader calls back into this
+	// follower's /api/v1/follower/projects/* routes as part of the sync it triggers,
+	// and a Service only routes to a pod once that pod passes its own readiness probe:
+	// this can be done only by asking the kubernetes API, rather than checking port listening.
+	checkServerReady func(context.Context) (bool, error)
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
@@ -48,7 +58,8 @@ func NewSynchronizer(parentLogger logger.Logger,
 	managedNamespaces []string,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client,
-	leaderKind platformconfig.ProjectsLeaderKind) (*Synchronizer, error) {
+	leaderKind platformconfig.ProjectsLeaderKind,
+	checkServerReady func(context.Context) (bool, error)) (*Synchronizer, error) {
 
 	newSynchronizer := Synchronizer{
 		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
@@ -58,18 +69,19 @@ func NewSynchronizer(parentLogger logger.Logger,
 		internalProjectsClient:     internalProjectsClient,
 		managedNamespaces:          managedNamespaces,
 		leaderKind:                 leaderKind,
+		checkServerReady:           checkServerReady,
 	}
 
 	return &newSynchronizer, nil
 }
 
-func (c *Synchronizer) Start() error {
+func (c *Synchronizer) Start(shutdownCtx context.Context) error {
 	synchronizationInterval, err := time.ParseDuration(c.synchronizationIntervalStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse synchronization interval")
 	}
 
-	ctx := context.WithValue(context.Background(), "RequestID", "leader-synchronizer") // nolint: staticcheck
+	ctx := context.WithValue(shutdownCtx, "RequestID", "leader-synchronizer") // nolint: staticcheck
 
 	// trigger a one-time sync on startup if configured.
 	if c.syncOnStartup {
@@ -97,6 +109,14 @@ func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
 
 	switch c.leaderKind {
 	case platformconfig.ProjectsLeaderKindOris:
+		// wait for our own HTTP server to be listening before asking the leader to sync: the
+		// leader calls back into our /api/v1/follower/projects/* routes during the sync process
+		if !c.waitForServerReady(ctx) {
+			c.logger.InfoWithCtx(ctx,
+				"Aborting leader-driven project sync: dashboard is shutting down before the server became ready")
+			return
+		}
+
 		// the follower-sync trigger is leader-wide, not per-namespace - call it once per
 		// syncOnce rather than once per managed namespace
 		if err := c.leaderClient.SendLeaderSyncRequest(ctx); err != nil {
@@ -115,6 +135,32 @@ func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
 		}
 	}
 	c.logger.InfoWithCtx(ctx, "One-time project sync from leader completed")
+}
+
+// waitForServerReady polls checkServerReady every serverReadyPollInterval until it reports ready
+func (c *Synchronizer) waitForServerReady(ctx context.Context) bool {
+	ticker := time.NewTicker(serverReadyPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+			ready, err := c.checkServerReady(ctx)
+			if err != nil {
+				c.logger.InfoWithCtx(ctx,
+					"Failed to check HTTP server readiness, will retry",
+					"err", errors.GetErrorStackString(err, 10))
+				continue
+			}
+
+			if ready {
+				return true
+			}
+			c.logger.InfoWithCtx(ctx, "Waiting for HTTP server readiness before triggering leader sync")
+		}
+	}
 }
 
 func (c *Synchronizer) startSynchronizationLoop(ctx context.Context,
