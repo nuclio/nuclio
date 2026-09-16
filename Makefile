@@ -93,24 +93,26 @@ else
 endif
 
 # alpine is commonly used by controller / dlx / autoscaler
-# TODO: NUCLIO_DOCKER_JAVA_OPENJDK stays on gcr.io/iguazio until the Java runtime's base images are addressed separately
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
 	# NUCLIO_BASE_IMAGE_NAME also feeds hack/docker/build/builder/Dockerfile, which pins
 	# FROM --platform=${BUILDPLATFORM} (the CI runner's native arch, not NUCLIO_ARCH) - it
 	# needs a multi-arch image regardless of target arch, so no arch-specific prefix here.
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
+	# eclipse-temurin (the maintained successor to the deprecated openjdk image) has no
+	# JDK 25 build for 32-bit ARM upstream, so armhf stays on the newest JDK it does ship: 17.
+	# Unlike the old openjdk image, eclipse-temurin resolves fine on Docker Hub - no gcr.io/iguazio mirror needed.
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= arm32v7/eclipse-temurin:17-jdk-noble
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
-	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-jdk-slim-bullseye
+	NUCLIO_DOCKER_JAVA_OPENJDK 		?= arm64v8/eclipse-temurin:25-jdk-noble
 	NODE_IMAGE_NAME 				?= arm64v8/node:20
 else
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= alpine:3.23
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= eclipse-temurin:25-jdk-noble
 	NODE_IMAGE_NAME 				?= node:20
 endif
 
