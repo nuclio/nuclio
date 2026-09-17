@@ -1363,6 +1363,8 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 				Authentication: &Authentication{
 					FunctionAuthenticationEnabled: true,
 					AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					AuthURL:                       "http://auth-service:8080",
+					SignInURL:                     "http://signin-service:8080",
 					DefaultMode:                   testCase.mode,
 				},
 			}
@@ -1392,6 +1394,74 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigAuthSidecarImage
 				Authentication: &Authentication{
 					FunctionAuthenticationEnabled: true,
 					AuthSidecarImage:              testCase.authSidecarImage,
+					DefaultMode:                   auth.AuthenticationModeNone,
+					AuthURL:                       "http://auth-service:8080",
+					SignInURL:                     "http://signin-service:8080",
+				},
+			}
+			err := config.ValidatePlatformConfig()
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "authentication config")
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigAuthURL() {
+	for _, testCase := range []struct {
+		name        string
+		authURL     string
+		expectError bool
+	}{
+		{name: "valid http URL", authURL: "http://auth-service:8080"},
+		{name: "valid https URL", authURL: "https://auth-service:8080"},
+		{name: "url.Parse accepts path-only strings", authURL: "not a url"},
+		{name: "empty authURL not allowed", authURL: "", expectError: true},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: true,
+					AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					AuthURL:                       testCase.authURL,
+					SignInURL:                     "http://signin-service:8080",
+					DefaultMode:                   auth.AuthenticationModeNone,
+				},
+			}
+			err := config.ValidatePlatformConfig()
+			if testCase.expectError {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), "authentication config")
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigSignInURL() {
+	for _, testCase := range []struct {
+		name        string
+		signInURL   string
+		expectError bool
+	}{
+		{name: "valid http URL", signInURL: "http://signin-service:8080"},
+		{name: "valid https URL", signInURL: "https://signin-service:8080"},
+		{name: "url.Parse accepts path-only strings", signInURL: "not a url"},
+		{name: "empty signInURL not allowed", signInURL: "", expectError: true},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: true,
+					AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					AuthURL:                       "http://auth-service:8080",
+					SignInURL:                     testCase.signInURL,
 					DefaultMode:                   auth.AuthenticationModeNone,
 				},
 			}

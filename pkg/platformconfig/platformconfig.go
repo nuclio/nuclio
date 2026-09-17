@@ -19,6 +19,7 @@ package platformconfig
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -463,6 +464,22 @@ func (c *Config) validateAuthentication() error {
 	// without an image, the platform would inject a sidecar container k8s rejects the deployment for
 	if c.Authentication.AuthSidecarImage == "" {
 		return errors.New("AuthSidecarImage must be set when functionAuthenticationEnabled is true")
+	}
+
+	if c.Authentication.AuthURL == "" {
+		return errors.New("AuthURL must be set when functionAuthenticationEnabled is true")
+	}
+
+	if _, err := url.Parse(c.Authentication.AuthURL); err != nil {
+		return errors.Wrapf(err, "Invalid AuthURL: %s", c.Authentication.AuthURL)
+	}
+
+	if c.Authentication.SignInURL == "" {
+		return errors.New("SignInURL must be set when functionAuthenticationEnabled is true")
+	}
+
+	if _, err := url.Parse(c.Authentication.SignInURL); err != nil {
+		return errors.Wrapf(err, "Invalid SignInURL: %s", c.Authentication.SignInURL)
 	}
 
 	// basicAuth cannot be the platform-wide default: it requires per-function credentials
