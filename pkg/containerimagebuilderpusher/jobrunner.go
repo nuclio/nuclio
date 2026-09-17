@@ -666,12 +666,10 @@ func (r *jobRunner) enrichServiceAccountFromBuilderConfiguration(buildOptions *B
 	return buildOptions.FunctionServiceAccount
 }
 
-// resolveRegistryAuthSecretNames returns platform default secrets plus the function-level secret, deduped.
+// resolveRegistryAuthSecretNames returns platform default secrets plus the function-level secrets, deduped.
 func (r *jobRunner) resolveRegistryAuthSecretNames(buildOptions *BuildOptions) []string {
 	names := append([]string{}, r.builderConfiguration.DefaultRegistryCredentialsSecretNames...)
-	if buildOptions.SecretName != "" {
-		names = append(names, buildOptions.SecretName)
-	}
+	names = append(names, buildOptions.SecretNames...)
 	return common.RemoveDuplicatesFromSliceString(names)
 }
 

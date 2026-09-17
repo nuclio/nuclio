@@ -45,7 +45,7 @@ type BuildOptions struct {
 	BaseImageRegistry                        string
 	OnbuildImageRegistry                     string
 	RepoName                                 string
-	SecretName                               string
+	SecretNames                              []string
 	OutputImageFile                          string
 	BuildTimeoutSeconds                      int64
 	Affinity                                 *v1.Affinity

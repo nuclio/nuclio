@@ -35,6 +35,50 @@ func (suite *TypesTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
+func (suite *TypesTestSuite) TestGetImagePullSecrets() {
+	for _, testCase := range []struct {
+		name                 string
+		imagePullSecrets     string
+		imagePullSecretsList []string
+		expected             []string
+	}{
+		{
+			name:     "empty",
+			expected: nil,
+		},
+		{
+			name:             "deprecated singular field only",
+			imagePullSecrets: "secret-a",
+			expected:         []string{"secret-a"},
+		},
+		{
+			name:                 "list field only",
+			imagePullSecretsList: []string{"secret-a", "secret-b"},
+			expected:             []string{"secret-a", "secret-b"},
+		},
+		{
+			name:                 "singular merged with list, deprecated field first",
+			imagePullSecrets:     "secret-a",
+			imagePullSecretsList: []string{"secret-b", "secret-c"},
+			expected:             []string{"secret-a", "secret-b", "secret-c"},
+		},
+		{
+			name:                 "duplicates deduped",
+			imagePullSecrets:     "secret-a",
+			imagePullSecretsList: []string{"secret-a", "secret-b"},
+			expected:             []string{"secret-a", "secret-b"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			spec := &Spec{
+				ImagePullSecrets:     testCase.imagePullSecrets,
+				ImagePullSecretsList: testCase.imagePullSecretsList,
+			}
+			suite.Equal(testCase.expected, spec.GetImagePullSecrets())
+		})
+	}
+}
+
 func (suite *ReaderTestSuite) TestFunctionMetaSkipDeployAnnotationTrue() {
 	for _, testCase := range []struct {
 		Annotations    map[string]string

@@ -124,7 +124,7 @@ func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationECRBareHostname
 func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationNonECRHostWithSecret() {
 	buildOptions := suite.newBuildOptions()
 	buildOptions.RegistryURL = "myregistry.example.com"
-	buildOptions.SecretName = "my-registry-secret"
+	buildOptions.SecretNames = []string{"my-registry-secret"}
 
 	jobSpec, err := suite.kaniko.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
 	suite.Require().NoError(err)
@@ -140,7 +140,7 @@ func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationNonECRHostWithS
 func (suite *KanikoTestSuite) TestConfigureRegistryAuthenticationNonECRHostWithPathSuffix() {
 	buildOptions := suite.newBuildOptions()
 	buildOptions.RegistryURL = "registry.example.com/team/project"
-	buildOptions.SecretName = "my-registry-secret"
+	buildOptions.SecretNames = []string{"my-registry-secret"}
 
 	jobSpec, err := suite.kaniko.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
 	suite.Require().NoError(err)

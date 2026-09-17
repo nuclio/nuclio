@@ -586,6 +586,7 @@ type Spec struct {
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
 	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
+	ImagePullSecretsList    []string                `json:"imagePullSecretsList,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI               string                  `json:"dealerURI,omitempty"`
@@ -704,6 +705,17 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy
 	*out = *s
+}
+
+// GetImagePullSecrets returns the deduped union of the singular ImagePullSecrets
+// and ImagePullSecretsList, with the older field taking precedence for ordering.
+func (s *Spec) GetImagePullSecrets() []string {
+	secretNames := make([]string, 0, len(s.ImagePullSecretsList)+1)
+	if s.ImagePullSecrets != "" {
+		secretNames = append(secretNames, s.ImagePullSecrets)
+	}
+	secretNames = append(secretNames, s.ImagePullSecretsList...)
+	return common.RemoveDuplicatesFromSliceString(secretNames)
 }
 
 // GetHTTPPort returns the HTTP port

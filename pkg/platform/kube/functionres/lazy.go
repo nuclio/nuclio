@@ -1236,8 +1236,14 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		return (resource).(*appsv1.Deployment).DeletionTimestamp != nil
 	}
 
-	if function.Spec.ImagePullSecrets != "" {
-		imagePullSecrets = function.Spec.ImagePullSecrets
+	imagePullSecretNames := function.Spec.GetImagePullSecrets()
+	if len(imagePullSecretNames) == 0 && imagePullSecrets != "" {
+		imagePullSecretNames = []string{imagePullSecrets}
+	}
+
+	var imagePullSecretRefs []v1.LocalObjectReference
+	for _, secretName := range imagePullSecretNames {
+		imagePullSecretRefs = append(imagePullSecretRefs, v1.LocalObjectReference{Name: secretName})
 	}
 
 	createDeployment := func() (interface{}, error) {
@@ -1278,10 +1284,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		}
 
 		// apply when provided
-		if imagePullSecrets != "" {
-			deploymentSpec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
-				{Name: imagePullSecrets},
-			}
+		if len(imagePullSecretRefs) > 0 {
+			deploymentSpec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
 		}
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts); err != nil {
@@ -1358,10 +1362,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.RuntimeClassName = function.Spec.RuntimeClassName
 
 		// apply when provided
-		if imagePullSecrets != "" {
-			deployment.Spec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
-				{Name: imagePullSecrets},
-			}
+		if len(imagePullSecretRefs) > 0 {
+			deployment.Spec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
 		}
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts); err != nil {

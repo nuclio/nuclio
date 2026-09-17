@@ -163,6 +163,38 @@ func (suite *lazyTestSuite) TestRuntimeClassNameNil() {
 	suite.Require().Nil(deployment.Spec.Template.Spec.RuntimeClassName)
 }
 
+func (suite *lazyTestSuite) TestImagePullSecretsList() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+	functionInstance.Spec.ImagePullSecrets = "secret-a"
+	functionInstance.Spec.ImagePullSecretsList = []string{"secret-b", "secret-c"}
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "default-secret")
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(resources)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	suite.Require().Equal([]v1.LocalObjectReference{
+		{Name: "secret-a"},
+		{Name: "secret-b"},
+		{Name: "secret-c"},
+	}, deployment.Spec.Template.Spec.ImagePullSecrets)
+}
+
+func (suite *lazyTestSuite) TestImagePullSecretsFallsBackToDefault() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "default-secret")
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(resources)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	suite.Require().Equal([]v1.LocalObjectReference{
+		{Name: "default-secret"},
+	}, deployment.Spec.Template.Spec.ImagePullSecrets)
+}
+
 func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 	defaultIngressAnnotations := map[string]string{
 		"a": "b",
