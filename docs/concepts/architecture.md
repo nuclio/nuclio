@@ -12,6 +12,13 @@ Function processors provide an environment for executing functions. The processo
 
 Processors can be compiled into a single binary (when using Go or C), or packaged into a container with all the required code dependencies. Processor containers can run as standalone Docker containers, or on top of a container-orchestration platform such as Kubernetes. Each function has its own function processors. Function Processors will be scaled-out automatically (by adding more container instances) to address high event frequency.
 
+On Kubernetes, when `authentication.functionAuthenticationEnabled` is set to `true` in the platform configuration (disabled by default), each function pod runs two containers: the **processor** (listening on loopback only) and the **auth-proxy sidecar** (the cluster-facing entry point). The auth-proxy enforces the authentication mode configured in the function's HTTP trigger before forwarding approved requests to the processor. Two modes exist:
+
+- **reverse-proxy** — runs alongside the processor in each function pod; authenticates every incoming HTTP request and proxies it to the processor on loopback.
+- **auth-only** — runs in the DLX (scale-to-zero) pod; exposes a `/auth` endpoint that the DLX calls to authenticate requests before scaling a function back up from zero replicas.
+
+The `/__internal/health` path is always allowed without authentication so kubelet liveness and readiness probes can reach the processor.
+
 ### Processor architecture
 
 Nuclio's unique processor architecture is aimed at maximizing function performance and providing abstractions and portability across a wide set of platforms, event sources, and data services.

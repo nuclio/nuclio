@@ -1,5 +1,7 @@
 # API Gateway with HTTP
 
+> **Deprecation notice:** API Gateway authentication is planned to be deprecated. For new deployments, use [function-level HTTP trigger authentication](../../reference/triggers/http.md) instead (see the `Attributes` section for `authenticationMode`). Function-level authentication provides better isolation, per-function control, and integration with the auth-proxy sidecar for scale-to-zero scenarios. For platform setup, see [Configuring a Platform](../../tasks/configuring-a-platform.md).
+
 ## In This Section
 
 - [No Authentication](#no-authentication)
