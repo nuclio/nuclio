@@ -710,7 +710,7 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 // GetImagePullSecrets returns the deduped union of the singular ImagePullSecrets
 // and ImagePullSecretsList, with the older field taking precedence for ordering.
 func (s *Spec) GetImagePullSecrets() []string {
-	secretNames := make([]string, 0, len(s.ImagePullSecretsList)+1)
+	var secretNames []string
 	if s.ImagePullSecrets != "" {
 		secretNames = append(secretNames, s.ImagePullSecrets)
 	}
