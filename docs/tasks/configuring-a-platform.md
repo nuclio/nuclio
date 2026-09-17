@@ -206,6 +206,8 @@ Configuration options:
 - `authURL` (string, required when `functionAuthenticationEnabled: true`) - The URL of the authentication service endpoint that the auth-proxy calls to validate requests. This endpoint is called with the request details to determine if the request is authenticated.
 - `signInURL` (string, required when `functionAuthenticationEnabled: true`) - The URL to which unauthenticated requests are redirected when the HTTP trigger's `authenticationMode` is set to `browser`. Typically points to a sign-in page or authentication UI.
 - `authSidecarImage` (string, required when `functionAuthenticationEnabled: true`) - The container image URI for the auth-proxy sidecar. This image is automatically injected into each function pod running on Kubernetes. Example: `"nuclio/auth-proxy:latest"` or `"my-registry.example.com/nuclio/auth-proxy:v1.0.0"`.
+- `allowedModes` (list of strings, optional) - Restricts which authentication modes are permitted for HTTP triggers on the platform. If not specified, the default modes are: `none`, `api`, `browser`, `basicAuth`. Example: `["none", "api"]` to allow only unauthenticated and API-level auth.
+- `defaultMode` (string, optional, default: `none`) - The default authentication mode applied to HTTP triggers that do not explicitly set `authenticationMode`. Must be one of the allowed modes.
 
 Example platform configuration with function authentication enabled:
 
@@ -215,6 +217,11 @@ authentication:
   authURL: "https://auth-service.default.svc.cluster.local:8080/auth"
   signInURL: "https://auth-service.default.svc.cluster.local:8080/signin"
   authSidecarImage: "nuclio/auth-proxy:latest"
+  allowedModes:
+    - "none"
+    - "api"
+    - "browser"
+  defaultMode: "api"
 ```
 
 After enabling authentication in the platform config, configure the desired authentication mode on individual functions using the HTTP trigger's `authenticationMode` attribute. See the [HTTP trigger reference](../reference/triggers/http.md#attributes) for available modes (`none`, `api`, `browser`, `basicAuth`) and configuration options.
