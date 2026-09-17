@@ -585,7 +585,6 @@ type Spec struct {
 	Alias                   string                  `json:"alias,omitempty"`
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
-	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
 	ImagePullSecretsList    []string                `json:"imagePullSecretsList,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
@@ -599,6 +598,9 @@ type Spec struct {
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 	ReadinessProbe          *v1.Probe               `json:"readinessProbe,omitempty"`
 	LivenessProbe           *v1.Probe               `json:"livenessProbe,omitempty"`
+
+	// Deprecated: ImagePullSecrets is replaced by ImagePullSecretsList, and will be removed in future versions.
+	ImagePullSecrets string `json:"imagePullSecrets,omitempty"`
 
 	// If set to nil, the value is taken from the platform configuration. When set explicitly in function config, it has a priority
 	DisableDefaultHTTPTrigger *bool `json:"disableDefaultHTTPTrigger,omitempty"`

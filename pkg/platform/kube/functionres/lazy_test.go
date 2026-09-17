@@ -165,6 +165,7 @@ func (suite *lazyTestSuite) TestRuntimeClassNameNil() {
 
 func (suite *lazyTestSuite) TestImagePullSecretsList() {
 	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+	// nolint: staticcheck
 	functionInstance.Spec.ImagePullSecrets = "secret-a"
 	functionInstance.Spec.ImagePullSecretsList = []string{"secret-b", "secret-c"}
 
