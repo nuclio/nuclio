@@ -2104,15 +2104,16 @@ func (ap *Platform) enrichHTTPTriggerAuthenticationMode(ctx context.Context, tri
 		return
 	}
 	defaultMode := ap.Config.Authentication.DefaultMode
-	if defaultMode == "" || defaultMode == auth.AuthenticationModeNone {
-		return
-	}
 	if triggerInstance.Attributes == nil {
 		triggerInstance.Attributes = make(map[string]interface{})
 	}
-	if mode, ok := triggerInstance.Attributes[auth.AttributeAuthenticationMode]; ok && mode != "" {
-		return
+	if mode, ok := triggerInstance.Attributes[auth.AttributeAuthenticationMode]; ok {
+		// If mode exists and not empty-keep it; the mode will be validated later in validateHTTPTriggerAuthentication
+		if mode != nil && mode != "" {
+			return
+		}
 	}
+
 	ap.Logger.DebugWithCtx(ctx,
 		"Enriching authentication mode for HTTP trigger",
 		"functionName", functionConfig.Meta.Name,

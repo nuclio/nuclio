@@ -2844,20 +2844,6 @@ func (suite *AbstractPlatformTestSuite) TestEnrichHTTPTriggerAuthenticationMode(
 			attributes:   map[string]interface{}{auth.AttributeAuthenticationMode: auth.AuthenticationModeBasicAuth},
 			expectedMode: auth.AuthenticationModeBasicAuth,
 		},
-		{
-			name:         "empty default not stamped",
-			flagEnabled:  true,
-			defaultMode:  "",
-			attributes:   map[string]interface{}{},
-			expectedMode: nil,
-		},
-		{
-			name:         "none default not stamped",
-			flagEnabled:  true,
-			defaultMode:  auth.AuthenticationModeNone,
-			attributes:   map[string]interface{}{},
-			expectedMode: nil,
-		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Platform.Config.Authentication = &platformconfig.Authentication{
@@ -2899,6 +2885,16 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 			expectError: true,
 		},
 		{
+			name:        "nil authenticationMode defaults to none",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: nil},
+		},
+		{
+			name:        "empty string authenticationMode defaults to none",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: ""},
+		},
+		{
 			name:        "basicAuth without credentials rejected",
 			flagEnabled: true,
 			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth)},
@@ -2921,6 +2917,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 		suite.Run(testCase.name, func() {
 			suite.Platform.Config.Authentication = &platformconfig.Authentication{
 				FunctionAuthenticationEnabled: testCase.flagEnabled,
+				DefaultMode:                   auth.AuthenticationModeAPI,
 			}
 			defer func() { suite.Platform.Config.Authentication = nil }()
 
@@ -2931,6 +2928,42 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 			} else {
 				suite.Require().NoError(err)
 			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichHTTTPTriggerAuthentication() {
+	for _, testCase := range []struct {
+		name     string
+		authMode interface{}
+	}{
+		{
+			name: "nil authenticationMode",
+		},
+		{
+			name:     "empty string authenticationMode",
+			authMode: "",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+				DefaultMode:                   auth.AuthenticationModeAPI,
+			}
+			defer func() { suite.Platform.Config.Authentication = nil }()
+
+			trigger := functionconfig.Trigger{Kind: "http", Name: "http0", Attributes: map[string]interface{}{
+				auth.AttributeAuthenticationMode: testCase.authMode,
+			}}
+			functionConfig := functionconfig.NewConfig()
+
+			// Enrichment replaces nil with default
+			suite.Platform.enrichHTTPTriggerAuthenticationMode(suite.ctx, "http0", &trigger, functionConfig)
+
+			// Validation should pass because enrichment fixed it
+			err := suite.Platform.validateHTTPTriggerAuthentication("http0", &trigger)
+			suite.Require().NoError(err)
+			suite.Equal(auth.AuthenticationModeAPI, trigger.Attributes[auth.AttributeAuthenticationMode])
 		})
 	}
 }
