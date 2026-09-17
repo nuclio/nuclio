@@ -16,9 +16,9 @@ available, a `503` error is returned.
 > **Kubernetes note:** The auth-proxy sidecar is disabled by default. Enable it by setting
 > `authentication.functionAuthenticationEnabled: true` in the platform configuration, together with
 > `authentication.authURL` (the auth-check endpoint) and `authentication.signInURL` (the sign-in redirect URL for
-> browser mode). When enabled, the processor listens on loopback only (port 6080) and is not directly reachable from the
-> cluster. The auth-proxy sidecar is the cluster-facing entry point on port 8080 and enforces the `authenticationMode`
-> configured for this trigger before forwarding approved requests to the processor.
+> browser mode). When enabled, the processor continues to listen on port 8080 on loopback (unchanged), but the 
+> Kubernetes Service's targetPort is repointed to the auth-proxy sidecar on port 6080. The auth-proxy enforces the 
+> `authenticationMode` configured for this trigger before forwarding approved requests to the processor on loopback.
 > The `/__internal/health` path is always allowed without authentication so the kubelet can reach the processor's
 > liveness/readiness probe.
 

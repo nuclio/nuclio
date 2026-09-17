@@ -196,7 +196,7 @@ For more information, see the [Cron-trigger reference](../reference/triggers/cro
 <a id="authentication"></a>
 ### Function Authentication (`authentication`)
 
-Function authentication enables the auth-proxy sidecar, which enforces authentication on function HTTP requests. When enabled, each function pod runs two containers: the **processor** (listening on loopback only at port 6080) and the **auth-proxy sidecar** (the cluster-facing entry point at port 8080). The auth-proxy intercepts requests and authenticates them based on the `authenticationMode` configured in the function's HTTP trigger.
+Function authentication enables the auth-proxy sidecar, which enforces authentication on function HTTP requests. When enabled, each function pod runs two containers: the **processor** (continues to listen on port 8080 on loopback, unchanged) and the **auth-proxy sidecar** (listens on port 6080, cluster-facing). The Kubernetes Service's targetPort is repointed from 8080 to 6080, so all incoming requests route through the auth-proxy first. The auth-proxy authenticates requests based on the `authenticationMode` configured in the function's HTTP trigger, then forwards approved requests to the processor on loopback.
 
 **Note:** This is applicable only to Kubernetes deployments.
 
