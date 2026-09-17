@@ -177,7 +177,7 @@ func NewContainerBuilderConfiguration(existing *ContainerBuilderConfiguration) (
 
 	if containerBuilderConfiguration.PythonImage == "" {
 		containerBuilderConfiguration.PythonImage =
-			common.GetEnvOrDefaultString("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE", "gcr.io/iguazio/python:3.11")
+			common.GetEnvOrDefaultString("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE", "python:3.11")
 	}
 
 	if containerBuilderConfiguration.PythonImagePullPolicy == "" {

@@ -85,7 +85,7 @@ func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImageDefaultsToIg
 	config, err := NewContainerBuilderConfiguration(nil)
 	suite.Require().NoError(err)
 
-	suite.Equal("gcr.io/iguazio/python:3.11", config.PythonImage)
+	suite.Equal("python:3.11", config.PythonImage)
 }
 
 func (suite *ContainerBuilderConfigurationTestSuite) TestPythonImageHonorsEnv() {

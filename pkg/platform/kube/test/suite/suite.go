@@ -555,7 +555,7 @@ func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, cu
 			"run",
 			"%s",
 			fmt.Sprintf("--labels=%s", curlPodLabel),
-			"--image=gcr.io/iguazio/curlimages/curl:7.81.0",
+			"--image=curlimages/curl:7.81.0",
 			"--restart=Never",
 			"--command",
 			"--",

@@ -183,6 +183,12 @@ jobs:
           username: ${{ env.CACHE_REPO_NAME }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
@@ -459,6 +465,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Run python test
         run: |
           make test-python
@@ -468,6 +480,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - name: Run NodeJS test
         run: |

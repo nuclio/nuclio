@@ -826,7 +826,7 @@ func (suite *testSuite) TestGenerateKanikoProcessorDockerfile() {
 			},
 			{
 				Name:  "uhttpc-1",
-				Image: "gcr.io/iguazio/uhttpc:0.0.3-amd64",
+				Image: "nuclio/uhttpc:0.0.3-amd64",
 				Paths: map[string]string{
 					"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
 				},
@@ -861,7 +861,7 @@ ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
 preCopyKind1 preCopyValue1
 preCopyKind2 preCopyValue2
 # Copy required objects from the suppliers
-COPY --from=gcr.io/iguazio/uhttpc:0.0.3-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+COPY --from=nuclio/uhttpc:0.0.3-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
 COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
 COPY imageLocal1 imageImage1
