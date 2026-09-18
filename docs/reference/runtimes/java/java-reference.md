@@ -4,6 +4,9 @@ This document describes specific Java build and deploy configurations.
 
 > **NOTE:**  Java runtime is in tech-preview.
 
+> **NOTE:**  As of the Java 25 LTS migration, the Java runtime is not supported on armhf
+> (32-bit ARM) — no upstream `eclipse-temurin` build exists for Java 25 on that architecture.
+
 ## In This Document
 
 - [Function and handler](#function-and-handler)
