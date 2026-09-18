@@ -63,7 +63,8 @@ import (
 )
 
 const (
-	uhttpcImage         = "nuclio/uhttpc:0.0.3-%s"
+	// TODO: switch to nuclio/uhttpc once 0.0.3 is published there (Docker Hub only has 0.0.1/latest today)
+	uhttpcImage         = "gcr.io/iguazio/uhttpc:0.0.3-%s"
 	GitEntryType        = "git"
 	ArchiveEntryType    = "archive"
 	S3EntryType         = "s3"

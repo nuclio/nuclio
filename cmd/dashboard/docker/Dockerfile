@@ -17,7 +17,8 @@
 #
 ARG NGINX_IMAGE
 ARG NUCLIO_DOCKER_IMAGE_TAG
-ARG UHTTPC_IMAGE=nuclio/uhttpc:0.0.3
+# TODO: switch to nuclio/uhttpc once 0.0.3 is published there (Docker Hub only has 0.0.1/latest today)
+ARG UHTTPC_IMAGE=gcr.io/iguazio/uhttpc:0.0.3
 ARG UHTTPC_ARCH=amd64
 ARG NUCLIO_DOCKER_ALPINE_IMAGE
 ARG NUCLIO_DOCKER_REPO
