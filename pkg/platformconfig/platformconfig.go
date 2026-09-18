@@ -730,7 +730,7 @@ func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
 		common.RuntimePython311:  "python:3.11",
 		common.RuntimePython312:  "python:3.12",
 		common.RuntimeNodejs:     "node:20",
-		common.RuntimeJava:       "openjdk:11-jre-slim",
+		common.RuntimeJava:       "eclipse-temurin:25-jre-noble",
 		common.RuntimeRuby:       "ruby:2.4.4-alpine",
 		common.RuntimeDotnetcore: "microsoft/dotnet-runtime:9.0",
 	}
