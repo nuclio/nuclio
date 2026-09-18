@@ -585,7 +585,7 @@ type Spec struct {
 	Alias                   string                  `json:"alias,omitempty"`
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
-	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
+	ImagePullSecretsList    []string                `json:"imagePullSecretsList,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI               string                  `json:"dealerURI,omitempty"`
@@ -598,6 +598,9 @@ type Spec struct {
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 	ReadinessProbe          *v1.Probe               `json:"readinessProbe,omitempty"`
 	LivenessProbe           *v1.Probe               `json:"livenessProbe,omitempty"`
+
+	// Deprecated: ImagePullSecrets is replaced by ImagePullSecretsList, and will be removed in future versions.
+	ImagePullSecrets string `json:"imagePullSecrets,omitempty"`
 
 	// If set to nil, the value is taken from the platform configuration. When set explicitly in function config, it has a priority
 	DisableDefaultHTTPTrigger *bool `json:"disableDefaultHTTPTrigger,omitempty"`
@@ -704,6 +707,12 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy
 	*out = *s
+}
+
+// GetImagePullSecrets returns the deduped union of the singular ImagePullSecrets
+// and ImagePullSecretsList, with the older field taking precedence for ordering.
+func (s *Spec) GetImagePullSecrets() []string {
+	return common.MergeStringSlices(common.SliceFromNonEmptyString(s.ImagePullSecrets), s.ImagePullSecretsList)
 }
 
 // GetHTTPPort returns the HTTP port
@@ -1168,6 +1177,9 @@ type Status struct {
 
 	// enriched service account from function config enriched with project's and platform service account
 	EnrichedServiceAccount string `json:"enrichedServiceAccount,omitempty"`
+
+	// image pull secrets from function config merged with the platform's default image pull secret
+	EnrichedImagePullSecrets []string `json:"enrichedImagePullSecrets,omitempty"`
 }
 
 func (s *Status) InvocationURLs() []string {

@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
@@ -128,6 +129,13 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 // where function values take precedence over project values, and project values take precedence over platform values
 func (nf *NuclioFunction) EnrichNodeSelector(platformNodeSelector, projectNodeSelector map[string]string) {
 	nf.Status.EnrichedNodeSelector = utils.MergeNodeSelector(nf.Spec.NodeSelector, projectNodeSelector, platformNodeSelector)
+}
+
+// EnrichImagePullSecrets enriches Status.EnrichedImagePullSecrets with the deduped union of
+// the platform's default image pull secrets and Spec's image pull secrets, platform defaults first
+// and function secrets last, so function secrets win on host conflicts.
+func (nf *NuclioFunction) EnrichImagePullSecrets(platformDefaultSecrets []string) {
+	nf.Status.EnrichedImagePullSecrets = common.MergeStringSlices(platformDefaultSecrets, nf.Spec.GetImagePullSecrets())
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -691,7 +691,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
-		"",
+		nil,
 		kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
 		suite.FunctionClient,

@@ -125,7 +125,7 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 			},
 		},
 	}
-	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(resources)
 	deployment, err := resources.Deployment()
@@ -142,7 +142,7 @@ func (suite *lazyTestSuite) TestRuntimeClassName() {
 	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
 	functionInstance.Spec.RuntimeClassName = &runtimeClassName
 
-	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(resources)
 	deployment, err := resources.Deployment()
@@ -154,13 +154,42 @@ func (suite *lazyTestSuite) TestRuntimeClassName() {
 func (suite *lazyTestSuite) TestRuntimeClassNameNil() {
 	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
 
-	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(resources)
 	deployment, err := resources.Deployment()
 	suite.Require().NoError(err)
 
 	suite.Require().Nil(deployment.Spec.Template.Spec.RuntimeClassName)
+}
+
+func (suite *lazyTestSuite) TestImagePullSecretsList() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+	functionInstance.Status.EnrichedImagePullSecrets = []string{"secret-a", "secret-b", "secret-c"}
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(resources)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	suite.Require().Equal([]v1.LocalObjectReference{
+		{Name: "secret-a"},
+		{Name: "secret-b"},
+		{Name: "secret-c"},
+	}, deployment.Spec.Template.Spec.ImagePullSecrets)
+}
+
+func (suite *lazyTestSuite) TestImagePullSecretsEmptyWhenNotEnriched() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(resources)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	suite.Require().Empty(deployment.Spec.Template.Spec.ImagePullSecrets)
 }
 
 func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
@@ -445,7 +474,6 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	// "create" the deployment
 	deploymentInstance, err := suite.client.createOrUpdateDeployment(suite.ctx,
 		functionLabels,
-		"image-pull-secret-str",
 		&function)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(deploymentInstance)
@@ -464,7 +492,6 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		// "update" the deployment
 		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(suite.ctx,
 			functionLabels,
-			"image-pull-secret-str",
 			&function)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(updatedDeploymentInstance)
@@ -1916,7 +1943,7 @@ func (suite *lazyTestSuite) deployFunctionWithCronTrigger(
 		},
 	}
 
-	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 
 	cronJobs, err := resources.CronJobs()
@@ -2059,7 +2086,7 @@ func (suite *lazyTestSuite) TestAugmentedConfigMergesFunctionEnvironment() {
 	userEnv := append([]v1.EnvVar(nil), functionInstance.Spec.Env...)
 	userEnvFrom := append([]v1.EnvFromSource(nil), functionInstance.Spec.EnvFrom...)
 
-	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resources)
 
@@ -2104,7 +2131,7 @@ func (suite *lazyTestSuite) TestAugmentedConfigMergesFunctionEnvironment() {
 
 	// reconciling again must yield the very same environment, in the same order, so that the deployment
 	// isn't rolled out on every reconciliation
-	secondResources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
+	secondResources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 	secondDeployment, err := secondResources.Deployment()
 	suite.Require().NoError(err)

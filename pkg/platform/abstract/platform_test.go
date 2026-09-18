@@ -1636,6 +1636,56 @@ func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestEnrichImagePullSecrets() {
+	for _, testCase := range []struct {
+		name                     string
+		imagePullSecrets         string
+		imagePullSecretsList     []string
+		expectedImagePullSecrets string
+		expectedList             []string
+	}{
+		{
+			name:                     "legacy-only",
+			imagePullSecrets:         "a",
+			expectedImagePullSecrets: "",
+			expectedList:             []string{"a"},
+		},
+		{
+			name:                     "legacy-already-in-list",
+			imagePullSecrets:         "a",
+			imagePullSecretsList:     []string{"a"},
+			expectedImagePullSecrets: "",
+			expectedList:             []string{"a"},
+		},
+		{
+			name:                     "legacy-and-different-list-entry",
+			imagePullSecrets:         "a",
+			imagePullSecretsList:     []string{"b"},
+			expectedImagePullSecrets: "",
+			expectedList:             []string{"a", "b"},
+		},
+		{
+			name:                     "nothing-set",
+			expectedImagePullSecrets: "",
+			expectedList:             nil,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Meta.Name = testCase.name
+			// nolint: staticcheck
+			functionConfig.Spec.ImagePullSecrets = testCase.imagePullSecrets
+			functionConfig.Spec.ImagePullSecretsList = testCase.imagePullSecretsList
+
+			suite.Platform.enrichImagePullSecrets(suite.ctx, functionConfig)
+
+			// nolint: staticcheck
+			suite.Require().Equal(testCase.expectedImagePullSecrets, functionConfig.Spec.ImagePullSecrets)
+			suite.Require().Equal(testCase.expectedList, functionConfig.Spec.ImagePullSecretsList)
+		})
+	}
+}
+
 // TODO: remove this test in 1.15.x
 func (suite *AbstractPlatformTestSuite) TestEnrichNumWorkersFromMaxWorkers() {
 	functionConfig := functionconfig.NewConfig()

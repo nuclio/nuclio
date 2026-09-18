@@ -31,6 +31,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -446,8 +447,13 @@ func GetEnvOrDefaultStringSlice(key string, defaultValue []string) []string {
 	if !ok {
 		return defaultValue
 	}
+	return SplitCommaSeparatedString(raw)
+}
+
+// SplitCommaSeparatedString splits a comma-separated string into a slice, dropping blanks and duplicates.
+func SplitCommaSeparatedString(s string) []string {
 	var values []string
-	for _, part := range strings.Split(raw, ",") {
+	for _, part := range strings.Split(s, ",") {
 		if trimmed := strings.TrimSpace(part); trimmed != "" {
 			values = append(values, trimmed)
 		}
@@ -731,6 +737,19 @@ func RemoveDuplicatesFromSliceString(slice []string) []string {
 		}
 	}
 	return list
+}
+
+// MergeStringSlices merges and dedupes the given slices, in order
+func MergeStringSlices(stringSlices ...[]string) []string {
+	return RemoveDuplicatesFromSliceString(slices.Concat(stringSlices...))
+}
+
+// SliceFromNonEmptyString returns nil if s is empty, else a single-element slice containing s
+func SliceFromNonEmptyString(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return []string{s}
 }
 
 func RemoveStringSliceItemsFromStringSlice(slice []string, itemsToRemove []string) []string {

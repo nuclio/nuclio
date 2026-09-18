@@ -1156,7 +1156,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BaseImageRegistry:    baseImageRegistry,
 			OnbuildImageRegistry: onbuildImageRegistry,
 			RepoName:             b.resolveRepoName(registryURL),
-			SecretName:           b.options.FunctionConfig.Spec.ImagePullSecrets,
+			SecretNames:          b.options.FunctionConfig.Spec.GetImagePullSecrets(),
 			OutputImageFile:      b.options.OutputImageFile,
 			BuildTimeoutSeconds:  b.resolveBuildTimeoutSeconds(),
 

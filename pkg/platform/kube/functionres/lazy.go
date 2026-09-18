@@ -164,8 +164,7 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 }
 
 func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
-	function *nuclioio.NuclioFunction,
-	imagePullSecrets string) (Resources, error) {
+	function *nuclioio.NuclioFunction) (Resources, error) {
 	var err error
 
 	// get labels from the function and add class labels
@@ -233,7 +232,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 	// create or update the applicable deployment
 	if resources.deployment, err = lc.createOrUpdateDeployment(ctx,
 		functionLabels,
-		imagePullSecrets,
 		function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update deployment")
 	}
@@ -1201,7 +1199,6 @@ func (lc *lazyClient) patchService(ctx context.Context, function *nuclioio.Nucli
 
 func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	functionLabels labels.Set,
-	imagePullSecrets string,
 	function *nuclioio.NuclioFunction) (*appsv1.Deployment, error) {
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
@@ -1236,8 +1233,9 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		return (resource).(*appsv1.Deployment).DeletionTimestamp != nil
 	}
 
-	if function.Spec.ImagePullSecrets != "" {
-		imagePullSecrets = function.Spec.ImagePullSecrets
+	var imagePullSecretRefs []v1.LocalObjectReference
+	for _, secretName := range function.Status.EnrichedImagePullSecrets {
+		imagePullSecretRefs = append(imagePullSecretRefs, v1.LocalObjectReference{Name: secretName})
 	}
 
 	createDeployment := func() (interface{}, error) {
@@ -1277,12 +1275,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			},
 		}
 
-		// apply when provided
-		if imagePullSecrets != "" {
-			deploymentSpec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
-				{Name: imagePullSecrets},
-			}
-		}
+		deploymentSpec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
@@ -1357,12 +1350,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
 		deployment.Spec.Template.Spec.RuntimeClassName = function.Spec.RuntimeClassName
 
-		// apply when provided
-		if imagePullSecrets != "" {
-			deployment.Spec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
-				{Name: imagePullSecrets},
-			}
-		}
+		deployment.Spec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
