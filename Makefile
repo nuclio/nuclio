@@ -93,21 +93,23 @@ else
 endif
 
 # alpine is commonly used by controller / dlx / autoscaler
-# TODO: NUCLIO_DOCKER_JAVA_OPENJDK stays on gcr.io/iguazio until the Java runtime's base images are addressed separately
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
 	NUCLIO_BASE_IMAGE_NAME 			?= arm32v7/golang
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
+	# Java runtime is not supported on armhf: eclipse-temurin has no JDK 25 build for
+	# 32-bit ARM upstream, and rather than pin this one runtime to JDK 17 indefinitely,
+	# armhf Java support is dropped. See the handler-builder-java-onbuild guard below.
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= unsupported
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
 	NUCLIO_BASE_IMAGE_NAME 			?= arm64v8/golang
-	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-jdk-slim-bullseye
+	NUCLIO_DOCKER_JAVA_OPENJDK 		?= arm64v8/eclipse-temurin:25-jdk-noble
 	NODE_IMAGE_NAME 				?= arm64v8/node:20
 else
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= alpine:3.23
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= eclipse-temurin:25-jdk-noble
 	NODE_IMAGE_NAME 				?= node:20
 endif
 
@@ -651,6 +653,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME_CACHE=\
 
 .PHONY: handler-builder-java-onbuild
 handler-builder-java-onbuild: processor
+ifeq ($(NUCLIO_ARCH), armhf)
+	$(error Java runtime is not supported on armhf (32-bit ARM): no upstream eclipse-temurin build exists for this architecture on Java 25)
+endif
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
