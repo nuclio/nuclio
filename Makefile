@@ -96,10 +96,10 @@ endif
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
 	NUCLIO_BASE_IMAGE_NAME 			?= arm32v7/golang
-	# eclipse-temurin (the maintained successor to the deprecated openjdk image) has no
-	# JDK 25 build for 32-bit ARM upstream, so armhf stays on the newest JDK it does ship: 17.
-	# Unlike the old openjdk image, eclipse-temurin resolves fine on Docker Hub - no gcr.io/iguazio mirror needed.
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= arm32v7/eclipse-temurin:17-jdk-noble
+	# Java runtime is not supported on armhf: eclipse-temurin has no JDK 25 build for
+	# 32-bit ARM upstream, and rather than pin this one runtime to JDK 17 indefinitely,
+	# armhf Java support is dropped. See the handler-builder-java-onbuild guard below.
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= unsupported
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
@@ -653,6 +653,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME_CACHE=\
 
 .PHONY: handler-builder-java-onbuild
 handler-builder-java-onbuild: processor
+ifeq ($(NUCLIO_ARCH), armhf)
+	$(error Java runtime is not supported on armhf (32-bit ARM): no upstream eclipse-temurin build exists for this architecture on Java 25)
+endif
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
