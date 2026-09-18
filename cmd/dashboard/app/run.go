@@ -77,6 +77,8 @@ func Run(listenAddress string,
 	authConfigIguazioCacheExpirationTimeout string,
 	authConfigIguazioVerificationMethod string,
 ) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -99,7 +101,7 @@ func Run(listenAddress string,
 	}
 
 	// create a platform
-	platformInstance, err := factory.CreatePlatform(context.Background(),
+	platformInstance, err := factory.CreatePlatform(ctx,
 		rootLogger,
 		platformType,
 		platformConfiguration,

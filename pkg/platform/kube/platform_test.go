@@ -40,6 +40,7 @@ import (
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	kubeclientmock "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube/mock"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	mocks2 "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/mocks"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
@@ -54,6 +55,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -4076,9 +4078,65 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 	}
 }
 
+type GeneralKubeTestSuite struct {
+	suite.Suite
+	namespace string
+}
+
+func (suite *GeneralKubeTestSuite) SetupSuite() {
+	suite.namespace = "nuclio"
+}
+
+func (suite *GeneralKubeTestSuite) TestCheckServerReady() {
+	for _, testCase := range []struct {
+		name             string
+		deployment       *appsv1.Deployment
+		getDeploymentErr error
+		expectedReady    bool
+		expectedErr      bool
+	}{
+		{
+			name:             "GetDeploymentError",
+			getDeploymentErr: errors.New("api server unreachable"),
+			expectedReady:    false,
+			expectedErr:      true,
+		},
+		{
+			name:          "ReadyReplicasZero",
+			deployment:    &appsv1.Deployment{Status: appsv1.DeploymentStatus{ReadyReplicas: 0}},
+			expectedReady: false,
+		},
+		{
+			name:          "ReadyReplicasOne",
+			deployment:    &appsv1.Deployment{Status: appsv1.DeploymentStatus{ReadyReplicas: 1}},
+			expectedReady: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			mockKubeClient := &kubeclientmock.Client{}
+			mockKubeClient.
+				On("GetDeployment", mock.Anything, suite.namespace, "nuclio-dashboard").
+				Return(testCase.deployment, testCase.getDeploymentErr).
+				Once()
+
+			checkServerReady := newDashboardDeploymentReadyChecker(mockKubeClient, suite.namespace)
+			result, err := checkServerReady(context.Background())
+
+			if testCase.expectedErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+			suite.Require().Equal(testCase.expectedReady, result)
+			mockKubeClient.AssertExpectations(suite.T())
+		})
+	}
+}
+
 func TestKubePlatformTestSuite(t *testing.T) {
 	suite.Run(t, new(ProjectKubePlatformTestSuite))
 	suite.Run(t, new(FunctionKubePlatformTestSuite))
 	suite.Run(t, new(FunctionEventKubePlatformTestSuite))
 	suite.Run(t, new(APIGatewayKubePlatformTestSuite))
+	suite.Run(t, new(GeneralKubeTestSuite))
 }

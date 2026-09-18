@@ -55,6 +55,7 @@ const (
 	getUpdatedAfter        = "get-updated-after"
 	updateTestSuite        = "update"
 	deleteTestSuite        = "delete"
+	sendSyncTestSuite      = "send-sync"
 )
 
 type ClientTestSuite struct {
@@ -439,6 +440,61 @@ func (suite *ClientTestSuite) TestGetUpdatedAfterEscalatesServiceAccountAuth() {
 	mockSAClient.AssertCalled(suite.T(), "EscalateAuthHeaders", mock.Anything)
 }
 
+func (suite *ClientTestSuite) TestSendLeaderSyncRequest() {
+	for _, testCase := range []struct {
+		name          string
+		statusCode    int
+		expectedError bool
+	}{
+		{
+			name:       "Sanity",
+			statusCode: http.StatusAccepted,
+		},
+		{
+			name:          "LeaderError",
+			statusCode:    http.StatusInternalServerError,
+			expectedError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			*suite.client.httpClient = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+				suite.Require().Equal(http.MethodPost, r.Method)
+				return &http.Response{
+					StatusCode: testCase.statusCode,
+					Body:       io.NopCloser(bytes.NewBufferString("")),
+				}
+			})
+			suite.client.leaderOps = suite.generateMocksForClient(sendSyncTestSuite, true, 0)
+
+			err := suite.client.SendLeaderSyncRequest(context.TODO())
+			if testCase.expectedError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *ClientTestSuite) TestSendLeaderSyncRequestEscalatesServiceAccountAuth() {
+	mockSAClient := &serviceaccounttoken.MockClient{}
+	mockSAClient.On("EscalateAuthHeaders", mock.Anything).Return(nil)
+	suite.client.serviceAccountTokenClient = mockSAClient
+
+	*suite.client.httpClient = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		return &http.Response{
+			StatusCode: http.StatusAccepted,
+			Body:       io.NopCloser(bytes.NewBufferString("")),
+		}
+	})
+	suite.client.leaderOps = suite.generateMocksForClient(sendSyncTestSuite, true, 0)
+
+	err := suite.client.SendLeaderSyncRequest(context.TODO())
+	suite.Require().NoError(err)
+
+	mockSAClient.AssertCalled(suite.T(), "EscalateAuthHeaders", mock.Anything)
+}
+
 func (suite *ClientTestSuite) TestGet() {
 	for _, testCase := range []struct {
 		name   string
@@ -654,107 +710,6 @@ func (suite *ClientTestSuite) TestDelete() {
 	}
 }
 
-func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
-	projectData := `{
-        "attributes": {
-            "admin_status": "online",
-            "annotations": [],
-            "created_at": "2021-08-12T07:13:19.620000+00:00",
-            "labels": [],
-            "name": "a1",
-            "operational_status": "online",
-            "owner_username": "admin",
-            "updated_at": "0000-00-00T00:00:00.000000+00:00"
-        },
-        "id": "798d8441-1ca6-407d-8e8a-5ac24ba41ece",
-        "relationships": {
-            "owner": {
-                "data": {
-                    "id": "f595477c-945b-44c5-bf87-d6e4052409af",
-                    "type": "user"
-                }
-            }
-        },
-        "type": "project"
-    }`
-	responseTemplate := `{"data": %s, "included": [], "meta": {"ctx": "11493070626596053818"}}`
-
-	if detail {
-		return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, projectData)))
-	}
-
-	return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
-}
-
-func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failureJobState bool, statusCode int) leader.LeaderOps {
-	newClient := mockClient.NewLeaderOps()
-	testProject := &mockClient.MockProject{}
-	testProject.On("GetConfig").Return(&platform.ProjectConfig{
-		Meta: platform.ProjectMeta{
-			Name: "test-project",
-		},
-		Spec: platform.ProjectSpec{
-			Owner: "admin",
-		},
-	})
-
-	switch testSuiteType {
-	case createTestSuite:
-		testJobResponse := mockClient.JobResponseMock{}
-		if failureJobState {
-			testJobResponse.On("GetState").Return(string(leader.JobStateFailed))
-		} else {
-			testJobResponse.On("GetState").Return(string(leader.JobStateCompleted))
-		}
-		newClient.On("ParseJobStatusResponse", mock.Anything, mock.Anything).Return(&testJobResponse, true)
-		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
-		newClient.On("GenerateCreateProjectRequestURL", mock.Anything).Return("test-url" + projectSuffix)
-		newClient.On("ResolveCreateProjectResponse", mock.Anything, mock.Anything).Return(mockClient.CreateProjectResponseMock{}, nil)
-		newClient.On("ShouldWaitForCreateCompletion").Return(true)
-		newClient.On("GetExpectedStatusCode", leader.ProjectOperationCreate).Return(http.StatusCreated)
-		newClient.On("GetJobIdUrl", mock.Anything, mock.Anything).Return("test-url" + getCreateProjectSuffix)
-		newClient.On("IsJobCompleted", mock.Anything, mock.Anything, mock.Anything).
-			Return(func(_ context.Context, jobResponse leader.JobResponse, _ string) error {
-				if jobResponse.GetState() != leader.JobStateCompleted {
-					return fmt.Errorf("job failed: expected state %s", jobResponse.GetState())
-				}
-				return nil
-			})
-		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Failed to send request to leader"))
-		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
-		newClient.On("AddAuthSessionHeaders", mock.Anything, mock.Anything).Return()
-		newClient.On("GetAuthSessionCookie", mock.Anything).Return(&http.Cookie{})
-	case getTestSuite:
-		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
-		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
-	case getUpdatedAfter:
-		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
-		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
-		newClient.On("GenerateGetUpdatedAfterRequestURL", mock.Anything).Return("some-url")
-		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
-		newClient.On("GetJobRequestFilter", mock.Anything).Return("")
-	case updateTestSuite:
-		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
-		newClient.On("GenerateUpdateProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
-		newClient.On("GetExpectedStatusCode", leader.ProjectOperationUpdate).Return(http.StatusOK)
-		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
-			func(_ context.Context, _ []byte, resp *http.Response, _ error) error {
-				if resp.StatusCode != http.StatusOK {
-					return fmt.Errorf("update failed")
-				}
-				return nil
-			},
-		)
-	case deleteTestSuite:
-		newClient.On("GenerateDeleteProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
-		newClient.On("GenerateProjectDeletionRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
-		newClient.On("GetDeleteStrategyHeaderName", mock.Anything, mock.Anything).Return("test-header")
-		newClient.On("GetExpectedStatusCode", leader.ProjectOperationDelete).Return(statusCode)
-	}
-
-	return newClient
-}
-
 func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 	testAuthSession := &iguazio.AbstractSession{
 		Username: "test-username",
@@ -883,6 +838,109 @@ func (suite *ClientTestSuite) TestGenerateRequestHeadersAndCookies() {
 			}
 		})
 	}
+}
+
+func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
+	projectData := `{
+        "attributes": {
+            "admin_status": "online",
+            "annotations": [],
+            "created_at": "2021-08-12T07:13:19.620000+00:00",
+            "labels": [],
+            "name": "a1",
+            "operational_status": "online",
+            "owner_username": "admin",
+            "updated_at": "0000-00-00T00:00:00.000000+00:00"
+        },
+        "id": "798d8441-1ca6-407d-8e8a-5ac24ba41ece",
+        "relationships": {
+            "owner": {
+                "data": {
+                    "id": "f595477c-945b-44c5-bf87-d6e4052409af",
+                    "type": "user"
+                }
+            }
+        },
+        "type": "project"
+    }`
+	responseTemplate := `{"data": %s, "included": [], "meta": {"ctx": "11493070626596053818"}}`
+
+	if detail {
+		return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, projectData)))
+	}
+
+	return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
+}
+
+func (suite *ClientTestSuite) generateMocksForClient(testSuiteType string, failureJobState bool, statusCode int) leader.LeaderOps {
+	newClient := mockClient.NewLeaderOps()
+	testProject := &mockClient.MockProject{}
+	testProject.On("GetConfig").Return(&platform.ProjectConfig{
+		Meta: platform.ProjectMeta{
+			Name: "test-project",
+		},
+		Spec: platform.ProjectSpec{
+			Owner: "admin",
+		},
+	})
+
+	switch testSuiteType {
+	case createTestSuite:
+		testJobResponse := mockClient.JobResponseMock{}
+		if failureJobState {
+			testJobResponse.On("GetState").Return(string(leader.JobStateFailed))
+		} else {
+			testJobResponse.On("GetState").Return(string(leader.JobStateCompleted))
+		}
+		newClient.On("ParseJobStatusResponse", mock.Anything, mock.Anything).Return(&testJobResponse, true)
+		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
+		newClient.On("GenerateCreateProjectRequestURL", mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("ResolveCreateProjectResponse", mock.Anything, mock.Anything).Return(mockClient.CreateProjectResponseMock{}, nil)
+		newClient.On("ShouldWaitForCreateCompletion").Return(true)
+		newClient.On("GetExpectedStatusCode", leader.ProjectOperationCreate).Return(http.StatusCreated)
+		newClient.On("GetJobIdUrl", mock.Anything, mock.Anything).Return("test-url" + getCreateProjectSuffix)
+		newClient.On("IsJobCompleted", mock.Anything, mock.Anything, mock.Anything).
+			Return(func(_ context.Context, jobResponse leader.JobResponse, _ string) error {
+				if jobResponse.GetState() != leader.JobStateCompleted {
+					return fmt.Errorf("job failed: expected state %s", jobResponse.GetState())
+				}
+				return nil
+			})
+		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Failed to send request to leader"))
+		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
+		newClient.On("AddAuthSessionHeaders", mock.Anything, mock.Anything).Return()
+		newClient.On("GetAuthSessionCookie", mock.Anything).Return(&http.Cookie{})
+	case getTestSuite:
+		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
+		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
+	case getUpdatedAfter:
+		newClient.On("GenerateGetProjectsRequestURL", mock.Anything, mock.Anything).Return("some-url")
+		newClient.On("ResolveGetProjectResponse", mock.Anything, mock.Anything).Return([]platform.Project{testProject}, nil)
+		newClient.On("GenerateGetUpdatedAfterRequestURL", mock.Anything).Return("some-url")
+		newClient.On("GetJobStatusRequestCookies", mock.Anything).Return([]*http.Cookie{})
+		newClient.On("GetJobRequestFilter", mock.Anything).Return("")
+	case updateTestSuite:
+		newClient.On("GenerateProjectRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
+		newClient.On("GenerateUpdateProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("GetExpectedStatusCode", leader.ProjectOperationUpdate).Return(http.StatusOK)
+		newClient.On("HandleCreateResponseErr", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+			func(_ context.Context, _ []byte, resp *http.Response, _ error) error {
+				if resp.StatusCode != http.StatusOK {
+					return fmt.Errorf("update failed")
+				}
+				return nil
+			},
+		)
+	case deleteTestSuite:
+		newClient.On("GenerateDeleteProjectRequestURL", mock.Anything, mock.Anything).Return("test-url" + projectSuffix)
+		newClient.On("GenerateProjectDeletionRequestBody", mock.Anything).Return([]byte(`{"some":"data"}`), nil)
+		newClient.On("GetDeleteStrategyHeaderName", mock.Anything, mock.Anything).Return("test-header")
+		newClient.On("GetExpectedStatusCode", leader.ProjectOperationDelete).Return(statusCode)
+	case sendSyncTestSuite:
+		newClient.On("GenerateSyncRequestURL", mock.Anything).Return("test-url/followers/sync")
+	}
+
+	return newClient
 }
 
 func TestClientTestSuite(t *testing.T) {

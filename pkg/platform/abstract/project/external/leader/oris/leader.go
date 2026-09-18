@@ -160,6 +160,13 @@ func (l *LeaderOps) GenerateGetUpdatedAfterRequestURL(apiAddress string) string 
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, "")
 }
 
+// GenerateSyncRequestURL builds the follower-sync trigger URL. Unlike the other project
+// endpoints, this one lives directly under the leader's "projects" subdomain rather than
+// its nested "projects/projects" resource path, so it does not go through ProjectRequestURL.
+func (l *LeaderOps) GenerateSyncRequestURL(apiAddress string) string {
+	return fmt.Sprintf("%s/%s/projects/followers/sync", apiAddress, leaderCommon.APIVersionV1)
+}
+
 func (l *LeaderOps) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
 	return l.ProjectRequestURL(apiAddress, leaderCommon.APIVersionV1, projectName)
 }
