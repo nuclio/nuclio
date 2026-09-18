@@ -1275,10 +1275,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			},
 		}
 
-		// apply when provided
-		if len(imagePullSecretRefs) > 0 {
-			deploymentSpec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
-		}
+		deploymentSpec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate supplementary containers")
@@ -1353,10 +1350,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
 		deployment.Spec.Template.Spec.RuntimeClassName = function.Spec.RuntimeClassName
 
-		// apply when provided
-		if len(imagePullSecretRefs) > 0 {
-			deployment.Spec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
-		}
+		deployment.Spec.Template.Spec.ImagePullSecrets = imagePullSecretRefs
 
 		if err := lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate supplementary containers")

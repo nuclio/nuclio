@@ -132,9 +132,10 @@ func (nf *NuclioFunction) EnrichNodeSelector(platformNodeSelector, projectNodeSe
 }
 
 // EnrichImagePullSecrets enriches Status.EnrichedImagePullSecrets with the deduped union of
-// Spec's image pull secrets and the platform's default image pull secrets.
+// the platform's default image pull secrets and Spec's image pull secrets, platform defaults first
+// and function secrets last, so function secrets win on host conflicts.
 func (nf *NuclioFunction) EnrichImagePullSecrets(platformDefaultSecrets []string) {
-	nf.Status.EnrichedImagePullSecrets = common.MergeStringSlices(nf.Spec.GetImagePullSecrets(), platformDefaultSecrets)
+	nf.Status.EnrichedImagePullSecrets = common.MergeStringSlices(platformDefaultSecrets, nf.Spec.GetImagePullSecrets())
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

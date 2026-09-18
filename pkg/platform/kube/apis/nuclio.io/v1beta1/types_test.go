@@ -106,7 +106,7 @@ func (suite *KubeNuclioTestSuite) TestEnrichImagePullSecrets() {
 	function.Spec.ImagePullSecrets = "secret-a"
 	function.Spec.ImagePullSecretsList = []string{"secret-b"}
 	function.EnrichImagePullSecrets([]string{"default-secret"})
-	suite.Require().Equal([]string{"secret-a", "secret-b", "default-secret"}, function.Status.EnrichedImagePullSecrets)
+	suite.Require().Equal([]string{"default-secret", "secret-a", "secret-b"}, function.Status.EnrichedImagePullSecrets)
 }
 
 func TestKubePlatformTestSuite(t *testing.T) {
