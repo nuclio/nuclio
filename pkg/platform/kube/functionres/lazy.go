@@ -2446,7 +2446,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 							Name: "function-invocator",
 							Image: common.GetEnvOrDefaultString(
 								"NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME",
-								"gcr.io/iguazio/curlimages/curl:7.81.0"),
+								"curlimages/curl:7.81.0"),
 							Command:         []string{"curl"},
 							Args:            curlArgs,
 							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),

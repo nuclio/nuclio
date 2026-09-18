@@ -34,7 +34,7 @@ import (
 )
 
 // mergeTestPythonImage mirrors the NUCLIO_PYTHON_INIT_CONTAINER_IMAGE default in types.go.
-const mergeTestPythonImage = "gcr.io/iguazio/python:3.11"
+const mergeTestPythonImage = "python:3.11"
 
 // MergeIntegrationTestSuite runs the real merge-authfile container spec against a Docker container,
 // verifying both the spec and the embedded script's behavior end to end.

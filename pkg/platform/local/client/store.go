@@ -480,7 +480,7 @@ func (s *Store) Initialize() (string, error) {
 	}
 
 	// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
-	// using alpine mirrored to gcr.io/iguazio for stability
+	// using alpine pulled directly from Docker Hub for stability
 	if _, err := s.dockerClient.RunContainer(s.imageName, &dockerclient.RunOptions{
 		Volumes:          map[string]string{volumeName: baseDir},
 		Remove:           true,

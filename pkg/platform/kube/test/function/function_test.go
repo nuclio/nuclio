@@ -2160,7 +2160,7 @@ func (suite *DeployFunctionTestSuite) buildAndPushAuthProxySidecarImage() string
 			RegistryURL: suite.RegistryURL,
 			BuildArgs: map[string]string{
 				"ALPINE_IMAGE": common.GetEnvOrDefaultString("NUCLIO_DOCKER_ALPINE_IMAGE",
-					"gcr.io/iguazio/alpine:3.23"),
+					"alpine:3.23"),
 				"NUCLIO_DOCKER_REPO": fmt.Sprintf("%s/%s",
 					common.GetEnvOrDefaultString("REPO", "quay.io"),
 					common.GetEnvOrDefaultString("REPO_NAME", "nuclio")),

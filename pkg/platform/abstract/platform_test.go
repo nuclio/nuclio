@@ -2768,12 +2768,12 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 		{
 			name:              "No base images configured - returns default",
 			specRuntime:       "python:3.12",
-			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+			expectedBaseImage: "python:3.12",
 		},
 		{
 			name:              "Empty base images map - returns default",
 			specRuntime:       "nodejs",
-			expectedBaseImage: "gcr.io/iguazio/node:20",
+			expectedBaseImage: "node:20",
 		},
 		{
 			name: "Base image configured for runtime name only",
@@ -2797,7 +2797,7 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 				"golang": "custom-golang:latest",
 			},
 			specRuntime:       "python:3.12",
-			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+			expectedBaseImage: "python:3.12",
 		},
 	}
 

@@ -239,7 +239,7 @@ dashboard:
         tag: 497.0.0-slim
       # Used by the merge-authfile init container to run the embedded registry-auth merge script.
       python:
-        repository: gcr.io/iguazio/python
+        repository: python
         tag: "3.11"
         pullPolicy: IfNotPresent
 
