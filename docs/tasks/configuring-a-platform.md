@@ -4,6 +4,7 @@
 - [Overview](#overview)
 - [Creating a platform configuration in Kubernetes](#creating-a-platform-configuration-in-kubernetes)
 - [Configuration elements](#configuration-elements)
+- [Function Authentication (`authentication`)](#authentication)
 - [Base Images (`baseImages`)](#base-images-baseimages)
 
 ### Overview
@@ -191,6 +192,45 @@ cronTriggerCreationMode: "kube"
 ```
 
 For more information, see the [Cron-trigger reference](../reference/triggers/cron.md).
+
+<a id="authentication"></a>
+### Function Authentication (`authentication`)
+
+Function authentication enables the auth-proxy sidecar, which enforces authentication on function HTTP requests. When enabled, each function pod runs two containers: the **processor** (continues to listen on port 8080 on loopback, unchanged) and the **auth-proxy sidecar** (listens on port 6080, cluster-facing). The Kubernetes Service's targetPort is repointed from 8080 to 6080, so all incoming requests route through the auth-proxy first. The auth-proxy authenticates requests based on the `authenticationMode` configured in the function's HTTP trigger, then forwards approved requests to the processor on loopback.
+
+**Note:** This is applicable only to Kubernetes deployments.
+
+Configuration options:
+
+- `functionAuthenticationEnabled` (bool, default: `false`) - Enable the auth-proxy sidecar injection and authentication enforcement for all function HTTP triggers.
+- `authURL` (string, required when `functionAuthenticationEnabled: true`) - The URL of the authentication service endpoint that the auth-proxy calls to validate requests. This endpoint is called with the request details to determine if the request is authenticated.
+- `signInURL` (string, required when `functionAuthenticationEnabled: true`) - The URL to which unauthenticated requests are redirected when the HTTP trigger's `authenticationMode` is set to `browser`. Typically points to a sign-in page or authentication UI.
+- `authSidecarImage` (string, required when `functionAuthenticationEnabled: true`) - The container image URI for the auth-proxy sidecar. This image is automatically injected into each function pod running on Kubernetes. Example: `"nuclio/auth-proxy:latest"` or `"my-registry.example.com/nuclio/auth-proxy:v1.0.0"`.
+- `allowedModes` (list of strings, optional) - Restricts which authentication modes are permitted for HTTP triggers on the platform. If not specified, the default modes are: `none`, `api`, `browser`, `basicAuth`. Example: `["none", "api"]` to allow only unauthenticated and API-level auth.
+- `defaultMode` (string, optional, default: `none`) - The default authentication mode applied to HTTP triggers that do not explicitly set `authenticationMode`. Must be one of the allowed modes.
+
+Example platform configuration with function authentication enabled:
+
+```yaml
+authentication:
+  functionAuthenticationEnabled: true
+  authURL: "https://auth-service.default.svc.cluster.local:8080/auth"
+  signInURL: "https://auth-service.default.svc.cluster.local:8080/signin"
+  authSidecarImage: "nuclio/auth-proxy:latest"
+  allowedModes:
+    - "none"
+    - "api"
+    - "browser"
+  defaultMode: "api"
+```
+
+After enabling authentication in the platform config, configure the desired authentication mode on individual functions using the HTTP trigger's `authenticationMode` attribute. See the [HTTP trigger reference](../reference/triggers/http.md#attributes) for available modes (`none`, `api`, `browser`, `basicAuth`) and configuration options.
+
+The `/__internal/health` path is always allowed without authentication, so Kubernetes liveness and readiness probes work correctly even when authentication is enabled.
+
+For scale-to-zero (DLX) deployments, the auth-proxy operates in **auth-only** mode, exposing only the `/auth` endpoint for the DLX to validate requests before scaling the function back up from zero replicas. The DLX uses the same `authURL` and `signInURL` values from the platform configuration to authenticate incoming requests.
+
+For more information, see the [Architecture overview](../concepts/architecture.md#processor-architecture) and [Invoking Functions by Name with a Kubernetes Ingress](../concepts/k8s/function-ingress.md#authentication-and-ingress).
 
 <a id="runtime"></a>
 ### Runtime (`runtime`)

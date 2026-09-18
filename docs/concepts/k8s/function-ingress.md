@@ -10,7 +10,7 @@
 ## Overview
 
 If you followed the [Getting Started with Nuclio on Kubernetes](../../setup/k8s/getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](../../setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard.
-By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port.
+By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port. On Kubernetes, this port is served by the auth-proxy sidecar, which authenticates the request before forwarding it to the processor. The authentication mode is controlled by the `authenticationMode` attribute of the function's HTTP trigger (see [HTTP trigger reference](../../reference/triggers/http.md)).
 To invoke the function externally, using `nuctl`, you probably exposed your function by using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
 
 This means that if your function's HTTP trigger is configured with a `NodePort`, any underlying HTTP client can call `http://<your cluster IP>:<some unique port>` to reach it.
@@ -99,6 +99,23 @@ If your `helloworld` function was configured in this way, and assuming that Træ
 - `some.host.com:30019/wat`
 
 Note that since the `i1` configuration explicitly specifies `some.host.com` as the `host` for the paths, the function will _not_ be accessible through the cluster IP; i.e., `<cluster ip>:30019/first/path` will return a `404` error.
+
+## Authentication and ingress
+
+> **Feature flag:** authentication requires `authentication.functionAuthenticationEnabled: true` in the platform
+> configuration (disabled by default). Also set `authentication.authURL` and `authentication.signInURL` — these replace
+> the legacy `ingressConfig.iguazioAuthURL` / `ingressConfig.iguazioSignInURL` fields.
+
+All traffic routed through ingress is subject to the same authentication enforced by the auth-proxy sidecar inside the function pod. Configure the `authenticationMode` attribute in the HTTP trigger to control how the sidecar handles unauthenticated requests (see [HTTP trigger reference](../../reference/triggers/http.md)):
+
+- `none` (default) — all requests are allowed.
+- `api` — unauthenticated requests are rejected with HTTP 401.
+- `browser` — unauthenticated requests are redirected (HTTP 302) to the configured sign-in URL.
+- `basicAuth` — requests must carry valid HTTP Basic credentials.
+
+The `/__internal/health` path is always allowed regardless of `authenticationMode`, so kubelet health probes work even when authentication is enabled.
+
+When the auth-proxy operates in **auth-only** mode (DLX / scale-to-zero), the `X-Nuclio-Target-Function-Name` header identifies which function the request targets.
 
 ## Deploying an ingress example
 
