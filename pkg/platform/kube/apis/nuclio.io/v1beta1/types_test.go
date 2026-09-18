@@ -101,6 +101,14 @@ func (suite *KubeNuclioTestSuite) TestEnrichNodeSelector() {
 	}
 }
 
+func (suite *KubeNuclioTestSuite) TestEnrichImagePullSecrets() {
+	function := &NuclioFunction{}
+	function.Spec.ImagePullSecrets = "secret-a"
+	function.Spec.ImagePullSecretsList = []string{"secret-b"}
+	function.EnrichImagePullSecrets([]string{"default-secret"})
+	suite.Require().Equal([]string{"secret-a", "secret-b", "default-secret"}, function.Status.EnrichedImagePullSecrets)
+}
+
 func TestKubePlatformTestSuite(t *testing.T) {
 	suite.Run(t, new(KubeNuclioTestSuite))
 }

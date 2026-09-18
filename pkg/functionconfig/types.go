@@ -712,12 +712,7 @@ func (s *Spec) DeepCopyInto(out *Spec) {
 // GetImagePullSecrets returns the deduped union of the singular ImagePullSecrets
 // and ImagePullSecretsList, with the older field taking precedence for ordering.
 func (s *Spec) GetImagePullSecrets() []string {
-	var secretNames []string
-	if s.ImagePullSecrets != "" {
-		secretNames = append(secretNames, s.ImagePullSecrets)
-	}
-	secretNames = append(secretNames, s.ImagePullSecretsList...)
-	return common.RemoveDuplicatesFromSliceString(secretNames)
+	return common.MergeStringSlices(common.SliceFromNonEmptyString(s.ImagePullSecrets), s.ImagePullSecretsList)
 }
 
 // GetHTTPPort returns the HTTP port
@@ -1182,6 +1177,9 @@ type Status struct {
 
 	// enriched service account from function config enriched with project's and platform service account
 	EnrichedServiceAccount string `json:"enrichedServiceAccount,omitempty"`
+
+	// image pull secrets from function config merged with the platform's default image pull secret
+	EnrichedImagePullSecrets []string `json:"enrichedImagePullSecrets,omitempty"`
 }
 
 func (s *Status) InvocationURLs() []string {

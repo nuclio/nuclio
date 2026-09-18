@@ -38,6 +38,7 @@ func main() {
 	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
+	imagePullSecretsList := flag.String("image-pull-secrets-list", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS_LIST"), "Optional comma-separated list of secret names to use for pull")
 	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	platformConfigurationName := flag.String("platform-config-name", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_PLATFORM_CONFIGURATION_NAME", "nuclio-platform-config"), "Platform configuration resource name")
 	functionOperatorNumWorkersStr := flag.String("function-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_OPERATOR_NUM_WORKERS", "4"), "Set number of workers for the function operator (optional)")
@@ -58,9 +59,13 @@ func main() {
 	// get the namespace from args -> env -> default to self
 	resolvedNamespace := common.ResolveNamespace(*namespace, "NUCLIO_CONTROLLER_NAMESPACE")
 
+	mergedImagePullSecrets := common.MergeStringSlices(
+		common.SliceFromNonEmptyString(*imagePullSecrets),
+		common.SplitCommaSeparatedString(*imagePullSecretsList))
+
 	if err := app.Run(*kubeconfigPath,
 		resolvedNamespace,
-		*imagePullSecrets,
+		mergedImagePullSecrets,
 		*platformConfigurationPath,
 		*platformConfigurationName,
 		*functionOperatorNumWorkersStr,

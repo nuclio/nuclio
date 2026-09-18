@@ -164,8 +164,7 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 }
 
 func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
-	function *nuclioio.NuclioFunction,
-	imagePullSecrets string) (Resources, error) {
+	function *nuclioio.NuclioFunction) (Resources, error) {
 	var err error
 
 	// get labels from the function and add class labels
@@ -233,7 +232,6 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 	// create or update the applicable deployment
 	if resources.deployment, err = lc.createOrUpdateDeployment(ctx,
 		functionLabels,
-		imagePullSecrets,
 		function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update deployment")
 	}
@@ -1201,7 +1199,6 @@ func (lc *lazyClient) patchService(ctx context.Context, function *nuclioio.Nucli
 
 func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	functionLabels labels.Set,
-	imagePullSecrets string,
 	function *nuclioio.NuclioFunction) (*appsv1.Deployment, error) {
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
@@ -1236,13 +1233,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		return (resource).(*appsv1.Deployment).DeletionTimestamp != nil
 	}
 
-	imagePullSecretNames := function.Spec.GetImagePullSecrets()
-	if len(imagePullSecretNames) == 0 && imagePullSecrets != "" {
-		imagePullSecretNames = []string{imagePullSecrets}
-	}
-
 	var imagePullSecretRefs []v1.LocalObjectReference
-	for _, secretName := range imagePullSecretNames {
+	for _, secretName := range function.Status.EnrichedImagePullSecrets {
 		imagePullSecretRefs = append(imagePullSecretRefs, v1.LocalObjectReference{Name: secretName})
 	}
 
