@@ -731,10 +731,9 @@ func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
 		common.RuntimePython312: "python:3.12",
 		common.RuntimeNodejs:    "node:20",
 		// TODO: RuntimeJava stays on gcr.io/iguazio until the Java runtime's base images are addressed separately
-		common.RuntimeJava: "gcr.io/iguazio/openjdk:11-jre-slim",
-		common.RuntimeRuby: "ruby:2.4.4-alpine",
-		// TODO: RuntimeDotnetcore stays on gcr.io/iguazio — microsoft/dotnet-runtime has no tags on Docker Hub (Microsoft moved to mcr.microsoft.com)
-		common.RuntimeDotnetcore: "gcr.io/iguazio/dotnet/runtime:9.0",
+		common.RuntimeJava:       "gcr.io/iguazio/openjdk:11-jre-slim",
+		common.RuntimeRuby:       "ruby:2.4.4-alpine",
+		common.RuntimeDotnetcore: "mcr.microsoft.com/dotnet/runtime:9.0",
 	}
 }
 

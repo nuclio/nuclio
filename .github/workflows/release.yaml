@@ -378,6 +378,12 @@ jobs:
         with:
           platforms: ${{ matrix.arch }}
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Build binaries
         run: |
           NUCLIO_OS=linux make tools

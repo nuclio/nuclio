@@ -158,6 +158,12 @@ jobs:
           cache: true
           go-version-file: go.mod
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Build
         run: |
           make nuctl
@@ -238,6 +244,12 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
+
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55 # 2.18.0
         with:
@@ -350,6 +362,12 @@ jobs:
           cache: true
           go-version-file: go.mod
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v8
         with:
@@ -389,6 +407,12 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
+
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55 # 2.18.0
         with:
