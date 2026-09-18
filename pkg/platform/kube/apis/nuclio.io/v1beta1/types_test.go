@@ -103,6 +103,7 @@ func (suite *KubeNuclioTestSuite) TestEnrichNodeSelector() {
 
 func (suite *KubeNuclioTestSuite) TestEnrichImagePullSecrets() {
 	function := &NuclioFunction{}
+	// nolint: staticcheck
 	function.Spec.ImagePullSecrets = "secret-a"
 	function.Spec.ImagePullSecretsList = []string{"secret-b"}
 	function.EnrichImagePullSecrets([]string{"default-secret"})
