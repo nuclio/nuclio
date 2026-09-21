@@ -724,15 +724,16 @@ func (c *ElasticSearchConfig) Validate() error {
 // getDefaultRuntimeBaseImages returns the default runtime base images
 func (c *Config) getDefaultRuntimeBaseImages() map[string]string {
 	return map[string]string{
-		common.RuntimeShell:      "gcr.io/iguazio/alpine:3.23",
-		common.RuntimeGolang:     "gcr.io/iguazio/alpine:3.23",
-		common.RuntimePython310:  "gcr.io/iguazio/python:3.10",
-		common.RuntimePython311:  "gcr.io/iguazio/python:3.11",
-		common.RuntimePython312:  "gcr.io/iguazio/python:3.12",
-		common.RuntimeNodejs:     "gcr.io/iguazio/node:20",
+		common.RuntimeShell:     "alpine:3.23",
+		common.RuntimeGolang:    "alpine:3.23",
+		common.RuntimePython310: "python:3.10",
+		common.RuntimePython311: "python:3.11",
+		common.RuntimePython312: "python:3.12",
+		common.RuntimeNodejs:    "node:20",
+		// TODO: RuntimeJava stays on gcr.io/iguazio until the Java runtime's base images are addressed separately
 		common.RuntimeJava:       "gcr.io/iguazio/openjdk:11-jre-slim",
-		common.RuntimeRuby:       "gcr.io/iguazio/ruby:2.4.4-alpine",
-		common.RuntimeDotnetcore: "gcr.io/iguazio/dotnet/runtime:9.0",
+		common.RuntimeRuby:       "ruby:2.4.4-alpine",
+		common.RuntimeDotnetcore: "mcr.microsoft.com/dotnet/runtime:9.0",
 	}
 }
 
