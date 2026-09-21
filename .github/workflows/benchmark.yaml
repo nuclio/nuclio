@@ -89,6 +89,12 @@ jobs:
           cache: true
           go-version-file: go.mod
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Install vegeta
         run: |
 

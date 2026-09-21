@@ -14,7 +14,7 @@
 
 ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
-ARG NUCLIO_PYTHON_BASE_IMAGE_NAME=gcr.io/iguazio/python
+ARG NUCLIO_PYTHON_BASE_IMAGE_NAME=python
 
 # Supplies python 3.10 & common wheels
 FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.10 as python310-builder
