@@ -96,12 +96,15 @@ endif
 # TODO: NUCLIO_DOCKER_JAVA_OPENJDK stays on gcr.io/iguazio until the Java runtime's base images are addressed separately
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
-	NUCLIO_BASE_IMAGE_NAME 			?= arm32v7/golang
+	# NUCLIO_BASE_IMAGE_NAME also feeds hack/docker/build/builder/Dockerfile, which pins
+	# FROM --platform=${BUILDPLATFORM} (the CI runner's native arch, not NUCLIO_ARCH) - it
+	# needs a multi-arch image regardless of target arch, so no arch-specific prefix here.
+	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
-	NUCLIO_BASE_IMAGE_NAME 			?= arm64v8/golang
+	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-jdk-slim-bullseye
 	NODE_IMAGE_NAME 				?= arm64v8/node:20
 else
