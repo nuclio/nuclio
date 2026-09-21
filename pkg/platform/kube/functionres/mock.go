@@ -38,8 +38,8 @@ func (mfr *MockedFunctionRes) Get(ctx context.Context, s string, s2 string) (Res
 	return args.Get(0).(Resources), args.Error(1)
 }
 
-func (mfr *MockedFunctionRes) CreateOrUpdate(ctx context.Context, function *nuclioio.NuclioFunction, s string) (Resources, error) {
-	args := mfr.Called(ctx, function, s)
+func (mfr *MockedFunctionRes) CreateOrUpdate(ctx context.Context, function *nuclioio.NuclioFunction) (Resources, error) {
+	args := mfr.Called(ctx, function)
 	return args.Get(0).(Resources), args.Error(1)
 }
 

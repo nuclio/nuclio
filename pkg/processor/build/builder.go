@@ -63,6 +63,7 @@ import (
 )
 
 const (
+	// TODO: switch to nuclio/uhttpc once 0.0.3 is published there (Docker Hub only has 0.0.1/latest today)
 	uhttpcImage         = "gcr.io/iguazio/uhttpc:0.0.3-%s"
 	GitEntryType        = "git"
 	ArchiveEntryType    = "archive"
@@ -1156,7 +1157,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BaseImageRegistry:    baseImageRegistry,
 			OnbuildImageRegistry: onbuildImageRegistry,
 			RepoName:             b.resolveRepoName(registryURL),
-			SecretName:           b.options.FunctionConfig.Spec.ImagePullSecrets,
+			SecretNames:          b.options.FunctionConfig.Spec.GetImagePullSecrets(),
 			OutputImageFile:      b.options.OutputImageFile,
 			BuildTimeoutSeconds:  b.resolveBuildTimeoutSeconds(),
 

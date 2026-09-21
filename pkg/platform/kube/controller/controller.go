@@ -41,7 +41,7 @@ type Controller struct {
 	nuclioClientSet           nuclioioclient.Interface
 	functionresClient         functionres.Client
 	apigatewayresClient       apigatewayres.Client
-	imagePullSecrets          string
+	imagePullSecrets          []string
 	platformConfiguration     *platformconfig.Config
 	platformConfigurationName string
 	externalIPAddresses       []string
@@ -65,7 +65,7 @@ type Controller struct {
 
 func NewController(parentLogger logger.Logger,
 	namespace string,
-	imagePullSecrets string,
+	imagePullSecrets []string,
 	kubeClientSet kube.Client,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,

@@ -35,6 +35,14 @@ func (suite *TypesTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
+func (suite *TypesTestSuite) TestGetImagePullSecrets() {
+	spec := &Spec{
+		ImagePullSecrets:     "secret-a",
+		ImagePullSecretsList: []string{"secret-b", "secret-c"},
+	}
+	suite.Equal([]string{"secret-a", "secret-b", "secret-c"}, spec.GetImagePullSecrets())
+}
+
 func (suite *ReaderTestSuite) TestFunctionMetaSkipDeployAnnotationTrue() {
 	for _, testCase := range []struct {
 		Annotations    map[string]string

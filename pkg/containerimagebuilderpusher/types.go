@@ -45,7 +45,7 @@ type BuildOptions struct {
 	BaseImageRegistry                        string
 	OnbuildImageRegistry                     string
 	RepoName                                 string
-	SecretName                               string
+	SecretNames                              []string
 	OutputImageFile                          string
 	BuildTimeoutSeconds                      int64
 	Affinity                                 *v1.Affinity
@@ -177,7 +177,7 @@ func NewContainerBuilderConfiguration(existing *ContainerBuilderConfiguration) (
 
 	if containerBuilderConfiguration.PythonImage == "" {
 		containerBuilderConfiguration.PythonImage =
-			common.GetEnvOrDefaultString("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE", "gcr.io/iguazio/python:3.11")
+			common.GetEnvOrDefaultString("NUCLIO_PYTHON_INIT_CONTAINER_IMAGE", "python:3.11")
 	}
 
 	if containerBuilderConfiguration.PythonImagePullPolicy == "" {

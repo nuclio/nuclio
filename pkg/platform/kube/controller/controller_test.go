@@ -75,7 +75,7 @@ func (suite *ControllerTestSuite) SetupTest() {
 	// create controller
 	suite.controller, err = NewController(suite.logger,
 		suite.namespace,
-		"",
+		nil,
 		kube.NewClientWithRetryFromClient(suite.k8sClientSet),
 		suite.functionClientSet,
 		functionresClient,

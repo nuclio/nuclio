@@ -327,12 +327,30 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	ap.enrichEnvVars(functionConfig)
 
+	ap.enrichImagePullSecrets(ctx, functionConfig)
+
 	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
 
 	// enrich timestamp hash to update the deployment
 	functionConfig.Spec.LastDeployTimestamp = strconv.Itoa(int(time.Now().UnixNano()))
 
 	return nil
+}
+
+// enrichImagePullSecrets migrates the deprecated singular ImagePullSecrets into ImagePullSecretsList
+// and clears it, so the persisted CRD spec only ever carries the list after the first redeploy.
+// TODO: remove ImagePullSecrets in future versions.
+// nolint: staticcheck
+func (ap *Platform) enrichImagePullSecrets(ctx context.Context, functionConfig *functionconfig.Config) {
+	if functionConfig.Spec.ImagePullSecrets == "" {
+		return
+	}
+
+	ap.Logger.WarnWithCtx(ctx,
+		"imagePullSecrets is deprecated and will be removed in future versions, use imagePullSecretsList instead",
+		"functionName", functionConfig.Meta.Name)
+	functionConfig.Spec.ImagePullSecretsList = functionConfig.Spec.GetImagePullSecrets()
+	functionConfig.Spec.ImagePullSecrets = ""
 }
 
 // EnrichLabels enriches labels with default project name

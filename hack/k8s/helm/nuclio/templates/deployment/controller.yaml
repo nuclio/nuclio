@@ -58,6 +58,10 @@ spec:
           value: {{ template "nuclio.externalIPAddresses" . }}
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
+        {{- if .Values.registry.secretNames }}
+        - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS_LIST
+          value: {{ template "nuclio.registry.credentialsSecretNames" . }}
+        {{- end }}
         - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME
           value: {{ .Values.controller.cronTriggerCronJobImage.repository }}:{{ .Values.controller.cronTriggerCronJobImage.tag }}
         - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY

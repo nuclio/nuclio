@@ -555,7 +555,7 @@ func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, cu
 			"run",
 			"%s",
 			fmt.Sprintf("--labels=%s", curlPodLabel),
-			"--image=gcr.io/iguazio/curlimages/curl:7.81.0",
+			"--image=curlimages/curl:7.81.0",
 			"--restart=Never",
 			"--command",
 			"--",
@@ -691,7 +691,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
-		"",
+		nil,
 		kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
 		suite.FunctionClient,
