@@ -887,7 +887,7 @@ func (suite *testSuite) getZookeeperContainerLogs() string {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "wurstmeister/kafka:2.13-2.8.1@sha256:2d4bbf9cc83d9854d36582987da5f939fb9255fb128d18e3cf2c6ad825a3275", &dockerclient.RunOptions{
+	return "wurstmeister/kafka:2.13-2.8.1@sha256:2d4bbf9cc83d9854d36582987da5f939fb9255fb128d18e3cf2c6ad825a32751", &dockerclient.RunOptions{
 		ContainerName: suite.brokerContainerName,
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        false, // keep container on exit so we can capture logs on failure
@@ -915,7 +915,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 }
 
 func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "wurstmeister/zookeeper:latest@sha256:7a7fd44a72104bfbd24a77844bad5fabc86485b036f988ea927d1780782a668", &dockerclient.RunOptions{
+	return "wurstmeister/zookeeper:latest@sha256:7a7fd44a72104bfbd24a77844bad5fabc86485b036f988ea927d1780782a6680", &dockerclient.RunOptions{
 		ContainerName: suite.zooKeeperContainerName,
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        false, // keep container on exit so we can capture logs on failure
