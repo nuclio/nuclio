@@ -2774,7 +2774,7 @@ func (p *Platform) checkProjectAuthorization(ctx context.Context,
 	return err
 }
 
-// newDashboardDeploymentReadyChecker returns true if the dashboard deployment has at least one ready replica, that means ready to serve requests.
+// newDashboardDeploymentReadyChecker returns a function reporting whether the dashboard deployment has at least one ready replica, that means ready to serve requests.
 func newDashboardDeploymentReadyChecker(kubeClientSet kubeclient.Client, namespace string) func(context.Context) (bool, error) {
 	deploymentName := common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
 	return func(ctx context.Context) (bool, error) {

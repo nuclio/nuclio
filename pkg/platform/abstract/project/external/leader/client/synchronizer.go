@@ -156,7 +156,7 @@ func (c *Synchronizer) waitForServerReady(ctx context.Context) bool {
 		case <-ticker.C:
 			ready, err := c.checkServerReady(ctx)
 			if err != nil {
-				c.logger.InfoWithCtx(ctx,
+				c.logger.WarnWithCtx(ctx,
 					"Failed to check HTTP server readiness, will retry",
 					"err", errors.GetErrorStackString(err, 10))
 				continue

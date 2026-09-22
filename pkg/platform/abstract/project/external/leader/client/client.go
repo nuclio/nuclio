@@ -285,7 +285,7 @@ func (c *Client) SendLeaderSyncRequest(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to generate request headers")
 	}
 
-	c.logger.DebugWithCtx(ctx, "Sending leader sync request")
+	c.logger.DebugWithCtx(ctx, "Sending sync request to the leader")
 	// since SendLeaderSyncRequest is gated by ProjectsLeaderKindOris, we expect the leader to respond with 202.
 	if _, response, err := common.SendHTTPRequestWithContext(ctx,
 		c.httpClient,
@@ -296,10 +296,10 @@ func (c *Client) SendLeaderSyncRequest(ctx context.Context) error {
 		cookies,
 		http.StatusAccepted); err != nil {
 		c.logLeaderResponseError(ctx, response, "Failed to send leader sync request")
-		return errors.Wrap(err, "Failed to send leader sync request to leader")
+		return errors.Wrap(err, "Failed to send sync request to the leader")
 	}
 
-	c.logger.DebugWithCtx(ctx, "Successfully sent leader sync request to leader")
+	c.logger.DebugWithCtx(ctx, "Successfully sent sync request to the leader")
 	return nil
 }
 
