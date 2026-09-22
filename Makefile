@@ -83,7 +83,7 @@ NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND=list-all-dirs-with-tests
 LIST_TESTS_MAKE_COMMAND := $(if $(LIST_TESTS_MAKE_COMMAND),$(LIST_TESTS_MAKE_COMMAND),$(NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND))
 
 # Docker client cli to be used
-NUCLIO_DOCKER_CLIENT_VERSION ?= 29.4.0
+NUCLIO_DOCKER_CLIENT_VERSION ?= 29.8.1
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
 else ifeq ($(NUCLIO_ARCH), arm64)
@@ -93,24 +93,28 @@ else
 endif
 
 # alpine is commonly used by controller / dlx / autoscaler
+# TODO: NUCLIO_DOCKER_JAVA_OPENJDK stays on gcr.io/iguazio until the Java runtime's base images are addressed separately
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm32v7/alpine:3.23
-	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm32v7/golang
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
+	# NUCLIO_BASE_IMAGE_NAME also feeds hack/docker/build/builder/Dockerfile, which pins
+	# FROM --platform=${BUILDPLATFORM} (the CI runner's native arch, not NUCLIO_ARCH) - it
+	# needs a multi-arch image regardless of target arch, so no arch-specific prefix here.
+	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
-	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm32v7/node:20
+	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm64v8/alpine:3.23
-	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm64v8/golang
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
+	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-jdk-slim-bullseye
-	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm64v8/node:20
+	NODE_IMAGE_NAME 				?= arm64v8/node:20
 else
-	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/alpine:3.23
-	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/golang
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= alpine:3.23
+	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
-	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:20
+	NODE_IMAGE_NAME 				?= node:20
 endif
 
-NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
+NUCLIO_PYTHON_BASE_IMAGE_NAME ?= python
 
 NUCLIO_BASE_IMAGE_TAG ?= 1.26
 NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.26-alpine
@@ -373,14 +377,15 @@ endif
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    		= $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE    = $(NUCLIO_CACHE_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  		?= $(NUCLIO_ARCH)
+# TODO: switch to nuclio/uhttpc once 0.0.3 is published there (Docker Hub only has 0.0.1/latest today)
 NUCLIO_DOCKER_DASHBOARD_UHTTPC_IMAGE   		?= gcr.io/iguazio/uhttpc:0.0.3
 
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.30.4-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= arm32v7/nginx:1.31-alpine
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.30.4-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= arm64v8/nginx:1.31-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.30.4-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= nginx:1.31-alpine
 endif
 
 .PHONY: dashboard

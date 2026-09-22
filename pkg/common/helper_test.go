@@ -897,6 +897,52 @@ func (suite *StripImageTagTestSuite) TestStripImageTag() {
 	}
 }
 
+type MergeStringSlicesTestSuite struct {
+	suite.Suite
+}
+
+func (suite *MergeStringSlicesTestSuite) TestMergeStringSlices() {
+	for _, testCase := range []struct {
+		name     string
+		slices   [][]string
+		expected []string
+	}{
+		{
+			name: "empty",
+		},
+		{
+			name:     "single slice",
+			slices:   [][]string{{"a", "b"}},
+			expected: []string{"a", "b"},
+		},
+		{
+			name:     "multiple slices concatenated in order",
+			slices:   [][]string{{"a"}, {"b", "c"}},
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "duplicates deduped, first occurrence order preserved",
+			slices:   [][]string{{"a", "b"}, {"b", "a", "c"}},
+			expected: []string{"a", "b", "c"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expected, MergeStringSlices(testCase.slices...))
+		})
+	}
+}
+
+func (suite *MergeStringSlicesTestSuite) TestSliceFromNonEmptyString() {
+	suite.Require().Nil(SliceFromNonEmptyString(""))
+	suite.Require().Equal([]string{"a"}, SliceFromNonEmptyString("a"))
+}
+
+func (suite *MergeStringSlicesTestSuite) TestSplitCommaSeparatedString() {
+	suite.Require().Nil(SplitCommaSeparatedString(""))
+	suite.Require().Equal([]string{"a", "b"}, SplitCommaSeparatedString("a, b"))
+	suite.Require().Equal([]string{"a", "b"}, SplitCommaSeparatedString("a,b,a"))
+}
+
 type NormalizeHostsTestSuite struct {
 	suite.Suite
 }
@@ -952,5 +998,6 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(ContainsPathTraversalTestSuite))
 	suite.Run(t, new(EnvWithLegacyKeyTestSuite))
 	suite.Run(t, new(StripImageTagTestSuite))
+	suite.Run(t, new(MergeStringSlicesTestSuite))
 	suite.Run(t, new(NormalizeHostsTestSuite))
 }

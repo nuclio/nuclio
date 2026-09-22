@@ -46,6 +46,7 @@ kube
 kubeconfig
 Kubeconfig
 kubectl
+kubelet
 Kubeflow
 kubernetes
 Kusto

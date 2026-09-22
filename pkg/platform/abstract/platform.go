@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/logprocessing"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -326,12 +327,30 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	ap.enrichEnvVars(functionConfig)
 
+	ap.enrichImagePullSecrets(ctx, functionConfig)
+
 	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
 
 	// enrich timestamp hash to update the deployment
 	functionConfig.Spec.LastDeployTimestamp = strconv.Itoa(int(time.Now().UnixNano()))
 
 	return nil
+}
+
+// enrichImagePullSecrets migrates the deprecated singular ImagePullSecrets into ImagePullSecretsList
+// and clears it, so the persisted CRD spec only ever carries the list after the first redeploy.
+// TODO: remove ImagePullSecrets in future versions.
+// nolint: staticcheck
+func (ap *Platform) enrichImagePullSecrets(ctx context.Context, functionConfig *functionconfig.Config) {
+	if functionConfig.Spec.ImagePullSecrets == "" {
+		return
+	}
+
+	ap.Logger.WarnWithCtx(ctx,
+		"imagePullSecrets is deprecated and will be removed in future versions, use imagePullSecretsList instead",
+		"functionName", functionConfig.Meta.Name)
+	functionConfig.Spec.ImagePullSecretsList = functionConfig.Spec.GetImagePullSecrets()
+	functionConfig.Spec.ImagePullSecrets = ""
 }
 
 // EnrichLabels enriches labels with default project name
@@ -476,7 +495,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
-	if err := ap.validateProjectExists(ctx, functionConfig); err != nil {
+	if err := ap.ValidateProjectExistsAndSynced(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
 	}
 
@@ -1754,9 +1773,9 @@ func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functio
 	return nil
 }
 
-func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *functionconfig.Config) error {
-
-	// validate the project exists
+// ValidateProjectExistsAndSynced validates that the project referenced by functionConfig exists and,
+// per the Oris follower sync-status label, is not in the process of being created or deleted.
+func (ap *Platform) ValidateProjectExistsAndSynced(ctx context.Context, functionConfig *functionconfig.Config) error {
 	getProjectsOptions := &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
@@ -1779,6 +1798,17 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 	if len(projects) == 0 {
 		return nuclio.NewErrPreconditionFailed("Project does not exist")
 	}
+
+	// block resource creation if the project is still being created or deleted
+	switch leaderCommon.OrisSyncStatus(projects[0].GetConfig().Meta.Labels[leaderCommon.OrisLabelKeySyncStatus]) {
+	case leaderCommon.OrisSyncStatusCreating:
+		return nuclio.NewErrPreconditionFailed(
+			"Project is still being created and has not yet reached a stable status - retry once creation completes")
+	case leaderCommon.OrisSyncStatusDeleting:
+		return nuclio.NewErrPreconditionFailed(
+			"Project is being deleted and can no longer be used for this operation")
+	}
+
 	return nil
 }
 
@@ -2092,15 +2122,16 @@ func (ap *Platform) enrichHTTPTriggerAuthenticationMode(ctx context.Context, tri
 		return
 	}
 	defaultMode := ap.Config.Authentication.DefaultMode
-	if defaultMode == "" || defaultMode == auth.AuthenticationModeNone {
-		return
-	}
 	if triggerInstance.Attributes == nil {
 		triggerInstance.Attributes = make(map[string]interface{})
 	}
-	if mode, ok := triggerInstance.Attributes[auth.AttributeAuthenticationMode]; ok && mode != "" {
-		return
+	if mode, ok := triggerInstance.Attributes[auth.AttributeAuthenticationMode]; ok {
+		// If mode exists and not empty-keep it; the mode will be validated later in validateHTTPTriggerAuthentication
+		if mode != nil && mode != "" {
+			return
+		}
 	}
+
 	ap.Logger.DebugWithCtx(ctx,
 		"Enriching authentication mode for HTTP trigger",
 		"functionName", functionConfig.Meta.Name,

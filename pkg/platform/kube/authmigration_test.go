@@ -1001,6 +1001,16 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestUpdateAPIGatewayKeepsMigrat
 		Return(true, nil).
 		Once()
 
+	suite.mockedPlatform.
+		On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      suite.projectName,
+				Namespace: suite.Namespace,
+			},
+		}).
+		Return([]platform.Project{&platform.AbstractProject{}}, nil).
+		Once()
+
 	// the upstream function does not exist, which the update tolerates
 	suite.nuclioFunctionInterfaceMock.
 		On("Get", suite.ctx, "func", metav1.GetOptions{}).
@@ -1027,6 +1037,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestUpdateAPIGatewayKeepsMigrat
 	suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
 		updatedAPIGateway.Labels[common.NuclioLabelKeyMigrationFunctionAuth])
 	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+	suite.mockedPlatform.AssertExpectations(suite.T())
 }
 
 // TestCreateAPIGatewayStampsMigrationLabel asserts a gateway created while the feature is already on is
@@ -1040,6 +1051,16 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestCreateAPIGatewayStampsMigra
 			opaclient.ActionCreate,
 			mock.AnythingOfType("*opaclient.PermissionOptions")).
 		Return(true, nil).
+		Once()
+
+	suite.mockedPlatform.
+		On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      suite.projectName,
+				Namespace: suite.Namespace,
+			},
+		}).
+		Return([]platform.Project{&platform.AbstractProject{}}, nil).
 		Once()
 
 	// the upstream function does not exist, which the create tolerates
@@ -1075,6 +1096,7 @@ func (suite *AuthMigrationKubePlatformTestSuite) TestCreateAPIGatewayStampsMigra
 	suite.Require().Equal(common.NuclioLabelValueMigrationApplied,
 		createdAPIGateway.Labels[common.NuclioLabelKeyMigrationFunctionAuth])
 	suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
+	suite.mockedPlatform.AssertExpectations(suite.T())
 }
 
 // TestPreserveMigrationLabel asserts the migration label survives an update request that does not carry it,

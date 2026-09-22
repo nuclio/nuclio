@@ -118,6 +118,12 @@ jobs:
           cache: true
           go-version-file: go.mod
 
+      - name: Login to DockerHub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Build ${{ matrix.image_rule }} image
         run: make docker-images
         env:
@@ -155,7 +161,7 @@ jobs:
       - name: Upload scan results
         # by default we don't upload results to github
         if: github.event.inputs.publish_results != ''
-        uses: github/codeql-action/upload-sarif@v4.37.9
+        uses: github/codeql-action/upload-sarif@v4.38.0
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
           category: ${{ matrix.image_rule }}
@@ -199,7 +205,7 @@ jobs:
 
       - name: Upload scan results
         if: github.event.inputs.publish_results != ''
-        uses: github/codeql-action/upload-sarif@v4.37.9
+        uses: github/codeql-action/upload-sarif@v4.38.0
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
           category: filesystem

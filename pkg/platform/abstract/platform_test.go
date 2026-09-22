@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -1635,6 +1636,56 @@ func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestEnrichImagePullSecrets() {
+	for _, testCase := range []struct {
+		name                     string
+		imagePullSecrets         string
+		imagePullSecretsList     []string
+		expectedImagePullSecrets string
+		expectedList             []string
+	}{
+		{
+			name:                     "legacy-only",
+			imagePullSecrets:         "a",
+			expectedImagePullSecrets: "",
+			expectedList:             []string{"a"},
+		},
+		{
+			name:                     "legacy-already-in-list",
+			imagePullSecrets:         "a",
+			imagePullSecretsList:     []string{"a"},
+			expectedImagePullSecrets: "",
+			expectedList:             []string{"a"},
+		},
+		{
+			name:                     "legacy-and-different-list-entry",
+			imagePullSecrets:         "a",
+			imagePullSecretsList:     []string{"b"},
+			expectedImagePullSecrets: "",
+			expectedList:             []string{"a", "b"},
+		},
+		{
+			name:                     "nothing-set",
+			expectedImagePullSecrets: "",
+			expectedList:             nil,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Meta.Name = testCase.name
+			// nolint: staticcheck
+			functionConfig.Spec.ImagePullSecrets = testCase.imagePullSecrets
+			functionConfig.Spec.ImagePullSecretsList = testCase.imagePullSecretsList
+
+			suite.Platform.enrichImagePullSecrets(suite.ctx, functionConfig)
+
+			// nolint: staticcheck
+			suite.Require().Equal(testCase.expectedImagePullSecrets, functionConfig.Spec.ImagePullSecrets)
+			suite.Require().Equal(testCase.expectedList, functionConfig.Spec.ImagePullSecretsList)
+		})
+	}
+}
+
 // TODO: remove this test in 1.15.x
 func (suite *AbstractPlatformTestSuite) TestEnrichNumWorkersFromMaxWorkers() {
 	functionConfig := functionconfig.NewConfig()
@@ -1727,6 +1778,75 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			continue
 		}
 		suite.Require().NoError(err)
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigProjectSyncStatus() {
+
+	// start from a clean mock: other tests in this suite may leave unconsumed "GetProjects"
+	// expectations behind when they error out before reaching project-existence validation
+	suite.initializeMockedPlatform()
+
+	for _, testCase := range []struct {
+		name          string
+		syncStatus    leaderCommon.OrisSyncStatus
+		expectedError string
+	}{
+		{
+			name:          "Creating",
+			syncStatus:    leaderCommon.OrisSyncStatusCreating,
+			expectedError: "Project is still being created and has not yet reached a stable status - retry once creation completes",
+		},
+		{
+			name:          "Deleting",
+			syncStatus:    leaderCommon.OrisSyncStatusDeleting,
+			expectedError: "Project is being deleted and can no longer be used for this operation",
+		},
+		{
+			name:       "Online",
+			syncStatus: leaderCommon.OrisSyncStatusOnline,
+		},
+		{
+			name: "MissingLabel",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			defer func() {
+				suite.initializeMockedPlatform()
+			}()
+
+			functionConfig := *functionconfig.NewConfig()
+
+			projectLabels := map[string]string{}
+			if testCase.syncStatus != "" {
+				projectLabels[leaderCommon.OrisLabelKeySyncStatus] = string(testCase.syncStatus)
+			}
+
+			suite.mockedPlatform.
+				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{Namespace: "default"},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{
+						ProjectConfig: platform.ProjectConfig{
+							Meta: platform.ProjectMeta{Labels: projectLabels},
+						},
+					},
+				}, nil).
+				Once()
+
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &functionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+			if testCase.expectedError != "" {
+				suite.Require().Error(err)
+				suite.Require().Equal(testCase.expectedError, errors.RootCause(err).Error())
+			} else {
+				suite.Require().NoError(err)
+			}
+			suite.mockedPlatform.AssertExpectations(suite.T())
+		})
 	}
 }
 
@@ -2648,12 +2768,12 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 		{
 			name:              "No base images configured - returns default",
 			specRuntime:       "python:3.12",
-			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+			expectedBaseImage: "python:3.12",
 		},
 		{
 			name:              "Empty base images map - returns default",
 			specRuntime:       "nodejs",
-			expectedBaseImage: "gcr.io/iguazio/node:20",
+			expectedBaseImage: "node:20",
 		},
 		{
 			name: "Base image configured for runtime name only",
@@ -2677,7 +2797,7 @@ func (suite *AbstractPlatformTestSuite) TestGetBaseImage() {
 				"golang": "custom-golang:latest",
 			},
 			specRuntime:       "python:3.12",
-			expectedBaseImage: "gcr.io/iguazio/python:3.12",
+			expectedBaseImage: "python:3.12",
 		},
 	}
 
@@ -2774,20 +2894,6 @@ func (suite *AbstractPlatformTestSuite) TestEnrichHTTPTriggerAuthenticationMode(
 			attributes:   map[string]interface{}{auth.AttributeAuthenticationMode: auth.AuthenticationModeBasicAuth},
 			expectedMode: auth.AuthenticationModeBasicAuth,
 		},
-		{
-			name:         "empty default not stamped",
-			flagEnabled:  true,
-			defaultMode:  "",
-			attributes:   map[string]interface{}{},
-			expectedMode: nil,
-		},
-		{
-			name:         "none default not stamped",
-			flagEnabled:  true,
-			defaultMode:  auth.AuthenticationModeNone,
-			attributes:   map[string]interface{}{},
-			expectedMode: nil,
-		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Platform.Config.Authentication = &platformconfig.Authentication{
@@ -2829,6 +2935,16 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 			expectError: true,
 		},
 		{
+			name:        "nil authenticationMode defaults to none",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: nil},
+		},
+		{
+			name:        "empty string authenticationMode defaults to none",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: ""},
+		},
+		{
 			name:        "basicAuth without credentials rejected",
 			flagEnabled: true,
 			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth)},
@@ -2851,6 +2967,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 		suite.Run(testCase.name, func() {
 			suite.Platform.Config.Authentication = &platformconfig.Authentication{
 				FunctionAuthenticationEnabled: testCase.flagEnabled,
+				DefaultMode:                   auth.AuthenticationModeAPI,
 			}
 			defer func() { suite.Platform.Config.Authentication = nil }()
 
@@ -2861,6 +2978,42 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 			} else {
 				suite.Require().NoError(err)
 			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichHTTTPTriggerAuthentication() {
+	for _, testCase := range []struct {
+		name     string
+		authMode interface{}
+	}{
+		{
+			name: "nil authenticationMode",
+		},
+		{
+			name:     "empty string authenticationMode",
+			authMode: "",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: true,
+				DefaultMode:                   auth.AuthenticationModeAPI,
+			}
+			defer func() { suite.Platform.Config.Authentication = nil }()
+
+			trigger := functionconfig.Trigger{Kind: "http", Name: "http0", Attributes: map[string]interface{}{
+				auth.AttributeAuthenticationMode: testCase.authMode,
+			}}
+			functionConfig := functionconfig.NewConfig()
+
+			// Enrichment replaces nil with default
+			suite.Platform.enrichHTTPTriggerAuthenticationMode(suite.ctx, "http0", &trigger, functionConfig)
+
+			// Validation should pass because enrichment fixed it
+			err := suite.Platform.validateHTTPTriggerAuthentication("http0", &trigger)
+			suite.Require().NoError(err)
+			suite.Equal(auth.AuthenticationModeAPI, trigger.Attributes[auth.AttributeAuthenticationMode])
 		})
 	}
 }

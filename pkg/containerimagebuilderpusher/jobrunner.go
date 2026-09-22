@@ -666,13 +666,11 @@ func (r *jobRunner) enrichServiceAccountFromBuilderConfiguration(buildOptions *B
 	return buildOptions.FunctionServiceAccount
 }
 
-// resolveRegistryAuthSecretNames returns platform default secrets plus the function-level secret, deduped.
+// resolveRegistryAuthSecretNames returns the platform default secrets plus the function-level secrets,
+// deduped. Platform defaults are listed first and function secrets last, so that function entries
+// override platform entries for the same registry host in the merged authfile.
 func (r *jobRunner) resolveRegistryAuthSecretNames(buildOptions *BuildOptions) []string {
-	names := append([]string{}, r.builderConfiguration.DefaultRegistryCredentialsSecretNames...)
-	if buildOptions.SecretName != "" {
-		names = append(names, buildOptions.SecretName)
-	}
-	return common.RemoveDuplicatesFromSliceString(names)
+	return common.MergeStringSlices(r.builderConfiguration.DefaultRegistryCredentialsSecretNames, buildOptions.SecretNames)
 }
 
 // configureRegistryAuthentication wires the registry authfile - and, if needed, cloud-provider logins

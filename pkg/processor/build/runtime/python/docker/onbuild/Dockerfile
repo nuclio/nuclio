@@ -14,7 +14,7 @@
 
 ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
-ARG NUCLIO_PYTHON_BASE_IMAGE_NAME=gcr.io/iguazio/python
+ARG NUCLIO_PYTHON_BASE_IMAGE_NAME=python
 
 # Supplies python 3.10 & common wheels
 FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.10 as python310-builder
@@ -22,6 +22,17 @@ FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.10 as python310-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.10 wheels
+RUN pip download \
+        --dest /whl \
+        --exists-action i \
+        --requirement /requirements/python3_10.txt
+
+# Supplies python 3.10 Alpine (musl) wheels
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.10-alpine as python310-alpine-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+# Python 3.10 musllinux wheels
 RUN pip download \
         --dest /whl \
         --exists-action i \
@@ -38,12 +49,34 @@ RUN pip download \
         --exists-action i \
         --requirement /requirements/python3_11.txt
 
+# Supplies python 3.11 Alpine (musl) wheels
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.11-alpine as python311-alpine-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+# Python 3.11 musllinux wheels
+RUN pip download \
+        --dest /whl \
+        --exists-action i \
+        --requirement /requirements/python3_11.txt
+
 # Supplies python 3.12 & common wheels
 FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.12 as python312-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.12 wheels
+RUN pip download \
+        --dest /whl \
+        --exists-action i \
+        --requirement /requirements/python3_12.txt
+
+# Supplies python 3.12 Alpine (musl) wheels
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.12-alpine as python312-alpine-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+# Python 3.12 musllinux wheels
 RUN pip download \
         --dest /whl \
         --exists-action i \
@@ -64,3 +97,8 @@ COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 COPY --from=python310-builder /whl /home/nuclio/bin/py3.10-whl
 COPY --from=python311-builder /whl /home/nuclio/bin/py3.11-whl
 COPY --from=python312-builder /whl /home/nuclio/bin/py3.12-whl
+
+# Copy Alpine wheels
+COPY --from=python310-alpine-builder /whl /home/nuclio/bin/py3.10-whl
+COPY --from=python311-alpine-builder /whl /home/nuclio/bin/py3.11-whl
+COPY --from=python312-alpine-builder /whl /home/nuclio/bin/py3.12-whl

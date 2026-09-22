@@ -41,7 +41,7 @@ import (
 
 func Run(kubeconfigPath string,
 	namespace string,
-	imagePullSecrets string,
+	imagePullSecrets []string,
 	platformConfigurationPath string,
 	platformConfigurationName string,
 	functionOperatorNumWorkersStr string,
@@ -85,7 +85,7 @@ func Run(kubeconfigPath string,
 
 func createController(kubeconfigPath string,
 	namespace string,
-	imagePullSecrets string,
+	imagePullSecrets []string,
 	platformConfigurationPath string,
 	platformConfigurationName string,
 	functionOperatorNumWorkersStr string,

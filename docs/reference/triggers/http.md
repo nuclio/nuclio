@@ -13,6 +13,15 @@ The HTTP trigger is the only trigger created by default if not configured (by de
 handles incoming HTTP requests at container port 8080, assigning workers to incoming requests. If a worker is not
 available, a `503` error is returned.
 
+> **Kubernetes note:** The auth-proxy sidecar is disabled by default. Enable it by setting
+> `authentication.functionAuthenticationEnabled: true` in the platform configuration, together with
+> `authentication.authURL` (the auth-check endpoint) and `authentication.signInURL` (the sign-in redirect URL for
+> browser mode). When enabled, the processor continues to listen on port 8080 on loopback (unchanged), but the 
+> Kubernetes Service's targetPort is repointed to the auth-proxy sidecar on port 6080. The auth-proxy enforces the 
+> `authenticationMode` configured for this trigger before forwarding approved requests to the processor on loopback.
+> The `/__internal/health` path is always allowed without authentication so the kubelet can reach the processor's
+> liveness/readiness probe.
+
 ## Attributes
 
 | **Path**                                               | **Type**        | **Description**                                                                                                                                                                                                                                                                                                       |
@@ -33,6 +42,9 @@ available, a `503` error is returned.
 | <a id="attributes-serviceType"></a>serviceType         | string          | (Kubernetes only) Kubernetes `ServiceType`, used by the Kubernetes service to expose the trigger. The default `ServiceType` is `ClusterIP`, which means that by default the trigger won't be exposed outside of the cluster unless you configure a proper ingress or manually change the `ServiceType` to `NodePort`. |
 | disablePortPublishing                                  | bool            | (Docker only) Allow disabling publishing the function container port on the host network                                                                                                                                                                                                                              |
 | streamingFlushPeriod                                   | string (duration) | When the response body is streamed, the trigger flushes the response buffer to the client at most every this period (e.g. `"1s"`, `"500ms"`). This allows clients to receive data incrementally instead of only when the stream ends. Must be a positive duration. Default: `"1s"` (set during platform enrichment if omitted). |
+| authenticationMode                                     | string            | (Kubernetes only) The authentication mode enforced by the auth-proxy sidecar for requests to this function. One of `none` (allow all), `api` (reject unauthenticated requests with HTTP 401), `browser` (redirect unauthenticated requests to the configured sign-in URL with HTTP 302), or `basicAuth` (verify HTTP Basic credentials locally). Default: `none`. |
+| authentication.basicAuth.username                      | string            | (Kubernetes only) The expected username for `basicAuth` mode. |
+| authentication.basicAuth.password                      | string            | (Kubernetes only) The expected password for `basicAuth` mode. Stored as a `$ref:` placeholder in the CRD and restored from the function's dedicated Kubernetes Secret at authentication time. |
 
 <a id="examples"></a>
 ## Examples
@@ -110,6 +122,20 @@ triggers:
           - "PATCH"
         allowCredentials: false
         preflightMaxAgeSeconds: 3600
+```
+
+With HTTP Basic authentication -
+
+```yaml
+triggers:
+  myHttpTrigger:
+    kind: "http"
+    attributes:
+      authenticationMode: basicAuth
+      authentication:
+        basicAuth:
+          username: myuser
+          password: mypassword
 ```
 
 With streaming flush period (for streamed response bodies) -

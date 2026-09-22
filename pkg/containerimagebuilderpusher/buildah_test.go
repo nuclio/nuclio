@@ -170,7 +170,7 @@ func (suite *BuildahTestSuite) TestCompileJobSpecNoAuthVolumeWithoutSecret() {
 
 func (suite *BuildahTestSuite) TestCompileJobSpecAuthVolumeWithSecret() {
 	buildOptions := suite.newBuildOptions()
-	buildOptions.SecretName = "my-registry-secret"
+	buildOptions.SecretNames = []string{"my-registry-secret"}
 
 	jobSpec, err := suite.buildah.compileJobSpec(context.Background(), "default", buildOptions, "bundle.tar")
 	suite.Require().NoError(err)

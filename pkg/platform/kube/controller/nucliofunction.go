@@ -49,7 +49,7 @@ type functionOperator struct {
 	logger            logger.Logger
 	controller        *Controller
 	operator          operator.Operator
-	imagePullSecrets  string
+	imagePullSecrets  []string
 	functionresClient functionres.Client
 }
 
@@ -57,7 +57,7 @@ func newFunctionOperator(ctx context.Context,
 	parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
-	imagePullSecrets string,
+	imagePullSecrets []string,
 	functionresClient functionres.Client,
 	numWorkers int) (*functionOperator, error) {
 	var err error
@@ -256,8 +256,11 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return fo.recordReconcileError(ctx, function, nil, errors.Wrap(err, "Failed to enrich or validate service account when create/update function"))
 	}
 
+	// merge function-level image pull secrets with the platform's default and save enriched value to function.status
+	fo.enrichImagePullSecrets(ctx, function)
+
 	// ensure function resources (deployment, ingress, configmap, etc ...)
-	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
+	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function)
 	if err != nil {
 		return fo.recordReconcileError(ctx, function, nil, errors.Wrap(err, "Failed to create/update function"))
 	}
@@ -317,11 +320,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// NOTE: this reconstructs function status and hence omits all other function status fields
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
-			State:                  finalState,
-			Logs:                   function.Status.Logs,
-			ContainerImage:         function.Spec.Image,
-			EnrichedNodeSelector:   function.Status.EnrichedNodeSelector,
-			EnrichedServiceAccount: function.Status.EnrichedServiceAccount,
+			State:                    finalState,
+			Logs:                     function.Status.Logs,
+			ContainerImage:           function.Spec.Image,
+			EnrichedNodeSelector:     function.Status.EnrichedNodeSelector,
+			EnrichedServiceAccount:   function.Status.EnrichedServiceAccount,
+			EnrichedImagePullSecrets: function.Status.EnrichedImagePullSecrets,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
@@ -667,6 +671,16 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 		"projectName", projectName,
 		"NodeSelector", function.Status.EnrichedNodeSelector)
 	return nil
+}
+
+// enrichImagePullSecrets merges function image pull secrets with the platform's default,
+// and saves the enriched value to function.status
+func (fo *functionOperator) enrichImagePullSecrets(ctx context.Context, function *nuclioio.NuclioFunction) {
+	function.EnrichImagePullSecrets(fo.imagePullSecrets)
+
+	fo.logger.DebugWithCtx(ctx, "Successfully enriched ImagePullSecrets",
+		"functionName", function.Name,
+		"imagePullSecrets", function.Status.EnrichedImagePullSecrets)
 }
 
 func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context, function *nuclioio.NuclioFunction) error {
