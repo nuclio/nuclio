@@ -159,6 +159,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -190,6 +191,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -246,6 +248,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -363,6 +366,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -409,6 +413,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -490,6 +495,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -506,6 +512,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to DockerHub
+        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
