@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -50,6 +51,11 @@ type Synchronizer struct {
 
 	// serverReadyPollInterval is how often checkServerReady is polled.
 	serverReadyPollInterval time.Duration
+
+	// leaderSyncRequestRetryDuration and leaderSyncRequestRetryInterval bound how long syncOnce
+	// retries triggering the leader-driven sync before giving up.
+	leaderSyncRequestRetryDuration time.Duration
+	leaderSyncRequestRetryInterval time.Duration
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
@@ -60,23 +66,37 @@ func NewSynchronizer(parentLogger logger.Logger,
 	internalProjectsClient project.Client,
 	leaderKind platformconfig.ProjectsLeaderKind,
 	checkServerReady func(context.Context) (bool, error),
-	serverReadyPollIntervalStr string) (*Synchronizer, error) {
+	serverReadyPollIntervalStr string,
+	leaderSyncRequestRetryDurationStr string,
+	leaderSyncRequestRetryIntervalStr string) (*Synchronizer, error) {
 
 	serverReadyPollInterval, err := time.ParseDuration(serverReadyPollIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse server ready poll interval")
 	}
 
+	leaderSyncRequestRetryDuration, err := time.ParseDuration(leaderSyncRequestRetryDurationStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse leader sync request retry duration")
+	}
+
+	leaderSyncRequestRetryInterval, err := time.ParseDuration(leaderSyncRequestRetryIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse leader sync request retry interval")
+	}
+
 	newSynchronizer := Synchronizer{
-		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
-		synchronizationIntervalStr: synchronizationIntervalStr,
-		syncOnStartup:              syncOnStartup,
-		leaderClient:               leaderClient,
-		internalProjectsClient:     internalProjectsClient,
-		managedNamespaces:          managedNamespaces,
-		leaderKind:                 leaderKind,
-		checkServerReady:           checkServerReady,
-		serverReadyPollInterval:    serverReadyPollInterval,
+		logger:                         parentLogger.GetChild("leader-synchronizer-iguazio"),
+		synchronizationIntervalStr:     synchronizationIntervalStr,
+		syncOnStartup:                  syncOnStartup,
+		leaderClient:                   leaderClient,
+		internalProjectsClient:         internalProjectsClient,
+		managedNamespaces:              managedNamespaces,
+		leaderKind:                     leaderKind,
+		checkServerReady:               checkServerReady,
+		serverReadyPollInterval:        serverReadyPollInterval,
+		leaderSyncRequestRetryDuration: leaderSyncRequestRetryDuration,
+		leaderSyncRequestRetryInterval: leaderSyncRequestRetryInterval,
 	}
 
 	return &newSynchronizer, nil
@@ -125,11 +145,20 @@ func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
 		}
 
 		// the follower-sync trigger is leader-wide, not per-namespace - call it once per
-		// syncOnce rather than once per managed namespace
-		if err := c.leaderClient.SendLeaderSyncRequest(ctx); err != nil {
+		// syncOnce rather than once per managed namespace.
+		if err := common.RetryUntilSuccessful(c.leaderSyncRequestRetryDuration, c.leaderSyncRequestRetryInterval, func() bool {
+			if err := c.leaderClient.SendLeaderSyncRequest(ctx); err != nil {
+				c.logger.WarnWithCtx(ctx,
+					"Failed to trigger leader-driven project sync, will retry",
+					"err", errors.GetErrorStackString(err, 10))
+				return false
+			}
+			return true
+		}); err != nil {
 			c.logger.WarnWithCtx(ctx,
-				"Failed to trigger leader-driven project sync",
+				"Exhausted retries triggering leader-driven project sync",
 				"err", errors.GetErrorStackString(err, 10))
+			return
 		}
 	default:
 		for _, namespace := range namespaces {

@@ -210,6 +210,12 @@ const (
 
 	// DefaultServerReadyPollInterval is used when ServerReadyPollInterval is empty.
 	DefaultServerReadyPollInterval = "2s"
+
+	// DefaultLeaderSyncRequestRetryDuration is used when LeaderSyncRequestRetryDuration is empty.
+	DefaultLeaderSyncRequestRetryDuration = "5m"
+
+	// DefaultLeaderSyncRequestRetryInterval is used when LeaderSyncRequestRetryInterval is empty.
+	DefaultLeaderSyncRequestRetryInterval = "10s"
 )
 
 type ProjectsLeader struct {
@@ -233,6 +239,13 @@ type ProjectsLeader struct {
 	// before triggering a leader sync (relevant only when SyncOnStartup is true and oris is the leader kind).
 	// Defaults to DefaultServerReadyPollInterval.
 	ServerReadyPollInterval string `json:"serverReadyPollInterval,omitempty"`
+
+	// LeaderSyncRequestRetryDuration and LeaderSyncRequestRetryInterval bound how long the
+	// startup sync trigger retries reaching the leader before giving up (relevant only when
+	// SyncOnStartup is true and oris is the leader kind). Default to
+	// DefaultLeaderSyncRequestRetryDuration and DefaultLeaderSyncRequestRetryInterval.
+	LeaderSyncRequestRetryDuration string `json:"leaderSyncRequestRetryDuration,omitempty"`
+	LeaderSyncRequestRetryInterval string `json:"leaderSyncRequestRetryInterval,omitempty"`
 }
 
 // TrustsLeaderOrigin reports whether a caller presenting the given session should be trusted as

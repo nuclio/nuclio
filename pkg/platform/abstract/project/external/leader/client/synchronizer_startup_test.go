@@ -372,15 +372,17 @@ func (suite *SynchronizerStartupTestSuite) newTestOrisSynchronizer(
 	checkServerReady func(context.Context) (bool, error),
 ) *Synchronizer {
 	return &Synchronizer{
-		logger:                     suite.logger,
-		synchronizationIntervalStr: "0",
-		syncOnStartup:              true,
-		leaderKind:                 platformconfig.ProjectsLeaderKindOris,
-		managedNamespaces:          []string{"ns-oris"},
-		leaderClient:               suite.mockLeaderProjectsClient,
-		internalProjectsClient:     suite.mockInternalProjectsClient,
-		checkServerReady:           checkServerReady,
-		serverReadyPollInterval:    2 * time.Second,
+		logger:                         suite.logger,
+		synchronizationIntervalStr:     "0",
+		syncOnStartup:                  true,
+		leaderKind:                     platformconfig.ProjectsLeaderKindOris,
+		managedNamespaces:              []string{"ns-oris"},
+		leaderClient:                   suite.mockLeaderProjectsClient,
+		internalProjectsClient:         suite.mockInternalProjectsClient,
+		checkServerReady:               checkServerReady,
+		serverReadyPollInterval:        2 * time.Second,
+		leaderSyncRequestRetryDuration: 2 * time.Minute,
+		leaderSyncRequestRetryInterval: 10 * time.Second,
 	}
 }
 
