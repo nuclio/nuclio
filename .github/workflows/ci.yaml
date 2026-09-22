@@ -42,6 +42,8 @@ env:
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "35m"
   DOCKER_BUILDKIT: 1
+  # secrets can't be referenced directly in a step's `if:` - resolve it here instead
+  DOCKERHUB_LOGIN_AVAILABLE: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
   GITHUB_ACTIONS_BOT_NAME: github-actions[bot]
   GITHUB_ACTIONS_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
 
@@ -159,7 +161,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -191,7 +193,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -248,7 +250,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -366,7 +368,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -413,7 +415,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -495,7 +497,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -512,7 +514,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}

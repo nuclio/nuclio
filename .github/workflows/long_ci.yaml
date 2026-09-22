@@ -39,6 +39,8 @@ env:
   FAILURE_LABEL: long-ci-failed
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
   DOCKER_BUILDKIT: 1
+  # secrets can't be referenced directly in a step's `if:` - resolve it here instead
+  DOCKERHUB_LOGIN_AVAILABLE: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
 
 jobs:
   set_start_label:
@@ -115,7 +117,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Login to DockerHub
-        if: steps.nuclio_tag.outputs.build_images == 'true' && secrets.DOCKERHUB_USERNAME_RO != ''
+        if: steps.nuclio_tag.outputs.build_images == 'true' && env.DOCKERHUB_LOGIN_AVAILABLE == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
