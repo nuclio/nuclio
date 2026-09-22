@@ -94,17 +94,19 @@ spec:
     runtimeAttributes:
       repositories:
       - mavenCentral()
-      - jcenter()
+      - google()
 ```
 will populate the Gradle build script as follows:
 ```
 repositories {
     mavenCentral()
-    jcenter()
+    google()
 }
 ```
 
-Each `repositories` value is validated before it is written to the **build.gradle** script: a value must be a no-argument repository declaration of the form `name()` — for example `mavenCentral()`, `jcenter()`, `google()`, `mavenLocal()` or `gradlePluginPortal()`. Any other value — anything containing arguments, method chains, quotes, braces or whitespace — is rejected and the function build fails. This prevents arbitrary Groovy from being executed during the build. To use a custom repository configuration (for example a private `maven { ... }` repository), provide your own **build.gradle** file as described below.
+Each `repositories` value is validated before it is written to the **build.gradle** script: a value must be a no-argument repository declaration of the form `name()` — for example `mavenCentral()`, `google()`, `mavenLocal()` or `gradlePluginPortal()`. Any other value — anything containing arguments, method chains, quotes, braces or whitespace — is rejected and the function build fails. This prevents arbitrary Groovy from being executed during the build. To use a custom repository configuration (for example a private `maven { ... }` repository), provide your own **build.gradle** file as described below.
+
+> **NOTE:** `jcenter()` used to be accepted here too, but JCenter shut down in 2022 and Gradle 9 removed the `jcenter()` DSL method entirely - it is no longer a usable repository, documented or not.
 
 ### Custom Gradle script
 
