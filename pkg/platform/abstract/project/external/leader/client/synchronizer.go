@@ -32,9 +32,6 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// serverReadyPollInterval is how often checkServerReady is polled.
-var serverReadyPollInterval = 2 * time.Second
-
 type Synchronizer struct {
 	logger                     logger.Logger
 	synchronizationIntervalStr string
@@ -50,6 +47,9 @@ type Synchronizer struct {
 	// and a Service only routes to a pod once that pod passes its own readiness probe:
 	// this can be done only by asking the kubernetes API, rather than checking port listening.
 	checkServerReady func(context.Context) (bool, error)
+
+	// serverReadyPollInterval is how often checkServerReady is polled.
+	serverReadyPollInterval time.Duration
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
@@ -59,7 +59,13 @@ func NewSynchronizer(parentLogger logger.Logger,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client,
 	leaderKind platformconfig.ProjectsLeaderKind,
-	checkServerReady func(context.Context) (bool, error)) (*Synchronizer, error) {
+	checkServerReady func(context.Context) (bool, error),
+	serverReadyPollIntervalStr string) (*Synchronizer, error) {
+
+	serverReadyPollInterval, err := time.ParseDuration(serverReadyPollIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse server ready poll interval")
+	}
 
 	newSynchronizer := Synchronizer{
 		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
@@ -70,6 +76,7 @@ func NewSynchronizer(parentLogger logger.Logger,
 		managedNamespaces:          managedNamespaces,
 		leaderKind:                 leaderKind,
 		checkServerReady:           checkServerReady,
+		serverReadyPollInterval:    serverReadyPollInterval,
 	}
 
 	return &newSynchronizer, nil
@@ -139,7 +146,7 @@ func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
 
 // waitForServerReady polls checkServerReady every serverReadyPollInterval until it reports ready
 func (c *Synchronizer) waitForServerReady(ctx context.Context) bool {
-	ticker := time.NewTicker(serverReadyPollInterval)
+	ticker := time.NewTicker(c.serverReadyPollInterval)
 	defer ticker.Stop()
 
 	for {

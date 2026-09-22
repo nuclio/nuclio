@@ -68,10 +68,14 @@ func NewClient(parentLogger logger.Logger,
 	synchronizationIntervalStr := "0"
 	var syncOnStartup bool
 	var leaderKind platformconfig.ProjectsLeaderKind
+	serverReadyPollIntervalStr := platformconfig.DefaultServerReadyPollInterval
 	if platformConfiguration.ProjectsLeader != nil {
 		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
 		syncOnStartup = platformConfiguration.ProjectsLeader.SyncOnStartup
 		leaderKind = platformConfiguration.ProjectsLeader.Kind
+		if platformConfiguration.ProjectsLeader.ServerReadyPollInterval != "" {
+			serverReadyPollIntervalStr = platformConfiguration.ProjectsLeader.ServerReadyPollInterval
+		}
 	}
 
 	newClient.synchronizer, err = client.NewSynchronizer(parentLogger,
@@ -81,7 +85,8 @@ func NewClient(parentLogger logger.Logger,
 		newClient.leaderClient,
 		internalClient,
 		leaderKind,
-		checkServerReady)
+		checkServerReady,
+		serverReadyPollIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create synchronizer")
 	}

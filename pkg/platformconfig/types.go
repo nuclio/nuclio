@@ -207,6 +207,9 @@ const (
 	// DefaultProjectSync2PCEnabled is false: 2PC validation is opt-in so that deployments
 	// running a pre-2PC MLRun version continue to work without any configuration change.
 	DefaultProjectSync2PCEnabled = false
+
+	// DefaultServerReadyPollInterval is used when ServerReadyPollInterval is empty.
+	DefaultServerReadyPollInterval = "2s"
 )
 
 type ProjectsLeader struct {
@@ -225,6 +228,11 @@ type ProjectsLeader struct {
 
 	// Identity is the authenticated username the leader is expected to present on leader-origin calls.
 	Identity string `json:"identity,omitempty"`
+
+	// ServerReadyPollInterval is how often the dashboard's own HTTP-server readiness is polled
+	// before triggering a leader sync (relevant only when SyncOnStartup is true and oris is the leader kind).
+	// Defaults to DefaultServerReadyPollInterval.
+	ServerReadyPollInterval string `json:"serverReadyPollInterval,omitempty"`
 }
 
 // TrustsLeaderOrigin reports whether a caller presenting the given session should be trusted as

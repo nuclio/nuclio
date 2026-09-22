@@ -228,10 +228,6 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupAndPeriodicLoop
 // TestStartSyncOnStartupOrisLeaderWaitsForServerReady verifies that the Oris leader-sync
 // trigger does not fire until checkServerReady reports true, and does fire shortly after.
 func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaitsForServerReady() {
-	originalInterval := serverReadyPollInterval
-	serverReadyPollInterval = 10 * time.Millisecond
-	defer func() { serverReadyPollInterval = originalInterval }()
-
 	var ready atomic.Bool
 	triggered := make(chan struct{})
 
@@ -244,6 +240,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaits
 	synchronizer := suite.newTestOrisSynchronizer(func(context.Context) (bool, error) {
 		return ready.Load(), nil
 	})
+	synchronizer.serverReadyPollInterval = 10 * time.Millisecond
 
 	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
@@ -264,10 +261,6 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaits
 // polling across multiple ticks rather than giving up - there is no timeout, only
 // checkServerReady actually reporting true unblocks the trigger.
 func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaitsIndefinitelyForServerReady() {
-	originalInterval := serverReadyPollInterval
-	serverReadyPollInterval = 10 * time.Millisecond
-	defer func() { serverReadyPollInterval = originalInterval }()
-
 	var ready atomic.Bool
 	var pollCount atomic.Int32
 	triggered := make(chan struct{})
@@ -281,6 +274,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaits
 		pollCount.Add(1)
 		return ready.Load(), nil
 	})
+	synchronizer.serverReadyPollInterval = 10 * time.Millisecond
 
 	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
@@ -304,10 +298,6 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaits
 // same as "not ready yet" - it does not abort the wait, and the trigger still fires once a
 // later poll succeeds.
 func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderTreatsCheckErrorAsNotReady() {
-	originalInterval := serverReadyPollInterval
-	serverReadyPollInterval = 10 * time.Millisecond
-	defer func() { serverReadyPollInterval = originalInterval }()
-
 	triggered := make(chan struct{})
 	suite.mockLeaderProjectsClient.
 		On("SendLeaderSyncRequest", mock.Anything).
@@ -322,6 +312,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderTreat
 		}
 		return true, nil
 	})
+	synchronizer.serverReadyPollInterval = 10 * time.Millisecond
 
 	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
@@ -389,6 +380,7 @@ func (suite *SynchronizerStartupTestSuite) newTestOrisSynchronizer(
 		leaderClient:               suite.mockLeaderProjectsClient,
 		internalProjectsClient:     suite.mockInternalProjectsClient,
 		checkServerReady:           checkServerReady,
+		serverReadyPollInterval:    2 * time.Second,
 	}
 }
 
