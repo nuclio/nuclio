@@ -22,6 +22,8 @@ env:
   CACHE_REPO: ghcr.io
   CACHE_REPO_NAME: ${{ github.repository_owner }}
   DOCKER_BUILDKIT: 1
+  # secrets can't be referenced directly in a step's `if:` - resolve it here instead
+  DOCKERHUB_LOGIN_AVAILABLE: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
 
 permissions:
   contents: write
@@ -297,7 +299,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
@@ -380,7 +382,7 @@ jobs:
           platforms: ${{ matrix.arch }}
 
       - name: Login to DockerHub
-        if: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
