@@ -439,6 +439,47 @@ func (suite *FollowerTestSuite) TestList() {
 	}
 }
 
+func (suite *FollowerTestSuite) TestGetState() {
+	for _, testCase := range []struct {
+		name          string
+		existing      *nuclioio.NuclioProject
+		expectedState *platform.Project2PCState
+		expectedError bool
+		expectedCode  int
+	}{
+		{
+			name:          "HappyFlow",
+			existing:      newProjectFixture("op-1", leaderCommon.OrisSyncStatusOnline),
+			expectedState: &platform.Project2PCState{Name: testProject, OpID: "op-1", SyncStatus: "online"},
+		},
+		{
+			name:          "MissingCRDReturns404",
+			expectedError: true,
+			expectedCode:  404,
+		},
+		{
+			name: "AbsentOpIDLabelReturnsEmptyOpIDNotError",
+			existing: &nuclioio.NuclioProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testProject,
+					Namespace: testNamespace,
+					Labels:    map[string]string{leaderCommon.OrisLabelKeySyncStatus: string(leaderCommon.OrisSyncStatusOnline)},
+				},
+			},
+			expectedState: &platform.Project2PCState{Name: testProject, SyncStatus: "online"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.runFollowerTestCase(testCase.existing, nil, testCase.expectedError, testCase.expectedCode, testCase.expectedState,
+				func(client project.Client) (*platform.Project2PCState, error) {
+					return client.GetState(context.TODO(), &platform.GetProjectStateOptions{
+						Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+					})
+				})
+		})
+	}
+}
+
 // --- test helpers (private, below public functions) ---
 
 // runFollowerTestCase runs the mock setup, method invocation, and assertions shared by every
