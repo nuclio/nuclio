@@ -94,3 +94,10 @@ func (c *Client) List(ctx context.Context,
 	args := c.Called(ctx, options)
 	return args.Get(0).(*platform.Project2PCStatesPage), args.Error(1)
 }
+
+// GetState mocks project.Client.GetState.
+func (c *Client) GetState(ctx context.Context,
+	options *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	args := c.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}

@@ -242,6 +242,13 @@ func (mp *Platform) ListProjectStates(ctx context.Context,
 	return args.Get(0).(*platform.Project2PCStatesPage), args.Error(1)
 }
 
+// GetProjectState will get a single project's sync state in a two-phase commit manner
+func (mp *Platform) GetProjectState(ctx context.Context,
+	options *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	args := mp.Called(ctx, options)
+	return args.Get(0).(*platform.Project2PCState), args.Error(1)
+}
+
 // GetFunctionProject returns project instance for specific function
 func (mp *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
 	args := mp.Called(ctx, functionConfig)

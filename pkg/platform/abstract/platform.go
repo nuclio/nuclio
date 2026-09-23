@@ -995,6 +995,12 @@ func (ap *Platform) ListProjectStates(_ context.Context,
 	return nil, platform.ErrUnsupportedMethod
 }
 
+// GetProjectState is unsupported by default; only the kube platform (with Oris as leader) overrides it.
+func (ap *Platform) GetProjectState(_ context.Context,
+	_ *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
+
 // CreateAPIGateway creates and deploys a new api gateway
 func (ap *Platform) CreateAPIGateway(ctx context.Context, createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod

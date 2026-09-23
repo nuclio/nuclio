@@ -119,3 +119,9 @@ func (c *Client) List(_ context.Context,
 	_ *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
+
+// GetState is unsupported on the local (Docker) platform: the follower surface is kube-only.
+func (c *Client) GetState(_ context.Context,
+	_ *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	return nil, platform.ErrUnsupportedMethod
+}
