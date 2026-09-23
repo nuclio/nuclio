@@ -976,6 +976,12 @@ func (p *Platform) ListProjectStates(ctx context.Context,
 	return p.projectsClient.List(ctx, options)
 }
 
+// GetProjectState delegates to p.projectsClient.GetState.
+func (p *Platform) GetProjectState(ctx context.Context,
+	options *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	return p.projectsClient.GetState(ctx, options)
+}
+
 // CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(ctx context.Context,
 	createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {

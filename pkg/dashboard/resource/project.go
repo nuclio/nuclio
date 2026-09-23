@@ -251,6 +251,7 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			{Pattern: "/{name}/prepare-delete", Method: http.MethodPost, RouteFunc: pr.PrepareDeleteProject},
 			{Pattern: "/{name}", Method: http.MethodDelete, RouteFunc: pr.CommitDeleteProject},
 			{Pattern: "/states", Method: http.MethodGet, RouteFunc: pr.ListProjectStates},
+			{Pattern: "/states/{name}", Method: http.MethodGet, RouteFunc: pr.GetProjectState},
 		}, nil
 	}
 
@@ -414,6 +415,21 @@ func (pr *projectResource) ListProjectStates(request *http.Request) (*restful.Cu
 			"projects": {"projects": projects, "next_cursor": page.NextCursor},
 		},
 	}, nil
+}
+
+// GetProjectState returns this follower's state for a single project, for the leader's
+// CAS-witness refresh between reconciliation sweeps.
+func (pr *projectResource) GetProjectState(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	state, err := pr.getPlatform().GetProjectState(request.Context(), &platform.GetProjectStateOptions{
+		Meta: platform.ProjectMeta{
+			Name:      pr.GetRouterURLParam(request, "name"),
+			Namespace: pr.getNamespaceFromRequest(request),
+		},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get project state")
+	}
+	return pr.followerStateResponse(state), nil
 }
 
 func (pr *projectResource) readFollowerRequest(request *http.Request) (*projectFollowerRequest, error) {

@@ -61,4 +61,7 @@ type Client interface {
 
 	// List lists the states of project followers
 	List(context.Context, *platform.ListProjectStatesOptions) (*platform.Project2PCStatesPage, error)
+
+	// GetState returns the state of a single project follower
+	GetState(context.Context, *platform.GetProjectStateOptions) (*platform.Project2PCState, error)
 }

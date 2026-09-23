@@ -432,6 +432,11 @@ type CommitDeleteProjectOptions struct {
 	OpID string
 }
 
+// GetProjectStateOptions carries the single-project state read request options.
+type GetProjectStateOptions struct {
+	Meta ProjectMeta
+}
+
 // ListProjectStatesOptions carries list request options for the follower's project states, for the leader's reconciliation sweep.
 type ListProjectStatesOptions struct {
 	Namespace    string

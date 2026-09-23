@@ -145,6 +145,10 @@ type Platform interface {
 	// reconciliation sweep.
 	ListProjectStates(ctx context.Context, options *ListProjectStatesOptions) (*Project2PCStatesPage, error)
 
+	// GetProjectState returns this follower's state for a single project, for the leader's
+	// CAS-witness refresh between reconciliation sweeps.
+	GetProjectState(ctx context.Context, options *GetProjectStateOptions) (*Project2PCState, error)
+
 	//
 	// Function event
 	//

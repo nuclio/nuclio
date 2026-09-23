@@ -233,6 +233,12 @@ func (c *Client) List(ctx context.Context,
 	return c.internalClient.List(ctx, options)
 }
 
+// GetState reads a single project's state through the internal client.
+func (c *Client) GetState(ctx context.Context,
+	options *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	return c.internalClient.GetState(ctx, options)
+}
+
 // isLeaderOriginRequest decides whether a project write should be treated as leader-origin
 // (write directly) or forwarded to the leader. For a legacy (mlrun/iguazio/mock) leader this is
 // the claimed X-Projects-Role header, unchanged. For an Oris leader the header plays no role at
