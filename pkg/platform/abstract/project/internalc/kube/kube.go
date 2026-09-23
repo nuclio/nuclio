@@ -448,6 +448,22 @@ func (c *Client) List(ctx context.Context,
 	return &platform.Project2PCStatesPage{States: states, NextCursor: nextCursor}, nil
 }
 
+// GetState returns this follower's state for a single project.
+func (c *Client) GetState(ctx context.Context,
+	options *platform.GetProjectStateOptions) (*platform.Project2PCState, error) {
+	name := options.Meta.Name
+	existingProject, err := c.getProject(ctx, name, options.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get project")
+	}
+	if existingProject == nil {
+		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Project not found: %s", name))
+	}
+
+	currentOpID, currentStatus := c.extractProjectLabels(existingProject)
+	return &platform.Project2PCState{Name: name, OpID: currentOpID, SyncStatus: string(currentStatus)}, nil
+}
+
 func (c *Client) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
 	project.Name = platformProject.Meta.Name
 	project.Namespace = platformProject.Meta.Namespace
