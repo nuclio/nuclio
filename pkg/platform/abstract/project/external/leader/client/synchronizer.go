@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -38,6 +40,22 @@ type Synchronizer struct {
 	managedNamespaces          []string
 	leaderClient               leader.Client
 	internalProjectsClient     project.Client
+	leaderKind                 platformconfig.ProjectsLeaderKind
+
+	// checkServerReady reports whether this follower can actually be reached by the leader.
+	// The Oris leader-sync trigger polls it before firing: the leader calls back into this
+	// follower's /api/v1/follower/projects/* routes as part of the sync it triggers,
+	// and a Service only routes to a pod once that pod passes its own readiness probe:
+	// this can be done only by asking the kubernetes API, rather than checking port listening.
+	checkServerReady func(context.Context) (bool, error)
+
+	// serverReadyPollInterval is how often checkServerReady is polled.
+	serverReadyPollInterval time.Duration
+
+	// leaderSyncRequestRetryDuration and leaderSyncRequestRetryInterval bound how long syncOnce
+	// retries triggering the leader-driven sync before giving up.
+	leaderSyncRequestRetryDuration time.Duration
+	leaderSyncRequestRetryInterval time.Duration
 }
 
 func NewSynchronizer(parentLogger logger.Logger,
@@ -45,27 +63,52 @@ func NewSynchronizer(parentLogger logger.Logger,
 	syncOnStartup bool,
 	managedNamespaces []string,
 	leaderClient leader.Client,
-	internalProjectsClient project.Client) (*Synchronizer, error) {
+	internalProjectsClient project.Client,
+	leaderKind platformconfig.ProjectsLeaderKind,
+	checkServerReady func(context.Context) (bool, error),
+	serverReadyPollIntervalStr string,
+	leaderSyncRequestRetryDurationStr string,
+	leaderSyncRequestRetryIntervalStr string) (*Synchronizer, error) {
+
+	serverReadyPollInterval, err := time.ParseDuration(serverReadyPollIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse server ready poll interval")
+	}
+
+	leaderSyncRequestRetryDuration, err := time.ParseDuration(leaderSyncRequestRetryDurationStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse leader sync request retry duration")
+	}
+
+	leaderSyncRequestRetryInterval, err := time.ParseDuration(leaderSyncRequestRetryIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse leader sync request retry interval")
+	}
 
 	newSynchronizer := Synchronizer{
-		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
-		synchronizationIntervalStr: synchronizationIntervalStr,
-		syncOnStartup:              syncOnStartup,
-		leaderClient:               leaderClient,
-		internalProjectsClient:     internalProjectsClient,
-		managedNamespaces:          managedNamespaces,
+		logger:                         parentLogger.GetChild("leader-synchronizer-iguazio"),
+		synchronizationIntervalStr:     synchronizationIntervalStr,
+		syncOnStartup:                  syncOnStartup,
+		leaderClient:                   leaderClient,
+		internalProjectsClient:         internalProjectsClient,
+		managedNamespaces:              managedNamespaces,
+		leaderKind:                     leaderKind,
+		checkServerReady:               checkServerReady,
+		serverReadyPollInterval:        serverReadyPollInterval,
+		leaderSyncRequestRetryDuration: leaderSyncRequestRetryDuration,
+		leaderSyncRequestRetryInterval: leaderSyncRequestRetryInterval,
 	}
 
 	return &newSynchronizer, nil
 }
 
-func (c *Synchronizer) Start() error {
+func (c *Synchronizer) Start(shutdownCtx context.Context) error {
 	synchronizationInterval, err := time.ParseDuration(c.synchronizationIntervalStr)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse synchronization interval")
 	}
 
-	ctx := context.WithValue(context.Background(), "RequestID", "leader-synchronizer") // nolint: staticcheck
+	ctx := context.WithValue(shutdownCtx, "RequestID", "leader-synchronizer") // nolint: staticcheck
 
 	// trigger a one-time sync on startup if configured.
 	if c.syncOnStartup {
@@ -90,15 +133,70 @@ func (c *Synchronizer) Start() error {
 // syncOnce performs a single synchronization pass for all managed namespaces. Intended for startup recovery.
 func (c *Synchronizer) syncOnce(ctx context.Context, namespaces []string) {
 	c.logger.InfoWithCtx(ctx, "Running one-time project sync from leader", "namespaces", namespaces)
-	for _, namespace := range namespaces {
-		if _, err := c.synchronizeProjectsFromLeader(ctx, namespace, nil); err != nil {
+
+	switch c.leaderKind {
+	case platformconfig.ProjectsLeaderKindOris:
+		// wait for our own HTTP server to be listening before asking the leader to sync: the
+		// leader calls back into our /api/v1/follower/projects/* routes during the sync process
+		if !c.waitForServerReady(ctx) {
+			c.logger.InfoWithCtx(ctx,
+				"Aborting leader-driven project sync: dashboard is shutting down before the server became ready")
+			return
+		}
+
+		// the follower-sync trigger is leader-wide, not per-namespace - call it once per
+		// syncOnce rather than once per managed namespace.
+		if err := common.RetryUntilSuccessful(c.leaderSyncRequestRetryDuration, c.leaderSyncRequestRetryInterval, func() bool {
+			if err := c.leaderClient.SendLeaderSyncRequest(ctx); err != nil {
+				c.logger.WarnWithCtx(ctx,
+					"Failed to trigger leader-driven project sync, will retry",
+					"err", errors.GetErrorStackString(err, 10))
+				return false
+			}
+			return true
+		}); err != nil {
 			c.logger.WarnWithCtx(ctx,
-				"Failed to sync projects from leader on startup",
-				"namespace", namespace,
+				"Exhausted retries triggering leader-driven project sync",
 				"err", errors.GetErrorStackString(err, 10))
+			return
+		}
+	default:
+		for _, namespace := range namespaces {
+			if _, err := c.synchronizeProjectsFromLeader(ctx, namespace, nil); err != nil {
+				c.logger.WarnWithCtx(ctx,
+					"Failed to sync projects from leader on startup",
+					"namespace", namespace,
+					"err", errors.GetErrorStackString(err, 10))
+			}
 		}
 	}
 	c.logger.InfoWithCtx(ctx, "One-time project sync from leader completed")
+}
+
+// waitForServerReady polls checkServerReady every serverReadyPollInterval until it reports ready
+func (c *Synchronizer) waitForServerReady(ctx context.Context) bool {
+	ticker := time.NewTicker(c.serverReadyPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+			ready, err := c.checkServerReady(ctx)
+			if err != nil {
+				c.logger.WarnWithCtx(ctx,
+					"Failed to check HTTP server readiness, will retry",
+					"err", errors.GetErrorStackString(err, 10))
+				continue
+			}
+
+			if ready {
+				return true
+			}
+			c.logger.InfoWithCtx(ctx, "Waiting for HTTP server readiness before triggering leader sync")
+		}
+	}
 }
 
 func (c *Synchronizer) startSynchronizationLoop(ctx context.Context,

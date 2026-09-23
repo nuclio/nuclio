@@ -44,7 +44,8 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger,
 	internalClient project.Client,
-	platformConfiguration *platformconfig.Config) (*Client, error) {
+	platformConfiguration *platformconfig.Config,
+	checkServerReady func(context.Context) (bool, error)) (*Client, error) {
 	var err error
 
 	newClient := Client{}
@@ -63,12 +64,26 @@ func NewClient(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create leader client")
 	}
 
-	// get leader synchronization interval and startup-sync flag
+	// get leader synchronization interval, leader kind and startup-sync flag
 	synchronizationIntervalStr := "0"
 	var syncOnStartup bool
+	var leaderKind platformconfig.ProjectsLeaderKind
+	serverReadyPollIntervalStr := platformconfig.DefaultServerReadyPollInterval
+	leaderSyncRequestRetryDurationStr := platformconfig.DefaultLeaderSyncRequestRetryDuration
+	leaderSyncRequestRetryIntervalStr := platformconfig.DefaultLeaderSyncRequestRetryInterval
 	if platformConfiguration.ProjectsLeader != nil {
 		synchronizationIntervalStr = platformConfiguration.ProjectsLeader.SynchronizationInterval
 		syncOnStartup = platformConfiguration.ProjectsLeader.SyncOnStartup
+		leaderKind = platformConfiguration.ProjectsLeader.Kind
+		if platformConfiguration.ProjectsLeader.ServerReadyPollInterval != "" {
+			serverReadyPollIntervalStr = platformConfiguration.ProjectsLeader.ServerReadyPollInterval
+		}
+		if platformConfiguration.ProjectsLeader.LeaderSyncRequestRetryDuration != "" {
+			leaderSyncRequestRetryDurationStr = platformConfiguration.ProjectsLeader.LeaderSyncRequestRetryDuration
+		}
+		if platformConfiguration.ProjectsLeader.LeaderSyncRequestRetryInterval != "" {
+			leaderSyncRequestRetryIntervalStr = platformConfiguration.ProjectsLeader.LeaderSyncRequestRetryInterval
+		}
 	}
 
 	newClient.synchronizer, err = client.NewSynchronizer(parentLogger,
@@ -76,7 +91,12 @@ func NewClient(parentLogger logger.Logger,
 		syncOnStartup,
 		namespaces,
 		newClient.leaderClient,
-		internalClient)
+		internalClient,
+		leaderKind,
+		checkServerReady,
+		serverReadyPollIntervalStr,
+		leaderSyncRequestRetryDurationStr,
+		leaderSyncRequestRetryIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create synchronizer")
 	}
@@ -84,12 +104,12 @@ func NewClient(parentLogger logger.Logger,
 	return &newClient, nil
 }
 
-func (c *Client) Initialize() error {
-	if err := c.synchronizer.Start(); err != nil {
+func (c *Client) Initialize(ctx context.Context) error {
+	if err := c.synchronizer.Start(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start the projects synchronizer")
 	}
 
-	return c.internalClient.Initialize()
+	return c.internalClient.Initialize(ctx)
 }
 
 func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {

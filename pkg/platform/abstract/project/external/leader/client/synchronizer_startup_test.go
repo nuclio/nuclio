@@ -19,12 +19,15 @@ limitations under the License.
 package client
 
 import (
+	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	leadermock "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	internalmock "github.com/nuclio/nuclio/pkg/platform/abstract/project/mock"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -39,6 +42,12 @@ type SynchronizerStartupTestSuite struct {
 	logger                     logger.Logger
 	mockInternalProjectsClient *internalmock.Client
 	mockLeaderProjectsClient   *leadermock.Client
+	ctx                        context.Context
+	cancel                     context.CancelFunc
+}
+
+func (suite *SynchronizerStartupTestSuite) SetupSuite() {
+	suite.ctx, suite.cancel = context.WithCancel(context.Background())
 }
 
 func (suite *SynchronizerStartupTestSuite) SetupTest() {
@@ -50,12 +59,18 @@ func (suite *SynchronizerStartupTestSuite) SetupTest() {
 	suite.mockLeaderProjectsClient = leadermock.NewClient()
 }
 
+func (suite *SynchronizerStartupTestSuite) TearDownSuite() {
+	if suite.cancel != nil {
+		suite.cancel()
+	}
+}
+
 // TestStartNoSyncWhenDisabled verifies that when syncOnStartup is false and interval is "0",
 // neither the startup sync nor the periodic loop runs.
 func (suite *SynchronizerStartupTestSuite) TestStartNoSyncWhenDisabled() {
 	synchronizer := suite.newSynchronizer("0", false, []string{"ns1"})
 
-	err := synchronizer.Start()
+	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
 
 	// give any goroutines a moment to manifest (they should not)
@@ -87,7 +102,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupRunsOnce() {
 
 	synchronizer := suite.newSynchronizer("0", true, []string{namespace})
 
-	err := synchronizer.Start()
+	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
 
 	suite.waitForChannel(syncDone, "startup sync to call internal projects client")
@@ -122,7 +137,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupCoversAllNamesp
 
 	synchronizer := suite.newSynchronizer("0", true, namespaces)
 
-	err := synchronizer.Start()
+	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
 
 	var observed []string
@@ -157,7 +172,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupToleratesLeader
 
 	synchronizer := suite.newSynchronizer("0", true, []string{namespace})
 
-	err := synchronizer.Start()
+	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err, "Start() must not propagate startup sync errors")
 
 	suite.waitForChannel(syncAttempted, "startup sync to attempt GetUpdatedAfter")
@@ -202,7 +217,7 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupAndPeriodicLoop
 	// use a 1-hour interval so the periodic loop never actually ticks in this test
 	synchronizer := suite.newSynchronizer("1h", true, []string{namespace})
 
-	err := synchronizer.Start()
+	err := synchronizer.Start(suite.ctx)
 	suite.Require().NoError(err)
 
 	suite.waitForChannel(startupFired, "startup sync to fire before the first periodic tick")
@@ -210,11 +225,130 @@ func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupAndPeriodicLoop
 	suite.mockInternalProjectsClient.AssertExpectations(suite.T())
 }
 
+// TestStartSyncOnStartupOrisLeaderWaitsForServerReady verifies that the Oris leader-sync
+// trigger does not fire until checkServerReady reports true, and does fire shortly after.
+func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaitsForServerReady() {
+	var ready atomic.Bool
+	triggered := make(chan struct{})
+
+	suite.mockLeaderProjectsClient.
+		On("SendLeaderSyncRequest", mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) { close(triggered) }).
+		Once()
+
+	synchronizer := suite.newTestOrisSynchronizer(func(context.Context) (bool, error) {
+		return ready.Load(), nil
+	})
+	synchronizer.serverReadyPollInterval = 10 * time.Millisecond
+
+	err := synchronizer.Start(suite.ctx)
+	suite.Require().NoError(err)
+
+	select {
+	case <-triggered:
+		suite.Fail("SendLeaderSyncRequest fired before the server was reported ready")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	ready.Store(true)
+	suite.waitForChannel(triggered, "SendLeaderSyncRequest to fire after the server was reported ready")
+
+	suite.mockLeaderProjectsClient.AssertExpectations(suite.T())
+}
+
+// TestStartSyncOnStartupOrisLeaderWaitsIndefinitelyForServerReady verifies that syncOnce keeps
+// polling across multiple ticks rather than giving up - there is no timeout, only
+// checkServerReady actually reporting true unblocks the trigger.
+func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderWaitsIndefinitelyForServerReady() {
+	var ready atomic.Bool
+	var pollCount atomic.Int32
+	triggered := make(chan struct{})
+	suite.mockLeaderProjectsClient.
+		On("SendLeaderSyncRequest", mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) { close(triggered) }).
+		Once()
+
+	synchronizer := suite.newTestOrisSynchronizer(func(context.Context) (bool, error) {
+		pollCount.Add(1)
+		return ready.Load(), nil
+	})
+	synchronizer.serverReadyPollInterval = 10 * time.Millisecond
+
+	err := synchronizer.Start(suite.ctx)
+	suite.Require().NoError(err)
+
+	// outlast several poll ticks with the server still not ready - the trigger must not fire
+	select {
+	case <-triggered:
+		suite.Fail("SendLeaderSyncRequest fired before the server was reported ready")
+	case <-time.After(100 * time.Millisecond):
+	}
+	suite.Require().GreaterOrEqual(pollCount.Load(), int32(3), "expected multiple poll attempts, not a single check")
+
+	ready.Store(true)
+	suite.waitForChannel(triggered, "SendLeaderSyncRequest to fire after the server was reported ready")
+
+	suite.mockLeaderProjectsClient.AssertExpectations(suite.T())
+}
+
+// TestStartSyncOnStartupOrisLeaderTreatsCheckErrorAsNotReady verifies that a transient error
+// from checkServerReady (e.g. the Kubernetes API being briefly unreachable) is treated the
+// same as "not ready yet" - it does not abort the wait, and the trigger still fires once a
+// later poll succeeds.
+func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderTreatsCheckErrorAsNotReady() {
+	triggered := make(chan struct{})
+	suite.mockLeaderProjectsClient.
+		On("SendLeaderSyncRequest", mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) { close(triggered) }).
+		Once()
+
+	var callCount atomic.Int32
+	synchronizer := suite.newTestOrisSynchronizer(func(context.Context) (bool, error) {
+		if callCount.Add(1) <= 3 {
+			return false, errors.New("api server unreachable")
+		}
+		return true, nil
+	})
+	synchronizer.serverReadyPollInterval = 10 * time.Millisecond
+
+	err := synchronizer.Start(suite.ctx)
+	suite.Require().NoError(err)
+
+	suite.waitForChannel(triggered, "SendLeaderSyncRequest to fire once checkServerReady stops erroring")
+	suite.mockLeaderProjectsClient.AssertExpectations(suite.T())
+}
+
+// TestStartSyncOnStartupOrisLeaderAbortsOnShutdown verifies that canceling shutdownCtx while
+// still waiting for server readiness aborts the sync - SendLeaderSyncRequest is never called,
+// since the dashboard failed to start and there's nothing left to trigger a sync for.
+func (suite *SynchronizerStartupTestSuite) TestStartSyncOnStartupOrisLeaderAbortsOnShutdown() {
+	shutdownCtx, cancel := context.WithCancel(suite.ctx)
+
+	// never reports ready
+	synchronizer := suite.newTestOrisSynchronizer(func(context.Context) (bool, error) {
+		return false, nil
+	})
+
+	err := synchronizer.Start(shutdownCtx)
+	suite.Require().NoError(err)
+
+	cancel()
+
+	// give the background goroutine a moment to observe the cancellation and return (it should
+	// not call SendLeaderSyncRequest either way, so there is no success signal to wait on)
+	time.Sleep(100 * time.Millisecond)
+
+	suite.mockLeaderProjectsClient.AssertNotCalled(suite.T(), "SendLeaderSyncRequest", mock.Anything)
+}
+
 // TestStartInvalidInterval verifies that Start() returns an error when the interval cannot be parsed.
 func (suite *SynchronizerStartupTestSuite) TestStartInvalidInterval() {
 	synchronizer := suite.newSynchronizer("not-a-duration", false, []string{"ns1"})
 
-	err := synchronizer.Start()
+	err := synchronizer.Start(suite.ctx)
 	suite.Require().Error(err)
 	suite.Require().Contains(err.Error(), "Failed to parse synchronization interval")
 }
@@ -231,6 +365,24 @@ func (suite *SynchronizerStartupTestSuite) newSynchronizer(
 		managedNamespaces:          namespaces,
 		leaderClient:               suite.mockLeaderProjectsClient,
 		internalProjectsClient:     suite.mockInternalProjectsClient,
+	}
+}
+
+func (suite *SynchronizerStartupTestSuite) newTestOrisSynchronizer(
+	checkServerReady func(context.Context) (bool, error),
+) *Synchronizer {
+	return &Synchronizer{
+		logger:                         suite.logger,
+		synchronizationIntervalStr:     "0",
+		syncOnStartup:                  true,
+		leaderKind:                     platformconfig.ProjectsLeaderKindOris,
+		managedNamespaces:              []string{"ns-oris"},
+		leaderClient:                   suite.mockLeaderProjectsClient,
+		internalProjectsClient:         suite.mockInternalProjectsClient,
+		checkServerReady:               checkServerReady,
+		serverReadyPollInterval:        2 * time.Second,
+		leaderSyncRequestRetryDuration: 2 * time.Minute,
+		leaderSyncRequestRetryInterval: 10 * time.Second,
 	}
 }
 

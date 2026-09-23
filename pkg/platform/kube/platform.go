@@ -39,6 +39,7 @@ import (
 	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
@@ -89,7 +90,9 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 		// wrap external client around kube projects client as internal client
 		return externalproject.NewClient(platform.Logger,
 			kubeProjectsClient,
-			platformConfiguration)
+			platformConfiguration,
+			newDashboardDeploymentReadyChecker(platform.consumer.KubeClientSet,
+				common.ResolveDefaultNamespace(platform.DefaultNamespace)))
 	}
 
 	return kubeProjectsClient, nil
@@ -181,8 +184,8 @@ func NewPlatform(ctx context.Context,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize(_ context.Context) error {
-	if err := p.projectsClient.Initialize(); err != nil {
+func (p *Platform) Initialize(ctx context.Context) error {
+	if err := p.projectsClient.Initialize(ctx); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
@@ -2769,4 +2772,16 @@ func (p *Platform) checkProjectAuthorization(ctx context.Context,
 
 	_, err := p.QueryOPAProjectPermissions(ctx, projectName, action, permissionOptions)
 	return err
+}
+
+// newDashboardDeploymentReadyChecker returns a function reporting whether the dashboard deployment has at least one ready replica, that means ready to serve requests.
+func newDashboardDeploymentReadyChecker(kubeClientSet kubeclient.Client, namespace string) func(context.Context) (bool, error) {
+	deploymentName := common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEPLOYMENT_NAME", "nuclio-dashboard")
+	return func(ctx context.Context) (bool, error) {
+		deployment, err := kubeClientSet.GetDeployment(ctx, namespace, deploymentName)
+		if err != nil {
+			return false, errors.Wrap(err, "Failed to get dashboard deployment")
+		}
+		return deployment.Status.ReadyReplicas > 0, nil
+	}
 }

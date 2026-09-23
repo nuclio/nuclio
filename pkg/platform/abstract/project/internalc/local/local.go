@@ -43,7 +43,7 @@ func NewClient(parentLogger logger.Logger, platform platform.Platform, localStor
 	return &newClient, nil
 }
 
-func (c *Client) Initialize() error {
+func (c *Client) Initialize(_ context.Context) error {
 	return nil
 }
 
