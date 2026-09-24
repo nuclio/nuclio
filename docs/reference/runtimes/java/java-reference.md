@@ -4,6 +4,9 @@ This document describes specific Java build and deploy configurations.
 
 > **NOTE:**  Java runtime is in tech-preview.
 
+> **NOTE:**  As of the Java 25 LTS migration, the Java runtime is not supported on armhf
+> (32-bit ARM) — no upstream `eclipse-temurin` build exists for Java 25 on that architecture.
+
 ## In This Document
 
 - [Function and handler](#function-and-handler)
@@ -34,7 +37,7 @@ The `handler` field must simply contain the class name. In the example above, th
 When instructed to build the user's handler (to create a user handler JAR), the Java runtime will generate a Gradle build script from the following template:
 ```
 plugins {
-  id 'com.github.johnrengelman.shadow' version '8.1.1'
+  id 'com.gradleup.shadow' version '9.6.1'
   id 'java'
 }
 
@@ -60,7 +63,7 @@ shadowJar {
 task userHandler(dependsOn: shadowJar)
 ```
 
-The shim layer JAR is contained within the `onbuild` image, and an uber JAR is created from the user's JAR and the shim layer JAR. All dependencies (for example, `com.github.johnrengelman.shadow`) are contained within the build cache, so no internet access is required by the basic build process.
+The shim layer JAR is contained within the `onbuild` image, and an uber JAR is created from the user's JAR and the shim layer JAR. All dependencies (for example, `com.gradleup.shadow`) are contained within the build cache, so no internet access is required by the basic build process.
 
 ### Dependencies
 
@@ -91,21 +94,29 @@ spec:
     runtimeAttributes:
       repositories:
       - mavenCentral()
-      - jcenter()
+      - google()
 ```
 will populate the Gradle build script as follows:
 ```
 repositories {
     mavenCentral()
-    jcenter()
+    google()
 }
 ```
 
-Each `repositories` value is validated before it is written to the **build.gradle** script: a value must be a no-argument repository declaration of the form `name()` — for example `mavenCentral()`, `jcenter()`, `google()`, `mavenLocal()` or `gradlePluginPortal()`. Any other value — anything containing arguments, method chains, quotes, braces or whitespace — is rejected and the function build fails. This prevents arbitrary Groovy from being executed during the build. To use a custom repository configuration (for example a private `maven { ... }` repository), provide your own **build.gradle** file as described below.
+Each `repositories` value is validated before it is written to the **build.gradle** script: a value must be a no-argument repository declaration of the form `name()` — for example `mavenCentral()`, `google()`, `mavenLocal()` or `gradlePluginPortal()`. Any other value — anything containing arguments, method chains, quotes, braces or whitespace — is rejected and the function build fails. This prevents arbitrary Groovy from being executed during the build. To use a custom repository configuration (for example a private `maven { ... }` repository), provide your own **build.gradle** file as described below.
+
+> **NOTE:** `jcenter()` used to be accepted here too, but JCenter shut down in 2022 and Gradle 9 removed the `jcenter()` DSL method entirely - it is no longer a usable repository, documented or not.
 
 ### Custom Gradle script
 
 Providing a **build.gradle** file inside the function directory or archive overrides the script generation.
+
+> **BREAKING CHANGE (Java 25 runtime migration):** the generated build script moved from the shadow plugin
+> `com.github.johnrengelman.shadow` (archived, unmaintained) to its maintained successor `com.gradleup.shadow`,
+> required by the onbuild image's Gradle 9 upgrade. If your custom **build.gradle** references
+> `com.github.johnrengelman.shadow` directly, update it to `com.gradleup.shadow` (the plugin IDs are drop-in
+> compatible — same `shadowJar` task and configuration block).
 
 ## Dockerfile
 
@@ -114,7 +125,7 @@ See [Deploying Functions from a Dockerfile](../../../tasks/deploy-functions-from
 ```
 ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=openjdk:11-jre-slim
+ARG NUCLIO_BASE_IMAGE=eclipse-temurin:25-jre-noble
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-java-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor, handler.jar
