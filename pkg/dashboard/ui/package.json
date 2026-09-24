@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@babel/core": "^7.24.0",
-    "@babel/preset-env": "^7.24.0",
+    "@babel/preset-env": "^8.0.6",
     "@uirouter/angularjs": "^1.0.25",
     "angular": "^1.8.3",
     "angular-animate": "^1.8.0",
