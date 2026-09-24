@@ -99,10 +99,6 @@ ifeq ($(NUCLIO_ARCH), armhf)
 	# FROM --platform=${BUILDPLATFORM} (the CI runner's native arch, not NUCLIO_ARCH) - it
 	# needs a multi-arch image regardless of target arch, so no arch-specific prefix here.
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
-	# Java runtime is not supported on armhf: eclipse-temurin has no JDK 25 build for
-	# 32-bit ARM upstream, and rather than pin this one runtime to JDK 17 indefinitely,
-	# armhf Java support is dropped. See the handler-builder-java-onbuild guard below.
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= unsupported
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
