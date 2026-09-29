@@ -736,15 +736,14 @@ func (c *ShellClient) GetContainerEvents(containerName string, since string, unt
 // LogIn allows docker client to access secured registries
 func (c *ShellClient) LogIn(options *LogInOptions) error {
 
-	// TODO: validate login URL
 	c.logger.DebugWith("Performing docker login", "URL", options.URL)
 
 	c.redactedValues = append(c.redactedValues, options.Password)
 
-	_, err := c.runCommand(nil, `docker login -u %s -p '%s' %s`,
-		options.Username,
-		options.Password,
-		options.URL)
+	_, err := c.runCommand(nil, `docker login -u %s -p %s %s`,
+		common.Quote(options.Username),
+		common.Quote(options.Password),
+		common.Quote(options.URL))
 
 	return err
 }
