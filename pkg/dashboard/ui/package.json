@@ -53,7 +53,7 @@
     "js-base64": "^2.5.2",
     "lodash": "^4.17.21",
     "lodash-inflection": "^1.4.0",
-    "merge2": "^0.3.6",
+    "merge2": "^1.4.1",
     "moment": "^2.29.4",
     "monaco-editor": "^0.13.1",
     "natives": "^1.1.6",
