@@ -15,7 +15,7 @@
     "angular-money-directive": "~1.2.5",
     "angular-sanitize": "^1.8.0",
     "angular-ui-bootstrap": "~2.5.6",
-    "angularjs-slider": "~6.6.1",
+    "angularjs-slider": "~7.1.0",
     "ansi-colors": "4.1.3",
     "babel-plugin-angularjs-annotate": "^0.8.2",
     "bootstrap": "~3.4.1",

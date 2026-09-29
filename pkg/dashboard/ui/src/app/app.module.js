@@ -35,7 +35,7 @@ limitations under the License.
         'restangular',
         'iguazio.dashboard-controls',
         'ngFileUpload',
-        'rzModule',
+        'rzSlider',
         'angular-cron-jobs',
         'jm.i18next'
     ]);
