@@ -10,6 +10,8 @@ User guide
    deploying-pre-built-functions
    deploy-functions-from-dockerfile
    exporting-and-importing
+   viewing-execution-logs
+   installing-execution-logs-with-helm
    async-mode
    batching
    stream-response

@@ -158,14 +158,19 @@ type ProxyFunctionLogsOptions struct {
 
 	// populated internally
 	functionName string
+	projectName  string
 }
 
 func (p *ProxyFunctionLogsOptions) GetFunctionName() string {
 	return p.functionName
 }
 
-func NewProxyFunctionLogsOptions(functionName string) *ProxyFunctionLogsOptions {
-	return &ProxyFunctionLogsOptions{functionName: functionName}
+func (p *ProxyFunctionLogsOptions) GetProjectName() string {
+	return p.projectName
+}
+
+func NewProxyFunctionLogsOptions(functionName, projectName string) *ProxyFunctionLogsOptions {
+	return &ProxyFunctionLogsOptions{functionName: functionName, projectName: projectName}
 }
 
 type TimeFilter struct {

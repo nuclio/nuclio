@@ -62,7 +62,7 @@ func (suite *ElasticTestSuite) TestGetFunctionReplicas() {
 	replicas, err := suite.proxy.GetFunctionReplicas(suite.ctx, &logProxy.GetFunctionReplicaOptions{FunctionName: "hello"})
 	suite.Require().NoError(err)
 	var logs io.ReadCloser
-	options := platform.NewProxyFunctionLogsOptions("hello")
+	options := platform.NewProxyFunctionLogsOptions("hello", "")
 	options.Size = 100
 	options.ReplicaNames = replicas
 	options.LogLevels = []string{"debug"}
