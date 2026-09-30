@@ -1,8 +1,7 @@
 # Installing Nuclio with Helm for Execution Logs
 
-This guide covers what you need to do, specifically for the **Execution log** tab feature
-(see [Viewing Function Execution Logs](viewing-execution-logs.md)), when installing or upgrading
-Nuclio with Helm on Kubernetes.
+This guide covers what you need to do, specifically for the **Execution log** tab feature,
+when installing or upgrading Nuclio with Helm on Kubernetes.
 
 ## In This Document
 - [Overview](#overview)
@@ -124,5 +123,4 @@ kubectl port-forward -n nuclio \
 ```
 
 Open `http://localhost:8070`, navigate to any function, and confirm the **Execution log** tab
-appears immediately to the left of **Status**. If it doesn't, see
-[Troubleshooting](viewing-execution-logs.md#troubleshooting) in the Execution logs guide.
+appears immediately to the left of **Status**.

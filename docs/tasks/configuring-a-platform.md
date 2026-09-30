@@ -359,9 +359,8 @@ index field holding a function pod's `nuclio.io/project-name` label (e.g.
 `kubernetes.labels.nuclio_io/project-name`, depending on how your log shipper indexes Kubernetes
 labels). When set, every log query is additionally filtered on this field, so that logs can never
 leak across projects even if two functions in different projects happen to share the same name.
-When left unset (the default), no such filter is applied. See
-[Viewing Function Execution Logs](viewing-execution-logs.md) for how this is used from the
-dashboard's **Execution log** tab.
+When left unset (the default), no such filter is applied. This is used by the dashboard's
+**Execution log** tab, on a function's page.
 
 To add a password, you need to create a secret with a password for the ElasticSearch or OpenSearch instance:
 ```
