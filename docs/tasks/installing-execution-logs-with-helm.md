@@ -16,12 +16,12 @@ when installing or upgrading Nuclio with Helm on Kubernetes.
 
 The Execution log tab needs two things to work, neither of which is on by default:
 
-1. **Nuclio images that include this feature.** This feature has not shipped in a tagged Nuclio
-   release yet — as of writing, it only exists on the source branch it was developed on. Until it
-   is merged and released, you'll need to build and push your own `dashboard` (and, to keep
-   versions in lockstep, `controller`) images from that source, and point the Helm chart at them.
-   Once it ships in a release, you can skip [Step 1](#step-1-build-and-push-custom-images)
-   entirely and just use the stock image tags.
+1. **A `dashboard` image that includes this feature.** This feature has not shipped in a tagged
+   Nuclio release yet — as of writing, it only exists on the source branch it was developed on.
+   Until it is merged and released, you'll need to build and push your own `dashboard` image from
+   that source, and point the Helm chart at it (the feature lives entirely in the dashboard;
+   `controller` doesn't need to change). Once it ships in a release, you can skip
+   [Step 1](#step-1-build-and-push-custom-images) entirely and just use the stock image tag.
 2. **An OpenSearch/Elasticsearch log source configured on the platform.** This is the same
    `kube.elasticSearchConfig` platform setting described in
    [Configuring a Platform](configuring-a-platform.md#elastic-search) — the Helm chart doesn't
@@ -36,10 +36,13 @@ The Execution log tab needs two things to work, neither of which is on by defaul
 From the root of your `nuclio/nuclio` checkout, on the branch/commit that has this feature:
 
 ```sh
-make NUCLIO_ARCH=amd64 NUCLIO_OS=linux NUCLIO_LABEL=<your-nuclio-version> dashboard
+export NUCLIO_DOCKER_REPO=<your-registry>/nuclio
+export NUCLIO_LABEL=execution-logs # any tag name you'll recognize later
+make NUCLIO_ARCH=amd64 NUCLIO_OS=linux dashboard
 ```
 
-This builds `$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-<arch>`, Push the image to your registry
+This builds `$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-amd64`. Push it to your registry
+(re-using the same exported variables from above, in the same shell session):
 
 ```sh
 docker push $NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-amd64
@@ -81,9 +84,11 @@ platform:
       sslVerificationMode: none # or "full", if using a trusted certificate
       username: <your-username>
       index: <your-log-index-pattern> # e.g. "filebeat-*"
-      customQueryParameter: "kubernetes.namespace.name:mlrun"
+      # customQueryParameter: <any extra query_string clause to AND into every log query>
+
       # Optional safety net: prevents logs from leaking across projects if two functions in
-      # different projects ever share a name. See "Viewing Function Execution Logs" for details.
+      # different projects ever share a name. Skipped (fails open) for legacy functions with no
+      # project-name label at all, so it isn't an unconditional guarantee for every function.
       # projectNameField: kubernetes.labels.nuclio_io/project-name
 ```
 
@@ -96,7 +101,7 @@ If this is a fresh install:
 helm repo add nuclio https://nuclio.github.io/nuclio/charts
 helm install nuclio nuclio/nuclio \
     --namespace nuclio \
-    -f log_values.yaml
+    -f values.yaml
 ```
 
 If you're enabling this on an existing Nuclio install, use `upgrade` instead:

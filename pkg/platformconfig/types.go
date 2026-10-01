@@ -430,9 +430,11 @@ type ElasticSearchConfig struct {
 	// ProjectNameField is the index field holding the value of the function pod's
 	// nuclio.io/project-name label (e.g. a log shipper may dedot it into a field such
 	// as "kubernetes.labels.nuclio_io/project-name" - the exact path is deployment
-	// specific). When set, a defense-in-depth filter on this field is added to every
-	// function-log query, so logs from a same-named function in another project can
-	// never leak in. When empty, no such filter is applied.
+	// specific). When set, a defense-in-depth filter on this field is added to
+	// function-log queries, so logs from a same-named function in another project
+	// can't leak in. This filter is skipped (fails open) for legacy functions that
+	// have no project-name label at all, so it is not an unconditional guarantee.
+	// When empty, no such filter is applied.
 	ProjectNameField string `json:"projectNameField,omitempty"`
 
 	// Kind specifies the log proxy backend type explicitly.

@@ -357,10 +357,11 @@ kube:
 `projectNameField` is optional and only needed as a defense-in-depth safety net: it names the
 index field holding a function pod's `nuclio.io/project-name` label (e.g.
 `kubernetes.labels.nuclio_io/project-name`, depending on how your log shipper indexes Kubernetes
-labels). When set, every log query is additionally filtered on this field, so that logs can never
-leak across projects even if two functions in different projects happen to share the same name.
-When left unset (the default), no such filter is applied. This is used by the dashboard's
-**Execution log** tab, on a function's page.
+labels). When set, log queries are additionally filtered on this field, so that logs can't leak
+across projects even if two functions in different projects happen to share the same name. This
+filter is skipped for legacy functions that have no project-name label at all, so it isn't an
+unconditional guarantee for every function. When left unset (the default), no such filter is
+applied. This is used by the dashboard's **Execution log** tab, on a function's page.
 
 To add a password, you need to create a secret with a password for the ElasticSearch or OpenSearch instance:
 ```

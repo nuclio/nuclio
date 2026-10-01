@@ -169,8 +169,15 @@ func (p *ProxyFunctionLogsOptions) GetProjectName() string {
 	return p.projectName
 }
 
-func NewProxyFunctionLogsOptions(functionName, projectName string) *ProxyFunctionLogsOptions {
-	return &ProxyFunctionLogsOptions{functionName: functionName, projectName: projectName}
+// projectName is variadic to keep existing single-argument callers (functionName only) source
+// compatible; pass a project name as the second argument to populate it, e.g.
+// NewProxyFunctionLogsOptions(functionName, projectName).
+func NewProxyFunctionLogsOptions(functionName string, projectName ...string) *ProxyFunctionLogsOptions {
+	options := &ProxyFunctionLogsOptions{functionName: functionName}
+	if len(projectName) > 0 {
+		options.projectName = projectName[0]
+	}
+	return options
 }
 
 type TimeFilter struct {
