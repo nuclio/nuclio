@@ -65,7 +65,7 @@
     "sharp": "^0.35.4",
     "svgo": "^4.1.0",
     "tc-angular-ellipsis": "0.1.6",
-    "vinyl-paths": "^3.0.1",
+    "vinyl-paths": "^5.0.0",
     "yamljs": "^0.3.0",
     "yargs": "^18.2.0"
   },
