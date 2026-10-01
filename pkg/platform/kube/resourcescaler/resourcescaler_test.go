@@ -24,6 +24,7 @@ package resourcescaler
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -135,6 +136,31 @@ func (suite *ResourceScalerTestSuite) TestDisabledFeatureFlagYieldsNoAuthenticat
 			} else {
 				suite.Require().Nil(resourceScaler.newAuthOnlyAuthenticator())
 			}
+		})
+	}
+}
+
+func (suite *ResourceScalerTestSuite) TestReadinessVerificationRetryInterval() {
+	for _, testCase := range []struct {
+		name                  string
+		readinessPollInterval string
+		expectedRetryInterval time.Duration
+	}{
+		{name: "unset keeps 1s", readinessPollInterval: "", expectedRetryInterval: time.Second},
+		{name: "shorter poll interval is used", readinessPollInterval: "200ms", expectedRetryInterval: 200 * time.Millisecond},
+		{name: "longer poll interval is capped", readinessPollInterval: "5s", expectedRetryInterval: time.Second},
+	} {
+		suite.Run(testCase.name, func() {
+			platformConfiguration := &platformconfig.Config{
+				ScaleToZero: platformconfig.ScaleToZero{ReadinessPollInterval: testCase.readinessPollInterval},
+			}
+			suite.Require().NoError(platformConfiguration.EnrichPlatformConfig())
+
+			resourceScaler := &NuclioResourceScaler{
+				logger:                suite.logger,
+				platformConfiguration: platformConfiguration,
+			}
+			suite.Require().Equal(testCase.expectedRetryInterval, resourceScaler.getReadinessVerificationRetryInterval())
 		})
 	}
 }

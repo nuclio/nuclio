@@ -126,6 +126,7 @@ type ScaleToZero struct {
 
 	// Used by the resource scaler, how often to poll the function CRD state while
 	// waiting for it to become ready on scale-from-zero. Defaults to DefaultReadinessPollInterval.
+	// Also used as the function health check retry interval, capped at 1s.
 	ReadinessPollInterval string `json:"readinessPollInterval,omitempty"`
 
 	// Used for scaler options, specifies metrics client configuration and type
