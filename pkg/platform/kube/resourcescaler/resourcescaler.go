@@ -411,7 +411,7 @@ func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nu
 
 	startTime := time.Now()
 	if err := common.RetryUntilSuccessful(time.Minute,
-		time.Second*1,
+		n.getReadinessVerificationRetryInterval(),
 		func() bool {
 			response, err := n.httpClient.Do(request)
 			if err != nil {
@@ -443,6 +443,11 @@ func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nu
 		return errors.Wrap(err, "Exhausted waiting for function readiness verification")
 	}
 	return nil
+}
+
+// capped so the 3s default poll interval does not slow down retries
+func (n *NuclioResourceScaler) getReadinessVerificationRetryInterval() time.Duration {
+	return min(n.platformConfiguration.GetScaleToZeroReadinessPollInterval(), time.Second)
 }
 
 func (n *NuclioResourceScaler) getMetricsClientTemplates() []scalertypes.QueryTemplate {
