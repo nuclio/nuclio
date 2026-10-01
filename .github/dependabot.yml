@@ -35,3 +35,6 @@ updates:
     ignore:
       # bootstrap 5.x is a breaking major bump that broke the UI (see PR #4306, #4321, #4322)
       - dependency-name: "bootstrap"
+      # preset-env 8.x needs @babel/core@^8 + Node >=22.18
+      - dependency-name: "@babel/preset-env"
+        update-types: ["version-update:semver-major"]

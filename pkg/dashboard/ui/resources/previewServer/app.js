@@ -40,7 +40,7 @@ var previewServer = function () {
             setHeaders: setCustomCacheControl
         }));
 
-        app.all('/*splat', function (req, res) {
+        app.all('/{*splat}', function (req, res) {
             res.sendFile(root + '/index.html');
         });
 

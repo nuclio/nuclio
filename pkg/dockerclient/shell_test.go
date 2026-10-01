@@ -19,6 +19,9 @@ limitations under the License.
 package dockerclient
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -657,6 +660,34 @@ func (suite *ShellClientTestSuite) TestExecInContainerEnv() {
 			suite.mockedCmdRunner.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// TestLogInDoesNotExecuteShellInjectionViaPassword proves GHSA-7w68-vp98-4r6g: an unescaped
+// password reaches a real shell - uses a real ShellRunner and a bare ShellClient (skipping NewShellClient's docker CLI check) to actually cross that boundary, not a mock.
+func (suite *ShellClientTestSuite) TestLogInDoesNotExecuteShellInjectionViaPassword() {
+	markerPath := filepath.Join(suite.T().TempDir(), "pwned")
+
+	realRunner, err := cmdrunner.NewShellRunner(suite.logger)
+	suite.Require().NoError(err)
+
+	shellClient := &ShellClient{
+		logger:    suite.logger,
+		cmdRunner: realRunner,
+	}
+
+	maliciousPassword := fmt.Sprintf("x'; touch %s; echo '", markerPath)
+
+	// LogIn may fail (there's no real registry to log in to) - what matters is that the
+	// injected `touch` never runs.
+	_ = shellClient.LogIn(&LogInOptions{
+		Username: "user",
+		Password: maliciousPassword,
+		URL:      "https://registry.example.com",
+	})
+
+	_, statErr := os.Stat(markerPath)
+	suite.Require().True(os.IsNotExist(statErr),
+		"shell injection via LogIn password executed the injected command: marker file was created")
 }
 
 func TestShellRunnerTestSuite(t *testing.T) {
