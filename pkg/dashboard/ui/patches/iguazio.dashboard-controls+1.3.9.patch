@@ -1,0 +1,158 @@
+diff --git a/node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js b/node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js
+index 0000000..0000000 100644
+--- a/node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js
++++ b/node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js
+@@ -6736,7 +6736,7 @@
+     function showDropdownMenus() {
+       var datePickerDropdownElement = ctrl.isShowDatePicker ? angular.element($element.find('.date-time-pickers')) : ctrl.isShowOptionsList ? angular.element($element.find('.options-dropdown')) : null;
+       var datePickerDropdownParent = angular.element($element.find('.date-time-picker'));
+-      var headerElement = angular.element('.igz-main-header');
++      var headerElement = angular.element('.igz-main-header, .ncl-main-header');
+       if (!lodash.isEmpty(datePickerDropdownElement) && !lodash.isEmpty(datePickerDropdownParent)) {
+         var elementHeight = datePickerDropdownElement[0].clientHeight;
+         var parentHeight = datePickerDropdownParent[0].clientHeight;
+@@ -9352,7 +9352,9 @@
+       if (angular.isUndefined(ctrl.perPageValues)) {
+         ctrl.perPageValues = PaginationService.perPageDefaults();
+       }
+-      ctrl.perPage = lodash.some(ctrl.perPageValues, 'id', ctrl.pageData.size) ? ctrl.pageData.size : ctrl.perPageValues[0].id;
++      ctrl.perPage = lodash.some(ctrl.perPageValues, {
++        id: ctrl.pageData.size
++      }) ? ctrl.pageData.size : ctrl.perPageValues[0].id;
+       $scope.$watch('$ctrl.pageData.total', initValues);
+       $scope.$watch('$ctrl.pageData.number', updatePage);
+     }
+@@ -21105,13 +21107,24 @@
+      */
+     function initLogTabs() {
+       if (lodash.get(ConfigService, 'nuclio.defaultProxyLogsSource', '') === 'elasticsearch') {
+-        ctrl.navigationTabsConfig.push({
++        var executionLogTab = {
+           tabName: $i18next.t('functions:EXECUTION_LOG', {
+             lng: lng
+           }),
+           id: 'execution-log',
+           uiRoute: 'app.project.function.edit.execution-log'
++        };
++        var statusTabIndex = lodash.findIndex(ctrl.navigationTabsConfig, {
++          id: 'status'
+         });
++
++        // insert immediately before the "Status" tab instead of appending after it,
++        // falling back to append if the status tab is ever removed/renamed
++        if (statusTabIndex === -1) {
++          ctrl.navigationTabsConfig.push(executionLogTab);
++        } else {
++          ctrl.navigationTabsConfig.splice(statusTabIndex, 0, executionLogTab);
++        }
+       }
+     }
+ 
+@@ -25284,7 +25297,7 @@
+     };
+     var projectName = '';
+     var groupedReplicas = {};
+-    ctrl.excludeOffline = false;
++    ctrl.excludeOffline = true;
+     ctrl.excludeOfflineIsDisabled = false;
+     ctrl.downloadButtonIsDisabled = false;
+     ctrl.isSplashShowed = {
+@@ -25363,6 +25376,30 @@
+       }]
+     };
+     ctrl.customDatePresets = {
++      '15m': {
++        label: $i18next.t('common:LAST', {
++          lng: lng
++        }) + ' 15 ' + $i18next.t('common:MINUTES', {
++          lng: lng
++        }),
++        getRange: function getRange() {
++          return {
++            from: moment().subtract(15, 'minutes')
++          };
++        }
++      },
++      '1h': {
++        label: $i18next.t('common:LAST', {
++          lng: lng
++        }) + ' 1 ' + $i18next.t('common:HOUR', {
++          lng: lng
++        }),
++        getRange: function getRange() {
++          return {
++            from: moment().subtract(1, 'hours')
++          };
++        }
++      },
+       '1d': {
+         label: $i18next.t('common:LAST', {
+           lng: lng
+@@ -25421,9 +25458,6 @@
+     }, {
+       id: 200,
+       name: '200'
+-    }, {
+-      id: 500,
+-      name: '500'
+     }];
+     ctrl.$onInit = onInit;
+     ctrl.$onDestroy = onDestroy;
+@@ -25458,7 +25492,7 @@
+         includeOffline: true
+       }).then(function (replicas) {
+         groupedReplicas = replicas;
+-        allReplicas = lodash.get(groupedReplicas, 'replicas.names') ? groupedReplicas.replicas.names.concat(replicas.offlineReplicas.names) : lodash.get(groupedReplicas, 'names', []);
++        allReplicas = lodash.get(groupedReplicas, 'replicas.names', lodash.get(groupedReplicas, 'names', []));
+         ctrl.excludeOfflineIsDisabled = lodash.get(groupedReplicas, 'offlineReplicas.names', []).length === 0;
+         ctrl.replicasList = allReplicas.map(function (replica) {
+           return {
+@@ -25588,7 +25622,7 @@
+         timeFilter: ctrl.timeRange
+       }).then(function (replicas) {
+         groupedReplicas = replicas;
+-        allReplicas = lodash.get(groupedReplicas, 'replicas.names') ? groupedReplicas.replicas.names.concat(replicas.offlineReplicas.names) : lodash.get(groupedReplicas, 'names', []);
++        allReplicas = lodash.get(groupedReplicas, 'replicas.names', lodash.get(groupedReplicas, 'names', []));
+         ctrl.excludeOfflineIsDisabled = lodash.get(groupedReplicas, 'offlineReplicas.names', []).length === 0;
+         ctrl.replicasList = allReplicas.map(function (replica) {
+           return {
+@@ -25617,7 +25651,7 @@
+       ctrl.timeRange = getInitialTimeRange();
+       ctrl.datePreset = initialDatePreset;
+       ctrl.selectedReplicas = initialReplicas;
+-      ctrl.excludeOffline = false;
++      ctrl.excludeOffline = true;
+       lodash.merge(ctrl.filter, defaultFilter);
+       $rootScope.$broadcast('search-input_reset');
+       applyFilters();
+@@ -29226,7 +29260,7 @@
+ }
+ module.run(['$templateCache', function($templateCache) {
+   $templateCache.put('nuclio/functions/version/version-execution-log/version-execution-log.tpl.html',
+-    ' <igz-splash-screen data-is-splash-showed="$ctrl.isSplashShowed"></igz-splash-screen> <div class="ncl-version-execution-log ncl-version" data-igz-extend-background> <div class="ncl-version-execution-log-wrapper"> <div class="row" data-ng-class="{\'filters-shown\': $ctrl.isFiltersShowed.value}"> <igz-info-page-filters data-is-filters-showed="$ctrl.isFiltersShowed.value" data-change-state-callback="$ctrl.isFiltersShowed.changeValue(newVal)" data-toggle-method="$ctrl.toggleFilters()" data-apply-filters="$ctrl.applyFilters()" data-apply-is-disabled="$ctrl.applyIsDisabled" data-watch-id="log-filter" data-reset-filters="$ctrl.resetFilters()"> <div class="info-page-filters-item search-input-item filter-message-wrapper"> <div class="filter-message align-items-center"> <span class="filter-label">{{ \'common:MESSAGE\' | i18next }}</span> <igz-more-info data-is-default-tooltip-enabled="true" data-default-tooltip-placement="top" data-is-html-enabled="true" data-description="{{ \'common:TOOLTIP.LOGS_MESSAGE_DESCRIPTION\' | i18next }}"> </igz-more-info> </div> <igz-search-input class="igz-component" data-data-set="$ctrl.logs" data-search-keys="$ctrl.searchKeys" data-placeholder="{{ \'common:PLACEHOLDER.SOME_LOG_MESSAGE\' | i18next }}" data-type="control" data-rule-type="message" data-search-states="$ctrl.searchStates" data-search-callback="$ctrl.onQueryChanged(searchQuery, ruleType)"> </igz-search-input> </div> <div class="info-page-filters-item all-padded"> <div class="browser-search-bar-wrapper"> <span class="filter-label"> {{ \'common:TIME_RANGE\' | i18next }} </span> <igz-date-time-picker data-pick-time="true" data-pick-future-dates="false" data-selected-preset="{{$ctrl.datePreset}}" data-input-date-from="$ctrl.timeRange.from" data-input-date-to="$ctrl.timeRange.to" data-is-date-range="true" data-is-required="true" data-custom-presets="$ctrl.customDatePresets" data-on-change-model="$ctrl.onTimeRangeChange(newValue, selectedPreset)"> </igz-date-time-picker> </div> </div> <div class="info-page-filters-item all-padded"> <div class="filter-label"> {{ \'common:LEVEL\' | i18next }} </div> <div class="filter-level-wrapper align-items-center"> <div class="igz-col-50"> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.debug" id="level-debug"> <label for="level-debug"> <span class="level-icon ncl-icon-debug"></span> {{ \'common:DEBUG\' | i18next }} </label> </div> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.warn" id="level-warning"> <label for="level-warning"> <span class="level-icon igz-icon-warning"></span> {{ \'common:WARNING\' | i18next }} </label> </div> </div> <div class="igz-col-50"> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.info" id="level-info"> <label for="level-info"> <span class="level-icon igz-icon-info-round"></span> {{ \'common:INFO\' | i18next }} </label> </div> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.error" id="level-error"> <label for="level-error"> <span class="level-icon igz-icon-cancel-path"></span> {{ \'common:ERROR\' | i18next }} </label> </div> </div> </div> </div> <div class="info-page-filters-item all-padded replicas"> <span class="filter-label asterisk"> {{ \'common:REPLICAS\' | i18next }} </span> <div class="online-replicas__checkbox"> <input type="checkbox" id="onlineOnly" data-ng-change="$ctrl.onExcludeOfflineChange()" data-ng-disabled="$ctrl.excludeOfflineIsDisabled" data-ng-model="$ctrl.excludeOffline"> <label for="onlineOnly" data-uib-tooltip="{{ $ctrl.excludeOfflineIsDisabled ? \'functions:TOOLTIP.NO_OFFLINE_REPLICAS\' : \'\' | i18next }}"> {{ \'functions:SHOWN_ONLINE_ONLY\' | i18next }} </label> </div> <igz-multiple-checkboxes data-ng-model="$ctrl.selectedReplicas" data-options="$ctrl.replicasList" data-dropdown="true" data-title="{{ \'functions:PLACEHOLDER.SELECT_REPLICA\' | i18next }}" data-select-all-none="true" data-ng-change="$ctrl.onCheckboxChange($event)" data-ng-required="true" data-base-id="select-replica_"> </igz-multiple-checkboxes> </div> </igz-info-page-filters> <igz-info-page-actions-bar> <div class="igz-action-panel"> <div class="actions-list"> <div class="actions-bar-left"> <span class="limitation-message" data-ng-i18next="[html]functions:LOGS_LINES_LIMITATION"></span> </div> <div class="actions-bar-right"> <div class="actions-bar-left actions-buttons-block actions-dropdown-block"> <igz-default-dropdown data-values-array="$ctrl.refreshRate.options" data-selected-item="$ctrl.refreshRate.value" data-select-property-only="value" data-item-select-callback="$ctrl.onRefreshRateChange(item, isItemChanged, field)" data-item-select-field="refreshRate.value"> </igz-default-dropdown> </div> <div class="actions-bar-left"> <igz-action-item-refresh data-is-disabled="$ctrl.isFunctionDeploying()" data-refresh="$ctrl.refreshLogs()"> </igz-action-item-refresh> </div> <div class="actions-bar-left"> <div class="igz-action-item" data-ng-click="$ctrl.downloadLogFiles()" data-ng-class="{\'inactive\': $ctrl.logsAreDownloading || $ctrl.downloadButtonIsDisabled}" data-uib-tooltip="{{ \'common:DOWNLOAD\' | i18next }}" data-tooltip-placement="bottom" data-tooltip-popup-delay="300" data-tooltip-append-to-body="true"> <div class="action-icon igz-icon-download"></div> </div> </div> <igz-actions-panes data-filters-toggle-method="$ctrl.toggleFilters()" data-show-filter-icon="true" data-filters-counter="$ctrl.activeFilters" data-is-filters-opened="$ctrl.isFiltersShowed.value"> </igz-actions-panes> </div> </div> </div> </igz-info-page-actions-bar> <div class="igz-control-panel-log"> <div class="control-panel-log-table common-table"> <div class="search-input-not-found" data-ng-if="$ctrl.logs.length === 0"> {{ \'functions:NO_LOGS_WERE_FOUND\' | i18next }} </div> <div data-igz-extend-background class="common-table-body"> <div class="igz-scrollable-container logs-container" data-ng-scrollbars data-ng-scrollbars-config="$ctrl.scrollConfig" data-ng-hide="$ctrl.logs.length === 0"> <div data-ng-repeat="log in $ctrl.logs"> <igz-elastic-log-table-row data-entry-item="log"></igz-elastic-log-table-row> </div> <igz-pagination class="control-panel-log-pagination" data-page-data="$ctrl.page" data-pagination-callback="$ctrl.searchWithParams(page, size)" data-ng-hide="$ctrl.logs.length === 0" data-per-page-values="$ctrl.perPageValues"> </igz-pagination> </div> </div> </div> </div> </div> </div> </div> ');
++    ' <igz-splash-screen data-is-splash-showed="$ctrl.isSplashShowed"></igz-splash-screen> <div class="ncl-version-execution-log ncl-version" data-igz-extend-background> <div class="ncl-version-execution-log-wrapper"> <div class="row" data-ng-class="{\'filters-shown\': $ctrl.isFiltersShowed.value}"> <igz-info-page-filters data-is-filters-showed="$ctrl.isFiltersShowed.value" data-change-state-callback="$ctrl.isFiltersShowed.changeValue(newVal)" data-toggle-method="$ctrl.toggleFilters()" data-apply-filters="$ctrl.applyFilters()" data-apply-is-disabled="$ctrl.applyIsDisabled" data-watch-id="log-filter" data-reset-filters="$ctrl.resetFilters()"> <div class="info-page-filters-item search-input-item filter-message-wrapper"> <div class="filter-message align-items-center"> <span class="filter-label">{{ \'common:MESSAGE\' | i18next }}</span> <igz-more-info data-is-default-tooltip-enabled="true" data-default-tooltip-placement="top" data-is-html-enabled="true" data-description="{{ \'common:TOOLTIP.LOGS_MESSAGE_DESCRIPTION\' | i18next }}"> </igz-more-info> </div> <igz-search-input class="igz-component" data-data-set="$ctrl.logs" data-search-keys="$ctrl.searchKeys" data-placeholder="{{ \'common:PLACEHOLDER.SOME_LOG_MESSAGE\' | i18next }}" data-type="control" data-rule-type="message" data-search-states="$ctrl.searchStates" data-search-callback="$ctrl.onQueryChanged(searchQuery, ruleType)"> </igz-search-input> </div> <div class="info-page-filters-item all-padded"> <div class="browser-search-bar-wrapper"> <span class="filter-label"> {{ \'common:TIME_RANGE\' | i18next }} </span> <igz-date-time-picker data-pick-time="true" data-pick-future-dates="false" data-selected-preset="{{$ctrl.datePreset}}" data-input-date-from="$ctrl.timeRange.from" data-input-date-to="$ctrl.timeRange.to" data-is-date-range="true" data-is-required="true" data-custom-presets="$ctrl.customDatePresets" data-on-change-model="$ctrl.onTimeRangeChange(newValue, selectedPreset)"> </igz-date-time-picker> </div> </div> <div class="info-page-filters-item all-padded"> <div class="filter-label"> {{ \'common:LEVEL\' | i18next }} </div> <div class="filter-level-wrapper align-items-center"> <div class="igz-col-50"> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.debug" id="level-debug"> <label for="level-debug"> <span class="level-icon ncl-icon-debug"></span> {{ \'common:DEBUG\' | i18next }} </label> </div> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.warn" id="level-warning"> <label for="level-warning"> <span class="level-icon igz-icon-warning"></span> {{ \'common:WARNING\' | i18next }} </label> </div> </div> <div class="igz-col-50"> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.info" id="level-info"> <label for="level-info"> <span class="level-icon igz-icon-info-round"></span> {{ \'common:INFO\' | i18next }} </label> </div> <div class="filter-level-item"> <input type="checkbox" data-ng-model="$ctrl.filter.level.error" id="level-error"> <label for="level-error"> <span class="level-icon igz-icon-cancel-path"></span> {{ \'common:ERROR\' | i18next }} </label> </div> </div> </div> </div> <div class="info-page-filters-item all-padded replicas"> <span class="filter-label asterisk"> {{ \'common:REPLICAS\' | i18next }} </span> <igz-multiple-checkboxes data-ng-model="$ctrl.selectedReplicas" data-options="$ctrl.replicasList" data-dropdown="true" data-title="{{ \'functions:PLACEHOLDER.SELECT_REPLICA\' | i18next }}" data-select-all-none="true" data-ng-change="$ctrl.onCheckboxChange($event)" data-ng-required="true" data-base-id="select-replica_"> </igz-multiple-checkboxes> </div> </igz-info-page-filters> <igz-info-page-actions-bar> <div class="igz-action-panel"> <div class="actions-list"> <div class="actions-bar-left"> <span class="limitation-message" data-ng-i18next="[html]functions:LOGS_LINES_LIMITATION"></span> </div> <div class="actions-bar-right"> <div class="actions-bar-left actions-buttons-block actions-dropdown-block"> <igz-default-dropdown data-values-array="$ctrl.refreshRate.options" data-selected-item="$ctrl.refreshRate.value" data-select-property-only="value" data-item-select-callback="$ctrl.onRefreshRateChange(item, isItemChanged, field)" data-item-select-field="refreshRate.value"> </igz-default-dropdown> </div> <div class="actions-bar-left"> <igz-action-item-refresh data-is-disabled="$ctrl.isFunctionDeploying()" data-refresh="$ctrl.refreshLogs()"> </igz-action-item-refresh> </div> <div class="actions-bar-left"> <div class="igz-action-item" data-ng-click="$ctrl.downloadLogFiles()" data-ng-class="{\'inactive\': $ctrl.logsAreDownloading || $ctrl.downloadButtonIsDisabled}" data-uib-tooltip="{{ \'common:DOWNLOAD\' | i18next }}" data-tooltip-placement="bottom" data-tooltip-popup-delay="300" data-tooltip-append-to-body="true"> <div class="action-icon igz-icon-download"></div> </div> </div> <igz-actions-panes data-filters-toggle-method="$ctrl.toggleFilters()" data-show-filter-icon="true" data-filters-counter="$ctrl.activeFilters" data-is-filters-opened="$ctrl.isFiltersShowed.value"> </igz-actions-panes> </div> </div> </div> </igz-info-page-actions-bar> <div class="igz-control-panel-log"> <div class="control-panel-log-table common-table"> <div class="search-input-not-found" data-ng-if="$ctrl.logs.length === 0"> {{ \'functions:NO_LOGS_WERE_FOUND\' | i18next }} </div> <div data-igz-extend-background class="common-table-body"> <div class="igz-scrollable-container logs-container" data-ng-scrollbars data-ng-scrollbars-config="$ctrl.scrollConfig" data-ng-hide="$ctrl.logs.length === 0"> <div data-ng-repeat="log in $ctrl.logs"> <igz-elastic-log-table-row data-entry-item="log"></igz-elastic-log-table-row> </div> <igz-pagination class="control-panel-log-pagination" data-page-data="$ctrl.page" data-pagination-callback="$ctrl.searchWithParams(page, size)" data-ng-hide="$ctrl.logs.length === 0" data-per-page-values="$ctrl.perPageValues"> </igz-pagination> </div> </div> </div> </div> </div> </div> </div> ');
+ }]);
+ })();
+ 
+diff --git a/node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less b/node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less
+index 0000000..0000000 100644
+--- a/node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less
++++ b/node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less
+@@ -7571,7 +7571,7 @@
+     }
+ 
+     .per-page {
+-        width: 66px;
++        width: 84px;
+ 
+         .default-dropdown-field {
+             background: none;
+@@ -7610,7 +7610,7 @@
+         }
+ 
+         .default-dropdown-container {
+-            width: 66px;
++            width: 84px;
+ 
+             .list-item {
+                 padding-left: 15px;
