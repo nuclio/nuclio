@@ -68,6 +68,34 @@ func NewStore(parentLogger logger.Logger,
 	}, nil
 }
 
+// GetNamespaces lists namespaces with persisted resources and retains the default namespace.
+func (s *Store) GetNamespaces() ([]string, error) {
+	stdout, _, err := s.runCommand(nil,
+		"/usr/bin/find %s -mindepth 3 -maxdepth 3 -type f -name '*.json'", common.Quote(baseDir))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list local namespaces")
+	}
+	names := map[string]struct{}{"nuclio": {}}
+	for _, resourcePath := range strings.Split(stdout, "\n") {
+		parts := strings.Split(strings.TrimPrefix(resourcePath, baseDir+"/"), "/")
+		if len(parts) != 3 {
+			continue
+		}
+		switch parts[0] {
+		case "functions", "projects", "function-events":
+			if len(validation.IsDNS1123Label(parts[1])) == 0 {
+				names[parts[1]] = struct{}{}
+			}
+		}
+	}
+	namespaces := make([]string, 0, len(names))
+	for name := range names {
+		namespaces = append(namespaces, name)
+	}
+	sort.Strings(namespaces)
+	return namespaces, nil
+}
+
 //
 // Project
 //
