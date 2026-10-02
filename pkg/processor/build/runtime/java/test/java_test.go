@@ -88,7 +88,7 @@ func (suite *TestSuite) TestBuildWithCustomRepositories() {
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
 	createFunctionOptions.FunctionConfig.Spec.Build.RuntimeAttributes = map[string]interface{}{
-		"repositories": []string{"mavenCentral()", "jcenter()"},
+		"repositories": []string{"mavenCentral()", "google()"},
 	}
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
