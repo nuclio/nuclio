@@ -73,7 +73,8 @@ func (s *Store) GetNamespaces() ([]string, error) {
 	stdout, _, err := s.runCommand(nil,
 		"/usr/bin/find %s -mindepth 3 -maxdepth 3 -type f -name '*.json'", common.Quote(baseDir))
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to list local namespaces")
+		s.logger.WarnWith("Failed to list local namespaces, returning default namespace", "err", err)
+		return []string{"nuclio"}, nil
 	}
 	names := map[string]struct{}{"nuclio": {}}
 	for _, resourcePath := range strings.Split(stdout, "\n") {

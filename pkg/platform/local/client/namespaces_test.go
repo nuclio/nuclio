@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,11 +58,26 @@ func TestGetNamespaces(t *testing.T) {
 	}
 }
 
-func TestGetNamespacesPropagatesStorageFailure(t *testing.T) {
+type namespaceLogger struct {
+	logger.Logger
+	warnings [][]interface{}
+}
+
+func (l *namespaceLogger) WarnWith(_ interface{}, fields ...interface{}) {
+	l.warnings = append(l.warnings, fields)
+}
+
+func TestGetNamespacesRetainsDefaultOnStorageFailure(t *testing.T) {
 	failure := errors.New("storage unavailable")
-	s := &Store{dockerClient: &namespaceDockerClient{err: failure}}
+	log := &namespaceLogger{}
+	s := &Store{dockerClient: &namespaceDockerClient{err: failure}, logger: log}
 	got, err := s.GetNamespaces()
 
-	require.Nil(t, got)
-	require.Equal(t, failure, errors.RootCause(err))
+	require.NoError(t, err)
+	require.Equal(t, []string{"nuclio"}, got)
+	require.Len(t, log.warnings, 1)
+	require.Equal(t, "err", log.warnings[0][0])
+	loggedError, ok := log.warnings[0][1].(error)
+	require.True(t, ok)
+	require.Equal(t, failure, errors.RootCause(loggedError))
 }
