@@ -77,7 +77,7 @@ func (s *Store) GetNamespaces() ([]string, error) {
 		s.logger.WarnWith("Failed to list local namespaces, returning default namespace", "err", err)
 		return []string{defaultNamespace}, nil
 	}
-	names := map[string]struct{}{defaultNamespace: {}}
+	names := map[string]struct{}{}
 	for _, resourcePath := range strings.Split(stdout, "\n") {
 		parts := strings.Split(strings.TrimPrefix(resourcePath, baseDir+"/"), "/")
 		if len(parts) != 3 {
@@ -90,11 +90,17 @@ func (s *Store) GetNamespaces() ([]string, error) {
 			}
 		}
 	}
-	namespaces := make([]string, 0, len(names))
+	var namespaces []string
+
+	// put default namespace first in namespace list
+	namespaces = append(namespaces, defaultNamespace)
+
 	for name := range names {
-		namespaces = append(namespaces, name)
+		if name != defaultNamespace {
+			namespaces = append(namespaces, name)
+		}
 	}
-	sort.Strings(namespaces)
+	sort.Strings(namespaces[1:])
 	return namespaces, nil
 }
 

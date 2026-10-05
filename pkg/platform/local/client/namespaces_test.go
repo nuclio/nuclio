@@ -45,7 +45,7 @@ func TestGetNamespaces(t *testing.T) {
 		want         []string
 	}{
 		{"empty", "", []string{"nuclio"}},
-		{"resources", "/etc/nuclio/store/projects/embedding/project.json\n/etc/nuclio/store/functions/embedding/function.json\n/etc/nuclio/store/function-events/tools/event.json\n", []string{"embedding", "nuclio", "tools"}},
+		{"resources", "/etc/nuclio/store/projects/nuclio/project.json\n/etc/nuclio/store/function-events/tools/another.json\n/etc/nuclio/store/projects/embedding/project.json\n/etc/nuclio/store/functions/embedding/function.json\n/etc/nuclio/store/function-events/tools/event.json\n", []string{"nuclio", "embedding", "tools"}},
 		{"ignore unrelated", "/etc/nuclio/store/other/ignored/file.json\n/etc/nuclio/store/projects/INVALID/file.json\n", []string{"nuclio"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
