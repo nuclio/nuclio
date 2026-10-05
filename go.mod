@@ -14,7 +14,7 @@ require (
 	github.com/elastic/go-elasticsearch/v9 v9.0.0
 	github.com/fatih/color v1.15.0
 	github.com/fatih/structs v1.1.0
-	github.com/go-chi/chi/v5 v5.2.2
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/cors v1.2.1
 	github.com/go-git/go-git/v5 v5.19.3
 	github.com/gobuffalo/flect v1.0.2
@@ -56,7 +56,7 @@ require (
 	github.com/valyala/fasthttp v1.59.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
-	golang.org/x/image v0.18.0
+	golang.org/x/image v0.46.0
 	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.23.0
