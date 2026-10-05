@@ -41,6 +41,7 @@ import (
 )
 
 const (
+	defaultNamespace  = "nuclio"
 	volumeName        = "nuclio-local-storage"
 	containerName     = "nuclio-local-storage-reader"
 	baseDir           = "/etc/nuclio/store"
@@ -74,9 +75,9 @@ func (s *Store) GetNamespaces() ([]string, error) {
 		"/usr/bin/find %s -mindepth 3 -maxdepth 3 -type f -name '*.json'", common.Quote(baseDir))
 	if err != nil {
 		s.logger.WarnWith("Failed to list local namespaces, returning default namespace", "err", err)
-		return []string{"nuclio"}, nil
+		return []string{defaultNamespace}, nil
 	}
-	names := map[string]struct{}{"nuclio": {}}
+	names := map[string]struct{}{defaultNamespace: {}}
 	for _, resourcePath := range strings.Split(stdout, "\n") {
 		parts := strings.Split(strings.TrimPrefix(resourcePath, baseDir+"/"), "/")
 		if len(parts) != 3 {
