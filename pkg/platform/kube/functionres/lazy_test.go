@@ -2159,6 +2159,23 @@ func (suite *lazyTestSuite) getEnvVarNames(env []v1.EnvVar) []string {
 	return names
 }
 
+func (suite *lazyTestSuite) TestResolveReadinessVerifierMaxWaitMs() {
+	for _, testCase := range []struct {
+		name              string
+		state             functionconfig.FunctionState
+		expectedMaxWaitMs int
+	}{
+		{name: "scaling from zero polls fast", state: functionconfig.FunctionStateWaitingForScaleResourcesFromZero, expectedMaxWaitMs: 250},
+		{name: "deploy keeps default backoff", state: functionconfig.FunctionStateWaitingForResourceConfiguration, expectedMaxWaitMs: 2000},
+		{name: "scaling to zero keeps default backoff", state: functionconfig.FunctionStateWaitingForScaleResourcesToZero, expectedMaxWaitMs: 2000},
+	} {
+		suite.Run(testCase.name, func() {
+			function := &nuclioio.NuclioFunction{Status: functionconfig.Status{State: testCase.state}}
+			suite.Require().Equal(testCase.expectedMaxWaitMs, resolveReadinessVerifierMaxWaitMs(function))
+		})
+	}
+}
+
 func TestLazyTestSuite(t *testing.T) {
 	suite.Run(t, new(lazyTestSuite))
 }

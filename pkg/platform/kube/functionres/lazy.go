@@ -308,6 +308,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 	counter := 0
 	waitMs := 250
+	maxWaitMs := resolveReadinessVerifierMaxWaitMs(function)
 	readinessVerifierTicker := time.NewTicker(time.Duration(waitMs) * time.Millisecond)
 	availableTicker := time.NewTicker(50 * time.Millisecond)
 
@@ -377,10 +378,10 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		case <-readinessVerifierTicker.C:
 			counter++
 
-			// exponentially wait more next time, up to 2 seconds
+			// exponentially wait more next time
 			waitMs *= 2
-			if waitMs > 2000 {
-				waitMs = 2000
+			if waitMs > maxWaitMs {
+				waitMs = maxWaitMs
 			}
 			readinessVerifierTicker.Reset(time.Duration(waitMs) * time.Millisecond)
 
@@ -494,6 +495,14 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			}
 		}
 	}
+}
+
+// the DLX holds a request while the function scales from zero, so it should not back off much
+func resolveReadinessVerifierMaxWaitMs(function *nuclioio.NuclioFunction) int {
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
+		return 250
+	}
+	return 2000
 }
 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error {
