@@ -21,30 +21,39 @@ However, without an ingress controller running on your cluster, this will have n
 
 ## Setting up an ingress controller
 
-In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://doc.traefik.io/traefik/user-guides/crd-acme/), but for the purposes of this guide you can simply run the following commands to set up the controller by using either of the following alternative methods:
+> **Warning: do not use `ingress-nginx`.** The Kubernetes project has [retired Ingress NGINX](https://www.kubernetes.io/blog/2026/01/29/ingress-nginx-statement/). After retirement there are no more releases for bug fixes, security patches, or updates of any kind, so any newly discovered vulnerability will remain unpatched. See the [Kubernetes retirement announcement](https://www.kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/).
+>
+> Nuclio builds its ingresses with `nginx.ingress.kubernetes.io/*` annotations (authentication, rewrites, canary, timeouts, and more), so it currently supports only controllers that understand the nginx annotation dialect. Not every ingress controller will work. The supported option is [Traefik](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress-nginx/) with its ingress-nginx compatibility provider (`kubernetesIngressNGINX`), as shown below.
 
-- Using `kubectl` to apply the resource YAML files. Note that this installs v1.7, and that the YAML files were removed from newer versions:
-  ```sh
-  kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-rbac.yaml
-  kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-deployment.yaml
-  ```
+In this guide, you'll set up a [Traefik](https://doc.traefik.io/traefik/) controller with the ingress-nginx compatibility provider enabled. Nuclio's default ingress class name is `nginx` (see `defaultHTTPIngressClassName` in the [platform configuration](../../tasks/configuring-a-platform.md)), so the cluster needs an `IngressClass` with that name, handled by the provider. The provider is available in Traefik Proxy v3.6.2 and later; see the [Traefik documentation](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress-nginx/) for its current status and the list of supported annotations.
 
-- Using [helm](https://helm.sh/) (provided `helm` is installed):
-  ```sh
-  helm install stable/traefik --name traefik --namespace kube-system
-  ```
+Using [helm](https://helm.sh/) (provided `helm` is installed), run the following commands:
+```sh
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
+helm upgrade --install traefik traefik/traefik \
+  --namespace traefik --create-namespace \
+  --set service.type=NodePort \
+  --set providers.kubernetesIngressNGINX.enabled=true
+```
 
-Verify that the controller is up by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
+The Traefik chart does not create the `IngressClass` for this provider, so create it yourself (if you never installed `ingress-nginx` on the cluster, it does not exist yet):
+```sh
+kubectl apply -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx
+EOF
+```
+
+Verify that the controller is up by running the `kubectl --namespace=traefik get pods` command, and then run the `kubectl --namespace=traefik get service traefik` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
 
 ```text
-...
-Port:                     web  80/TCP
-TargetPort:               80/TCP
-NodePort:                 web  30019/TCP
-Endpoints:                172.17.0.8:80
-Port:                     admin  8080/TCP
-TargetPort:               8080/TCP
-...
+NAME      TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)                      AGE
+traefik   NodePort   10.96.12.34   <none>        80:30019/TCP,443:31234/TCP   1m
 ```
 
 > **Note:** You must ensure that all your requests are sent to the returned NodePort.
@@ -89,7 +98,7 @@ By default, functions initialize the HTTP trigger and register `<function name>/
             - "/wat"
 ```
 
-If your `helloworld` function was configured in this way, and assuming that Træfik's NodePort is 30019, the function would be accessible through any of the following URLs:
+If your `helloworld` function was configured in this way, and assuming that Traefik's NodePort is 30019, the function would be accessible through any of the following URLs:
 
 - `<cluster ip>:30019/helloworld/latest`
 - `some.host.com:30019/helloworld/latest`
@@ -156,7 +165,7 @@ Deploy the function with the `nuctl` CLI. If you did not use Minikube, replace `
 nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/ingress/ingress.go --registry $(minikube ip):5000 ingress --run-registry localhost:5000 --verbose
 ```
 
-Behind the scenes, `nuctl` populates a function CR, which is picked up by the Nuclio `controller`. The `controller` iterates through all the triggers and looks for the required ingresses. For each ingress, the controller creates a Kubernetes Ingress object, which triggers the Træfik ingress controller to reconfigure the reverse proxy. Following are sample `controller` logs:
+Behind the scenes, `nuctl` populates a function CR, which is picked up by the Nuclio `controller`. The `controller` iterates through all the triggers and looks for the required ingresses. For each ingress, the controller creates a Kubernetes Ingress object, which triggers the Traefik ingress controller to reconfigure the reverse proxy. Following are sample `controller` logs:
 
 ```
 controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/helloworld/latest"]}
