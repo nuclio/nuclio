@@ -30,6 +30,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio/v4/serviceaccounttoken"
+	authutils "github.com/nuclio/nuclio/pkg/auth/utils"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -2400,6 +2402,15 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	// from being interpreted as shell syntax (see GHSA-v5px-423j-pf7p).
 	curlArgs := []string{"--silent"}
 
+	// Pod-spec enrichment: only non-zero when the function has an authenticated HTTP trigger
+	// alongside this cron trigger. Zero values leave the pod spec unchanged from today's behaviour.
+	cronJobServiceAccountName, cronJobAutomountServiceAccountToken, cronJobEnv, authCurlArgs, err :=
+		lc.buildCronJobAuthComponents(ctx, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to build cron job authentication components")
+	}
+	curlArgs = append(curlArgs, authCurlArgs...)
+
 	// user-supplied headers, sorted for deterministic ordering across reconciles
 	userHeaderKeys := make([]string, 0, len(attributes.Event.Headers))
 	for headerKey := range attributes.Event.Headers {
@@ -2455,17 +2466,20 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 							Name: "function-invocator",
 							Image: common.GetEnvOrDefaultString(
 								"NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME",
-								"curlimages/curl:7.81.0"),
+								"curlimages/curl:8.22.0"),
 							Command:         []string{"curl"},
 							Args:            curlArgs,
+							Env:             cronJobEnv,
 							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),
 						},
 					},
-					RestartPolicy:     v1.RestartPolicyNever,
-					NodeSelector:      function.Status.EnrichedNodeSelector,
-					NodeName:          function.Spec.NodeName,
-					Affinity:          function.Spec.Affinity,
-					PriorityClassName: function.Spec.PriorityClassName,
+					RestartPolicy:                v1.RestartPolicyNever,
+					ServiceAccountName:           cronJobServiceAccountName,
+					AutomountServiceAccountToken: cronJobAutomountServiceAccountToken,
+					NodeSelector:                 function.Status.EnrichedNodeSelector,
+					NodeName:                     function.Spec.NodeName,
+					Affinity:                     function.Spec.Affinity,
+					PriorityClassName:            function.Spec.PriorityClassName,
 				},
 			},
 		},
@@ -2487,6 +2501,99 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	spec.FailedJobsHistoryLimit = &one
 
 	return &spec, nil
+}
+
+// buildCronJobAuthComponents resolves the service-account, env vars, and extra curl args that
+// the cron trigger CronJob pod needs to authenticate when function-level authentication is active.
+func (lc *lazyClient) buildCronJobAuthComponents(
+	ctx context.Context,
+	function *nuclioio.NuclioFunction,
+) (serviceAccountName string, automountServiceAccountToken *bool, env []v1.EnvVar, extraCurlArgs []string, err error) {
+	if !lc.functionAuthenticationEnabled(function) {
+		return
+	}
+
+	authMode, err := functionconfig.GetHTTPTriggerMode(function.Spec.Triggers)
+	if err != nil {
+		// a cron-only function has nothing to authenticate against, so no enrichment is expected
+		if errors.Is(err, functionconfig.ErrHTTPTriggerNotFound) {
+			lc.logger.DebugWithCtx(ctx, "No HTTP trigger found for cron pod enrichment", "functionName", function.Name)
+			return "", nil, nil, nil, nil
+		}
+
+		return "", nil, nil, nil, errors.Wrap(err, "Failed to get HTTP trigger auth mode for cron pod enrichment")
+	}
+
+	switch auth.AuthenticationMode(authMode) {
+
+	case auth.AuthenticationModeAPI:
+		// Mount the platform's service account (Nuclio's own) so the auth-url accepts the SA
+		// bearer token; a function's service account is not on its allow-list.
+		serviceAccountName = common.GetEnvOrDefaultString("NUCLIO_SERVICE_ACCOUNT_NAME", "")
+		if serviceAccountName == "" {
+			return "", nil, nil, nil, errors.New("Nuclio service account name is not set; env: NUCLIO_SERVICE_ACCOUNT_NAME")
+		}
+
+		trueVal := true
+		automountServiceAccountToken = &trueVal
+		// curl 8.3+: read SA token from the projected volume file and inject it as a bearer header
+		// without ever writing it into a shell command (exec form is preserved).
+		// :trim strips the trailing newline that token files commonly carry.
+		extraCurlArgs = append(extraCurlArgs,
+			"--variable", "token@"+serviceaccounttoken.DefaultTokenPath,
+			"--expand-header", headers.AuthorizationHeader+": "+authutils.BearerPrefix+"{{token:trim}}",
+			"--header", fmt.Sprintf("%s: %s", headers.IguazioAuthenticatorKind, "sa"),
+		)
+
+	case auth.AuthenticationModeBasicAuth:
+		httpTrigger, triggerErr := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
+		if triggerErr != nil {
+			lc.logger.WarnWithCtx(ctx, "Failed to get HTTP trigger for cron basicAuth enrichment",
+				"functionName", function.Name, "err", triggerErr.Error())
+			return "", nil, nil, nil, nil
+		}
+		authConfig, configErr := auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeBasicAuth)
+		if configErr != nil {
+			lc.logger.WarnWithCtx(ctx, "Failed to decode basicAuth config for cron pod enrichment",
+				"functionName", function.Name, "err", configErr.Error())
+			return "", nil, nil, nil, nil
+		}
+
+		usernameEnvVar := v1.EnvVar{
+			Name:  "NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME",
+			Value: authConfig.BasicAuthUsername,
+		}
+		passwordEnvVar := v1.EnvVar{Name: "NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD"}
+		if strings.HasPrefix(authConfig.BasicAuthPassword, functionconfig.ReferencePrefix) {
+			// Password was scrubbed: read it from the function's dedicated Kubernetes Secret
+			// via a secretKeyRef so it never appears in the pod spec or env dump.
+			secretName, secretErr := lc.getFunctionSecretName(ctx, function)
+			if secretErr != nil {
+				lc.logger.WarnWithCtx(ctx, "Failed to get function secret name for cron basicAuth enrichment",
+					"functionName", function.Name, "err", secretErr.Error())
+				return "", nil, nil, nil, nil
+			}
+			scrubber := functionconfig.NewScrubber(lc.logger, nil, nil)
+			passwordEnvVar.ValueFrom = &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: secretName},
+					Key:                  scrubber.EncodeSecretKey(authConfig.BasicAuthPassword),
+				},
+			}
+		} else {
+			passwordEnvVar.Value = authConfig.BasicAuthPassword
+		}
+		env = []v1.EnvVar{usernameEnvVar, passwordEnvVar}
+		// curl 8.3+: import credentials from env vars and pass them as HTTP Basic auth.
+		// The env vars hold the plaintext (or are populated from the secret at pod startup),
+		// so credentials never appear as literal argv tokens.
+		extraCurlArgs = append(extraCurlArgs,
+			"--variable", "%NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME",
+			"--variable", "%NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD",
+			"--expand-user", "{{NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME}}:{{NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD}}",
+		)
+	}
+	return
 }
 
 func (lc *lazyClient) normalizeCronTriggerScheduleInput(schedule string) (string, error) {
