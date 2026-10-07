@@ -25,7 +25,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"sort"
@@ -35,6 +37,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -50,6 +53,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
 	"github.com/gobuffalo/flect"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
@@ -65,8 +69,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const cronInvocationMarker = "cron-invocation-marker"
+
 type DeployFunctionTestSuite struct {
 	kubesuite.KubeTestSuite
+	authProxySidecarImage string
 }
 
 func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody() {
@@ -2037,6 +2044,207 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarBasicAuth() {
 	})
 }
 
+// The cron job calls the function Service directly with a bare curl, so with function-level authentication
+// the auth-proxy rejects every tick. Each test deploys a function with an HTTP trigger in the given
+// authentication mode plus a cron trigger, and expects the cron-triggered handler to run.
+
+func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeNone() {
+	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeNone, nil)
+}
+
+func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeAPI() {
+	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeAPI, nil)
+}
+
+func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeBasicAuth() {
+	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeBasicAuth, map[string]interface{}{
+		"basicAuth": map[string]interface{}{
+			"username": "test-user",
+			"password": "test-123",
+		},
+	})
+}
+
+func (suite *DeployFunctionTestSuite) testCronTriggerWithAuthenticationMode(authenticationMode auth.AuthenticationMode,
+	authentication map[string]interface{}) {
+
+	functionName := fmt.Sprintf("cron-auth-%s", strings.ToLower(string(authenticationMode)))
+
+	// restore whatever the suite was configured with, rather than assuming the zero value
+	originalAuthentication := *suite.PlatformConfiguration.Authentication
+	defer func() {
+		*suite.PlatformConfiguration.Authentication = originalAuthentication
+	}()
+
+	suite.PlatformConfiguration.Authentication.FunctionAuthenticationEnabled = true
+
+	if authenticationMode != auth.AuthenticationModeNone {
+
+		// the sidecar is only injected when the function has an authentication mode other than none
+		suite.PlatformConfiguration.Authentication.AuthSidecarImage = suite.buildAndPushAuthProxySidecarImage()
+
+		suite.PlatformConfiguration.Authentication.AuthKind = auth.KindIguazioV4
+
+		if authenticationMode == auth.AuthenticationModeAPI {
+			// The cron pod carries the Nuclio service account's token, so the sidecar really calls the auth-url.
+			// The stub admits it only when the token belongs to the service account the cron pod was set to run as.
+			// The default service account exists in every namespace.
+			const cronServiceAccountName = "default"
+			suite.T().Setenv("NUCLIO_SERVICE_ACCOUNT_NAME", cronServiceAccountName)
+
+			authURL, closeStub := suite.startAuthURLStub(cronServiceAccountName)
+			defer closeStub()
+			suite.PlatformConfiguration.Authentication.AuthURL = authURL
+		} else {
+			// basicAuth is verified locally by the sidecar; auth-url is never called
+			suite.PlatformConfiguration.Authentication.AuthURL = "http://auth-url.invalid/verify"
+		}
+	}
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(
+		fmt.Sprintf("def handler(context, event):\n    context.logger.info('%s')\n    return 'ok'\n",
+			cronInvocationMarker)))
+	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
+
+	// pulling the proxy image and starting a second container might take longer than the default timeout
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 240
+
+	// keep plaintext passwords in the function config, so the sidecar can read them without the secret restore
+	createFunctionOptions.FunctionConfig.Spec.DisableSensitiveFieldsMasking = true
+
+	httpTriggerAttributes := map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(authenticationMode),
+	}
+	if authentication != nil {
+		httpTriggerAttributes[auth.AttributeAuthentication] = authentication
+	}
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": {
+			Kind:       "http",
+			Attributes: httpTriggerAttributes,
+		},
+		"cron": {
+			Kind: "cron",
+			Attributes: map[string]interface{}{
+				"interval": "5s",
+				"event": map[string]interface{}{
+					"body": "cron-body",
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// the handler logs the marker only when a request reaches the processor
+		pods := suite.GetFunctionPods(functionName)
+		suite.Require().NotEmpty(pods)
+		podLogOptions := &v1.PodLogOptions{Container: common.FunctionContainerName}
+
+		err := common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pods[0].Name, podLogOptions, []string{cronInvocationMarker})
+		})
+		suite.Require().NoError(err,
+			"Cron trigger did not invoke the function; authenticationMode: %s, cron job pods logs: %s",
+			authenticationMode,
+			suite.getCronJobPodsLogs(functionName))
+
+		return true
+	})
+}
+
+// startAuthURLStub starts a local HTTP server standing in for the identity endpoint behind the auth-url.
+// Like the real service-account authenticator, it admits a request only when it carries a service-account
+// bearer token (authenticator kind "sa") of expectedServiceAccountName, and answers 401 otherwise.
+//
+// It listens on all interfaces so the sidecar inside the cluster can reach it. The returned URL uses
+// host.docker.internal (or NUCLIO_TEST_HOST_ADDRESS_FROM_CLUSTER if set) to route the pod to the host
+// where the stub runs. The caller must call the returned close func when the stub is no longer needed.
+func (suite *DeployFunctionTestSuite) startAuthURLStub(expectedServiceAccountName string) (string, func()) {
+	stub := httptest.NewUnstartedServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		serviceAccountName := serviceAccountNameFromAuthorization(request.Header.Get(headers.AuthorizationHeader))
+		if request.Header.Get(headers.IguazioAuthenticatorKind) == "sa" &&
+			serviceAccountName == expectedServiceAccountName {
+			responseWriter.WriteHeader(http.StatusOK)
+			_, _ = responseWriter.Write([]byte(fmt.Sprintf(
+				`{"metadata":{"username":"%s","id":"%s"}}`, serviceAccountName, serviceAccountName)))
+			return
+		}
+		http.Error(responseWriter, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	}))
+
+	// bind on all interfaces so the pod inside minikube can reach the host
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	suite.Require().NoError(err, "Failed to start auth-url stub listener")
+	stub.Listener = listener
+	stub.Start()
+
+	port := listener.Addr().(*net.TCPAddr).Port
+	hostFromCluster := common.GetEnvOrDefaultString("NUCLIO_TEST_HOST_ADDRESS_FROM_CLUSTER", "host.docker.internal")
+	authURL := fmt.Sprintf("http://%s:%d", hostFromCluster, port)
+
+	return authURL, stub.Close
+}
+
+// serviceAccountNameFromAuthorization returns the service account name from the subject of a bearer token
+// (system:serviceaccount:<namespace>:<name>), or an empty string if it isn't one. The signature is not verified.
+func serviceAccountNameFromAuthorization(authorization string) string {
+	token, found := strings.CutPrefix(authorization, "Bearer ")
+	if !found {
+		return ""
+	}
+
+	claims := jwt.MapClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(token, claims); err != nil {
+		return ""
+	}
+
+	subject, _ := claims["sub"].(string)
+	subjectParts := strings.Split(subject, ":")
+	if len(subjectParts) != 4 || subjectParts[0] != "system" || subjectParts[1] != "serviceaccount" {
+		return ""
+	}
+
+	return subjectParts[3]
+}
+
+// getCronJobPodsLogs returns the logs of the function's cron job pods, which hold the curl response (e.g. "Unauthorized").
+func (suite *DeployFunctionTestSuite) getCronJobPodsLogs(functionName string) string {
+	cronJobPods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s,%s=true",
+			common.NuclioResourceLabelKeyFunctionName,
+			functionName,
+			common.NuclioLabelKeyFunctionCronJobPod),
+	})
+	suite.Require().NoError(err, "Failed to list cron job pods")
+
+	var cronJobPodsLogs []string
+	for _, cronJobPod := range cronJobPods.Items {
+		podLogs, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).
+			GetLogs(cronJobPod.Name, &v1.PodLogOptions{}).
+			Stream(suite.Ctx)
+		if err != nil {
+			cronJobPodsLogs = append(cronJobPodsLogs, fmt.Sprintf("%s: failed to get logs: %s", cronJobPod.Name, err))
+			continue
+		}
+
+		logsBytes, err := io.ReadAll(podLogs)
+		podLogs.Close() // nolint: errcheck
+		if err != nil {
+			cronJobPodsLogs = append(cronJobPodsLogs, fmt.Sprintf("%s: failed to read logs: %s", cronJobPod.Name, err))
+			continue
+		}
+		cronJobPodsLogs = append(cronJobPodsLogs, fmt.Sprintf("%s: %q", cronJobPod.Name, string(logsBytes)))
+	}
+
+	return strings.Join(cronJobPodsLogs, "; ")
+}
+
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
 
 	// create a platform config configmap with a json logger sink (this is how it is on production)
@@ -2141,8 +2349,13 @@ func (suite *DeployFunctionTestSuite) getContainer(containers []v1.Container, co
 }
 
 // buildAndPushAuthProxySidecarImage builds and pushes the auth-proxy sidecar image via the same
-// platform.BuildAndPushContainerImage primitive processor images are built with (see buildTestFunction),
+// platform.BuildAndPushContainerImage primitive processor images are built with (see buildTestFunction).
+// The image is built once per suite run, on first use.
 func (suite *DeployFunctionTestSuite) buildAndPushAuthProxySidecarImage() string {
+	if suite.authProxySidecarImage != "" {
+		return suite.authProxySidecarImage
+	}
+
 	err := suite.Platform.InitializeContainerBuilder()
 	suite.Require().NoError(err)
 
@@ -2171,7 +2384,8 @@ func (suite *DeployFunctionTestSuite) buildAndPushAuthProxySidecarImage() string
 		})
 	suite.Require().NoError(err)
 
-	return fmt.Sprintf("%s/%s", suite.RegistryURL, taggedImageName)
+	suite.authProxySidecarImage = fmt.Sprintf("%s/%s", suite.RegistryURL, taggedImageName)
+	return suite.authProxySidecarImage
 }
 
 type DeleteFunctionTestSuite struct {
