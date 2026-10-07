@@ -2,6 +2,8 @@
 
 > **Deprecation notice:** API Gateway authentication is planned to be deprecated. For new deployments, use [function-level HTTP trigger authentication](../../reference/triggers/http.md) instead (see the `Attributes` section for `authenticationMode`). Function-level authentication provides better isolation, per-function control, and integration with the auth-proxy sidecar for scale-to-zero scenarios. For platform setup, see [Configuring a Platform](../../tasks/configuring-a-platform.md).
 
+> **Ingress controller requirement:** API gateways are implemented with `nginx.ingress.kubernetes.io/*` annotations (canary, basic authentication, and others), so they require an ingress controller that supports the nginx annotation dialect, such as Traefik with its ingress-nginx compatibility provider. Do not use `ingress-nginx` itself, as it has been [retired](https://www.kubernetes.io/blog/2026/01/29/ingress-nginx-statement/) and no longer receives security patches. See [Setting up an ingress controller](../../concepts/k8s/function-ingress.md#setting-up-an-ingress-controller).
+
 ## In This Section
 
 - [No Authentication](#no-authentication)

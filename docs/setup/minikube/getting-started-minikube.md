@@ -40,6 +40,8 @@ minikube start --kubernetes-version v1.27.5 --driver docker --extra-config=apise
 > - Change the minikube driver according to your environment and needs
 > - Add `--addons ingress` to your `minikube start` command to support creating function ingresses to flexibly
 > [expose your function](../../tasks/deploying-functions.md#exposing-a-function).
+>     **Warning:** this addon installs `ingress-nginx`, which Kubernetes has [retired](https://www.kubernetes.io/blog/2026/01/29/ingress-nginx-statement/) (no further security patches).
+>     Use it for throwaway local testing only, and see [Setting up an ingress controller](../../concepts/k8s/function-ingress.md#setting-up-an-ingress-controller) for the supported alternative.
 >     Ensure that your function ingress appears on your hosts file (**/etc/hosts**).
 >     You can do this by running this command:
 >     ```sh

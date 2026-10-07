@@ -58,6 +58,7 @@ MLRun
 multithreading
 NACK
 NetworkPolicy
+nginx
 nodejs
 npm
 nullary
@@ -89,6 +90,7 @@ Substring
 tcp
 tolerations
 toolchain
+traefik
 uber
 Unexported
 untags
