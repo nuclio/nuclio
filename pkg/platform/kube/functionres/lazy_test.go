@@ -1965,6 +1965,25 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationAPIMode() {
 	suite.Require().Contains(container.Args, headers.IguazioAuthenticatorKind+": sa")
 }
 
+// TestCronTriggerWithFunctionAuthenticationBrowserMode verifies that browser mode is enriched like api mode: both
+// validate the bearer token through the same auth-url flow, and only differ in how a failed check is rejected.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBrowserMode() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-browser", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBrowser),
+	})
+
+	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
+	container := pod.Containers[0]
+
+	suite.Require().Equal("nuclio", pod.ServiceAccountName)
+	suite.Require().NotNil(pod.AutomountServiceAccountToken)
+	suite.Require().True(*pod.AutomountServiceAccountToken)
+	suite.Require().Contains(container.Args, "token@"+serviceaccounttoken.DefaultTokenPath)
+	suite.Require().Contains(container.Args,
+		headers.AuthorizationHeader+": "+authutils.BearerPrefix+"{{token:trim}}")
+	suite.Require().Contains(container.Args, headers.IguazioAuthenticatorKind+": sa")
+}
+
 // TestCronTriggerWithFunctionAuthenticationBasicAuthPlaintextPassword verifies that basicAuth credentials are passed
 // to curl through env vars, with a plaintext password kept as a literal env value.
 func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthPlaintextPassword() {
@@ -2059,6 +2078,41 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationFailsWithou
 	_, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().Error(err)
 	suite.Require().Contains(errors.GetErrorStackString(err, -1), "NUCLIO_SERVICE_ACCOUNT_NAME")
+}
+
+// TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig verifies that basicAuth mode fails the
+// reconcile, instead of creating a cron job that the sidecar rejects, when the credentials cannot be decoded.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig() {
+
+	// basicAuth without a username and password is rejected when the config is decoded
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-basic-invalid", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+	})
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().Error(err)
+	suite.Require().Contains(errors.GetErrorStackString(err, -1),
+		"Failed to decode basicAuth config for cron pod enrichment")
+}
+
+// TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnMissingSecret verifies that basicAuth mode fails the
+// reconcile when the password is scrubbed but the function's Secret holding it cannot be found.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnMissingSecret() {
+	const passwordRef = functionconfig.ReferencePrefix + "/spec/triggers/http/attributes/authentication/basicauth/password"
+
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-basic-no-secret", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+		"authentication": map[string]interface{}{
+			"basicAuth": map[string]interface{}{"username": "ref-user", "password": passwordRef},
+		},
+	})
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().Error(err)
+	suite.Require().Contains(errors.GetErrorStackString(err, -1),
+		"Failed to get function secret name for cron basicAuth enrichment")
 }
 
 // newFunctionWithHTTPAndCronTriggers returns a function with an HTTP trigger of the given attributes

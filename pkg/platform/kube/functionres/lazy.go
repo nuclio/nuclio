@@ -76,6 +76,10 @@ type deploymentResourceMethod string
 const (
 	createDeploymentResourceMethod deploymentResourceMethod = "create"
 	updateDeploymentResourceMethod deploymentResourceMethod = "update"
+
+	// env vars carrying a function's basicAuth credentials into its cron job pod; each name is also referenced by curl
+	cronTriggerBasicAuthUsernameEnvVar = "NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME"
+	cronTriggerBasicAuthPasswordEnvVar = "NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD"
 )
 
 //
@@ -2526,7 +2530,8 @@ func (lc *lazyClient) buildCronJobAuthComponents(
 
 	switch auth.AuthenticationMode(authMode) {
 
-	case auth.AuthenticationModeAPI:
+	case auth.AuthenticationModeAPI, auth.AuthenticationModeBrowser:
+		// Both modes validate the bearer token through the same auth-url flow.
 		// Mount the platform's service account (Nuclio's own) so the auth-url accepts the SA
 		// bearer token; a function's service account is not on its allow-list.
 		serviceAccountName = common.GetEnvOrDefaultString("NUCLIO_SERVICE_ACCOUNT_NAME", "")
@@ -2548,30 +2553,24 @@ func (lc *lazyClient) buildCronJobAuthComponents(
 	case auth.AuthenticationModeBasicAuth:
 		httpTrigger, triggerErr := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
 		if triggerErr != nil {
-			lc.logger.WarnWithCtx(ctx, "Failed to get HTTP trigger for cron basicAuth enrichment",
-				"functionName", function.Name, "err", triggerErr.Error())
-			return "", nil, nil, nil, nil
+			return "", nil, nil, nil, errors.Wrap(triggerErr, "Failed to get HTTP trigger for cron basicAuth enrichment")
 		}
 		authConfig, configErr := auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeBasicAuth)
 		if configErr != nil {
-			lc.logger.WarnWithCtx(ctx, "Failed to decode basicAuth config for cron pod enrichment",
-				"functionName", function.Name, "err", configErr.Error())
-			return "", nil, nil, nil, nil
+			return "", nil, nil, nil, errors.Wrap(configErr, "Failed to decode basicAuth config for cron pod enrichment")
 		}
 
 		usernameEnvVar := v1.EnvVar{
-			Name:  "NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME",
+			Name:  cronTriggerBasicAuthUsernameEnvVar,
 			Value: authConfig.BasicAuthUsername,
 		}
-		passwordEnvVar := v1.EnvVar{Name: "NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD"}
+		passwordEnvVar := v1.EnvVar{Name: cronTriggerBasicAuthPasswordEnvVar}
 		if strings.HasPrefix(authConfig.BasicAuthPassword, functionconfig.ReferencePrefix) {
 			// Password was scrubbed: read it from the function's dedicated Kubernetes Secret
 			// via a secretKeyRef so it never appears in the pod spec or env dump.
 			secretName, secretErr := lc.getFunctionSecretName(ctx, function)
 			if secretErr != nil {
-				lc.logger.WarnWithCtx(ctx, "Failed to get function secret name for cron basicAuth enrichment",
-					"functionName", function.Name, "err", secretErr.Error())
-				return "", nil, nil, nil, nil
+				return "", nil, nil, nil, errors.Wrap(secretErr, "Failed to get function secret name for cron basicAuth enrichment")
 			}
 			scrubber := functionconfig.NewScrubber(lc.logger, nil, nil)
 			passwordEnvVar.ValueFrom = &v1.EnvVarSource{
@@ -2588,9 +2587,9 @@ func (lc *lazyClient) buildCronJobAuthComponents(
 		// The env vars hold the plaintext (or are populated from the secret at pod startup),
 		// so credentials never appear as literal argv tokens.
 		extraCurlArgs = append(extraCurlArgs,
-			"--variable", "%NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME",
-			"--variable", "%NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD",
-			"--expand-user", "{{NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME}}:{{NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD}}",
+			"--variable", "%"+cronTriggerBasicAuthUsernameEnvVar,
+			"--variable", "%"+cronTriggerBasicAuthPasswordEnvVar,
+			"--expand-user", fmt.Sprintf("{{%s}}:{{%s}}", cronTriggerBasicAuthUsernameEnvVar, cronTriggerBasicAuthPasswordEnvVar),
 		)
 	}
 	return
