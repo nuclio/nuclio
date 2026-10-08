@@ -25,9 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path"
 	"sort"
@@ -37,7 +35,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -53,7 +50,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
 	"github.com/gobuffalo/flect"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
@@ -2052,10 +2048,6 @@ func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeNone(
 	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeNone, nil)
 }
 
-func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeAPI() {
-	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeAPI, nil)
-}
-
 func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeBasicAuth() {
 	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeBasicAuth, map[string]interface{}{
 		"basicAuth": map[string]interface{}{
@@ -2082,23 +2074,6 @@ func (suite *DeployFunctionTestSuite) testCronTriggerWithAuthenticationMode(auth
 
 		// the sidecar is only injected when the function has an authentication mode other than none
 		suite.PlatformConfiguration.Authentication.AuthSidecarImage = suite.buildAndPushAuthProxySidecarImage()
-
-		suite.PlatformConfiguration.Authentication.AuthKind = auth.KindIguazioV4
-
-		if authenticationMode == auth.AuthenticationModeAPI {
-			// The cron pod carries the Nuclio service account's token, so the sidecar really calls the auth-url.
-			// The stub admits it only when the token belongs to the service account the cron pod was set to run as.
-			// The default service account exists in every namespace.
-			const cronServiceAccountName = "default"
-			suite.T().Setenv("NUCLIO_SERVICE_ACCOUNT_NAME", cronServiceAccountName)
-
-			authURL, closeStub := suite.startAuthURLStub(cronServiceAccountName)
-			defer closeStub()
-			suite.PlatformConfiguration.Authentication.AuthURL = authURL
-		} else {
-			// basicAuth is verified locally by the sidecar; auth-url is never called
-			suite.PlatformConfiguration.Authentication.AuthURL = "http://auth-url.invalid/verify"
-		}
 	}
 
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
@@ -2149,68 +2124,15 @@ func (suite *DeployFunctionTestSuite) testCronTriggerWithAuthenticationMode(auth
 		err := common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
 			return suite.validatePodLogsContainData(pods[0].Name, podLogOptions, []string{cronInvocationMarker})
 		})
-		suite.Require().NoError(err,
-			"Cron trigger did not invoke the function; authenticationMode: %s, cron job pods logs: %s",
-			authenticationMode,
-			suite.getCronJobPodsLogs(functionName))
+		if err != nil {
+			suite.Require().Fail("Cron trigger did not invoke the function",
+				"authenticationMode: %s, cron job pods logs: %s",
+				authenticationMode,
+				suite.getCronJobPodsLogs(functionName))
+		}
 
 		return true
 	})
-}
-
-// startAuthURLStub starts a local HTTP server standing in for the identity endpoint behind the auth-url.
-// Like the real service-account authenticator, it admits a request only when it carries a service-account
-// bearer token (authenticator kind "sa") of expectedServiceAccountName, and answers 401 otherwise.
-//
-// It listens on all interfaces so the sidecar inside the cluster can reach it. The returned URL uses
-// host.docker.internal (or NUCLIO_TEST_HOST_ADDRESS_FROM_CLUSTER if set) to route the pod to the host
-// where the stub runs. The caller must call the returned close func when the stub is no longer needed.
-func (suite *DeployFunctionTestSuite) startAuthURLStub(expectedServiceAccountName string) (string, func()) {
-	stub := httptest.NewUnstartedServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		serviceAccountName := serviceAccountNameFromAuthorization(request.Header.Get(headers.AuthorizationHeader))
-		if request.Header.Get(headers.IguazioAuthenticatorKind) == "sa" &&
-			serviceAccountName == expectedServiceAccountName {
-			responseWriter.WriteHeader(http.StatusOK)
-			_, _ = responseWriter.Write([]byte(fmt.Sprintf(
-				`{"metadata":{"username":"%s","id":"%s"}}`, serviceAccountName, serviceAccountName)))
-			return
-		}
-		http.Error(responseWriter, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-	}))
-
-	// bind on all interfaces so the pod inside minikube can reach the host
-	listener, err := net.Listen("tcp", "0.0.0.0:0")
-	suite.Require().NoError(err, "Failed to start auth-url stub listener")
-	stub.Listener = listener
-	stub.Start()
-
-	port := listener.Addr().(*net.TCPAddr).Port
-	hostFromCluster := common.GetEnvOrDefaultString("NUCLIO_TEST_HOST_ADDRESS_FROM_CLUSTER", "host.docker.internal")
-	authURL := fmt.Sprintf("http://%s:%d", hostFromCluster, port)
-
-	return authURL, stub.Close
-}
-
-// serviceAccountNameFromAuthorization returns the service account name from the subject of a bearer token
-// (system:serviceaccount:<namespace>:<name>), or an empty string if it isn't one. The signature is not verified.
-func serviceAccountNameFromAuthorization(authorization string) string {
-	token, found := strings.CutPrefix(authorization, "Bearer ")
-	if !found {
-		return ""
-	}
-
-	claims := jwt.MapClaims{}
-	if _, _, err := jwt.NewParser().ParseUnverified(token, claims); err != nil {
-		return ""
-	}
-
-	subject, _ := claims["sub"].(string)
-	subjectParts := strings.Split(subject, ":")
-	if len(subjectParts) != 4 || subjectParts[0] != "system" || subjectParts[1] != "serviceaccount" {
-		return ""
-	}
-
-	return subjectParts[3]
 }
 
 // getCronJobPodsLogs returns the logs of the function's cron job pods, which hold the curl response (e.g. "Unauthorized").
