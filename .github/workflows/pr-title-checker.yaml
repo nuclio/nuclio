@@ -31,7 +31,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: thehanimo/pr-title-checker@7fbfe05602bdd86f926d3fb3bccb6f3aed43bc70 # 1.4.3
+      - uses: thehanimo/pr-title-checker@b69bc3a841cf4e3cfef2d822625d8c90a588e9da # 2.0.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           configuration_path: .github/pr-title-checker-config.json
