@@ -52,7 +52,6 @@ var Transform = require('stream').Transform;
 var iRequire = require('./resources/installRequire');
 var lodash = require('lodash');
 var del = require('del');
-var vinylPaths = require('vinyl-paths');
 var exec = require('child_process').exec;
 var errorHandler = require('gulp-error-handle');
 var buildVersion = null;
@@ -115,9 +114,7 @@ function setE2eTesting() {
  * Clean build directory
  */
 function clean() {
-    return gulp.src([config.build_dir, config.cache_file], {allowEmpty: true})
-        .pipe(errorHandler(handleError))
-        .pipe(vinylPaths(del));
+    return del([config.build_dir, config.cache_file]);
 }
 
 /**
@@ -181,7 +178,7 @@ function appCss() {
         .pipe(gulp.dest(distFolder));
 
     if (livereload !== null) {
-        task.pipe(livereload());
+        task = task.pipe(livereload());
     }
 
     return task;
@@ -243,7 +240,7 @@ function appJs() {
     }
 
     if (state.isDevMode && livereload !== null) {
-        task.pipe(livereload());
+        task = task.pipe(livereload());
     }
 
     return task;
@@ -253,7 +250,7 @@ function appJs() {
  * Temporary task to copy the monaco-editor files to the assets directory
  */
 function monaco(next) {
-    gulp.src(['node_modules/monaco-editor/**/*'], {allowEmpty: true})
+    gulp.src(['node_modules/monaco-editor/**/*'], {allowEmpty: true, encoding: false})
         .pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
     next();
 }
@@ -264,7 +261,7 @@ function monaco(next) {
 function fonts() {
     var distFolder = config.assets_dir + '/fonts';
 
-    return gulp.src(config.app_files.fonts + '/**/*', {allowEmpty: true})
+    return gulp.src(config.app_files.fonts + '/**/*', {allowEmpty: true, encoding: false})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
 }
@@ -275,7 +272,7 @@ function fonts() {
 function images() {
     var distFolder = config.assets_dir + '/images';
 
-    return gulp.src(config.app_files.images, {allowEmpty: true})
+    return gulp.src(config.app_files.images, {allowEmpty: true, encoding: false})
         .pipe(errorHandler(handleError))
         .pipe(gulpIf(!state.isDevMode, optimizeImages()))
         .pipe(gulp.dest(distFolder));
@@ -637,7 +634,7 @@ function buildIndexHtml(isVersionForTests) {
         .pipe(gulp.dest(config.build_dir));
 
     if (livereload !== null) {
-        task.pipe(livereload());
+        task = task.pipe(livereload());
     }
 
     return task;
@@ -729,9 +726,7 @@ function watch(next) {
  */
 function cleanShared() {
     if (state.isDevMode) {
-        return gulp.src(config.shared_files.dist, {allowEmpty: true})
-            .pipe(errorHandler(handleError))
-            .pipe(vinylPaths(del));
+        return del(config.shared_files.dist);
     }
 }
 
@@ -802,7 +797,7 @@ function appJsShared() {
 function fontsShared() {
     var distFolder = config.shared_files.dist + '/fonts';
 
-    return gulp.src(config.shared_files.fonts, {allowEmpty: true})
+    return gulp.src(config.shared_files.fonts, {allowEmpty: true, encoding: false})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
 }
@@ -824,7 +819,7 @@ function i18nShared() {
 function imagesShared() {
     var distFolder = config.shared_files.dist + '/images';
 
-    return gulp.src(config.shared_files.images, {allowEmpty: true})
+    return gulp.src(config.shared_files.images, {allowEmpty: true, encoding: false})
         .pipe(errorHandler(handleError))
         .pipe(optimizeImages())
         .pipe(gulp.dest(distFolder));
