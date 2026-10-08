@@ -122,7 +122,7 @@ controller:
   # curl >= 8.3.0 is required for --variable / --expand-* (used for function-level auth credentials)
   cronTriggerCronJobImage:
     repository: curlimages/curl
-    tag: "8.22.0"
+    tag: latest
     pullPolicy: IfNotPresent
 
 # Dashboard settings
