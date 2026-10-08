@@ -32,4 +32,5 @@ type LogProxy interface {
 type GetFunctionReplicaOptions struct {
 	TimeFilter   *platform.TimeFilter
 	FunctionName string
+	ProjectName  string
 }

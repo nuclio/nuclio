@@ -45,6 +45,7 @@ func NewOpenSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*OpenSea
 		AbstractSearchEngineLogProxy: &AbstractSearchEngineLogProxy{
 			index:            config.Index,
 			customQueryParam: config.CustomQueryParameter,
+			projectNameField: config.ProjectNameField,
 		},
 	}
 	var err error
@@ -81,7 +82,7 @@ func (o *OpenSearchLogProxy) GetFunctionReplicas(ctx context.Context, options *l
 	if o.client == nil {
 		return nil, errors.New("OpenSearch client is not configured")
 	}
-	query := o.getFunctionBaseSearchRequest(options.FunctionName)
+	query := o.getFunctionBaseSearchRequest(options.FunctionName, options.ProjectName)
 	query["aggs"] = map[string]interface{}{
 		"distinct_pod_names": map[string]interface{}{
 			"terms": map[string]interface{}{
@@ -136,7 +137,7 @@ func (o *OpenSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *pla
 		return nil, errors.New("OpenSearch client is not configured")
 	}
 
-	query := o.getFunctionBaseSearchRequest(options.GetFunctionName())
+	query := o.getFunctionBaseSearchRequest(options.GetFunctionName(), options.GetProjectName())
 
 	o.addTimeFilter(query, options.TimeFilter)
 
@@ -183,8 +184,8 @@ func (o *OpenSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *pla
 	return res.Body, nil
 }
 
-func (o *OpenSearchLogProxy) getFunctionBaseSearchRequest(functionName string) map[string]interface{} {
-	return map[string]interface{}{
+func (o *OpenSearchLogProxy) getFunctionBaseSearchRequest(functionName, projectName string) map[string]interface{} {
+	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []interface{}{
@@ -202,6 +203,15 @@ func (o *OpenSearchLogProxy) getFunctionBaseSearchRequest(functionName string) m
 			},
 		},
 	}
+
+	// defense-in-depth: kubernetes.pod.name is already scoped to this function's name,
+	// but two functions in different projects can share a name - if configured with an
+	// index field for the project label, filter on it too so logs can never cross projects.
+	if o.projectNameField != "" && projectName != "" {
+		o.addTermsFilter(query, o.projectNameField, []string{projectName})
+	}
+
+	return query
 }
 
 func (o *OpenSearchLogProxy) getSearchRequestFromQuery(query map[string]interface{}) (*opensearchapi.SearchReq, error) {

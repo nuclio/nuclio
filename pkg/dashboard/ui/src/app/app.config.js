@@ -37,6 +37,7 @@ limitations under the License.
             externalIPAddress: '',
             imageNamePrefixTemplate: '',
             ingressHostTemplate: '',
+            isOpenSource: true,
             namespace: '',
             platformKind: '',
             scaleToZero: {
