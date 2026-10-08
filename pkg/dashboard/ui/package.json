@@ -62,7 +62,7 @@
     "ng-i18next": "^1.0.7",
     "nodejs-fs-utils": "~1.0.26",
     "restangular": "^1.6.1",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "svgo": "^4.1.0",
     "tc-angular-ellipsis": "0.1.6",
     "vinyl-paths": "^3.0.1",
