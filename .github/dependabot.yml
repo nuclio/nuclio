@@ -38,3 +38,15 @@ updates:
       # preset-env 8.x needs @babel/core@^8 + Node >=22.18
       - dependency-name: "@babel/preset-env"
         update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/pkg/processor/runtime/nodejs/js"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[Dependabot] "
+    # security updates only, no version updates
+    open-pull-requests-limit: 0
+    ignore:
+      # eslint and its config/plugins must be upgraded together; separate bumps break npm install
+      - dependency-name: "eslint*"
