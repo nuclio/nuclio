@@ -43,7 +43,7 @@ You can specify dependencies using (inline in Java file or Jar) build configurat
 //           name: guava
 //           version: 23.6-jre
 
-The default image is using OpenJDK 11
+The default image is using Eclipse Temurin (OpenJDK) 25
 If you have dependencies in other packages, create a fat/uber Jar with all the dependencies.
 We currently do not support maven/sbt/ant/... builds.
 
