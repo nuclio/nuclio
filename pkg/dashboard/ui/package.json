@@ -23,7 +23,7 @@
     "es6-promise": "^4.2.8",
     "eslint-plugin-angular": "^4.0.1",
     "express": "5.2.1",
-    "express-http-proxy": "^1.6.3",
+    "express-http-proxy": "^2.1.2",
     "fancy-log": "2.0.0",
     "gulp": "^5.0.1",
     "gulp-babel": "^8.0.0",
