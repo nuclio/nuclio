@@ -28,8 +28,11 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio/v4/serviceaccounttoken"
+	authutils "github.com/nuclio/nuclio/pkg/auth/utils"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/annotations"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -41,6 +44,7 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -1914,6 +1918,245 @@ func (suite *lazyTestSuite) TestCronTriggerExecFormNoShellInjection() {
 			testCase.assertions(container.Args)
 		})
 	}
+}
+
+// TestCronTriggerWithFunctionAuthenticationNoneMode verifies that a function whose HTTP trigger declares none mode
+// is left unchanged: none is outside FunctionLevelAuthenticationModes, so functionAuthenticationEnabled returns false.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationNoneMode() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-none", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeNone),
+	})
+
+	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
+	container := pod.Containers[0]
+
+	suite.Require().NotContains(container.Args, "--variable", "none mode must not inject auth args")
+	suite.Require().NotContains(container.Args, "--expand-header")
+	suite.Require().Empty(pod.ServiceAccountName)
+	suite.Require().Nil(pod.AutomountServiceAccountToken)
+	suite.Require().Empty(container.Env)
+}
+
+// TestCronTriggerWithFunctionAuthenticationAPIMode verifies that the CronJob pod carries the Nuclio service account's
+// token as a bearer token, so the auth-url accepts it.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationAPIMode() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-api", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
+	})
+	function.Status.EnrichedServiceAccount = "my-function-sa"
+
+	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
+	container := pod.Containers[0]
+
+	// SA is the platform's (from the Nuclio env), not the function's, and automount must
+	// be set so the token lands at DefaultTokenPath.
+	suite.Require().Equal("nuclio", pod.ServiceAccountName)
+	suite.Require().NotNil(pod.AutomountServiceAccountToken)
+	suite.Require().True(*pod.AutomountServiceAccountToken)
+
+	// curl args: --variable reads the token file, --expand-header injects it as a bearer,
+	// --header carries the authenticator-kind hint.
+	suite.Require().Contains(container.Args, "--variable")
+	suite.Require().Contains(container.Args, "token@"+serviceaccounttoken.DefaultTokenPath)
+	suite.Require().Contains(container.Args, "--expand-header")
+	suite.Require().Contains(container.Args,
+		headers.AuthorizationHeader+": "+authutils.BearerPrefix+"{{token:trim}}")
+	suite.Require().Contains(container.Args, "--header")
+	suite.Require().Contains(container.Args, headers.IguazioAuthenticatorKind+": sa")
+}
+
+// TestCronTriggerWithFunctionAuthenticationBrowserMode verifies that browser mode is enriched like api mode: both
+// validate the bearer token through the same auth-url flow, and only differ in how a failed check is rejected.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBrowserMode() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-browser", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBrowser),
+	})
+
+	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
+	container := pod.Containers[0]
+
+	suite.Require().Equal("nuclio", pod.ServiceAccountName)
+	suite.Require().NotNil(pod.AutomountServiceAccountToken)
+	suite.Require().True(*pod.AutomountServiceAccountToken)
+	suite.Require().Contains(container.Args, "token@"+serviceaccounttoken.DefaultTokenPath)
+	suite.Require().Contains(container.Args,
+		headers.AuthorizationHeader+": "+authutils.BearerPrefix+"{{token:trim}}")
+	suite.Require().Contains(container.Args, headers.IguazioAuthenticatorKind+": sa")
+}
+
+// TestCronTriggerWithFunctionAuthenticationBasicAuthPlaintextPassword verifies that basicAuth credentials are passed
+// to curl through env vars, with a plaintext password kept as a literal env value.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthPlaintextPassword() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-basic-plain", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+		"authentication": map[string]interface{}{
+			"basicAuth": map[string]interface{}{"username": "test-user", "password": "plain-pass"},
+		},
+	})
+
+	container := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec.Containers[0]
+
+	// curl args: import env vars and pass them via --expand-user.
+	suite.Require().Contains(container.Args, "--variable")
+	suite.Require().Contains(container.Args, "%NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME")
+	suite.Require().Contains(container.Args, "%NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD")
+	suite.Require().Contains(container.Args, "--expand-user")
+	suite.Require().Contains(container.Args,
+		"{{NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME}}:{{NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD}}")
+
+	// username is always a literal; password is plaintext here.
+	usernameEnv := suite.getEnvVarByName(container.Env, "NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME")
+	suite.Require().Equal("test-user", usernameEnv.Value)
+	passwordEnv := suite.getEnvVarByName(container.Env, "NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD")
+	suite.Require().Equal("plain-pass", passwordEnv.Value)
+	suite.Require().Nil(passwordEnv.ValueFrom)
+}
+
+// TestCronTriggerWithFunctionAuthenticationBasicAuthScrubbedPassword verifies that a scrubbed basicAuth password is
+// read from the function's Secret through a secretKeyRef, never exposing the plaintext in the pod spec.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthScrubbedPassword() {
+	const passwordRef = functionconfig.ReferencePrefix + "/spec/triggers/http/attributes/authentication/basicauth/password"
+	scrubber := functionconfig.NewScrubber(suite.logger, nil, nil)
+
+	// The scrubber stores the real password in the function's dedicated Secret and replaces the
+	// spec value with a "$ref:..." placeholder.
+	functionSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nuclio-cron-basic-ref",
+			Namespace: "default",
+			Labels:    map[string]string{common.NuclioResourceLabelKeyFunctionName: "cron-basic-ref"},
+
+			// getFunctionSecretName selects the secret with the most recent CreationTimestamp;
+			// the fake clientset does not set it automatically, so we must set it explicitly.
+			CreationTimestamp: metav1.Now(),
+		},
+		Data: map[string][]byte{
+			scrubber.EncodeSecretKey(passwordRef): []byte("s3cret"),
+		},
+	}
+	_, err := suite.kubeClientSet.CoreV1().Secrets("default").Create(suite.ctx, functionSecret, metav1.CreateOptions{})
+	suite.Require().NoError(err)
+
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-basic-ref", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+		"authentication": map[string]interface{}{
+			"basicAuth": map[string]interface{}{"username": "ref-user", "password": passwordRef},
+		},
+	})
+
+	container := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec.Containers[0]
+
+	// Password env var must use a secretKeyRef referencing the function secret.
+	passwordEnv := suite.getEnvVarByName(container.Env, "NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD")
+	suite.Require().Empty(passwordEnv.Value, "password must not be stored as a plaintext env value")
+	suite.Require().NotNil(passwordEnv.ValueFrom)
+	suite.Require().NotNil(passwordEnv.ValueFrom.SecretKeyRef)
+	suite.Require().Equal("nuclio-cron-basic-ref", passwordEnv.ValueFrom.SecretKeyRef.Name)
+	suite.Require().Equal(scrubber.EncodeSecretKey(passwordRef), passwordEnv.ValueFrom.SecretKeyRef.Key)
+
+	// Username is always a plaintext literal.
+	usernameEnv := suite.getEnvVarByName(container.Env, "NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME")
+	suite.Require().Equal("ref-user", usernameEnv.Value)
+}
+
+// TestCronTriggerWithFunctionAuthenticationFailsWithoutNuclioServiceAccount verifies that api mode fails the
+// reconcile, instead of silently creating a cron job that the auth-url rejects, when the Nuclio service
+// account name is not set.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationFailsWithoutNuclioServiceAccount() {
+	suite.T().Setenv("NUCLIO_SERVICE_ACCOUNT_NAME", "")
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("cron-api-no-service-account")
+	functionInstance.Namespace = "default"
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": {Kind: "http", Attributes: map[string]interface{}{
+			auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
+		}},
+		"cron": {Kind: "cron", Attributes: map[string]interface{}{"schedule": "*/1 * * * *"}},
+	}
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().Error(err)
+	suite.Require().Contains(errors.GetErrorStackString(err, -1), "NUCLIO_SERVICE_ACCOUNT_NAME")
+}
+
+// TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig verifies that basicAuth mode fails the
+// reconcile, instead of creating a cron job that the sidecar rejects, when the credentials cannot be decoded.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig() {
+
+	// basicAuth without a username and password is rejected when the config is decoded
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-basic-invalid", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+	})
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().Error(err)
+	suite.Require().Contains(errors.GetErrorStackString(err, -1),
+		"Failed to decode basicAuth config for cron pod enrichment")
+}
+
+// TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnMissingSecret verifies that basicAuth mode fails the
+// reconcile when the password is scrubbed but the function's Secret holding it cannot be found.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnMissingSecret() {
+	const passwordRef = functionconfig.ReferencePrefix + "/spec/triggers/http/attributes/authentication/basicauth/password"
+
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-basic-no-secret", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeBasicAuth),
+		"authentication": map[string]interface{}{
+			"basicAuth": map[string]interface{}{"username": "ref-user", "password": passwordRef},
+		},
+	})
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().Error(err)
+	suite.Require().Contains(errors.GetErrorStackString(err, -1),
+		"Failed to get function secret name for cron basicAuth enrichment")
+}
+
+// newFunctionWithHTTPAndCronTriggers returns a function with an HTTP trigger of the given attributes
+// and a cron trigger.
+func (suite *lazyTestSuite) newFunctionWithHTTPAndCronTriggers(functionName string,
+	httpTriggerAttributes map[string]interface{}) *nuclioio.NuclioFunction {
+
+	function := suite.getFunctionInstanceWithDefaultProbes(functionName)
+	function.Namespace = "default"
+	function.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": {Kind: "http", Attributes: httpTriggerAttributes},
+		"cron": {Kind: "cron", Attributes: map[string]interface{}{"schedule": "*/1 * * * *"}},
+	}
+	return function
+}
+
+// createFunctionCronJob reconciles the function with function-level authentication enabled and the Nuclio
+// service account set to "nuclio", and returns its single CronJob.
+func (suite *lazyTestSuite) createFunctionCronJob(function *nuclioio.NuclioFunction) *batchv1.CronJob {
+	suite.T().Setenv("NUCLIO_SERVICE_ACCOUNT_NAME", "nuclio")
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().NoError(err)
+
+	cronJobs, err := resources.CronJobs()
+	suite.Require().NoError(err)
+	suite.Require().Len(cronJobs, 1)
+
+	return cronJobs[0]
+}
+
+// setKubeCronTriggerModeWithFunctionAuth swaps the platform config to kube cron mode with
+// function-level authentication enabled — the prerequisite for cron credential injection.
+func (suite *lazyTestSuite) setKubeCronTriggerModeWithFunctionAuth() {
+	platformConfiguration, err := platformconfig.NewPlatformConfig("")
+	suite.Require().NoError(err)
+	platformConfiguration.CronTriggerCreationMode = platformconfig.KubeCronTriggerCreationMode
+	platformConfiguration.Authentication = &platformconfig.Authentication{
+		FunctionAuthenticationEnabled: true,
+	}
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: platformConfiguration,
+	})
 }
 
 // setKubeCronTriggerMode swaps the suite's platform configuration to one that creates

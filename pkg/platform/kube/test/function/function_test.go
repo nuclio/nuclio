@@ -65,8 +65,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const cronInvocationMarker = "cron-invocation-marker"
+
 type DeployFunctionTestSuite struct {
 	kubesuite.KubeTestSuite
+	authProxySidecarImage string
 }
 
 func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody() {
@@ -2037,6 +2040,133 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarBasicAuth() {
 	})
 }
 
+// The cron job calls the function Service directly with a bare curl, so with function-level authentication
+// the auth-proxy rejects every tick. Each test deploys a function with an HTTP trigger in the given
+// authentication mode plus a cron trigger, and expects the cron-triggered handler to run.
+
+func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeNone() {
+	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeNone, nil)
+}
+
+func (suite *DeployFunctionTestSuite) TestCronTriggerWithAuthenticationModeBasicAuth() {
+	suite.testCronTriggerWithAuthenticationMode(auth.AuthenticationModeBasicAuth, map[string]interface{}{
+		"basicAuth": map[string]interface{}{
+			"username": "test-user",
+			"password": "test-123",
+		},
+	})
+}
+
+func (suite *DeployFunctionTestSuite) testCronTriggerWithAuthenticationMode(authenticationMode auth.AuthenticationMode,
+	authentication map[string]interface{}) {
+
+	functionName := fmt.Sprintf("cron-auth-%s", strings.ToLower(string(authenticationMode)))
+
+	// restore whatever the suite was configured with, rather than assuming the zero value
+	originalAuthentication := *suite.PlatformConfiguration.Authentication
+	defer func() {
+		*suite.PlatformConfiguration.Authentication = originalAuthentication
+	}()
+
+	suite.PlatformConfiguration.Authentication.FunctionAuthenticationEnabled = true
+
+	if authenticationMode != auth.AuthenticationModeNone {
+
+		// the sidecar is only injected when the function has an authentication mode other than none
+		suite.PlatformConfiguration.Authentication.AuthSidecarImage = suite.buildAndPushAuthProxySidecarImage()
+	}
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(
+		fmt.Sprintf("def handler(context, event):\n    context.logger.info('%s')\n    return 'ok'\n",
+			cronInvocationMarker)))
+	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
+
+	// pulling the proxy image and starting a second container might take longer than the default timeout
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 240
+
+	// keep plaintext passwords in the function config, so the sidecar can read them without the secret restore
+	createFunctionOptions.FunctionConfig.Spec.DisableSensitiveFieldsMasking = true
+
+	httpTriggerAttributes := map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(authenticationMode),
+	}
+	if authentication != nil {
+		httpTriggerAttributes[auth.AttributeAuthentication] = authentication
+	}
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": {
+			Kind:       "http",
+			Attributes: httpTriggerAttributes,
+		},
+		"cron": {
+			Kind: "cron",
+			Attributes: map[string]interface{}{
+				"interval": "5s",
+				"event": map[string]interface{}{
+					"body": "cron-body",
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// the handler logs the marker only when a request reaches the processor
+		pods := suite.GetFunctionPods(functionName)
+		suite.Require().NotEmpty(pods)
+		podLogOptions := &v1.PodLogOptions{Container: common.FunctionContainerName}
+
+		err := common.RetryUntilSuccessful(60*time.Second, 2*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pods[0].Name, podLogOptions, []string{cronInvocationMarker})
+		})
+		if err != nil {
+			suite.Require().Fail("Cron trigger did not invoke the function",
+				"authenticationMode: %s, cron job pods logs: %s",
+				authenticationMode,
+				suite.getCronJobPodsLogs(functionName))
+		}
+
+		return true
+	})
+}
+
+// getCronJobPodsLogs returns the logs of the function's cron job pods, which hold the curl response (e.g. "Unauthorized").
+func (suite *DeployFunctionTestSuite) getCronJobPodsLogs(functionName string) string {
+	cronJobPods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s,%s=true",
+			common.NuclioResourceLabelKeyFunctionName,
+			functionName,
+			common.NuclioLabelKeyFunctionCronJobPod),
+	})
+	suite.Require().NoError(err, "Failed to list cron job pods")
+
+	var cronJobPodsLogs []string
+	for _, cronJobPod := range cronJobPods.Items {
+		podLogs, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).
+			GetLogs(cronJobPod.Name, &v1.PodLogOptions{}).
+			Stream(suite.Ctx)
+		if err != nil {
+			cronJobPodsLogs = append(cronJobPodsLogs, fmt.Sprintf("%s: failed to get logs: %s", cronJobPod.Name, err))
+			continue
+		}
+
+		logsBytes, err := io.ReadAll(podLogs)
+		podLogs.Close() // nolint: errcheck
+		if err != nil {
+			cronJobPodsLogs = append(cronJobPodsLogs, fmt.Sprintf("%s: failed to read logs: %s", cronJobPod.Name, err))
+			continue
+		}
+		cronJobPodsLogs = append(cronJobPodsLogs, fmt.Sprintf("%s: %q", cronJobPod.Name, string(logsBytes)))
+	}
+
+	return strings.Join(cronJobPodsLogs, "; ")
+}
+
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
 
 	// create a platform config configmap with a json logger sink (this is how it is on production)
@@ -2141,8 +2271,13 @@ func (suite *DeployFunctionTestSuite) getContainer(containers []v1.Container, co
 }
 
 // buildAndPushAuthProxySidecarImage builds and pushes the auth-proxy sidecar image via the same
-// platform.BuildAndPushContainerImage primitive processor images are built with (see buildTestFunction),
+// platform.BuildAndPushContainerImage primitive processor images are built with (see buildTestFunction).
+// The image is built once per suite run, on first use.
 func (suite *DeployFunctionTestSuite) buildAndPushAuthProxySidecarImage() string {
+	if suite.authProxySidecarImage != "" {
+		return suite.authProxySidecarImage
+	}
+
 	err := suite.Platform.InitializeContainerBuilder()
 	suite.Require().NoError(err)
 
@@ -2171,7 +2306,8 @@ func (suite *DeployFunctionTestSuite) buildAndPushAuthProxySidecarImage() string
 		})
 	suite.Require().NoError(err)
 
-	return fmt.Sprintf("%s/%s", suite.RegistryURL, taggedImageName)
+	suite.authProxySidecarImage = fmt.Sprintf("%s/%s", suite.RegistryURL, taggedImageName)
+	return suite.authProxySidecarImage
 }
 
 type DeleteFunctionTestSuite struct {

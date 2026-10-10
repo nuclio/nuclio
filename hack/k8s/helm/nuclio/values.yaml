@@ -119,8 +119,9 @@ controller:
       interval: 3m
 
   # the image of the created k8s cron job for function cron triggers
+  # curl >= 8.3.0 is required for --variable / --expand-* (used for function-level auth credentials)
   cronTriggerCronJobImage:
-    repository: appropriate/curl
+    repository: curlimages/curl
     tag: latest
     pullPolicy: IfNotPresent
 
