@@ -39,7 +39,7 @@ var eslint = require('gulp-eslint');
 var preprocess = require('gulp-preprocess');
 var minifyCss = require('gulp-clean-css');
 var gulpIf = require('gulp-if');
-var rev = require('gulp-rev');
+var rev = require('gulp-rev').default;
 var argv = require('yargs')(require('yargs/helpers').hideBin(process.argv)).argv;
 var minifyHtml = require('gulp-htmlmin');
 var ngHtml2Js = require('gulp-ng-html2js');
@@ -51,7 +51,7 @@ var svgo = require('svgo');
 var Transform = require('stream').Transform;
 var iRequire = require('./resources/installRequire');
 var lodash = require('lodash');
-var del = require('del');
+var fs = require('fs');
 var exec = require('child_process').exec;
 var errorHandler = require('gulp-error-handle');
 var buildVersion = null;
@@ -111,10 +111,19 @@ function setE2eTesting() {
 }
 
 /**
+ * Remove files/directories (no glob support needed: callers pass plain paths)
+ */
+function removePaths(paths) {
+    return Promise.all(paths.map(function (target) {
+        return fs.promises.rm(target, {recursive: true, force: true});
+    }));
+}
+
+/**
  * Clean build directory
  */
 function clean() {
-    return del([config.build_dir, config.cache_file]);
+    return removePaths([config.build_dir, config.cache_file]);
 }
 
 /**
@@ -726,7 +735,7 @@ function watch(next) {
  */
 function cleanShared() {
     if (state.isDevMode) {
-        return del(config.shared_files.dist);
+        return removePaths([config.shared_files.dist]);
     }
 }
 
