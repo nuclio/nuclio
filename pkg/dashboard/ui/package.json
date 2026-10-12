@@ -21,7 +21,7 @@
     "bootstrap": "~3.4.1",
     "es6-promise": "^4.2.8",
     "eslint-plugin-angular": "^4.0.1",
-    "express": "5.2.1",
+    "express": "5.3.0",
     "express-http-proxy": "^1.6.3",
     "fancy-log": "2.0.0",
     "gulp": "^5.0.1",
