@@ -35,8 +35,11 @@ updates:
     ignore:
       # bootstrap 5.x is a breaking major bump that broke the UI (see PR #4306, #4321, #4322)
       - dependency-name: "bootstrap"
-      # preset-env 8.x needs @babel/core@^8 + Node >=22.18
-      - dependency-name: "@babel/preset-env"
+      # Babel 8 (core + preset-env) needs Node >=22.18; UI build image is node:20
+      - dependency-name: "@babel/*"
+        update-types: ["version-update:semver-major"]
+      # eslint-plugin-angular 5+ needs eslint 9 (flat config); UI lint runs eslint 6 via gulp-eslint
+      - dependency-name: "eslint*"
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
