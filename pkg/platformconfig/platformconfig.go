@@ -449,6 +449,34 @@ func (c *Config) ValidatePlatformConfig() error {
 		return errors.Wrap(err, "Failed to validate authentication config")
 	}
 
+	if err := c.validateDefaultCronTriggerServiceAccount(); err != nil {
+		return errors.Wrap(err, "Failed to validate default cron trigger service account")
+	}
+
+	return nil
+}
+
+// validateDefaultCronTriggerServiceAccount validates the default cron trigger service account.
+func (c *Config) validateDefaultCronTriggerServiceAccount() error {
+	if !c.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	serviceAccount := strings.TrimSpace(c.Kube.DefaultCronTriggerServiceAccount)
+	if serviceAccount == "" {
+		return errors.New("Default cron trigger service account is empty")
+	}
+
+	if common.ContainsShellMetacharacters(serviceAccount) {
+		return errors.Errorf("Default cron trigger service account contains invalid characters: %s", serviceAccount)
+	}
+
+	for _, forbiddenServiceAccount := range c.Kube.DefaultForbiddenServiceAccounts {
+		if strings.EqualFold(strings.TrimSpace(forbiddenServiceAccount), serviceAccount) {
+			return errors.Errorf("Default cron trigger service account is forbidden: %s", serviceAccount)
+		}
+	}
+
 	return nil
 }
 

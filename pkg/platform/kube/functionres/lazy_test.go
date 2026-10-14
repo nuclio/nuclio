@@ -1948,8 +1948,8 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationAPIMode() {
 	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
 	container := pod.Containers[0]
 
-	// SA is the platform's (from the Nuclio env), not the function's, and automount must
-	// be set so the token lands at DefaultTokenPath.
+	// SA is the platform's default cron trigger SA (from the platform config), not the function's, and
+	// automount must be set so the token lands at DefaultTokenPath.
 	suite.Require().Equal("nuclio", pod.ServiceAccountName)
 	suite.Require().NotNil(pod.AutomountServiceAccountToken)
 	suite.Require().True(*pod.AutomountServiceAccountToken)
@@ -2059,25 +2059,43 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthSc
 	suite.Require().Equal("ref-user", usernameEnv.Value)
 }
 
-// TestCronTriggerWithFunctionAuthenticationFailsWithoutNuclioServiceAccount verifies that api mode fails the
-// reconcile, instead of silently creating a cron job that the auth-url rejects, when the Nuclio service
-// account name is not set.
-func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationFailsWithoutNuclioServiceAccount() {
-	suite.T().Setenv("NUCLIO_SERVICE_ACCOUNT_NAME", "")
+// TestCronTriggerWithFunctionAuthenticationExplicitServiceAccount verifies that the CronJob pod runs as the
+// service account set on the cron trigger's serviceAccount attribute.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationExplicitServiceAccount() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-explicit-sa", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
+	})
+	function.Spec.Triggers["cron"].Attributes["serviceAccount"] = "my-cron-sa"
+
+	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
+
+	suite.Require().Equal("my-cron-sa", pod.ServiceAccountName)
+	suite.Require().NotNil(pod.AutomountServiceAccountToken)
+	suite.Require().True(*pod.AutomountServiceAccountToken)
+}
+
+// TestCronTriggerWithFunctionAuthenticationFallsBackToDefaultServiceAccount verifies that a cron trigger without
+// a service account (a function deployed before the service account was enriched on deployment) runs as the
+// platform's default cron trigger service account.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationFallsBackToDefaultServiceAccount() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-default-sa", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
+	})
+	delete(function.Spec.Triggers["cron"].Attributes, "serviceAccount")
+
 	suite.setKubeCronTriggerModeWithFunctionAuth()
+	suite.client.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultCronTriggerServiceAccount = "nuclio-cron"
 
-	functionInstance := suite.getFunctionInstanceWithDefaultProbes("cron-api-no-service-account")
-	functionInstance.Namespace = "default"
-	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
-		"http": {Kind: "http", Attributes: map[string]interface{}{
-			auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
-		}},
-		"cron": {Kind: "cron", Attributes: map[string]interface{}{"schedule": "*/1 * * * *"}},
-	}
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().NoError(err)
+	cronJobs, err := resources.CronJobs()
+	suite.Require().NoError(err)
+	suite.Require().Len(cronJobs, 1)
 
-	_, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
-	suite.Require().Error(err)
-	suite.Require().Contains(errors.GetErrorStackString(err, -1), "NUCLIO_SERVICE_ACCOUNT_NAME")
+	pod := cronJobs[0].Spec.JobTemplate.Spec.Template.Spec
+	suite.Require().Equal("nuclio-cron", pod.ServiceAccountName)
+	suite.Require().NotNil(pod.AutomountServiceAccountToken)
+	suite.Require().True(*pod.AutomountServiceAccountToken)
 }
 
 // TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig verifies that basicAuth mode fails the
@@ -2116,7 +2134,7 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFa
 }
 
 // newFunctionWithHTTPAndCronTriggers returns a function with an HTTP trigger of the given attributes
-// and a cron trigger.
+// and a cron trigger whose service account is "nuclio", as set when the function is deployed.
 func (suite *lazyTestSuite) newFunctionWithHTTPAndCronTriggers(functionName string,
 	httpTriggerAttributes map[string]interface{}) *nuclioio.NuclioFunction {
 
@@ -2124,15 +2142,17 @@ func (suite *lazyTestSuite) newFunctionWithHTTPAndCronTriggers(functionName stri
 	function.Namespace = "default"
 	function.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http": {Kind: "http", Attributes: httpTriggerAttributes},
-		"cron": {Kind: "cron", Attributes: map[string]interface{}{"schedule": "*/1 * * * *"}},
+		"cron": {Kind: "cron", Attributes: map[string]interface{}{
+			"schedule":       "*/1 * * * *",
+			"serviceAccount": "nuclio",
+		}},
 	}
 	return function
 }
 
-// createFunctionCronJob reconciles the function with function-level authentication enabled and the Nuclio
-// service account set to "nuclio", and returns its single CronJob.
+// createFunctionCronJob reconciles the function with function-level authentication enabled
+// and returns its single CronJob.
 func (suite *lazyTestSuite) createFunctionCronJob(function *nuclioio.NuclioFunction) *batchv1.CronJob {
-	suite.T().Setenv("NUCLIO_SERVICE_ACCOUNT_NAME", "nuclio")
 	suite.setKubeCronTriggerModeWithFunctionAuth()
 
 	resources, err := suite.client.CreateOrUpdate(suite.ctx, function)

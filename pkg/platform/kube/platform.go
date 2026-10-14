@@ -75,7 +75,10 @@ type Platform struct {
 	defaultProxySource  platform.ProxyLogsSource
 }
 
-const Mib = 1048576
+const (
+	Mib                                = 1048576
+	cronTriggerServiceAccountAttribute = "serviceAccount"
+)
 
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
@@ -486,6 +489,8 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	if err := p.enrichHTTPTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
+
+	p.enrichCronTriggersServiceAccount(ctx, functionConfig)
 
 	// enrich function tolerations
 	if functionConfig.Spec.Tolerations == nil && p.Config.Kube.DefaultFunctionTolerations != nil {
@@ -1586,6 +1591,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Liveness probe validation failed")
 	}
 
+	if err := p.validateCronTriggersServiceAccount(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Cron triggers service account validation failed")
+	}
+
 	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
@@ -2155,6 +2164,128 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		false); err != nil {
 		return errors.Wrap(err, "Failed to validate service account")
 	}
+	return nil
+}
+
+// cronTriggersAuthenticateWithServiceAccount reports whether the CronJob should authenticate with a service account token,
+// based on the function's authentication mode and the HTTP trigger mode.
+func (p *Platform) cronTriggersAuthenticateWithServiceAccount(functionConfig *functionconfig.Config) bool {
+	if !p.Config.IsFunctionAuthenticationEnabled() {
+		return false
+	}
+
+	// a function without a valid http trigger mode has nothing to authenticate against
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	if err != nil {
+		return false
+	}
+
+	return auth.AuthenticationMode(authMode) == auth.AuthenticationModeAPI ||
+		auth.AuthenticationMode(authMode) == auth.AuthenticationModeBrowser
+}
+
+// enrichCronTriggersServiceAccount sets the platform's default cron trigger service account on the cron triggers
+// that do not specify one, when their CronJob pod authenticates with a service account token (api / browser mode).
+func (p *Platform) enrichCronTriggersServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) {
+	defaultServiceAccount := p.Config.Kube.DefaultCronTriggerServiceAccount
+	if defaultServiceAccount == "" || !p.cronTriggersAuthenticateWithServiceAccount(functionConfig) {
+		return
+	}
+
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron") {
+		if serviceAccount, _ := trigger.Attributes[cronTriggerServiceAccountAttribute].(string); serviceAccount != "" {
+			continue
+		}
+
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching cron trigger service account",
+			"functionName", functionConfig.Meta.Name,
+			"triggerName", triggerName,
+			"serviceAccount", defaultServiceAccount)
+		if trigger.Attributes == nil {
+			trigger.Attributes = map[string]interface{}{}
+		}
+		trigger.Attributes[cronTriggerServiceAccountAttribute] = defaultServiceAccount
+		functionConfig.Spec.Triggers[triggerName] = trigger
+	}
+}
+
+// validateCronTriggersServiceAccount validates the service accounts of the cron triggers: when their CronJob pod
+// authenticates with a service account token, each must be set (it is enriched beforehand). A set service account
+// other than the platform's default one must be free of shell metacharacters and, like a function's own service
+// account, neither forbidden nor disallowed. The default is validated once, with the platform configuration.
+func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if !p.Config.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	cronTriggersShouldUseServiceAccount := p.cronTriggersAuthenticateWithServiceAccount(functionConfig)
+	var projectSecret *v1.Secret
+	projectSecretFetched := false
+
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron") {
+		serviceAccount, _ := trigger.Attributes[cronTriggerServiceAccountAttribute].(string)
+		serviceAccount = strings.TrimSpace(serviceAccount)
+		if serviceAccount == "" {
+			// enrichment has already set the platform default, so an empty service account here means
+			// that no default is configured; the CronJob pod cannot authenticate without one
+			if cronTriggersShouldUseServiceAccount {
+				return nuclio.NewErrBadRequest(fmt.Sprintf(
+					"Cron trigger service account is not set; set the trigger's serviceAccount attribute "+
+						"or the platform config: kube.defaultCronTriggerServiceAccount. Trigger: %s",
+					triggerName))
+			}
+			continue
+		}
+
+		// already validated with the platform configuration
+		if serviceAccount == p.Config.Kube.DefaultCronTriggerServiceAccount {
+			continue
+		}
+
+		if common.ContainsShellMetacharacters(serviceAccount) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Cron trigger service account contains invalid characters. Trigger: %s, service account: %s",
+				triggerName,
+				serviceAccount))
+		}
+
+		if !p.Config.Kube.IsConfiguredToVerifyServiceAccount() {
+			continue
+		}
+
+		// the project secret is shared by all cron triggers, fetch it once
+		if !projectSecretFetched {
+			projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+			if !ok {
+				return errors.New("Function does not have a project label, cannot validate cron trigger service account")
+			}
+
+			var err error
+			if projectSecret, err = utils.GetProjectSecret(ctx,
+				p.consumer.KubeClientSet,
+				p.Config.Kube.ProjectSecretTemplate,
+				projectName,
+				functionConfig.Meta.Namespace); err != nil {
+				return errors.Wrapf(err, "Failed to get project secret. Project: %s", projectName)
+			}
+			projectSecretFetched = true
+		}
+
+		if err := utils.IsServiceAccountForbidden(projectSecret,
+			p.Config.Kube.ProjectSecretForbiddenServiceAccountsKey,
+			p.Config.Kube.DefaultForbiddenServiceAccounts,
+			serviceAccount); err != nil {
+			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Cron trigger service account is forbidden. Trigger: %s", triggerName)
+		}
+
+		if err := utils.IsServiceAccountAllowed(projectSecret,
+			p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
+			serviceAccount); err != nil {
+			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Cron trigger service account is not allowed. Trigger: %s", triggerName)
+		}
+	}
+
 	return nil
 }
 

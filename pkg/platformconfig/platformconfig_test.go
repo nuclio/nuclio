@@ -36,6 +36,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	opaclient "github.com/nuclio/opa-client"
 	nucliozap "github.com/nuclio/zap"
@@ -1367,6 +1368,7 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 					SignInURL:                     "http://signin-service:8080",
 					DefaultMode:                   testCase.mode,
 				},
+				Kube: PlatformKubeConfig{DefaultCronTriggerServiceAccount: "nuclio-cron"},
 			}
 			err := config.ValidatePlatformConfig()
 			if testCase.expectError {
@@ -1375,6 +1377,90 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 				return
 			}
 			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultCronTriggerServiceAccount() {
+	for _, testCase := range []struct {
+		name                          string
+		functionAuthenticationEnabled bool
+		defaultServiceAccount         string
+		forbiddenServiceAccounts      []string
+		expectedError                 string
+	}{
+		{
+			name:                          "valid default",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         "nuclio-cron",
+		},
+		{
+			name:                          "empty default rejected",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         "  ",
+			expectedError:                 "Default cron trigger service account is empty",
+		},
+		{
+			name:                          "default not in the forbidden list",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         "nuclio-cron",
+			forbiddenServiceAccounts:      []string{"nuclio", "mlrun-api"},
+		},
+		{
+			name:                          "forbidden default rejected",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         "nuclio-cron",
+			forbiddenServiceAccounts:      []string{"nuclio", "nuclio-cron"},
+			expectedError:                 "Default cron trigger service account is forbidden: nuclio-cron",
+		},
+		{
+			name:                          "forbidden check is case and space insensitive",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         " Nuclio-Cron ",
+			forbiddenServiceAccounts:      []string{" NUCLIO-cron"},
+			expectedError:                 "Default cron trigger service account is forbidden",
+		},
+		{
+			name:                          "shell metacharacters rejected",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         "nuclio-cron;reboot",
+			expectedError:                 "Default cron trigger service account contains invalid characters",
+		},
+		{
+			name:                          "not validated when function authentication is disabled",
+			functionAuthenticationEnabled: false,
+			defaultServiceAccount:         "nuclio-cron;reboot",
+			forbiddenServiceAccounts:      []string{"nuclio-cron"},
+		},
+		{
+			name:                          "not required when function authentication is disabled",
+			functionAuthenticationEnabled: false,
+			defaultServiceAccount:         "",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Authentication: &Authentication{
+					FunctionAuthenticationEnabled: testCase.functionAuthenticationEnabled,
+					AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					AuthURL:                       "http://auth-service:8080",
+					SignInURL:                     "http://signin-service:8080",
+					DefaultMode:                   auth.AuthenticationModeAPI,
+				},
+				Kube: PlatformKubeConfig{
+					DefaultCronTriggerServiceAccount: testCase.defaultServiceAccount,
+					DefaultForbiddenServiceAccounts:  testCase.forbiddenServiceAccounts,
+				},
+			}
+
+			err := config.ValidatePlatformConfig()
+			if testCase.expectedError == "" {
+				suite.Require().NoError(err)
+				return
+			}
+			suite.Require().Error(err)
+			suite.Require().Contains(errors.GetErrorStackString(err, -1), testCase.expectedError)
 		})
 	}
 }
@@ -1398,6 +1484,7 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigAuthSidecarImage
 					AuthURL:                       "http://auth-service:8080",
 					SignInURL:                     "http://signin-service:8080",
 				},
+				Kube: PlatformKubeConfig{DefaultCronTriggerServiceAccount: "nuclio-cron"},
 			}
 			err := config.ValidatePlatformConfig()
 			if testCase.expectError {
@@ -1431,6 +1518,7 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigAuthURL() {
 					SignInURL:                     "http://signin-service:8080",
 					DefaultMode:                   auth.AuthenticationModeNone,
 				},
+				Kube: PlatformKubeConfig{DefaultCronTriggerServiceAccount: "nuclio-cron"},
 			}
 			err := config.ValidatePlatformConfig()
 			if testCase.expectError {
@@ -1464,6 +1552,7 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigSignInURL() {
 					SignInURL:                     testCase.signInURL,
 					DefaultMode:                   auth.AuthenticationModeNone,
 				},
+				Kube: PlatformKubeConfig{DefaultCronTriggerServiceAccount: "nuclio-cron"},
 			}
 			err := config.ValidatePlatformConfig()
 			if testCase.expectError {

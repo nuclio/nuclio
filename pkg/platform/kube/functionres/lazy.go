@@ -2377,6 +2377,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		Interval          string
 		ConcurrencyPolicy string
 		JobBackoffLimit   int32
+		ServiceAccount    string
 		Event             cron.Event
 	}
 
@@ -2409,7 +2410,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	// Pod-spec enrichment: only non-zero when the function has an authenticated HTTP trigger
 	// alongside this cron trigger. Zero values leave the pod spec unchanged from today's behaviour.
 	cronJobServiceAccountName, cronJobAutomountServiceAccountToken, cronJobEnv, authCurlArgs, err :=
-		lc.buildCronJobAuthComponents(ctx, function)
+		lc.buildCronJobAuthComponents(ctx, function, attributes.ServiceAccount)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build cron job authentication components")
 	}
@@ -2470,7 +2471,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 							Name: "function-invocator",
 							Image: common.GetEnvOrDefaultString(
 								"NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME",
-								"curlimages/curl:8.22.0"),
+								"curlimages/curl:latest"),
 							Command:         []string{"curl"},
 							Args:            curlArgs,
 							Env:             cronJobEnv,
@@ -2509,9 +2510,12 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 
 // buildCronJobAuthComponents resolves the service-account, env vars, and extra curl args that
 // the cron trigger CronJob pod needs to authenticate when function-level authentication is active.
+// cronTriggerServiceAccount (the cron trigger's serviceAccount attribute) is enriched and validated when the
+// function is deployed, so it is only required to be set here.
 func (lc *lazyClient) buildCronJobAuthComponents(
 	ctx context.Context,
 	function *nuclioio.NuclioFunction,
+	cronTriggerServiceAccount string,
 ) (serviceAccountName string, automountServiceAccountToken *bool, env []v1.EnvVar, extraCurlArgs []string, err error) {
 	if !lc.functionAuthenticationEnabled(function) {
 		return
@@ -2532,11 +2536,16 @@ func (lc *lazyClient) buildCronJobAuthComponents(
 
 	case auth.AuthenticationModeAPI, auth.AuthenticationModeBrowser:
 		// Both modes validate the bearer token through the same auth-url flow.
-		// Mount the platform's service account (Nuclio's own) so the auth-url accepts the SA
+		// Mount the cron trigger's service account so the auth-url accepts the SA
 		// bearer token; a function's service account is not on its allow-list.
-		serviceAccountName = common.GetEnvOrDefaultString("NUCLIO_SERVICE_ACCOUNT_NAME", "")
+		serviceAccountName = cronTriggerServiceAccount
 		if serviceAccountName == "" {
-			return "", nil, nil, nil, errors.New("Nuclio service account name is not set; env: NUCLIO_SERVICE_ACCOUNT_NAME")
+			// if the cron trigger service account is not set, use the default service account for backwards compatibility
+			defaultServiceAccount := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultCronTriggerServiceAccount
+			lc.logger.DebugWithCtx(ctx, "Cron trigger service account not set, using default",
+				"functionName", function.Name,
+				"defaultServiceAccount", defaultServiceAccount)
+			serviceAccountName = defaultServiceAccount
 		}
 
 		trueVal := true
