@@ -48,7 +48,7 @@
     "i18next-xhr-backend": "^3.2.2",
     "iguazio.dashboard-controls": "1.3.10",
     "jquery": "^4.0.0",
-    "jquery-ui": "1.13.2",
+    "jquery-ui": "1.14.2",
     "js-base64": "^3.9.4",
     "lodash": "^4.17.21",
     "lodash-inflection": "^1.4.0",
