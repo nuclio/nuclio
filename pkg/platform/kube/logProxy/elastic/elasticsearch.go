@@ -49,6 +49,7 @@ func NewElasticSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*Elas
 		AbstractSearchEngineLogProxy: &AbstractSearchEngineLogProxy{
 			index:            config.Index,
 			customQueryParam: config.CustomQueryParameter,
+			projectNameField: config.ProjectNameField,
 		},
 	}
 	var err error
@@ -77,7 +78,7 @@ func (e *ElasticSearchLogProxy) GetFunctionReplicas(ctx context.Context, options
 		return nil, errors.New("Elasticsearch client is not configured")
 	}
 
-	searchRequest := e.getFunctionBaseSearchRequest(options.FunctionName)
+	searchRequest := e.getFunctionBaseSearchRequest(options.FunctionName, options.ProjectName)
 
 	// Set to 0 to avoid fetching actual log documents (hits).
 	// We're only interested in aggregation results (e.g., distinct pod names),
@@ -141,7 +142,7 @@ func (e *ElasticSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *
 	if e.client == nil {
 		return nil, errors.New("Elasticsearch client is not configured")
 	}
-	searchRequest := e.getFunctionBaseSearchRequest(options.GetFunctionName())
+	searchRequest := e.getFunctionBaseSearchRequest(options.GetFunctionName(), options.GetProjectName())
 
 	// Substring match
 	if options.Substring != "" {
@@ -191,7 +192,7 @@ func (e *ElasticSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *
 	return resp.Body, nil
 }
 
-func (e *ElasticSearchLogProxy) getFunctionBaseSearchRequest(functionName string) *search.Request {
+func (e *ElasticSearchLogProxy) getFunctionBaseSearchRequest(functionName, projectName string) *search.Request {
 	searchRequest := search.NewRequest()
 
 	// filters by function name custom query parameter
@@ -215,6 +216,14 @@ func (e *ElasticSearchLogProxy) getFunctionBaseSearchRequest(functionName string
 	}
 
 	searchRequest.Query = &query
+
+	// defense-in-depth: kubernetes.pod.name is already scoped to this function's name,
+	// but two functions in different projects can share a name - if configured with an
+	// index field for the project label, filter on it too so logs can never cross projects.
+	if e.projectNameField != "" && projectName != "" {
+		e.addTermsFilter(searchRequest, e.projectNameField, []string{projectName})
+	}
+
 	return searchRequest
 }
 

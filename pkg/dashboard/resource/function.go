@@ -427,12 +427,13 @@ func (fr *functionResource) proxyFunctionLogs(request *http.Request) (*restful.C
 	}
 
 	// ensure access
-	if _, err := fr.getFunction(request, functionName); err != nil {
+	function, err := fr.getFunction(request, functionName)
+	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
 	// populate get options
-	getFunctionLogsOptions, err := fr.populateProxyFunctionLogsOptions(request, functionName)
+	getFunctionLogsOptions, err := fr.populateProxyFunctionLogsOptions(request, function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to populate get function logs options")
 	}
@@ -858,8 +859,15 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 	return getFunctionReplicaLogsStreamOptions, nil
 }
 
-func (fr *functionResource) populateProxyFunctionLogsOptions(request *http.Request, functionName string) (*platform.ProxyFunctionLogsOptions, error) {
-	proxyFunctionLogsOptions := platform.NewProxyFunctionLogsOptions(functionName)
+func (fr *functionResource) populateProxyFunctionLogsOptions(request *http.Request, function platform.Function) (*platform.ProxyFunctionLogsOptions, error) {
+	// project label may be absent on legacy functions - in that case the project-name
+	// safety filter is simply skipped downstream, matching pre-existing behavior
+	projectName, err := function.GetConfig().GetProjectName()
+	if err != nil {
+		projectName = ""
+	}
+
+	proxyFunctionLogsOptions := platform.NewProxyFunctionLogsOptions(function.GetConfig().Meta.Name, projectName)
 	proxyFunctionLogsOptions.TimeFilter = fr.getURLParamTimeFilterOrDefault("timeFilter", request, &platform.TimeFilter{
 		Sort: "desc",
 	})

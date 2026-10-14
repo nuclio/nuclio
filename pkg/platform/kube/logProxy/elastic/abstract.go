@@ -19,4 +19,5 @@ package elastic
 type AbstractSearchEngineLogProxy struct {
 	index            string
 	customQueryParam string
+	projectNameField string
 }

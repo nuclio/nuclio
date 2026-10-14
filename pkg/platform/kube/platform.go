@@ -721,9 +721,17 @@ func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function plat
 
 	switch p.defaultProxySource {
 	case platform.ProxyLogsSourceES:
+		// project label may be absent on legacy functions - in that case the
+		// project-name safety filter is simply skipped downstream
+		projectName, err := function.GetConfig().GetProjectName()
+		if err != nil {
+			projectName = ""
+		}
+
 		return p.elasticSearchClient.GetFunctionReplicas(ctx, &logProxy.GetFunctionReplicaOptions{
 			TimeFilter:   timeFilter,
 			FunctionName: function.GetConfig().Meta.Name,
+			ProjectName:  projectName,
 		})
 	default:
 		return nil, nil

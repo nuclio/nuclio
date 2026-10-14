@@ -97,8 +97,8 @@ endif
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
 	# NUCLIO_BASE_IMAGE_NAME also feeds hack/docker/build/builder/Dockerfile, which pins
-	# FROM --platform=${BUILDPLATFORM} (the CI runner's native arch, not NUCLIO_ARCH) - it
-	# needs a multi-arch image regardless of target arch, so no arch-specific prefix here.
+	# FROM --platform=linux/${NUCLIO_ARCH} - it needs a multi-arch image regardless of
+	# target arch, so no arch-specific prefix here.
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-jdk-slim-bullseye
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
@@ -680,6 +680,7 @@ build-builder:
 	docker build \
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE) \
 		--file hack/docker/build/builder/Dockerfile \

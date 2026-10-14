@@ -277,6 +277,21 @@ limitations under the License.
                     pageTitle: 'common:TRIGGERS'
                 }
             })
+            .state('app.project.function.edit.execution-log', {
+                url: '/execution-log',
+                views: {
+                    version: {
+                        template: '<ncl-version-execution-log data-version="$ctrl.version"' +
+                            'data-is-function-deploying="$ctrl.isFunctionDeploying()"></ncl-version-execution-log>'
+                    }
+                },
+                params: {
+                    functionData: {}
+                },
+                data: {
+                    pageTitle: 'functions:EXECUTION_LOG'
+                }
+            })
             .state('app.project.function.edit.monitoring', {
                 url: '/monitoring',
                 views: {
