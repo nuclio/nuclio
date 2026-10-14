@@ -432,6 +432,7 @@ platform:
     defaultForbiddenServiceAccounts:
       - "cluster-admin"
       - "restricted-sa"
+    defaultCronTriggerServiceAccount: "nuclio-cron"
 ```
 | Field                                    | Description                                                                                                                         |
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
@@ -440,6 +441,7 @@ platform:
 | `projectSecretForbiddenServiceAccountsKey` | The key in the secret that lists comma-separated forbidden service accounts for the project.                                      |
 | `projectSecretDefaultServiceAccountKey`  | The key in the secret containing the default service account for the project, used when no service account is explicitly specified. |
 | `defaultForbiddenServiceAccounts`       | A list of forbidden service accounts enforced across the platform (merged with secret-based forbidden list).                         |
+| `defaultCronTriggerServiceAccount`      | The service account of the CronJob pods of cron triggers, when function-level authentication is enabled and the function's HTTP trigger uses `api` or `browser` authentication; set on cron triggers that do not specify one when the function is deployed. It is required when function-level authentication is enabled, and is validated when the platform configuration is loaded (no shell metacharacters, not in `defaultForbiddenServiceAccounts`); it is not validated again per deployment, nor against the project's secret-based lists. |
 
 The `projectSecretTemplate` is rendered using the following context:
 ```go
