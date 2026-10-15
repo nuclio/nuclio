@@ -2181,19 +2181,12 @@ func (p *Platform) cronTriggersAuthenticateWithServiceAccount(functionConfig *fu
 		auth.AuthenticationMode(authMode) == auth.AuthenticationModeBrowser
 }
 
-// validateCronTriggersServiceAccount validates the service accounts of the cron triggers: a trigger without one falls
-// back to the platform's default cron trigger service account, so it is only an error when no default is configured
-// and the CronJob pod authenticates with a service account token. A set service account other than the platform's
-// default one must be free of shell metacharacters and, like a function's own service account, neither forbidden
-// nor disallowed. The default is validated once, with the platform configuration.
+// validateCronTriggersServiceAccount validates the cron triggers' service accounts like a function's own service account.
+// An unset one falls back to the platform default, so it is an error only when no default is configured.
 func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if !p.Config.IsFunctionAuthenticationEnabled() {
+	if !p.cronTriggersAuthenticateWithServiceAccount(functionConfig) {
 		return nil
 	}
-
-	cronTriggersShouldUseServiceAccount := p.cronTriggersAuthenticateWithServiceAccount(functionConfig)
-	var projectSecret *v1.Secret
-	projectSecretFetched := false
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron") {
 		var cronConfiguration cron.Configuration
@@ -2202,7 +2195,7 @@ func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, funct
 		}
 		serviceAccount := strings.TrimSpace(cronConfiguration.ServiceAccount)
 		if serviceAccount == "" {
-			if cronTriggersShouldUseServiceAccount && p.Config.Kube.DefaultCronTriggerServiceAccount == "" {
+			if p.Config.Kube.DefaultCronTriggerServiceAccount == "" {
 				return nuclio.NewErrBadRequest(fmt.Sprintf(
 					"Cron trigger service account is not set; set the trigger's serviceAccount attribute "+
 						"or the platform config: kube.defaultCronTriggerServiceAccount. Trigger: %s",
@@ -2227,35 +2220,24 @@ func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, funct
 			continue
 		}
 
-		// the project secret is shared by all cron triggers, fetch it once
-		if !projectSecretFetched {
-			projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-			if !ok {
-				return errors.New("Function does not have a project label, cannot validate cron trigger service account")
-			}
-
-			var err error
-			if projectSecret, err = utils.GetProjectSecret(ctx,
-				p.consumer.KubeClientSet,
-				p.Config.Kube.ProjectSecretTemplate,
-				projectName,
-				functionConfig.Meta.Namespace); err != nil {
-				return errors.Wrapf(err, "Failed to get project secret. Project: %s", projectName)
-			}
-			projectSecretFetched = true
+		projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+		if !ok {
+			return errors.New("Function does not have a project label, cannot validate cron trigger service account")
 		}
 
-		if err := utils.IsServiceAccountForbidden(projectSecret,
+		if _, err := utils.EnrichAndValidateServiceAccount(ctx,
+			p.consumer.KubeClientSet,
+			p.Config.Kube.DefaultCronTriggerServiceAccount,
+			p.Config.Kube.ProjectSecretTemplate,
+			p.Config.Kube.ProjectSecretDefaultServiceAccountKey,
+			p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
 			p.Config.Kube.ProjectSecretForbiddenServiceAccountsKey,
 			p.Config.Kube.DefaultForbiddenServiceAccounts,
-			serviceAccount); err != nil {
-			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Cron trigger service account is forbidden. Trigger: %s", triggerName)
-		}
-
-		if err := utils.IsServiceAccountAllowed(projectSecret,
-			p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
-			serviceAccount); err != nil {
-			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Cron trigger service account is not allowed. Trigger: %s", triggerName)
+			serviceAccount,
+			projectName,
+			functionConfig.Meta.Namespace,
+			false); err != nil {
+			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Failed to validate cron trigger service account. Trigger: %s", triggerName)
 		}
 	}
 

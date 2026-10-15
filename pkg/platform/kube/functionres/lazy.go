@@ -2516,8 +2516,6 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 
 // buildCronJobAuthComponents resolves the service-account, env vars, and extra curl args that
 // the cron trigger CronJob pod needs to authenticate when function-level authentication is active.
-// cronTriggerServiceAccount (the cron trigger's serviceAccount attribute) is enriched and validated when the
-// function is deployed, so it is only required to be set here.
 func (lc *lazyClient) buildCronJobAuthComponents(
 	ctx context.Context,
 	function *nuclioio.NuclioFunction,
@@ -2544,14 +2542,26 @@ func (lc *lazyClient) buildCronJobAuthComponents(
 		// Both modes validate the bearer token through the same auth-url flow.
 		// Mount the cron trigger's service account so the auth-url accepts the SA
 		// bearer token; a function's service account is not on its allow-list.
-		serviceAccountName = cronTriggerServiceAccount
-		if serviceAccountName == "" {
-			// if the cron trigger service account is not set, use the default service account for backwards compatibility
-			defaultServiceAccount := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultCronTriggerServiceAccount
-			lc.logger.DebugWithCtx(ctx, "Cron trigger service account not set, using default",
-				"functionName", function.Name,
-				"defaultServiceAccount", defaultServiceAccount)
-			serviceAccountName = defaultServiceAccount
+		projectName, ok := function.Labels[common.NuclioResourceLabelKeyProjectName]
+		if !ok {
+			return "", nil, nil, nil, errors.New("Function does not have a project label, cannot validate cron trigger service account")
+		}
+
+		kubeConfig := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube
+		serviceAccountName, err = utils.EnrichAndValidateServiceAccount(ctx,
+			lc.kubeClientSet,
+			kubeConfig.DefaultCronTriggerServiceAccount,
+			kubeConfig.ProjectSecretTemplate,
+			"",
+			kubeConfig.ProjectSecretAllowedServiceAccountsKey,
+			kubeConfig.ProjectSecretForbiddenServiceAccountsKey,
+			kubeConfig.DefaultForbiddenServiceAccounts,
+			cronTriggerServiceAccount,
+			projectName,
+			function.Namespace,
+			true)
+		if err != nil {
+			return "", nil, nil, nil, errors.Wrap(err, "Failed to enrich and validate cron trigger service account")
 		}
 
 		trueVal := true

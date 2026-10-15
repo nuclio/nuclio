@@ -2098,6 +2098,24 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationFallsBackTo
 	suite.Require().True(*pod.AutomountServiceAccountToken)
 }
 
+// TestCronTriggerWithFunctionAuthenticationForbiddenDefaultServiceAccount verifies that the platform's default cron
+// trigger service account, enriched into a cron trigger without one, is validated like an explicit one.
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationForbiddenDefaultServiceAccount() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-forbidden-default-sa", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeAPI),
+	})
+	delete(function.Spec.Triggers["cron"].Attributes, "serviceAccount")
+
+	suite.setKubeCronTriggerModeWithFunctionAuth()
+	kubeConfig := &suite.client.platformConfigurationProvider.GetPlatformConfiguration().Kube
+	kubeConfig.DefaultCronTriggerServiceAccount = "nuclio-cron"
+	kubeConfig.DefaultForbiddenServiceAccounts = []string{"nuclio-cron"}
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().Error(err)
+	suite.Require().Contains(errors.GetErrorStackString(err, -1), "Service account nuclio-cron is forbidden")
+}
+
 // TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig verifies that basicAuth mode fails the
 // reconcile, instead of creating a cron job that the sidecar rejects, when the credentials cannot be decoded.
 func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFailsOnInvalidConfig() {
@@ -2133,13 +2151,17 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBasicAuthFa
 		"Failed to get function secret name for cron basicAuth enrichment")
 }
 
-// newFunctionWithHTTPAndCronTriggers returns a function with an HTTP trigger of the given attributes
-// and a cron trigger whose service account is "nuclio", as set when the function is deployed.
+// newFunctionWithHTTPAndCronTriggers returns a project function with an HTTP trigger of the given attributes
+// and a cron trigger whose service account is "nuclio".
 func (suite *lazyTestSuite) newFunctionWithHTTPAndCronTriggers(functionName string,
 	httpTriggerAttributes map[string]interface{}) *nuclioio.NuclioFunction {
 
 	function := suite.getFunctionInstanceWithDefaultProbes(functionName)
 	function.Namespace = "default"
+	if function.Labels == nil {
+		function.Labels = map[string]string{}
+	}
+	function.Labels[common.NuclioResourceLabelKeyProjectName] = "test-project"
 	function.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http": {Kind: "http", Attributes: httpTriggerAttributes},
 		"cron": {Kind: "cron", Attributes: map[string]interface{}{
