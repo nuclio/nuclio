@@ -2477,7 +2477,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 							Name: "function-invocator",
 							Image: common.GetEnvOrDefaultString(
 								"NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME",
-								"curlimages/curl:latest"),
+								"curlimages/curl:8.22.0"),
 							Command:         []string{"curl"},
 							Args:            curlArgs,
 							Env:             cronJobEnv,
