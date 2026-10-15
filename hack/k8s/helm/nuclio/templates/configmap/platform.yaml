@@ -13,6 +13,16 @@
 # limitations under the License.
 
 {{- if .Values.platform }}
+{{- /* Authenticated cron trigger pods run as kube.defaultCronTriggerServiceAccount, so default it to the chart's cron SA.
+  Injected only here, since function auth is enabled only via this config and rendering it otherwise drops platform defaults. */}}
+{{- $platform := deepCopy .Values.platform }}
+{{- if and .Values.rbac.create .Values.rbac.createServiceAccount }}
+{{- $kube := default dict $platform.kube }}
+{{- if not $kube.defaultCronTriggerServiceAccount }}
+{{- $_ := set $kube "defaultCronTriggerServiceAccount" (printf "%s-cron" (include "nuclio.fullName" .)) }}
+{{- $_ = set $platform "kube" $kube }}
+{{- end }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -22,5 +32,5 @@ metadata:
     release: {{ .Release.Name }}
 data:
   platform.yaml: |
-{{ toYaml .Values.platform | indent 4 }}
+{{ toYaml $platform | indent 4 }}
 {{- end }}

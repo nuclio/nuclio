@@ -90,6 +90,12 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
+	if platformConfiguration.IsFunctionAuthenticationEnabled() &&
+		strings.TrimSpace(platformConfiguration.Kube.DefaultCronTriggerServiceAccount) == "" {
+		rootLogger.Warn("Default cron trigger service account is not set, deploying a function with an " +
+			"authenticated HTTP trigger and a cron trigger without a service account will fail")
+	}
+
 	dashboardInstance := NewDashboard(rootLogger)
 	dashboardInstance.healthCheckServer, err = createAndStartHealthCheckServer(platformConfiguration,
 		rootLogger,
