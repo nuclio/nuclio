@@ -21,6 +21,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -1608,6 +1609,251 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithDefaul
 
 	err := suite.platform.validateServiceAccount(suite.ctx, functionConfig)
 	suite.Require().Error(err)
+}
+
+// TestValidateCronTriggersServiceAccount verifies that a cron trigger service account is set when needed, a valid
+// Kubernetes name and checked like a function's service account.
+func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccount() {
+	const (
+		defaultServiceAccount   = "test-sa"
+		forbiddenServiceAccount = "sa-forbidden"
+		allowedKey              = "allowed-sa-key"
+	)
+
+	for _, testCase := range []struct {
+		name                          string
+		functionAuthenticationEnabled bool
+		httpAuthMode                  auth.AuthenticationMode
+		forbiddenList                 []string
+		allowedServiceAccounts        string
+		cronServiceAccount            string
+		platformDefaultSA             string
+		projectLabel                  bool
+		expectedError                 string
+	}{
+		{
+			name:                          "empty service account rejected when the cron pod authenticates with it and no default is set",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			expectedError:                 "Cron trigger service account is not set",
+		},
+		{
+			name:                          "whitespace only service account rejected when the cron pod authenticates with it and no default is set",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeBrowser,
+			cronServiceAccount:            "  ",
+			expectedError:                 "Cron trigger service account is not set",
+		},
+		{
+			name:                          "empty service account accepted when the cron pod authenticates with it and a default is set",
+			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+		},
+		{
+			name:                          "empty service account accepted when the cron pod does not use it",
+			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
+			httpAuthMode:                  auth.AuthenticationModeBasicAuth,
+		},
+		{
+			name:                          "explicit service account not validated when the cron pod does not use it",
+			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
+			httpAuthMode:                  auth.AuthenticationModeBasicAuth,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			cronServiceAccount:            forbiddenServiceAccount,
+			projectLabel:                  true,
+		},
+		{
+			name:                          "service account outside the project allowed list rejected",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			allowedServiceAccounts:        "sa1,sa2",
+			cronServiceAccount:            "sa3",
+			projectLabel:                  true,
+			expectedError:                 "Service account sa3 is not allowed",
+		},
+		{
+			name:                          "service account in the project allowed list accepted",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			allowedServiceAccounts:        "sa1,sa2",
+			cronServiceAccount:            "sa1",
+			projectLabel:                  true,
+		},
+		{
+			name:                          "invalid service account name rejected even when verification is not configured",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			cronServiceAccount:            "sa;reboot",
+			expectedError:                 "Cron trigger service account is invalid",
+		},
+		{
+			name:                          "function authentication disabled accepts anything",
+			functionAuthenticationEnabled: false,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			cronServiceAccount:            "sa;reboot",
+			projectLabel:                  true,
+		},
+		{
+			name:                          "forbidden explicit service account rejected",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			cronServiceAccount:            forbiddenServiceAccount,
+			projectLabel:                  true,
+			expectedError:                 "Service account sa-forbidden is forbidden",
+		},
+		{
+			name:                          "uppercase service account name rejected as invalid",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			cronServiceAccount:            "SA-Forbidden",
+			projectLabel:                  true,
+			expectedError:                 "Cron trigger service account is invalid",
+		},
+		{
+			name:                          "explicit platform default rejected when forbidden",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{defaultServiceAccount},
+			cronServiceAccount:            defaultServiceAccount,
+			projectLabel:                  true,
+			expectedError:                 "Service account test-sa is forbidden",
+		},
+		{
+			name:                          "explicit platform default rejected outside the project allowed list",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			allowedServiceAccounts:        "sa1,sa2",
+			cronServiceAccount:            defaultServiceAccount,
+			projectLabel:                  true,
+			expectedError:                 "Service account test-sa is not allowed",
+		},
+		{
+			name:                          "other explicit service account accepted",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			cronServiceAccount:            "my-cron-sa",
+			projectLabel:                  true,
+		},
+		{
+			name:                          "no explicit service account accepted",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			projectLabel:                  true,
+		},
+		{
+			name:                          "verification not configured accepts anything",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			cronServiceAccount:            forbiddenServiceAccount,
+			projectLabel:                  true,
+		},
+		{
+			name:                          "missing project label rejected",
+			functionAuthenticationEnabled: true,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+			platformDefaultSA:             defaultServiceAccount,
+			forbiddenList:                 []string{forbiddenServiceAccount},
+			cronServiceAccount:            "my-cron-sa",
+			expectedError:                 "does not have a project label",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &suite.platform.Config.Kube
+			oldDefault, oldTemplate, oldForbiddenList := config.DefaultCronTriggerServiceAccount,
+				config.ProjectSecretTemplate, config.DefaultForbiddenServiceAccounts
+			oldAllowedKey, oldForbiddenKey := config.ProjectSecretAllowedServiceAccountsKey,
+				config.ProjectSecretForbiddenServiceAccountsKey
+			oldAuthentication := suite.platform.Config.Authentication
+			config.DefaultCronTriggerServiceAccount, config.ProjectSecretTemplate = testCase.platformDefaultSA, ""
+			config.DefaultForbiddenServiceAccounts = testCase.forbiddenList
+			config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey = "", ""
+			suite.platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: testCase.functionAuthenticationEnabled,
+			}
+			defer func() {
+				config.DefaultCronTriggerServiceAccount, config.ProjectSecretTemplate = oldDefault, oldTemplate
+				config.DefaultForbiddenServiceAccounts = oldForbiddenList
+				config.ProjectSecretAllowedServiceAccountsKey = oldAllowedKey
+				config.ProjectSecretForbiddenServiceAccountsKey = oldForbiddenKey
+				suite.platform.Config.Authentication = oldAuthentication
+			}()
+
+			// the project secret lives in the suite's fake (in-memory) clientset
+			if testCase.allowedServiceAccounts != "" {
+				secretName := fmt.Sprintf("nuclio-project-secrets-%s", suite.projectName)
+				config.ProjectSecretTemplate = "nuclio-project-secrets-{{ .ProjectName }}"
+				config.ProjectSecretAllowedServiceAccountsKey = allowedKey
+				_, err := suite.kubeClientSet.CoreV1().Secrets(suite.Namespace).Create(suite.ctx,
+					&v1.Secret{
+						ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: suite.Namespace},
+						Data:       map[string][]byte{allowedKey: []byte(testCase.allowedServiceAccounts)},
+					},
+					metav1.CreateOptions{})
+				suite.Require().NoError(err)
+				defer suite.kubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.ctx, secretName, metav1.DeleteOptions{}) //nolint:errcheck
+			}
+
+			cronAttributes := map[string]interface{}{"schedule": "*/1 * * * *"}
+			if testCase.cronServiceAccount != "" {
+				cronAttributes["serviceAccount"] = testCase.cronServiceAccount
+			}
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{Namespace: suite.Namespace},
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"cron": {Kind: "cron", Attributes: cronAttributes},
+					},
+				},
+			}
+			if testCase.httpAuthMode != "" {
+				functionConfig.Spec.Triggers["http"] = *suite.httpTriggerWithAuthMode(testCase.httpAuthMode)
+			}
+			if testCase.projectLabel {
+				functionConfig.Meta.Labels = map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.projectName,
+				}
+			}
+
+			err := suite.platform.validateCronTriggersServiceAccount(suite.ctx, functionConfig)
+			if testCase.expectedError == "" {
+				suite.Require().NoError(err)
+				return
+			}
+			suite.Require().Error(err)
+			suite.Require().Contains(errors.GetErrorStackString(err, -1), testCase.expectedError)
+
+			// a client input error must reach the client as a bad request, not an internal error
+			if !strings.Contains(testCase.expectedError, "project label") {
+				suite.Require().Equal(http.StatusBadRequest,
+					common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError))
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) httpTriggerWithAuthMode(mode auth.AuthenticationMode) *functionconfig.Trigger {
+	return &functionconfig.Trigger{
+		Kind:       "http",
+		Attributes: map[string]interface{}{auth.AttributeAuthenticationMode: string(mode)},
+	}
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestValidateSecretsAllowed_EnvFrom() {

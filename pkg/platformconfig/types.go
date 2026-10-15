@@ -270,6 +270,7 @@ type PlatformKubeConfig struct {
 	DefaultHTTPIngressClassName              string                  `json:"defaultHTTPIngressClassName,omitempty"`
 	DefaultFunctionPriorityClassName         string                  `json:"defaultFunctionPriorityClassName,omitempty"`
 	DefaultFunctionServiceAccount            string                  `json:"defaultFunctionServiceAccount,omitempty"`
+	DefaultCronTriggerServiceAccount         string                  `json:"defaultCronTriggerServiceAccount,omitempty"`
 	DefaultForbiddenServiceAccounts          []string                `json:"defaultForbiddenServiceAccounts,omitempty"`
 	ValidFunctionPriorityClassNames          []string                `json:"validFunctionPriorityClassNames,omitempty"`
 	DefaultFunctionPodResources              PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`

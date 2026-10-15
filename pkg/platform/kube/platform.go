@@ -45,7 +45,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -1594,6 +1596,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Liveness probe validation failed")
 	}
 
+	if err := p.validateCronTriggersServiceAccount(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Cron triggers service account validation failed")
+	}
+
 	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
@@ -2163,6 +2169,83 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		false); err != nil {
 		return errors.Wrap(err, "Failed to validate service account")
 	}
+	return nil
+}
+
+// cronTriggersAuthenticateWithServiceAccount reports whether the CronJob should authenticate with a service account token,
+// based on the function's authentication mode and the HTTP trigger mode.
+func (p *Platform) cronTriggersAuthenticateWithServiceAccount(functionConfig *functionconfig.Config) bool {
+	if !p.Config.IsFunctionAuthenticationEnabled() {
+		return false
+	}
+
+	// a function without a valid http trigger mode has nothing to authenticate against
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	if err != nil {
+		return false
+	}
+
+	return auth.AuthenticationMode(authMode) == auth.AuthenticationModeAPI ||
+		auth.AuthenticationMode(authMode) == auth.AuthenticationModeBrowser
+}
+
+// validateCronTriggersServiceAccount validates the cron triggers' service accounts like a function's own service account.
+// An unset one falls back to the platform default, so it is an error only when no default is configured.
+func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if !p.cronTriggersAuthenticateWithServiceAccount(functionConfig) {
+		return nil
+	}
+
+	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron") {
+		var cronConfiguration cron.Configuration
+		if err := mapstructure.Decode(trigger.Attributes, &cronConfiguration); err != nil {
+			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Failed to decode cron trigger attributes. Trigger: %s", triggerName)
+		}
+		serviceAccount := strings.TrimSpace(cronConfiguration.ServiceAccount)
+		if serviceAccount == "" {
+			if p.Config.Kube.DefaultCronTriggerServiceAccount == "" {
+				return nuclio.NewErrBadRequest(fmt.Sprintf(
+					"Cron trigger service account is not set; set the trigger's serviceAccount attribute "+
+						"or the platform config: kube.defaultCronTriggerServiceAccount. Trigger: %s",
+					triggerName))
+			}
+			continue
+		}
+
+		// fail the deployment fast, rather than the CronJob creation on reconcile
+		if errs := validation.IsDNS1123Subdomain(serviceAccount); len(errs) > 0 {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Cron trigger service account is invalid: %s. Trigger: %s, service account: %s",
+				strings.Join(errs, "; "),
+				triggerName,
+				serviceAccount))
+		}
+
+		if !p.Config.Kube.IsConfiguredToVerifyServiceAccount() {
+			continue
+		}
+
+		projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+		if !ok {
+			return errors.New("Function does not have a project label, cannot validate cron trigger service account")
+		}
+
+		if _, err := utils.EnrichAndValidateServiceAccount(ctx,
+			p.consumer.KubeClientSet,
+			p.Config.Kube.DefaultCronTriggerServiceAccount,
+			p.Config.Kube.ProjectSecretTemplate,
+			p.Config.Kube.ProjectSecretDefaultServiceAccountKey,
+			p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
+			p.Config.Kube.ProjectSecretForbiddenServiceAccountsKey,
+			p.Config.Kube.DefaultForbiddenServiceAccounts,
+			serviceAccount,
+			projectName,
+			functionConfig.Meta.Namespace,
+			false); err != nil {
+			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Failed to validate cron trigger service account. Trigger: %s", triggerName)
+		}
+	}
+
 	return nil
 }
 

@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -159,6 +160,12 @@ func createController(kubeconfigPath string,
 	rootLogger, err := loggersink.CreateSystemLogger("controller", platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
+	}
+
+	if platformConfiguration.IsFunctionAuthenticationEnabled() &&
+		strings.TrimSpace(platformConfiguration.Kube.DefaultCronTriggerServiceAccount) == "" {
+		rootLogger.Warn("Default cron trigger service account is not set, reconciling a function with an " +
+			"authenticated HTTP trigger and a cron trigger without a service account will fail")
 	}
 
 	restConfig, err := common.GetClientConfig(kubeconfigPath)
