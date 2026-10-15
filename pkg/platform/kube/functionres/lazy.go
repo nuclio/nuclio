@@ -2414,6 +2414,12 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build cron job authentication components")
 	}
+	if attributes.ServiceAccount != "" && cronJobServiceAccountName == "" {
+		lc.logger.DebugWithCtx(ctx,
+			"Cron trigger service account is redundant, the cron job does not authenticate with a service account token",
+			"functionName", function.Name,
+			"serviceAccount", attributes.ServiceAccount)
+	}
 	curlArgs = append(curlArgs, authCurlArgs...)
 
 	// user-supplied headers, sorted for deterministic ordering across reconciles

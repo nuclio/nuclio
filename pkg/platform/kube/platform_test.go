@@ -1611,103 +1611,6 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithDefaul
 	suite.Require().Error(err)
 }
 
-// TestEnrichCronTriggersServiceAccount verifies that the default cron trigger service account is set only on cron
-// triggers that lack one, and only when their CronJob pod authenticates with a service account token.
-func (suite *FunctionKubePlatformTestSuite) TestEnrichCronTriggersServiceAccount() {
-	defaultServiceAccount := "test-sa"
-
-	for _, testCase := range []struct {
-		name                       string
-		defaultServiceAccount      string
-		functionAuthEnabled        bool
-		httpTrigger                *functionconfig.Trigger
-		cronServiceAccount         string
-		expectedCronServiceAccount string
-	}{
-		{
-			name:                       "api mode enriched",
-			defaultServiceAccount:      defaultServiceAccount,
-			functionAuthEnabled:        true,
-			httpTrigger:                suite.httpTriggerWithAuthMode(auth.AuthenticationModeAPI),
-			expectedCronServiceAccount: defaultServiceAccount,
-		},
-		{
-			name:                       "browser mode enriched",
-			defaultServiceAccount:      defaultServiceAccount,
-			functionAuthEnabled:        true,
-			httpTrigger:                suite.httpTriggerWithAuthMode(auth.AuthenticationModeBrowser),
-			expectedCronServiceAccount: defaultServiceAccount,
-		},
-		{
-			name:                       "explicit service account kept",
-			defaultServiceAccount:      defaultServiceAccount,
-			functionAuthEnabled:        true,
-			httpTrigger:                suite.httpTriggerWithAuthMode(auth.AuthenticationModeAPI),
-			cronServiceAccount:         "my-cron-sa",
-			expectedCronServiceAccount: "my-cron-sa",
-		},
-		{
-			name:                  "basic auth not enriched",
-			defaultServiceAccount: defaultServiceAccount,
-			functionAuthEnabled:   true,
-			httpTrigger:           suite.httpTriggerWithAuthMode(auth.AuthenticationModeBasicAuth),
-		},
-		{
-			name:                  "none mode not enriched",
-			defaultServiceAccount: defaultServiceAccount,
-			functionAuthEnabled:   true,
-			httpTrigger:           suite.httpTriggerWithAuthMode(auth.AuthenticationModeNone),
-		},
-		{
-			name:                  "no http trigger not enriched",
-			defaultServiceAccount: defaultServiceAccount,
-			functionAuthEnabled:   true,
-		},
-		{
-			name:                  "function authentication disabled not enriched",
-			defaultServiceAccount: defaultServiceAccount,
-			httpTrigger:           suite.httpTriggerWithAuthMode(auth.AuthenticationModeAPI),
-		},
-		{
-			name:                "no platform default not enriched",
-			functionAuthEnabled: true,
-			httpTrigger:         suite.httpTriggerWithAuthMode(auth.AuthenticationModeAPI),
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			config := suite.platform.Config
-			oldDefault, oldAuthentication := config.Kube.DefaultCronTriggerServiceAccount, config.Authentication
-			config.Kube.DefaultCronTriggerServiceAccount = testCase.defaultServiceAccount
-			config.Authentication = &platformconfig.Authentication{
-				FunctionAuthenticationEnabled: testCase.functionAuthEnabled,
-			}
-			defer func() {
-				config.Kube.DefaultCronTriggerServiceAccount, config.Authentication = oldDefault, oldAuthentication
-			}()
-
-			cronAttributes := map[string]interface{}{"schedule": "*/1 * * * *"}
-			if testCase.cronServiceAccount != "" {
-				cronAttributes["serviceAccount"] = testCase.cronServiceAccount
-			}
-			functionConfig := &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"cron": {Kind: "cron", Attributes: cronAttributes},
-					},
-				},
-			}
-			if testCase.httpTrigger != nil {
-				functionConfig.Spec.Triggers["http"] = *testCase.httpTrigger
-			}
-
-			suite.platform.enrichCronTriggersServiceAccount(suite.ctx, functionConfig)
-
-			enrichedServiceAccount, _ := functionConfig.Spec.Triggers["cron"].Attributes["serviceAccount"].(string)
-			suite.Require().Equal(testCase.expectedCronServiceAccount, enrichedServiceAccount)
-		})
-	}
-}
-
 // TestValidateCronTriggersServiceAccount verifies that a cron trigger service account is set when needed, and, unless
 // it is the platform's default (validated with the platform configuration), free of shell metacharacters and checked
 // like a function's service account.
@@ -1725,30 +1628,39 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		forbiddenList                 []string
 		allowedServiceAccounts        string
 		cronServiceAccount            string
+		platformDefaultSA             string
 		projectLabel                  bool
 		expectedError                 string
 	}{
 		{
-			name:                          "empty service account rejected when the cron pod authenticates with it",
+			name:                          "empty service account rejected when the cron pod authenticates with it and no default is set",
 			functionAuthenticationEnabled: true,
 			httpAuthMode:                  auth.AuthenticationModeAPI,
 			expectedError:                 "Cron trigger service account is not set",
 		},
 		{
-			name:                          "whitespace only service account rejected when the cron pod authenticates with it",
+			name:                          "whitespace only service account rejected when the cron pod authenticates with it and no default is set",
 			functionAuthenticationEnabled: true,
 			httpAuthMode:                  auth.AuthenticationModeBrowser,
 			cronServiceAccount:            "  ",
 			expectedError:                 "Cron trigger service account is not set",
 		},
 		{
+			name:                          "empty service account accepted when the cron pod authenticates with it and a default is set",
+			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
+			httpAuthMode:                  auth.AuthenticationModeAPI,
+		},
+		{
 			name:                          "empty service account accepted when the cron pod does not use it",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			httpAuthMode:                  auth.AuthenticationModeBasicAuth,
 		},
 		{
 			name:                          "service account outside the project allowed list rejected",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			allowedServiceAccounts:        "sa1,sa2",
 			cronServiceAccount:            "sa3",
 			projectLabel:                  true,
@@ -1757,6 +1669,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "service account in the project allowed list accepted",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			allowedServiceAccounts:        "sa1,sa2",
 			cronServiceAccount:            "sa1",
 			projectLabel:                  true,
@@ -1764,12 +1677,14 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "shell metacharacters rejected even when verification is not configured",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			cronServiceAccount:            "sa;reboot",
 			expectedError:                 "contains invalid characters",
 		},
 		{
 			name:                          "function authentication disabled accepts anything",
 			functionAuthenticationEnabled: false,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			cronServiceAccount:            "sa;reboot",
 			projectLabel:                  true,
@@ -1777,6 +1692,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "forbidden explicit service account rejected",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			cronServiceAccount:            forbiddenServiceAccount,
 			projectLabel:                  true,
@@ -1785,6 +1701,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "forbidden check is case insensitive",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			cronServiceAccount:            "SA-Forbidden",
 			projectLabel:                  true,
@@ -1793,6 +1710,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "platform default not validated per deployment even when forbidden",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{defaultServiceAccount},
 			cronServiceAccount:            defaultServiceAccount,
 			projectLabel:                  true,
@@ -1800,6 +1718,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "platform default not validated per deployment even outside the project allowed list",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			allowedServiceAccounts:        "sa1,sa2",
 			cronServiceAccount:            defaultServiceAccount,
 			projectLabel:                  true,
@@ -1807,6 +1726,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "other explicit service account accepted",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			cronServiceAccount:            "my-cron-sa",
 			projectLabel:                  true,
@@ -1814,18 +1734,21 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 		{
 			name:                          "no explicit service account accepted",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			projectLabel:                  true,
 		},
 		{
 			name:                          "verification not configured accepts anything",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			cronServiceAccount:            forbiddenServiceAccount,
 			projectLabel:                  true,
 		},
 		{
 			name:                          "missing project label rejected",
 			functionAuthenticationEnabled: true,
+			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			cronServiceAccount:            "my-cron-sa",
 			expectedError:                 "does not have a project label",
@@ -1838,7 +1761,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 			oldAllowedKey, oldForbiddenKey := config.ProjectSecretAllowedServiceAccountsKey,
 				config.ProjectSecretForbiddenServiceAccountsKey
 			oldAuthentication := suite.platform.Config.Authentication
-			config.DefaultCronTriggerServiceAccount, config.ProjectSecretTemplate = defaultServiceAccount, ""
+			config.DefaultCronTriggerServiceAccount, config.ProjectSecretTemplate = testCase.platformDefaultSA, ""
 			config.DefaultForbiddenServiceAccounts = testCase.forbiddenList
 			config.ProjectSecretAllowedServiceAccountsKey, config.ProjectSecretForbiddenServiceAccountsKey = "", ""
 			suite.platform.Config.Authentication = &platformconfig.Authentication{

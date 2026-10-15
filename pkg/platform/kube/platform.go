@@ -45,7 +45,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -75,10 +77,7 @@ type Platform struct {
 	defaultProxySource  platform.ProxyLogsSource
 }
 
-const (
-	Mib                                = 1048576
-	cronTriggerServiceAccountAttribute = "serviceAccount"
-)
+const Mib = 1048576
 
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
@@ -489,8 +488,6 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	if err := p.enrichHTTPTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
-
-	p.enrichCronTriggersServiceAccount(ctx, functionConfig)
 
 	// enrich function tolerations
 	if functionConfig.Spec.Tolerations == nil && p.Config.Kube.DefaultFunctionTolerations != nil {
@@ -2184,36 +2181,11 @@ func (p *Platform) cronTriggersAuthenticateWithServiceAccount(functionConfig *fu
 		auth.AuthenticationMode(authMode) == auth.AuthenticationModeBrowser
 }
 
-// enrichCronTriggersServiceAccount sets the platform's default cron trigger service account on the cron triggers
-// that do not specify one, when their CronJob pod authenticates with a service account token (api / browser mode).
-func (p *Platform) enrichCronTriggersServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) {
-	defaultServiceAccount := p.Config.Kube.DefaultCronTriggerServiceAccount
-	if defaultServiceAccount == "" || !p.cronTriggersAuthenticateWithServiceAccount(functionConfig) {
-		return
-	}
-
-	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron") {
-		if serviceAccount, _ := trigger.Attributes[cronTriggerServiceAccountAttribute].(string); serviceAccount != "" {
-			continue
-		}
-
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching cron trigger service account",
-			"functionName", functionConfig.Meta.Name,
-			"triggerName", triggerName,
-			"serviceAccount", defaultServiceAccount)
-		if trigger.Attributes == nil {
-			trigger.Attributes = map[string]interface{}{}
-		}
-		trigger.Attributes[cronTriggerServiceAccountAttribute] = defaultServiceAccount
-		functionConfig.Spec.Triggers[triggerName] = trigger
-	}
-}
-
-// validateCronTriggersServiceAccount validates the service accounts of the cron triggers: when their CronJob pod
-// authenticates with a service account token, each must be set (it is enriched beforehand). A set service account
-// other than the platform's default one must be free of shell metacharacters and, like a function's own service
-// account, neither forbidden nor disallowed. The default is validated once, with the platform configuration.
+// validateCronTriggersServiceAccount validates the service accounts of the cron triggers: a trigger without one falls
+// back to the platform's default cron trigger service account, so it is only an error when no default is configured
+// and the CronJob pod authenticates with a service account token. A set service account other than the platform's
+// default one must be free of shell metacharacters and, like a function's own service account, neither forbidden
+// nor disallowed. The default is validated once, with the platform configuration.
 func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
 	if !p.Config.IsFunctionAuthenticationEnabled() {
 		return nil
@@ -2224,12 +2196,13 @@ func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, funct
 	projectSecretFetched := false
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron") {
-		serviceAccount, _ := trigger.Attributes[cronTriggerServiceAccountAttribute].(string)
-		serviceAccount = strings.TrimSpace(serviceAccount)
+		var cronConfiguration cron.Configuration
+		if err := mapstructure.Decode(trigger.Attributes, &cronConfiguration); err != nil {
+			return errors.Wrapf(nuclio.WrapErrBadRequest(err), "Failed to decode cron trigger attributes. Trigger: %s", triggerName)
+		}
+		serviceAccount := strings.TrimSpace(cronConfiguration.ServiceAccount)
 		if serviceAccount == "" {
-			// enrichment has already set the platform default, so an empty service account here means
-			// that no default is configured; the CronJob pod cannot authenticate without one
-			if cronTriggersShouldUseServiceAccount {
+			if cronTriggersShouldUseServiceAccount && p.Config.Kube.DefaultCronTriggerServiceAccount == "" {
 				return nuclio.NewErrBadRequest(fmt.Sprintf(
 					"Cron trigger service account is not set; set the trigger's serviceAccount attribute "+
 						"or the platform config: kube.defaultCronTriggerServiceAccount. Trigger: %s",

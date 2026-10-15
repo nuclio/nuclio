@@ -27,9 +27,10 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Schedule string
-	Interval string
-	Event    Event
+	Schedule       string
+	Interval       string
+	Event          Event
+	ServiceAccount string
 }
 
 func NewConfiguration(id string,
