@@ -1395,10 +1395,9 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultCronTrigg
 			defaultServiceAccount:         "nuclio-cron",
 		},
 		{
-			name:                          "empty default rejected",
+			name:                          "empty default accepted",
 			functionAuthenticationEnabled: true,
 			defaultServiceAccount:         "  ",
-			expectedError:                 "Default cron trigger service account is empty",
 		},
 		{
 			name:                          "default not in the forbidden list",
@@ -1416,15 +1415,21 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultCronTrigg
 		{
 			name:                          "forbidden check is case and space insensitive",
 			functionAuthenticationEnabled: true,
-			defaultServiceAccount:         " Nuclio-Cron ",
+			defaultServiceAccount:         " nuclio-cron ",
 			forbiddenServiceAccounts:      []string{" NUCLIO-cron"},
 			expectedError:                 "Default cron trigger service account is forbidden",
 		},
 		{
-			name:                          "shell metacharacters rejected",
+			name:                          "invalid name rejected",
 			functionAuthenticationEnabled: true,
 			defaultServiceAccount:         "nuclio-cron;reboot",
-			expectedError:                 "Default cron trigger service account contains invalid characters",
+			expectedError:                 "Default cron trigger service account is invalid",
+		},
+		{
+			name:                          "uppercase name rejected as invalid",
+			functionAuthenticationEnabled: true,
+			defaultServiceAccount:         "Nuclio-Cron",
+			expectedError:                 "Default cron trigger service account is invalid",
 		},
 		{
 			name:                          "not validated when function authentication is disabled",

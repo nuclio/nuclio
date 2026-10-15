@@ -1611,9 +1611,8 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithDefaul
 	suite.Require().Error(err)
 }
 
-// TestValidateCronTriggersServiceAccount verifies that a cron trigger service account is set when needed, and, unless
-// it is the platform's default (validated with the platform configuration), free of shell metacharacters and checked
-// like a function's service account.
+// TestValidateCronTriggersServiceAccount verifies that a cron trigger service account is set when needed, a valid
+// Kubernetes name and checked like a function's service account.
 func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccount() {
 	const (
 		defaultServiceAccount   = "test-sa"
@@ -1686,12 +1685,12 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 			projectLabel:                  true,
 		},
 		{
-			name:                          "shell metacharacters rejected even when verification is not configured",
+			name:                          "invalid service account name rejected even when verification is not configured",
 			functionAuthenticationEnabled: true,
 			httpAuthMode:                  auth.AuthenticationModeAPI,
 			platformDefaultSA:             defaultServiceAccount,
 			cronServiceAccount:            "sa;reboot",
-			expectedError:                 "contains invalid characters",
+			expectedError:                 "Cron trigger service account is invalid",
 		},
 		{
 			name:                          "function authentication disabled accepts anything",
@@ -1712,32 +1711,34 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccou
 			expectedError:                 "Service account sa-forbidden is forbidden",
 		},
 		{
-			name:                          "forbidden check is case insensitive",
+			name:                          "uppercase service account name rejected as invalid",
 			functionAuthenticationEnabled: true,
 			httpAuthMode:                  auth.AuthenticationModeAPI,
 			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{forbiddenServiceAccount},
 			cronServiceAccount:            "SA-Forbidden",
 			projectLabel:                  true,
-			expectedError:                 "is forbidden",
+			expectedError:                 "Cron trigger service account is invalid",
 		},
 		{
-			name:                          "platform default not validated per deployment even when forbidden",
+			name:                          "explicit platform default rejected when forbidden",
 			functionAuthenticationEnabled: true,
 			httpAuthMode:                  auth.AuthenticationModeAPI,
 			platformDefaultSA:             defaultServiceAccount,
 			forbiddenList:                 []string{defaultServiceAccount},
 			cronServiceAccount:            defaultServiceAccount,
 			projectLabel:                  true,
+			expectedError:                 "Service account test-sa is forbidden",
 		},
 		{
-			name:                          "platform default not validated per deployment even outside the project allowed list",
+			name:                          "explicit platform default rejected outside the project allowed list",
 			functionAuthenticationEnabled: true,
 			httpAuthMode:                  auth.AuthenticationModeAPI,
 			platformDefaultSA:             defaultServiceAccount,
 			allowedServiceAccounts:        "sa1,sa2",
 			cronServiceAccount:            defaultServiceAccount,
 			projectLabel:                  true,
+			expectedError:                 "Service account test-sa is not allowed",
 		},
 		{
 			name:                          "other explicit service account accepted",

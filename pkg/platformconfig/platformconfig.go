@@ -39,6 +39,7 @@ import (
 	autosv2 "k8s.io/api/autoscaling/v2"
 	v1 "k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type Config struct {
@@ -462,13 +463,16 @@ func (c *Config) validateDefaultCronTriggerServiceAccount() error {
 		return nil
 	}
 
+	// an unset default is reported per deployment, so it does not fail the startup of an upgraded platform
 	serviceAccount := strings.TrimSpace(c.Kube.DefaultCronTriggerServiceAccount)
 	if serviceAccount == "" {
-		return errors.New("Default cron trigger service account is empty")
+		return nil
 	}
 
-	if common.ContainsShellMetacharacters(serviceAccount) {
-		return errors.Errorf("Default cron trigger service account contains invalid characters: %s", serviceAccount)
+	if errs := validation.IsDNS1123Subdomain(serviceAccount); len(errs) > 0 {
+		return errors.Errorf("Default cron trigger service account is invalid: %s. Service account: %s",
+			strings.Join(errs, "; "),
+			serviceAccount)
 	}
 
 	for _, forbiddenServiceAccount := range c.Kube.DefaultForbiddenServiceAccounts {

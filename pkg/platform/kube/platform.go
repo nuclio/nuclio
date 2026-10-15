@@ -2204,14 +2204,11 @@ func (p *Platform) validateCronTriggersServiceAccount(ctx context.Context, funct
 			continue
 		}
 
-		// already validated with the platform configuration
-		if serviceAccount == p.Config.Kube.DefaultCronTriggerServiceAccount {
-			continue
-		}
-
-		if common.ContainsShellMetacharacters(serviceAccount) {
+		// fail the deployment fast, rather than the CronJob creation on reconcile
+		if errs := validation.IsDNS1123Subdomain(serviceAccount); len(errs) > 0 {
 			return nuclio.NewErrBadRequest(fmt.Sprintf(
-				"Cron trigger service account contains invalid characters. Trigger: %s, service account: %s",
+				"Cron trigger service account is invalid: %s. Trigger: %s, service account: %s",
+				strings.Join(errs, "; "),
 				triggerName,
 				serviceAccount))
 		}
