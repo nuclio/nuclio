@@ -42,6 +42,8 @@ env:
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "35m"
   DOCKER_BUILDKIT: 1
+  # secrets can't be referenced directly in a step's `if:` - resolve it here instead
+  DOCKERHUB_LOGIN_AVAILABLE: ${{ secrets.DOCKERHUB_USERNAME_RO != '' }}
   GITHUB_ACTIONS_BOT_NAME: github-actions[bot]
   GITHUB_ACTIONS_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
 
@@ -158,6 +160,13 @@ jobs:
           cache: true
           go-version-file: go.mod
 
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Build
         run: |
           make nuctl
@@ -182,6 +191,13 @@ jobs:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
@@ -232,6 +248,13 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
+
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55 # 2.18.0
         with:
@@ -344,6 +367,13 @@ jobs:
           cache: true
           go-version-file: go.mod
 
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v8
         with:
@@ -383,6 +413,13 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
+
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - uses: manusa/actions-setup-minikube@b65276017fdec6f1e6498129fb740e34e260dc55 # 2.18.0
         with:
@@ -459,6 +496,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
+
       - name: Run python test
         run: |
           make test-python
@@ -468,6 +512,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Login to DockerHub
+        if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
 
       - name: Run NodeJS test
         run: |
