@@ -763,7 +763,7 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
-	return []string{"nuclio"}, nil
+	return p.localStore.GetNamespaces()
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
