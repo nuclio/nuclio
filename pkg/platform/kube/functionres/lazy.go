@@ -3483,13 +3483,11 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 
-			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
-
-				// check if the pod is on a crashLoopBackoff
-				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
-
-					return functionconfig.FunctionStateUnhealthy, errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
-				}
+			// check if the container is on a crashLoopBackoff
+			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
+				return functionconfig.FunctionStateUnhealthy, errors.Errorf("NuclioFunction pod (%s) is in a crash loop; container: %s",
+					pod.Name,
+					containerStatus.Name)
 			}
 		}
 	}
