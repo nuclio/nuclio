@@ -1723,8 +1723,9 @@ func (suite *lazyTestSuite) TestFastFailOnSidecarCrashLoop() {
 	crashLooping := v1.ContainerState{Waiting: &v1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}
 
 	for _, testCase := range []struct {
-		name              string
-		containerStatuses []v1.ContainerStatus
+		name                    string
+		containerStatuses       []v1.ContainerStatus
+		expectedFailedContainer string
 	}{
 		{
 			// kubernetes sorts container statuses by name, so the injected auth-proxy comes first
@@ -1734,11 +1735,21 @@ func (suite *lazyTestSuite) TestFastFailOnSidecarCrashLoop() {
 				{Name: "func-test1-sidecar", State: crashLooping},
 				{Name: "nuclio", State: running},
 			},
+			expectedFailedContainer: "func-test1-sidecar",
 		},
 		{
 			name: "WithoutAuthProxy",
 			containerStatuses: []v1.ContainerStatus{
 				{Name: "func-test1-sidecar", State: crashLooping},
+				{Name: "nuclio", State: running},
+			},
+			expectedFailedContainer: "func-test1-sidecar",
+		},
+		{
+			name: "AllContainersRunning",
+			containerStatuses: []v1.ContainerStatus{
+				{Name: abstract.AuthProxySidecarContainerName, State: running},
+				{Name: "func-test1-sidecar", State: running},
 				{Name: "nuclio", State: running},
 			},
 		},
@@ -1760,7 +1771,13 @@ func (suite *lazyTestSuite) TestFastFailOnSidecarCrashLoop() {
 			}
 
 			functionState, err := suite.client.resolveFailFast(suite.ctx, &podsList, time.Now())
+			if testCase.expectedFailedContainer == "" {
+				suite.Require().NoError(err)
+				suite.Require().Empty(functionState)
+				return
+			}
 			suite.Require().Error(err)
+			suite.Require().ErrorContains(err, testCase.expectedFailedContainer, "expected error to contain the name of the crashing sidecar")
 			suite.Require().Equal(functionconfig.FunctionStateUnhealthy, functionState)
 		})
 	}
