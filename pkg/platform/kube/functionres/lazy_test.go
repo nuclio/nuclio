@@ -1718,6 +1718,54 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 	}
 }
 
+func (suite *lazyTestSuite) TestFastFailOnSidecarCrashLoop() {
+	running := v1.ContainerState{Running: &v1.ContainerStateRunning{}}
+	crashLooping := v1.ContainerState{Waiting: &v1.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}
+
+	for _, testCase := range []struct {
+		name              string
+		containerStatuses []v1.ContainerStatus
+	}{
+		{
+			// kubernetes sorts container statuses by name, so the injected auth-proxy comes first
+			name: "WithAuthProxy",
+			containerStatuses: []v1.ContainerStatus{
+				{Name: abstract.AuthProxySidecarContainerName, State: running},
+				{Name: "func-test1-sidecar", State: crashLooping},
+				{Name: "nuclio", State: running},
+			},
+		},
+		{
+			name: "WithoutAuthProxy",
+			containerStatuses: []v1.ContainerStatus{
+				{Name: "func-test1-sidecar", State: crashLooping},
+				{Name: "nuclio", State: running},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			podsList := v1.PodList{
+				Items: []v1.Pod{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "nuclio-project1-func-test1",
+							CreationTimestamp: metav1.Now(),
+						},
+						Status: v1.PodStatus{
+							Phase:             v1.PodRunning,
+							ContainerStatuses: testCase.containerStatuses,
+						},
+					},
+				},
+			}
+
+			functionState, err := suite.client.resolveFailFast(suite.ctx, &podsList, time.Now())
+			suite.Require().Error(err)
+			suite.Require().Equal(functionconfig.FunctionStateUnhealthy, functionState)
+		})
+	}
+}
+
 func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 
 	resourceTargetValue := 60
