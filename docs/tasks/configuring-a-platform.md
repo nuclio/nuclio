@@ -230,6 +230,8 @@ The `/__internal/health` path is always allowed without authentication, so Kuber
 
 For scale-to-zero (DLX) deployments, the auth-proxy operates in **auth-only** mode, exposing only the `/auth` endpoint for the DLX to validate requests before scaling the function back up from zero replicas. The DLX uses the same `authURL` and `signInURL` values from the platform configuration to authenticate incoming requests.
 
+Cron triggers that run as Kubernetes CronJobs (see [`cronTriggerCreationMode`](#cronTriggerCreationMode)) call the function through the auth-proxy too. When the function's HTTP trigger uses `api` or `browser` authentication, the CronJob pod runs as the cron trigger's `serviceAccount` attribute (see the [Cron-trigger reference](../reference/triggers/cron.md#attributes)), or as [`defaultCronTriggerServiceAccount`](#platform-configuration-options) if the attribute is not set.
+
 For more information, see the [Architecture overview](../concepts/architecture.md#processor-architecture) and [Invoking Functions by Name with a Kubernetes Ingress](../concepts/k8s/function-ingress.md#authentication-and-ingress).
 
 <a id="runtime"></a>
@@ -451,7 +453,7 @@ platform:
 | `projectSecretForbiddenServiceAccountsKey` | The key in the secret that lists comma-separated forbidden service accounts for the project.                                      |
 | `projectSecretDefaultServiceAccountKey`  | The key in the secret containing the default service account for the project, used when no service account is explicitly specified. |
 | `defaultForbiddenServiceAccounts`       | A list of forbidden service accounts enforced across the platform (merged with secret-based forbidden list).                         |
-| `defaultCronTriggerServiceAccount`      | The service account of the CronJob pods of cron triggers, when function-level authentication is enabled and the function's HTTP trigger uses `api` or `browser` authentication; set on cron triggers that do not specify one when the function is deployed. It is required when function-level authentication is enabled, and is validated when the platform configuration is loaded (no shell metacharacters, not in `defaultForbiddenServiceAccounts`); it is not validated again per deployment, nor against the project's secret-based lists. |
+| `defaultCronTriggerServiceAccount`      | The service account of the CronJob pods of cron triggers, when function-level authentication is enabled and the function's HTTP trigger uses `api` or `browser` authentication; used by cron triggers that do not specify one. The Helm chart sets it to the cron service account it creates (`<fullName>-cron`, e.g. `nuclio-cron`) unless set. When function-level authentication is enabled it is validated when the platform configuration is loaded (a valid Kubernetes name, not in `defaultForbiddenServiceAccounts`); if unset, a warning is logged and deploying such a function fails. It is also validated against the project's secret-based lists when the CronJob is created. |
 
 The `projectSecretTemplate` is rendered using the following context:
 ```go
