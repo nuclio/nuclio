@@ -20,12 +20,19 @@ package external
 
 import (
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	leaderclient "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/client"
 	leadermock "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/oris"
 	internalmock "github.com/nuclio/nuclio/pkg/platform/abstract/project/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -235,6 +242,12 @@ func (suite *ExternalProjectClientTestSuite) TestOrisLeaderUpdateForwardsMismatc
 		},
 	}
 
+	suite.mockInternalProjectsClient.
+		On("Get", suite.ctx, mock.MatchedBy(func(opts *platform.GetProjectsOptions) bool {
+			return opts != nil && opts.Meta.Name == "test-func"
+		})).
+		Return([]platform.Project{}, nil).
+		Once()
 	suite.mockLeaderProjectsClient.
 		On("Update", suite.ctx, &updateProjectOptions).
 		Return(nil).
@@ -446,6 +459,116 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 
 	_, err := suite.Get(suite.ctx, &getProjectOptions)
 	suite.Require().NoError(err)
+}
+
+func (suite *ExternalProjectClientTestSuite) TestOrisLeaderUpdateSendsStoredPrevOpIDAndOwner() {
+	for _, testCase := range []struct {
+		name             string
+		existingLabels   map[string]string
+		requestOwner     string
+		expectedPrevOpID string
+		expectedOwner    string
+	}{
+		{
+			name: "ExistingProjectHasOpID",
+			existingLabels: map[string]string{
+				leader.OrisLabelKeyOpID:       "test-op-id",
+				leader.OrisLabelKeySyncStatus: string(leader.OrisSyncStatusOnline),
+			},
+			expectedPrevOpID: "test-op-id",
+			expectedOwner:    "admin",
+		},
+		{
+			name: "ExistingProjectHasNoOpID",
+			existingLabels: map[string]string{
+				leader.OrisLabelKeySyncStatus: string(leader.OrisSyncStatusOnline),
+			},
+			expectedOwner: "admin",
+		},
+		{
+			name: "RequestOwnerIsKept",
+			existingLabels: map[string]string{
+				leader.OrisLabelKeyOpID:       "test-op-id",
+				leader.OrisLabelKeySyncStatus: string(leader.OrisSyncStatusOnline),
+			},
+			requestOwner:     "test-owner",
+			expectedPrevOpID: "test-op-id",
+			expectedOwner:    "test-owner",
+		},
+		{
+			name: "ChangeOwner",
+			existingLabels: map[string]string{
+				leader.OrisLabelKeyOpID:       "test-op-id",
+				leader.OrisLabelKeySyncStatus: string(leader.OrisSyncStatusOnline),
+			},
+			requestOwner:     "new-admin",
+			expectedPrevOpID: "test-op-id",
+			expectedOwner:    "new-admin",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var leaderRequestMethod string
+			var leaderRequestBody []byte
+			leaderServer := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+				leaderRequestMethod = request.Method
+				leaderRequestBody, _ = io.ReadAll(request.Body)
+				responseWriter.WriteHeader(http.StatusAccepted)
+			}))
+			defer leaderServer.Close()
+
+			platformConfiguration := &platformconfig.Config{
+				ProjectsLeader: &platformconfig.ProjectsLeader{
+					Kind:       platformconfig.ProjectsLeaderKindOris,
+					Identity:   "oris",
+					APIAddress: leaderServer.URL,
+				},
+			}
+			leaderClient, err := leaderclient.NewClient(suite.Logger,
+				false,
+				platformConfiguration,
+				oris.NewLeaderOps(suite.Logger, "oris"))
+			suite.Require().NoError(err)
+
+			// mirrors the p1 NuclioProject CRD created by Oris sync
+			internalClient := &internalmock.Client{}
+			internalClient.
+				On("Get", suite.ctx, mock.MatchedBy(func(opts *platform.GetProjectsOptions) bool {
+					return opts != nil && opts.Meta.Name == "test-project" && opts.Meta.Namespace == "oris"
+				})).
+				Return([]platform.Project{&platform.AbstractProject{
+					ProjectConfig: platform.ProjectConfig{
+						Meta: platform.ProjectMeta{Name: "test-project", Namespace: "oris", Labels: testCase.existingLabels},
+						Spec: platform.ProjectSpec{Owner: "admin"},
+					},
+				}}, nil).
+				Once()
+
+			externalClient := &Client{
+				platformConfiguration: platformConfiguration,
+				internalClient:        internalClient,
+				leaderClient:          leaderClient,
+			}
+
+			_, err = externalClient.Update(suite.ctx, &platform.UpdateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{
+					Meta: platform.ProjectMeta{Name: "test-project", Namespace: "oris"},
+					Spec: platform.ProjectSpec{Owner: testCase.requestOwner, Description: "changed via nuclio"},
+				},
+			})
+			suite.Require().Equal(platform.ErrSuccessfulUpdateProjectLeader, err)
+
+			suite.Require().Equal(http.MethodPut, leaderRequestMethod)
+			leaderRequest := map[string]any{}
+			suite.Require().NoError(json.Unmarshal(leaderRequestBody, &leaderRequest))
+			if testCase.expectedPrevOpID == "" {
+				suite.Require().NotContains(leaderRequest, "prevOpId")
+			} else {
+				suite.Require().Equal(testCase.expectedPrevOpID, leaderRequest["prevOpId"])
+			}
+			suite.Require().Equal(testCase.expectedOwner, leaderRequest["owner"])
+			internalClient.AssertExpectations(suite.T())
+		})
+	}
 }
 
 // expectGetExistingProject stubs the internal Get used by getExistingProject
