@@ -52,7 +52,7 @@ dependencies {
     implementation group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
     {{ end }}
 
-    implementation files('./nuclio-sdk-java-1.1.0.jar')
+    implementation files('./nuclio-sdk-java-1.2.0.jar')
 }
 
 shadowJar {
