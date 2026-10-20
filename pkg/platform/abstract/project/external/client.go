@@ -161,6 +161,27 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 		return c.internalClient.Update(ctx, updateProjectOptions)
 	}
 
+	// Oris rejects a PUT without the current op_id (its CAS witness) or an owner, so forward the ones stored on the CRD
+	if c.platformConfiguration.ProjectsLeader.Kind == platformconfig.ProjectsLeaderKindOris {
+		existingProject, err := c.getExistingProject(ctx,
+			updateProjectOptions.ProjectConfig.Meta.Name,
+			updateProjectOptions.ProjectConfig.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to fetch existing project for leader update")
+		}
+		if existingProject != nil {
+			if opID := existingProject.GetConfig().Meta.Labels[leader.OrisLabelKeyOpID]; opID != "" {
+				if updateProjectOptions.ProjectConfig.Meta.Labels == nil {
+					updateProjectOptions.ProjectConfig.Meta.Labels = map[string]string{}
+				}
+				updateProjectOptions.ProjectConfig.Meta.Labels[leader.OrisLabelKeyOpID] = opID
+			}
+			if updateProjectOptions.ProjectConfig.Spec.Owner == "" {
+				updateProjectOptions.ProjectConfig.Spec.Owner = existingProject.GetConfig().Spec.Owner
+			}
+		}
+	}
+
 	if err := c.leaderClient.Update(ctx, updateProjectOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
 	}

@@ -35,6 +35,7 @@ type OrisProject struct {
 // CreateProjectOptions/UpdateProjectOptions proto message.
 type OrisProjectRequest struct {
 	Name        string            `json:"name"`
+	PrevOpID    string            `json:"prevOpId,omitempty"`
 	Owner       string            `json:"owner,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
@@ -79,8 +80,13 @@ func NewProjectRequestFromProjectConfig(projectConfig *platform.ProjectConfig) (
 		return OrisProjectRequest{}, errors.New("ProjectConfig is nil")
 	}
 
+	// the stored op_id travels as a label up to here; Oris expects it as prevOpId, not as a user label
+	prevOpID := projectConfig.Meta.Labels[common.OrisLabelKeyOpID]
+	delete(projectConfig.Meta.Labels, common.OrisLabelKeyOpID)
+
 	return OrisProjectRequest{
 		Name:        projectConfig.Meta.Name,
+		PrevOpID:    prevOpID,
 		Owner:       projectConfig.Spec.Owner,
 		Description: projectConfig.Spec.Description,
 		Labels:      projectConfig.Meta.Labels,
