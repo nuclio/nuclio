@@ -21,17 +21,48 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jerusalem"
     commit-message:
       prefix: "[Dependabot] "
     open-pull-requests-limit: 6
+    cooldown:
+      default-days: 3
+    groups:
+      github-actions-ci-patch:
+        update-types: ["patch"]
+        patterns:
+          - "actions/checkout"
+          - "actions/download-artifact"
+          - "actions/setup-go"
+          - "actions/upload-artifact"
+          - "azure/setup-helm"
+          - "denoland/setup-deno"
+          - "docker/login-action"
+          - "manusa/actions-setup-minikube"
+      github-actions-patch:
+        update-types: ["patch"]
 
   - package-ecosystem: "npm"
     directory: "/pkg/dashboard/ui"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jerusalem"
     commit-message:
       prefix: "[Dependabot] "
     open-pull-requests-limit: 6
+    cooldown:
+      default-days: 7
+    groups:
+      dashboard-ui-patch:
+        dependency-type: "production"
+        update-types: ["patch"]
+      dashboard-ui-dev-patch:
+        dependency-type: "development"
+        update-types: ["patch"]
     ignore:
       # bootstrap 5.x is a breaking major bump that broke the UI (see PR #4306, #4321, #4322)
       - dependency-name: "bootstrap"
