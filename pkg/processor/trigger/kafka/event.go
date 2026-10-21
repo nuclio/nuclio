@@ -17,6 +17,7 @@ limitations under the License.
 package kafka
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -57,6 +58,33 @@ func (e *Event) GetHeader(key string) interface{} {
 	return e.getHeadersAsMap()[key]
 }
 
+// GetHeaderByteSlice returns the header by name as a byte slice
+func (e *Event) GetHeaderByteSlice(key string) []byte {
+	if e.kafkaMessage == nil {
+		return nil
+	}
+
+	// if a key appears more than once, the last record wins, consistent with GetHeaders
+	var value []byte
+	for _, headerRecord := range e.kafkaMessage.Headers {
+		if headerRecord != nil && string(headerRecord.Key) == key {
+			value = headerRecord.Value
+		}
+	}
+
+	return value
+}
+
+// GetHeaderString returns the header by name as a string
+func (e *Event) GetHeaderString(key string) string {
+	return string(e.GetHeaderByteSlice(key))
+}
+
+// GetHeaderInt returns the header by name as an integer
+func (e *Event) GetHeaderInt(key string) (int, error) {
+	return strconv.Atoi(e.GetHeaderString(key))
+}
+
 func (e *Event) getHeadersAsMap() map[string]interface{} {
 	headersMap := map[string]interface{}{}
 
@@ -70,6 +98,9 @@ func (e *Event) getHeadersAsMap() map[string]interface{} {
 
 	// iterate over the header records and add each key-value to the map
 	for _, headerRecord := range e.kafkaMessage.Headers {
+		if headerRecord == nil {
+			continue
+		}
 		headersMap[string(headerRecord.Key)] = headerRecord.Value
 	}
 
