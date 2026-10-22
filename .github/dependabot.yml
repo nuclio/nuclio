@@ -60,6 +60,11 @@ updates:
       dashboard-ui-patch:
         dependency-type: "production"
         update-types: ["patch"]
+        # not used by the production build that CI runs (UI tests, dev and preview servers only)
+        exclude-patterns:
+          - "angular-mocks"
+          - "express"
+          - "express-http-proxy"
       dashboard-ui-dev-patch:
         dependency-type: "development"
         update-types: ["patch"]

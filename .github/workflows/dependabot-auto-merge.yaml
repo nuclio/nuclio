@@ -53,17 +53,18 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const { data: commits } = await github.rest.pulls.listCommits({
-              ...context.repo,
-              pull_number: process.env.PR_NUMBER,
-            })
+            const pull = { ...context.repo, pull_number: process.env.PR_NUMBER }
+            const { data: pr } = await github.rest.pulls.get(pull)
+            const { data: commits } = await github.rest.pulls.listCommits(pull)
             const [commit] = commits
 
             const checks = {
+              'open': pr.state === 'open',
+              'targeting development': pr.base.ref === 'development',
               'a single commit': commits.length === 1,
-              'the commit tested by CI': commit.sha === process.env.TESTED_SHA,
-              'authored by Dependabot': commit.author?.login === 'dependabot[bot]',
-              'with a verified signature': commit.commit.verification.verified,
+              'the commit tested by CI': pr.head.sha === process.env.TESTED_SHA,
+              'authored by Dependabot': commit?.author?.login === 'dependabot[bot]',
+              'with a verified signature': commit?.commit.verification.verified === true,
             }
 
             const failed = Object.keys(checks).filter((check) => !checks[check])
