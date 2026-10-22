@@ -21,6 +21,7 @@ package kube
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +67,8 @@ func (suite *FollowerTestSuite) TestPrepareCreate() {
 		mockWrites    func(*nuclioclientmock.Client)
 		opID          string
 		owner         string
+		labels        map[string]string
+		annotations   map[string]string
 		expectedState *platform.Project2PCState
 		expectedError bool
 		expectedCode  int
@@ -79,6 +82,18 @@ func (suite *FollowerTestSuite) TestPrepareCreate() {
 						p.Status.UpdatedAt != nil
 				})).Return(&nuclioio.NuclioProject{}, nil).Once()
 			},
+			opID:          "op-1",
+			expectedState: &platform.Project2PCState{Name: testProject, OpID: "op-1", SyncStatus: "creating"},
+		},
+		{
+			name:   "AcceptsValidPrefixedLabelsAndAnnotations",
+			labels: map[string]string{"team.io/owner": "data", "env": "dev"},
+			mockWrites: func(m *nuclioclientmock.Client) {
+				m.On("CreateNuclioProject", mock.Anything, testNamespace, mock.MatchedBy(func(p *nuclioio.NuclioProject) bool {
+					return p.Labels["team.io/owner"] == "data" && p.Annotations["team.io/note"] == "hi"
+				})).Return(&nuclioio.NuclioProject{}, nil).Once()
+			},
+			annotations:   map[string]string{"team.io/note": "hi"},
 			opID:          "op-1",
 			expectedState: &platform.Project2PCState{Name: testProject, OpID: "op-1", SyncStatus: "creating"},
 		},
@@ -122,7 +137,12 @@ func (suite *FollowerTestSuite) TestPrepareCreate() {
 				func(client project.Client) (*platform.Project2PCState, error) {
 					return client.PrepareCreate(context.TODO(), &platform.PrepareCreateProjectOptions{
 						ProjectConfig: platform.ProjectConfig{
-							Meta: platform.ProjectMeta{Name: testProject, Namespace: testNamespace},
+							Meta: platform.ProjectMeta{
+								Name:        testProject,
+								Namespace:   testNamespace,
+								Labels:      testCase.labels,
+								Annotations: testCase.annotations,
+							},
 							Spec: platform.ProjectSpec{Owner: testCase.owner},
 						},
 						OpID: testCase.opID,
@@ -480,7 +500,55 @@ func (suite *FollowerTestSuite) TestGetState() {
 	}
 }
 
+// TestRejectsInvalidMetadata verifies that labels and annotations Kubernetes cannot store are refused with a
+// bad request before any CRD is read or written, so the leader does not retry a write that can never succeed.
+func (suite *FollowerTestSuite) TestRejectsInvalidMetadata() {
+	for _, testCase := range []struct {
+		name        string
+		labels      map[string]string
+		annotations map[string]string
+	}{
+		{name: "LabelKeyWithTwoSlashes", labels: map[string]string{"a/b/c": "v"}},
+		{name: "NonASCIILabelKey", labels: map[string]string{"f\u00e4rg": "v"}},
+		{name: "InvalidLabelValue", labels: map[string]string{"team": "not valid!"}},
+		{name: "InvalidAnnotationKey", annotations: map[string]string{"a/b/c": "v"}},
+		{name: "OversizeAnnotations", annotations: map[string]string{"note": strings.Repeat("x", 300*1024)}},
+	} {
+		suite.Run(testCase.name, func() {
+			meta := platform.ProjectMeta{
+				Name:        testProject,
+				Namespace:   testNamespace,
+				Labels:      testCase.labels,
+				Annotations: testCase.annotations,
+			}
+
+			// no expectations are registered, so any call into the CRD client fails the test
+			client := suite.newClient(&nuclioclientmock.Client{})
+
+			_, err := client.PrepareCreate(context.TODO(), &platform.PrepareCreateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{Meta: meta},
+				OpID:          "op-1",
+			})
+			suite.requireBadRequest(err)
+
+			_, err = client.CommitUpdate(context.TODO(), &platform.CommitUpdateProjectOptions{
+				ProjectConfig: platform.ProjectConfig{Meta: meta},
+				OpID:          "op-2",
+				PrevOpID:      "op-1",
+			})
+			suite.requireBadRequest(err)
+		})
+	}
+}
+
 // --- test helpers (private, below public functions) ---
+
+func (suite *FollowerTestSuite) requireBadRequest(err error) {
+	suite.Require().Error(err)
+	var statusErr nuclio.WithStatusCode
+	suite.Require().True(errors.As(err, &statusErr))
+	suite.Require().Equal(400, statusErr.StatusCode())
+}
 
 // runFollowerTestCase runs the mock setup, method invocation, and assertions shared by every
 // follower 2PC test (TestPrepareCreate/TestCommitCreate/TestCommitUpdate/TestPrepareDelete/
