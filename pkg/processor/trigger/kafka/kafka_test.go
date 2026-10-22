@@ -632,6 +632,40 @@ func (suite *TestSuite) TestDrainOnRebalanceTimeoutDoesNotPanic() {
 		"goroutine must exit cleanly via the drainingContext.Done case, not panic")
 }
 
+// TestEventHeaderGetters verifies that all header getters of the kafka event
+// return the values carried by the kafka message headers.
+func (suite *TestSuite) TestEventHeaderGetters() {
+	event := &Event{
+		kafkaMessage: &sarama.ConsumerMessage{
+			Headers: []*sarama.RecordHeader{
+				{Key: []byte("name"), Value: []byte("nuclio")},
+				{Key: []byte("count"), Value: []byte("42")},
+				{Key: []byte("dup"), Value: []byte("first")},
+				{Key: []byte("dup"), Value: []byte("second")},
+			},
+		},
+	}
+
+	suite.Require().Equal([]byte("nuclio"), event.GetHeaderByteSlice("name"))
+	suite.Require().Equal("nuclio", event.GetHeaderString("name"))
+	suite.Require().Equal("second", event.GetHeaderString("dup"))
+	suite.Require().Equal([]byte("nuclio"), event.GetHeader("name"))
+	suite.Require().Equal("", event.GetHeaderString("missing"))
+
+	count, err := event.GetHeaderInt("count")
+	suite.Require().NoError(err)
+	suite.Require().Equal(42, count)
+
+	_, err = event.GetHeaderInt("name")
+	suite.Require().Error(err)
+	_, err = event.GetHeaderInt("missing")
+	suite.Require().Error(err)
+
+	// events without a message or headers must not panic
+	suite.Require().Equal("", (&Event{}).GetHeaderString("name"))
+	suite.Require().Equal("", (&Event{kafkaMessage: &sarama.ConsumerMessage{}}).GetHeaderString("name"))
+}
+
 // syncWriter is a goroutine-safe io.Writer backed by a bytes.Buffer.
 type syncWriter struct {
 	mu sync.Mutex
