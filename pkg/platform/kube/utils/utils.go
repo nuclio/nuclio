@@ -28,8 +28,10 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // ValidateLabels validates the given labels according to k8s label constraints
@@ -50,6 +52,14 @@ func ValidateLabels(labels map[string]string) error {
 			errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
 			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
 		}
+	}
+	return nil
+}
+
+// ValidateAnnotations validates the given annotations according to k8s annotation constraints
+func ValidateAnnotations(annotations map[string]string) error {
+	if errs := apivalidation.ValidateAnnotations(annotations, field.NewPath("annotations")); len(errs) > 0 {
+		return nuclio.NewErrBadRequest(errs.ToAggregate().Error())
 	}
 	return nil
 }

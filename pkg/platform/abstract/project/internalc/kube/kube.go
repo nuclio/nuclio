@@ -28,6 +28,7 @@ import (
 	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
+	kubeutils "github.com/nuclio/nuclio/pkg/platform/kube/utils"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -187,6 +188,9 @@ func (c *Client) PrepareCreate(ctx context.Context,
 	options *platform.PrepareCreateProjectOptions) (*platform.Project2PCState, error) {
 	name := options.ProjectConfig.Meta.Name
 	namespace := options.ProjectConfig.Meta.Namespace
+	if err := validateFollowerMetadata(options.ProjectConfig.Meta); err != nil {
+		return nil, errors.Wrap(err, "Failed to prepare create")
+	}
 	existingProject, err := c.getProject(ctx, name, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare create")
@@ -275,6 +279,9 @@ func (c *Client) CommitCreate(ctx context.Context,
 func (c *Client) CommitUpdate(ctx context.Context,
 	options *platform.CommitUpdateProjectOptions) (*platform.Project2PCState, error) {
 	name := options.ProjectConfig.Meta.Name
+	if err := validateFollowerMetadata(options.ProjectConfig.Meta); err != nil {
+		return nil, errors.Wrap(err, "Failed to commit update")
+	}
 	existingProject, err := c.getProject(ctx, name, options.ProjectConfig.Meta.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to commit update")
@@ -543,6 +550,18 @@ func (c *Client) updateFollowerProjectLabels(ctx context.Context, existing platf
 	// from the existing CRD's full ProjectConfig, not a labels-only partial one.
 	_, err := c.Update(ctx, &platform.UpdateProjectOptions{ProjectConfig: projectConfig})
 	return errors.Wrap(err, "Failed to update project")
+}
+
+// validateFollowerMetadata rejects labels and annotations the Kubernetes API server cannot store, so the leader
+// gets a bad request instead of a failed CRD write it would retry forever.
+func validateFollowerMetadata(meta platform.ProjectMeta) error {
+	if err := kubeutils.ValidateLabels(meta.Labels); err != nil {
+		return errors.Wrap(err, "Project labels validation failed")
+	}
+	if err := kubeutils.ValidateAnnotations(meta.Annotations); err != nil {
+		return errors.Wrap(err, "Project annotations validation failed")
+	}
+	return nil
 }
 
 // stampFollowerLabels returns a copy of labels with the oris/* 2PC labels set to opID/

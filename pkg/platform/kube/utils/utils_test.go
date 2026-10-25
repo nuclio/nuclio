@@ -70,6 +70,30 @@ func (suite *utilsTestSuite) TestFilterInvalidLabels() {
 	}
 }
 
+func (suite *utilsTestSuite) TestValidateAnnotations() {
+	for _, testCase := range []struct {
+		name          string
+		annotations   map[string]string
+		expectedError bool
+	}{
+		{name: "Nil"},
+		{name: "Empty", annotations: map[string]string{}},
+		{name: "ValidPrefixedKey", annotations: map[string]string{"nuclio.io/note": "any value, even with spaces!"}},
+		{name: "KeyWithTwoSlashes", annotations: map[string]string{"a/b/c": "v"}, expectedError: true},
+		{name: "NonASCIIKey", annotations: map[string]string{"f\u00e4rg": "v"}, expectedError: true},
+		{name: "TotalSizeOverLimit", annotations: map[string]string{"note": strings.Repeat("x", 300*1024)}, expectedError: true},
+	} {
+		suite.Run(testCase.name, func() {
+			err := ValidateAnnotations(testCase.annotations)
+			if testCase.expectedError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
 func (suite *utilsTestSuite) TestEnrichDefaultReadinessProbe() {
 	testNum14 := int32(14)
 	testNum17 := int32(17)
