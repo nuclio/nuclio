@@ -41,6 +41,7 @@ import (
 )
 
 const (
+	defaultNamespace  = "nuclio"
 	volumeName        = "nuclio-local-storage"
 	containerName     = "nuclio-local-storage-reader"
 	baseDir           = "/etc/nuclio/store"
@@ -66,6 +67,41 @@ func NewStore(parentLogger logger.Logger,
 		platform:     platform,
 		imageName:    imageName,
 	}, nil
+}
+
+// GetNamespaces lists namespaces with persisted resources and retains the default namespace.
+func (s *Store) GetNamespaces() ([]string, error) {
+	stdout, _, err := s.runCommand(nil,
+		"/usr/bin/find %s -mindepth 3 -maxdepth 3 -type f -name '*.json'", common.Quote(baseDir))
+	if err != nil {
+		s.logger.WarnWith("Failed to list local namespaces, returning default namespace", "err", err)
+		return []string{defaultNamespace}, nil
+	}
+	names := map[string]struct{}{}
+	for _, resourcePath := range strings.Split(stdout, "\n") {
+		parts := strings.Split(strings.TrimPrefix(resourcePath, baseDir+"/"), "/")
+		if len(parts) != 3 {
+			continue
+		}
+		switch parts[0] {
+		case "functions", "projects", "function-events":
+			if len(validation.IsDNS1123Label(parts[1])) == 0 {
+				names[parts[1]] = struct{}{}
+			}
+		}
+	}
+	var namespaces []string
+
+	// put default namespace first in namespace list
+	namespaces = append(namespaces, defaultNamespace)
+
+	for name := range names {
+		if name != defaultNamespace {
+			namespaces = append(namespaces, name)
+		}
+	}
+	sort.Strings(namespaces[1:])
+	return namespaces, nil
 }
 
 //
