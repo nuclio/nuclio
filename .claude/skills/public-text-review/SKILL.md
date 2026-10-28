@@ -1,6 +1,6 @@
 ---
 name: public-text-review
-description: Required before publishing any text to the repository - git commit, git push of a new branch, gh pr create/edit/comment/review, tags, releases and release notes. Keeps public text limited to what the code change does, and stops sensitive context from the ticket or the conversation leaking into it.
+description: Required before publishing any text to the repository - commits, pushed branches, pull requests (create, edit, comment, review), tags, releases and release notes - whatever tool is used (command line, MCP server, API or web UI). Keeps public text limited to what the code change does, and stops sensitive context from the ticket or the conversation leaking into it.
 ---
 
 # Public text review
@@ -22,7 +22,7 @@ If the change isn't sensitive, still apply rules 4 and 5 below, then publish as 
 
 ## Step 2: the title (highest risk)
 
-The PR title and the commit subject are the most exposed strings. The title is public the moment the PR is opened, it's copied into notification emails, every rename stays visible in the PR timeline, and release notes repeat it verbatim. It must be right on the first `gh pr create`; you can't fix it afterwards.
+The PR title and the commit subject are the most exposed strings. The title is public the moment the PR is opened, it's copied into notification emails, every rename stays visible in the PR timeline, and release notes repeat it verbatim. It must be right when the PR is first opened; you can't fix it afterwards.
 
 For a sensitive change, build the title mechanically:
 
@@ -30,7 +30,7 @@ For a sensitive change, build the title mechanically:
 - `<Verb>` is a neutral maintenance verb: Remove, Refactor, Update, Simplify, Validate, Align, Clean up.
 - `<code-level object>` names what the diff touches (a module, handler group or setting), never what it protects against or what was possible before.
 - Nothing after the ticket ID. No "to prevent ...", "so that ...", "for ...", "fix", "bug" or severity words.
-- The commit subject is identical to the title. Pass `--title` explicitly; never use `gh pr create --fill`, which copies whatever the commit says.
+- The commit subject is identical to the title. Always set the PR title explicitly; never let a tool fill it in from commit messages or branch names.
 
 Title test, applied on its own: someone who has seen nothing but this one line must not be able to guess what was wrong. If a title answers "why?", it's wrong; it should only answer "what changed?".
 
@@ -59,7 +59,7 @@ If either run points to anything specific, rewrite that part and run both checks
 
 ## Step 5: approval gate
 
-For sensitive changes, show the user the exact branch name, commit message, PR title and PR body, plus the outsider-read result. Wait for explicit approval before you run `git commit`, `git push` or `gh pr create`/`edit`/`comment`. Approval covers that text only; re-approve after any change.
+For sensitive changes, show the user the exact branch name, commit message, PR title and PR body, plus the outsider-read result. Wait for explicit approval before any commit, push, PR, comment or release, whatever tool you use to publish it. Approval covers that text only; re-approve after any change.
 
 ## If something slipped out
 
