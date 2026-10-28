@@ -94,4 +94,12 @@ CRD Go types live under `pkg/platform/kube/apis`; regenerate with `make generate
 
 ## Guardrails
 
-**Security fixes: public text describes only the change.** Never describe the weakness in PR titles, PR descriptions, commit messages, branch names, code comments, test names, log messages, release notes or the docs changelog. Write the text from the diff alone, in neutral maintenance terms (e.g. `[Dashboard] Refactor permission checks (NUC-XXXX)`), and reference only the Jira ticket ID. Leave out endpoint paths, the mechanism, the impact, affected versions, report sources, and words such as "pentest", "vulnerability", "exploit" and "CVE". The PR title matters most: it is public on creation, every rename stays visible, and release notes copy it verbatim, so it must say only *what* changed, never *why*, and be right when the PR is first opened. Details stay in the restricted Jira ticket; public disclosure happens only through a GitHub Security Advisory, after customers are patched. Before any commit, push, PR, comment or release, whatever tool publishes it, follow [`.claude/skills/public-text-review/SKILL.md`](./.claude/skills/public-text-review/SKILL.md).
+**Security fixes: public text describes only the change.** Commits, branch names, PR titles and descriptions, review comments, code comments, test names, log messages and release notes are public and permanent. When a change addresses a security weakness (per the ticket or the user; if unsure, ask):
+
+- Write all public text from the diff alone, as if you hadn't read the ticket: say *what* changed, never *why*. Leave out the mechanism, impact, affected versions, endpoint paths, report sources, and words such as "pentest", "vulnerability", "exploit" and "CVE".
+- The PR title matters most: it's public on creation, every rename stays visible, and release notes copy it verbatim. Use `[<Scope>] <Verb> <code-level object> (NUC-XXXX)`, e.g. `[Dashboard] Refactor permission checks (NUC-XXXX)`, with nothing after the ticket ID and no `fix`/`bug` keyword. Set it explicitly; don't let a tool derive it from commits or branch names.
+- Make the PR look like any routine PR in this repo, and use the same wording in commits, backports and release notes. Rename tests and comments that describe the weakness.
+- Before publishing, ask: could someone who sees only the title, or only the diff and the text, guess what was wrong? If so, rewrite.
+- Show the user the exact text and get explicit approval before any commit, push, PR or comment, whatever tool publishes it.
+
+Details stay in the restricted Jira ticket; public disclosure happens only through a GitHub Security Advisory, after customers are patched.
