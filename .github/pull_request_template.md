@@ -12,7 +12,6 @@
 ### ✅ Checklist
 - [ ] I updated the documentation (if applicable)
 - [ ] I have tested the changes in this PR
-- [ ] Security fix: title, description and commit message contain no vulnerability details (neutral wording, Jira reference only)
 
 ---
 
