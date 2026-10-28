@@ -102,7 +102,8 @@ func (o *OpenSearchLogProxy) GetFunctionReplicas(ctx context.Context, options *l
 	}
 
 	searchRequest := &opensearchapi.SearchReq{
-		Body: &buf,
+		Indices: o.getIndices(),
+		Body:    &buf,
 	}
 
 	// Perform search
@@ -221,8 +222,17 @@ func (o *OpenSearchLogProxy) getSearchRequestFromQuery(query map[string]interfac
 	}
 
 	return &opensearchapi.SearchReq{
-		Body: &buf,
+		Indices: o.getIndices(),
+		Body:    &buf,
 	}, nil
+}
+
+// getIndices returns the configured index pattern to search, or nil to search all indices
+func (o *OpenSearchLogProxy) getIndices() []string {
+	if o.index == "" {
+		return nil
+	}
+	return []string{o.index}
 }
 
 func (o *OpenSearchLogProxy) addMustClause(query map[string]interface{}, clauseType, field, value string) {

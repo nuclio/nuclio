@@ -32,6 +32,9 @@ limitations under the License.
         isStagingMode: function (strict) {
             return defaultConfig.mode === 'staging' || !strict && defaultConfig.mode === 'demo';
         },
+        isNuclioOpenSource: function () {
+            return defaultConfig.nuclio.isOpenSource;
+        },
         nuclio: {
             defaultFunctionConfig: {},
             externalIPAddress: '',
