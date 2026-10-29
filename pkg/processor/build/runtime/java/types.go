@@ -33,7 +33,7 @@ import (
 // Gradle would execute during its configuration phase (GHSA-3v79-m2cg-89ww). Permitting only
 // a bare "name()" call - no ".", no arguments, no string-delimiter characters - means no
 // method chain, command string or block break-out can be formed, while every documented
-// repository shortcut (mavenCentral(), jcenter(), google(), mavenLocal(),
+// repository shortcut (mavenCentral(), google(), mavenLocal(),
 // gradlePluginPortal()) is accepted. Surrounding whitespace is trimmed before matching.
 var repositoryPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*\(\)$`)
 
