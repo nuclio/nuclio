@@ -91,3 +91,15 @@ CRD Go types live under `pkg/platform/kube/apis`; regenerate with `make generate
 - Enabled linters (`.golangci.yml`): `errcheck`, `gocritic`, `govet`, `ineffassign`, `misspell`, `revive`, `staticcheck`, `unconvert`, `unused`. Run `make lint` before assuming a change is complete.
 - Non-Go runtime wrappers are tested separately: `make test-python`, `make test-nodejs`.
 - JetBrains run configurations for most suites are checked in under `.run/`, prefixed by the build tag they use (e.g. `(test_unit)`, `(test_integ)`, `(test_kube)`).
+
+## Guardrails
+
+**Security fixes: public text describes only the change.** Commits, branch names, PR titles and descriptions, review comments, code comments, test names, log messages and release notes are public and permanent. A fix is visible here before customers upgrade, so text that explains the problem tells anyone exactly what to try against deployments that haven't upgraded yet. When a change addresses a security weakness (per the ticket or the user; if unsure, ask):
+
+- Write all public text from the diff alone, as if you hadn't read the ticket: say *what* changed, never *why*. Leave out the mechanism, impact, affected versions, endpoint paths, report sources, and words such as "pentest", "vulnerability", "exploit" and "CVE".
+- The PR title matters most: it's public on creation, every rename stays visible, and release notes copy it verbatim. Use `[<Scope>] <Verb> <code-level object>`, with nothing after the ticket ID and no `fix`/`bug` keyword. For a hypothetical missing permission check: not `[Dashboard] Fix missing permission check that let any user delete other projects' functions`, but `[Dashboard] Align function deletion with project permission checks`. Set it explicitly; don't let a tool derive it from commits or branch names.
+- Make the PR look like any routine PR in this repo, and use the same wording in commits, backports and release notes. Rename tests and comments that describe the weakness.
+- Before publishing, ask: could someone who sees only the title, or only the diff and the text, guess what was wrong? If so, rewrite.
+- Show the user the exact text and get explicit approval before any commit, push, PR or comment, whatever tool publishes it.
+
+Details stay in the restricted Jira ticket; public disclosure happens only through a GitHub Security Advisory, after customers are patched.
