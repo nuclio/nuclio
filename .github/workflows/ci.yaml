@@ -162,7 +162,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
@@ -186,7 +186,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -194,7 +194,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
@@ -251,7 +251,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
@@ -369,7 +369,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
@@ -416,7 +416,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
@@ -498,7 +498,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
@@ -515,7 +515,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.DOCKERHUB_LOGIN_AVAILABLE == 'true' }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # 4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # 4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME_RO }}
           password: ${{ secrets.DOCKERHUB_PASSWORD_RO }}
