@@ -21,15 +21,7 @@ FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 FROM ${NUCLIO_DOCKER_JAVA_OPENJDK} as user-handler-builder
 
-# Debian 11 "bullseye" reached LTS end-of-life on 2026-08-31 and was pulled from
-# deb.debian.org; pin apt to the last snapshot.debian.org snapshot taken before EOL.
-ARG DEBIAN_SNAPSHOT=20260831T204404Z
-ARG DEBIAN_SECURITY_SNAPSHOT=20260831T211327Z
-
-ENV GRADLEVERSION=8.14.5
-
-RUN echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bullseye main" > /etc/apt/sources.list \
-    && echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SECURITY_SNAPSHOT} bullseye-security main" >> /etc/apt/sources.list
+ENV GRADLEVERSION=9.7.1
 
 RUN apt-get update -qqy \
     && apt-get -s dist-upgrade | \
@@ -61,10 +53,10 @@ COPY pkg/processor/build/runtime/java/docker/onbuild/build-user-handler.sh /home
 RUN chmod +x /home/gradle/src/userHandler/build-user-handler.sh
 
 # Download the nuclio SDK Jar
-RUN curl -LO https://repo1.maven.org/maven2/io/nuclio/nuclio-sdk-java/1.1.0/nuclio-sdk-java-1.1.0.jar
+RUN curl -LO https://repo1.maven.org/maven2/io/nuclio/nuclio-sdk-java/1.2.0/nuclio-sdk-java-1.2.0.jar
 
 # Copy the downloaded SDK Jar to the userHandler folder
-RUN cp nuclio-sdk-java-1.1.0.jar /home/gradle/src/userHandler/nuclio-sdk-java-1.1.0.jar
+RUN cp nuclio-sdk-java-1.2.0.jar /home/gradle/src/userHandler/nuclio-sdk-java-1.2.0.jar
 
 #
 # Build wrapper
@@ -80,7 +72,7 @@ COPY pkg/processor/runtime/java/build.gradle \
     /home/gradle/src/wrapper/
 
 # Copy also the downloaded nuclio SDK Jar to the wrapper folder
-RUN cp nuclio-sdk-java-1.1.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.1.0.jar
+RUN cp nuclio-sdk-java-1.2.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.2.0.jar
 
 # Download dependencies
 RUN cd /home/gradle/src/wrapper \

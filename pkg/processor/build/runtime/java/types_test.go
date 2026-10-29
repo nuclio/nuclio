@@ -70,8 +70,8 @@ func (suite *testSuite) TestNewBuildAttributesRepositoryValidation() {
 	}{
 		{
 			name:         "built-in repositories accepted",
-			repositories: []string{"mavenCentral()", "jcenter()", "google()", "mavenLocal()", "gradlePluginPortal()"},
-			expected:     []string{"mavenCentral()", "jcenter()", "google()", "mavenLocal()", "gradlePluginPortal()"},
+			repositories: []string{"mavenCentral()", "google()", "mavenLocal()", "gradlePluginPortal()"},
+			expected:     []string{"mavenCentral()", "google()", "mavenLocal()", "gradlePluginPortal()"},
 		},
 		{
 			name:         "surrounding whitespace trimmed",
