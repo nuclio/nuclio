@@ -164,7 +164,8 @@ jobs:
           gh release create ${{ needs.prepare-inputs.outputs.version }} \
             --title "${{ needs.prepare-inputs.outputs.version }}" \
             --notes-file CHANGELOG.md \
-            --target ${{ github.event.inputs.branch }}
+            --target ${{ github.event.inputs.branch }} \
+            --latest=${{ github.event.inputs.mark_as_latest }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
