@@ -357,13 +357,13 @@ kube:
   deployment pod template, takes precedence.
 - Keys and values must be valid Kubernetes labels, and keys can't use the reserved `nuclio.io/` prefix. An invalid
   value fails the platform's startup.
-- The platform configuration is read on startup, so after changing it restart the controller. The controller then adds
-  the new labels to existing functions as it reconciles them, which rolls the pods of running functions once. A
-  function that is scaled to zero gets the labels when it scales up, and a function in an error state gets them once
-  it's redeployed.
-- Labels are only ever added to existing functions. Removing a label from `defaultFunctionPodLabels`, or changing its
-  value, only affects functions deployed from then on - an existing function keeps the label until it's deleted and
-  deployed again.
+- The platform configuration is read on startup, so after changing it restart the controller. The controller then
+  adds, changes or removes the labels on existing functions as it reconciles them, which rolls the pods of running
+  functions once. A function that is scaled to zero gets the change when it scales up, and a function in an error
+  state gets it once it's redeployed.
+- The controller records the keys it added in the `nuclio.io/default-function-pod-labels` deployment annotation, and
+  changes or removes only those. Labels set on the function, or by a `functionAugmentedConfigs` pod template, are
+  never touched.
 
 <a id="elastic-search"></a>
 ### Proxy logs from ElasticSearch or OpenSearch

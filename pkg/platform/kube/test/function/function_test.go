@@ -675,6 +675,7 @@ func (suite *DeployFunctionTestSuite) TestDeployWithDefaultFunctionPodLabels() {
 	suite.PlatformConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
 		"nuclio-test/default-pod-label": "true",
 		"nuclio-test/overridden":        "platform",
+		"nuclio-test/changed":           "before",
 	}
 
 	functionName := "default-function-pod-labels"
@@ -703,10 +704,11 @@ func (suite *DeployFunctionTestSuite) TestDeployWithDefaultFunctionPodLabels() {
 			suite.Require().Equal("function", pod.Labels["nuclio-test/overridden"])
 		}
 
+		// add, change and remove a default before redeploying
 		suite.PlatformConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
-			"nuclio-test/default-pod-label": "true",
-			"nuclio-test/overridden":        "platform",
-			"nuclio-test/added-later":       "true",
+			"nuclio-test/overridden":  "platform",
+			"nuclio-test/changed":     "after",
+			"nuclio-test/added-later": "true",
 		}
 		return true
 	}
@@ -719,7 +721,8 @@ func (suite *DeployFunctionTestSuite) TestDeployWithDefaultFunctionPodLabels() {
 
 		templateLabels := deploymentInstance.Spec.Template.Labels
 		suite.Require().Equal("true", templateLabels["nuclio-test/added-later"])
-		suite.Require().Equal("true", templateLabels["nuclio-test/default-pod-label"])
+		suite.Require().Equal("after", templateLabels["nuclio-test/changed"])
+		suite.Require().NotContains(templateLabels, "nuclio-test/default-pod-label")
 		suite.Require().Equal("function", templateLabels["nuclio-test/overridden"])
 		suite.Require().NotContains(deploymentInstance.Spec.Selector.MatchLabels, "nuclio-test/added-later")
 		return true

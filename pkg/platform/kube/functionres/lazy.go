@@ -1311,8 +1311,9 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			return nil, err
 		}
 
-		// done after the enrichment, which may add labels to the selector that the pod template must have too
-		lc.addDefaultFunctionPodLabels(&deployment.Spec.Template)
+		// done after the enrichment, which may add labels to the selector that the pod template must have too, and
+		// whose pod template labels win over the defaults
+		lc.addDefaultFunctionPodLabels(deployment, functionLabels)
 		return lc.kubeClientSet.CreateDeployment(ctx, function.Namespace, deployment)
 	}
 
@@ -1348,10 +1349,11 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
+		// done before the annotations, which record the default labels to remove, are replaced
+		lc.removeDefaultFunctionPodLabels(deployment)
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
-		lc.addDefaultFunctionPodLabels(&deployment.Spec.Template)
 		lc.populateDeploymentContainer(ctx, functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
@@ -1381,6 +1383,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			return nil, err
 		}
 
+		// done after the enrichment, as on create
+		lc.addDefaultFunctionPodLabels(deployment, functionLabels)
 		return lc.kubeClientSet.UpdateDeployment(ctx, function.Namespace, deployment)
 	}
 
@@ -2082,16 +2086,60 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	return result
 }
 
-// addDefaultFunctionPodLabels adds the platform default pod labels a function pod template is missing. Existing labels
-// are never overwritten nor removed, as the pod template must keep matching the immutable deployment selector. The
-// labels are replaced with a new set, so the defaults never reach the selector the pod template labels may alias
-func (lc *lazyClient) addDefaultFunctionPodLabels(podTemplate *v1.PodTemplateSpec) {
+// addDefaultFunctionPodLabels adds the platform default pod labels to the deployment's pod template, except those whose
+// key the pod template or the function labels already have, and records the added keys in a deployment annotation.
+// The labels are replaced with a new set, so the defaults never reach the selector the pod template labels may alias
+func (lc *lazyClient) addDefaultFunctionPodLabels(deployment *appsv1.Deployment, functionLabels labels.Set) {
 	defaultPodLabels := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodLabels
 	if len(defaultPodLabels) == 0 {
 		return
 	}
 
-	podTemplate.Labels = labels.Merge(defaultPodLabels, podTemplate.Labels)
+	podTemplateLabels := labels.Merge(deployment.Spec.Template.Labels, nil)
+	var addedLabelKeys []string
+	for labelKey, labelValue := range defaultPodLabels {
+		if _, exists := podTemplateLabels[labelKey]; exists {
+			continue
+		}
+		if _, setOnFunction := functionLabels[labelKey]; setOnFunction {
+			continue
+		}
+		podTemplateLabels[labelKey] = labelValue
+		addedLabelKeys = append(addedLabelKeys, labelKey)
+	}
+	deployment.Spec.Template.Labels = podTemplateLabels
+
+	if len(addedLabelKeys) == 0 {
+		return
+	}
+	sort.Strings(addedLabelKeys)
+	if deployment.Annotations == nil {
+		deployment.Annotations = map[string]string{}
+	}
+	deployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels] = strings.Join(addedLabelKeys, ",")
+}
+
+// removeDefaultFunctionPodLabels removes the platform default pod labels a previous reconciliation added to the
+// deployment's pod template, so addDefaultFunctionPodLabels applies the current defaults. Labels the deployment
+// selector has are kept, as the pod template must keep matching the immutable selector
+func (lc *lazyClient) removeDefaultFunctionPodLabels(deployment *appsv1.Deployment) {
+	addedLabelKeys := deployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels]
+	if addedLabelKeys == "" {
+		return
+	}
+
+	var selectorLabels map[string]string
+	if deployment.Spec.Selector != nil {
+		selectorLabels = deployment.Spec.Selector.MatchLabels
+	}
+	podTemplateLabels := labels.Merge(deployment.Spec.Template.Labels, nil)
+	for _, labelKey := range strings.Split(addedLabelKeys, ",") {
+		if _, inSelector := selectorLabels[labelKey]; inSelector {
+			continue
+		}
+		delete(podTemplateLabels, labelKey)
+	}
+	deployment.Spec.Template.Labels = podTemplateLabels
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {

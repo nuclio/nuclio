@@ -51,7 +51,7 @@ const NuclioLabelKeyFunctionCronJobPod = "nuclio.io/function-cron-job-pod"
 
 // NuclioLabelKeyMigrationPrefix prefixes the labels recording which one-time CRD migrations already ran on
 // a resource. Labels and not annotations, so a migration can list only the resources it has not marked yet.
-const NuclioLabelKeyMigrationPrefix = "nuclio.io/migration-"
+const NuclioLabelKeyMigrationPrefix = NuclioLabelKeyPrefix + "migration-"
 
 // NuclioLabelKeyMigrationFunctionAuth marks a CRD as already migrated to function-level authentication.
 const NuclioLabelKeyMigrationFunctionAuth = NuclioLabelKeyMigrationPrefix + "function-auth"
@@ -60,6 +60,10 @@ const NuclioLabelValueMigrationApplied = "true"
 // Nuclio Annotations
 
 const NuclioAnnotationKeyVersion = "nuclio.io/version"
+
+// NuclioAnnotationKeyDefaultFunctionPodLabels lists the platform default pod label keys added to a function
+// deployment's pod template, so they can be removed or changed once the defaults change
+const NuclioAnnotationKeyDefaultFunctionPodLabels = "nuclio.io/default-function-pod-labels"
 
 // KubernetesDomainLevelMaxLength DNS domain level limitation is 63 chars
 // https://en.wikipedia.org/wiki/Subdomain#Overview

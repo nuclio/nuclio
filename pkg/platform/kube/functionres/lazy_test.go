@@ -2548,6 +2548,8 @@ func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsOnCreate() {
 
 	suite.Require().NotContains(deployment.Spec.Selector.MatchLabels, "azure.workload.identity/use")
 	suite.Require().NotContains(deployment.Labels, "azure.workload.identity/use")
+	suite.Require().Equal("azure.workload.identity/use",
+		deployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels])
 
 	service, err := resources.Service()
 	suite.Require().NoError(err)
@@ -2615,23 +2617,68 @@ func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsAddedOnUpdate() {
 	suite.Require().Equal(createdDeployment.Labels, updatedDeployment.Labels)
 }
 
-// TestDefaultFunctionPodLabelsNeverOverwrittenOrRemovedOnUpdate verifies that changing or removing a default doesn't
-// change the labels of an existing function pod template
-func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsNeverOverwrittenOrRemovedOnUpdate() {
+// TestDefaultFunctionPodLabelsChangedOrRemovedOnUpdate verifies that changing or removing a default changes or removes
+// the label on an existing function pod template, while labels that didn't come from the defaults are kept
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsChangedOrRemovedOnUpdate() {
 	suite.setDefaultFunctionPodLabels(map[string]string{
 		"a": "1",
 		"b": "2",
 	})
 	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
-	suite.createOrUpdateFunctionDeployment(function)
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("a,b", createdDeployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels])
 
 	suite.setDefaultFunctionPodLabels(map[string]string{
 		"a": "changed",
 	})
+	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("changed", updatedDeployment.Spec.Template.Labels["a"])
+	suite.Require().NotContains(updatedDeployment.Spec.Template.Labels, "b")
+	suite.Require().Equal("a", updatedDeployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels])
+
+	suite.setDefaultFunctionPodLabels(nil)
+	updatedDeployment = suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().NotContains(updatedDeployment.Spec.Template.Labels, "a")
+	suite.Require().NotContains(updatedDeployment.Annotations, common.NuclioAnnotationKeyDefaultFunctionPodLabels)
+	suite.Require().Equal(createdDeployment.Spec.Selector.MatchLabels, updatedDeployment.Spec.Template.Labels)
+}
+
+// TestDefaultFunctionPodLabelsSelectorLabelsKeptOnUpdate verifies a recorded default label the deployment selector has
+// is never removed, so the pod template keeps matching the immutable selector
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsSelectorLabelsKeptOnUpdate() {
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+
+	createdDeployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels] =
+		common.NuclioResourceLabelKeyFunctionName
+	_, err := suite.kubeClientSet.AppsV1().Deployments(function.Namespace).Update(suite.ctx,
+		createdDeployment,
+		metav1.UpdateOptions{})
+	suite.Require().NoError(err)
 
 	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
-	suite.Require().Equal("1", updatedDeployment.Spec.Template.Labels["a"])
-	suite.Require().Equal("2", updatedDeployment.Spec.Template.Labels["b"])
+	suite.Require().Equal("func-name", updatedDeployment.Spec.Template.Labels[common.NuclioResourceLabelKeyFunctionName])
+	suite.Require().True(labels.SelectorFromSet(updatedDeployment.Spec.Selector.MatchLabels).
+		Matches(labels.Set(updatedDeployment.Spec.Template.Labels)),
+		"the pod template must keep matching the deployment selector")
+}
+
+// TestDefaultFunctionPodLabelsFunctionLabelAddedLater verifies a label the function sets after a default of the same
+// key was applied takes the key over from the defaults
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsFunctionLabelAddedLater() {
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"team": "platform",
+	})
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("platform", createdDeployment.Spec.Template.Labels["team"])
+
+	function.Labels = map[string]string{
+		"team": "data",
+	}
+	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().NotEqual("platform", updatedDeployment.Spec.Template.Labels["team"])
+	suite.Require().NotContains(updatedDeployment.Annotations, common.NuclioAnnotationKeyDefaultFunctionPodLabels)
 }
 
 // TestDefaultFunctionPodLabelsNoChanges verifies reconciling a function with defaults repeatedly yields the same
@@ -2716,6 +2763,52 @@ func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsWithAugmentedConfig() {
 		suite.Require().NotContains(selectorLabels, "default-label")
 	}
 	suite.Require().Equal(createdDeployment.Spec.Selector, updatedDeployment.Spec.Selector)
+}
+
+// TestDefaultFunctionPodLabelsWithAugmentedConfigOnUpdate verifies the augmented pod template labels win over the
+// defaults on update as on create, when both are configured after the function was created
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsWithAugmentedConfigOnUpdate() {
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().NotContains(createdDeployment.Spec.Template.Labels, "x")
+
+	platformConfiguration := suite.client.platformConfigurationProvider.GetPlatformConfiguration()
+	platformConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
+		"default-label": "true",
+		"x":             "platform",
+	}
+	platformConfiguration.FunctionAugmentedConfigs = []platformconfig.LabelSelectorAndConfig{
+		{
+			LabelSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					common.NuclioLabelKeyClass: "function",
+				},
+			},
+			Kubernetes: platformconfig.Kubernetes{
+				Deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Template: v1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"x": "augmented",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	defer func() {
+		platformConfiguration.Kube.DefaultFunctionPodLabels = nil
+		platformConfiguration.FunctionAugmentedConfigs = nil
+	}()
+
+	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("augmented", updatedDeployment.Spec.Template.Labels["x"])
+	suite.Require().Equal("true", updatedDeployment.Spec.Template.Labels["default-label"])
+	suite.Require().Equal("default-label",
+		updatedDeployment.Annotations[common.NuclioAnnotationKeyDefaultFunctionPodLabels])
 }
 
 // TestDefaultFunctionPodLabelsNotOnCronTriggerCronJob verifies the cron trigger CronJob pods don't get the defaults,
