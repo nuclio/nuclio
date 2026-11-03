@@ -5,6 +5,7 @@
 - [Creating a platform configuration in Kubernetes](#creating-a-platform-configuration-in-kubernetes)
 - [Configuration elements](#configuration-elements)
 - [Function Authentication (`authentication`)](#authentication)
+- [Default function pod labels (`kube.defaultFunctionPodLabels`)](#default-function-pod-labels)
 - [Base Images (`baseImages`)](#base-images-baseimages)
 
 ### Overview
@@ -338,6 +339,31 @@ Example:
     failureThreshold: 3
 ```
 
+
+
+<a id="default-function-pod-labels"></a>
+### Default function pod labels (`kube.defaultFunctionPodLabels`)
+
+Labels added to the pods of every function, such as labels that cluster add-ons select pods by:
+```yaml
+kube:
+  defaultFunctionPodLabels:
+    podLabelKey: podLabelValue
+```
+
+- The labels are added to the pod template of the function's deployment only. They aren't added to the deployment's
+  selector or labels, nor to the function's service, HPA, ingress or cron trigger cron job pods.
+- A label with the same key in the function's `metadata.labels`, or in a matching `functionAugmentedConfigs`
+  deployment pod template, takes precedence.
+- Keys and values must be valid Kubernetes labels, and keys can't use the reserved `nuclio.io/` prefix. An invalid
+  value fails the platform's startup.
+- The platform configuration is read on startup, so after changing it restart the controller. The controller then adds
+  the new labels to existing functions as it reconciles them, which rolls the pods of running functions once. A
+  function that is scaled to zero gets the labels when it scales up, and a function in an error state gets them once
+  it's redeployed.
+- Labels are only ever added to existing functions. Removing a label from `defaultFunctionPodLabels`, or changing its
+  value, only affects functions deployed from then on - an existing function keeps the label until it's deleted and
+  deployed again.
 
 <a id="elastic-search"></a>
 ### Proxy logs from ElasticSearch or OpenSearch

@@ -55,6 +55,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -2524,6 +2525,240 @@ func (suite *lazyTestSuite) TestResolveReadinessVerifierMaxWaitMs() {
 			suite.Require().Equal(testCase.expectedMaxWaitMs, resolveReadinessVerifierMaxWaitMs(function))
 		})
 	}
+}
+
+// TestDefaultFunctionPodLabelsOnCreate verifies the platform default pod labels reach the deployment's pod template
+// only - the immutable selector and every other function resource must not carry them
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsOnCreate() {
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"azure.workload.identity/use": "true",
+	})
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+
+	resources := suite.createOrUpdateFunctionResources(function)
+
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+	templateLabels := deployment.Spec.Template.Labels
+	suite.Require().Equal("true", templateLabels["azure.workload.identity/use"])
+	suite.Require().Equal("func-name", templateLabels[common.NuclioResourceLabelKeyFunctionName])
+	suite.Require().Equal("function", templateLabels[common.NuclioLabelKeyClass])
+	suite.Require().True(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels).Matches(labels.Set(templateLabels)),
+		"the pod template must keep matching the deployment selector")
+
+	suite.Require().NotContains(deployment.Spec.Selector.MatchLabels, "azure.workload.identity/use")
+	suite.Require().NotContains(deployment.Labels, "azure.workload.identity/use")
+
+	service, err := resources.Service()
+	suite.Require().NoError(err)
+	suite.Require().NotContains(service.Labels, "azure.workload.identity/use")
+	suite.Require().NotContains(service.Spec.Selector, "azure.workload.identity/use")
+
+	configMap, err := resources.ConfigMap()
+	suite.Require().NoError(err)
+	suite.Require().NotContains(configMap.Labels, "azure.workload.identity/use")
+}
+
+// TestDefaultFunctionPodLabelsFunctionLabelTakesPrecedence verifies a function label wins over a default of the same key
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsFunctionLabelTakesPrecedence() {
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"team": "platform",
+	})
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+	function.Labels = map[string]string{
+		"team": "data",
+	}
+
+	deployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("data", deployment.Spec.Template.Labels["team"])
+	suite.Require().Equal("data", deployment.Spec.Selector.MatchLabels["team"])
+}
+
+// TestDefaultFunctionPodLabelsEmpty verifies that without defaults the pod template labels are the function labels
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsEmpty() {
+	for _, testCase := range []struct {
+		name      string
+		podLabels map[string]string
+	}{
+		{name: "nil"},
+		{name: "empty map", podLabels: map[string]string{}},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.setDefaultFunctionPodLabels(testCase.podLabels)
+			function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-" + strings.ReplaceAll(testCase.name, " ", "-"))
+			function.Labels = map[string]string{
+				"team": "data",
+			}
+
+			deployment := suite.createOrUpdateFunctionDeployment(function)
+			suite.Require().Equal(deployment.Spec.Selector.MatchLabels, deployment.Spec.Template.Labels)
+			suite.Require().Equal(deployment.Labels, deployment.Spec.Template.Labels)
+		})
+	}
+}
+
+// TestDefaultFunctionPodLabelsAddedOnUpdate verifies a default added after the function was created reaches its pod
+// template on the next reconciliation, while the immutable selector is left untouched
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsAddedOnUpdate() {
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().NotContains(createdDeployment.Spec.Template.Labels, "azure.workload.identity/use")
+
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"azure.workload.identity/use": "true",
+	})
+
+	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("true", updatedDeployment.Spec.Template.Labels["azure.workload.identity/use"])
+	suite.Require().Equal(createdDeployment.Spec.Selector, updatedDeployment.Spec.Selector)
+	suite.Require().Equal(createdDeployment.Labels, updatedDeployment.Labels)
+}
+
+// TestDefaultFunctionPodLabelsNeverOverwrittenOrRemovedOnUpdate verifies that changing or removing a default doesn't
+// change the labels of an existing function pod template
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsNeverOverwrittenOrRemovedOnUpdate() {
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"a": "1",
+		"b": "2",
+	})
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+	suite.createOrUpdateFunctionDeployment(function)
+
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"a": "changed",
+	})
+
+	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+	suite.Require().Equal("1", updatedDeployment.Spec.Template.Labels["a"])
+	suite.Require().Equal("2", updatedDeployment.Spec.Template.Labels["b"])
+}
+
+// TestDefaultFunctionPodLabelsNoChanges verifies reconciling a function with defaults repeatedly yields the same
+// deployment, so it doesn't roll the function pods
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsNoChanges() {
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"azure.workload.identity/use": "true",
+		"team":                        "platform",
+	})
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+	function.Labels = map[string]string{
+		"team": "data",
+	}
+
+	// fixed replicas, so the deployment replicas aren't resolved from the current deployment status on update
+	one := 1
+	function.Spec.Replicas = &one
+
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+	for i := 0; i < 10; i++ {
+		updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+		suite.Require().Empty(cmp.Diff(createdDeployment, updatedDeployment))
+	}
+}
+
+// TestDefaultFunctionPodLabelsWithAugmentedConfig verifies the defaults are added after a matching function augmented
+// config enriches the deployment: labels the augmented config adds to the selector are on the pod template too, the
+// augmented pod template labels win over the defaults, and the defaults never reach the selector
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsWithAugmentedConfig() {
+	platformConfiguration, err := platformconfig.NewPlatformConfig("")
+	suite.Require().NoError(err)
+	platformConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
+		"default-label": "true",
+		"x":             "platform",
+	}
+	platformConfiguration.FunctionAugmentedConfigs = []platformconfig.LabelSelectorAndConfig{
+		{
+			LabelSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					common.NuclioLabelKeyClass: "function",
+				},
+			},
+			Kubernetes: platformconfig.Kubernetes{
+				Deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"augmented-selector": "true",
+							},
+						},
+						Template: v1.PodTemplateSpec{
+							ObjectMeta: metav1.ObjectMeta{
+								Labels: map[string]string{
+									"augmented-template": "true",
+									"x":                  "augmented",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: platformConfiguration,
+	})
+	function := suite.getFunctionInstanceWithDefaultPodLabelsTest("func-name")
+
+	createdDeployment := suite.createOrUpdateFunctionDeployment(function)
+	updatedDeployment := suite.createOrUpdateFunctionDeployment(function)
+
+	for _, deployment := range []*appsv1.Deployment{createdDeployment, updatedDeployment} {
+		selectorLabels := deployment.Spec.Selector.MatchLabels
+		templateLabels := deployment.Spec.Template.Labels
+
+		suite.Require().Equal("true", selectorLabels["augmented-selector"])
+		suite.Require().True(labels.SelectorFromSet(selectorLabels).Matches(labels.Set(templateLabels)),
+			"the pod template must keep matching the deployment selector")
+		suite.Require().Equal("true", templateLabels["augmented-template"])
+		suite.Require().Equal("augmented", templateLabels["x"])
+		suite.Require().Equal("true", templateLabels["default-label"])
+		suite.Require().NotContains(selectorLabels, "default-label")
+	}
+	suite.Require().Equal(createdDeployment.Spec.Selector, updatedDeployment.Spec.Selector)
+}
+
+// TestDefaultFunctionPodLabelsNotOnCronTriggerCronJob verifies the cron trigger CronJob pods don't get the defaults,
+// while the function pods do
+func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsNotOnCronTriggerCronJob() {
+	suite.setKubeCronTriggerMode()
+	suite.setDefaultFunctionPodLabels(map[string]string{
+		"azure.workload.identity/use": "true",
+	})
+
+	cronJob := suite.deployFunctionWithCronTrigger("test-func", map[string]interface{}{
+		"schedule": "*/1 * * * *",
+	})
+	suite.Require().NotContains(cronJob.Labels, "azure.workload.identity/use")
+	suite.Require().NotContains(cronJob.Spec.JobTemplate.Labels, "azure.workload.identity/use")
+	suite.Require().NotContains(cronJob.Spec.JobTemplate.Spec.Template.Labels, "azure.workload.identity/use")
+
+	deployments, err := suite.kubeClientSet.AppsV1().Deployments("").List(suite.ctx, metav1.ListOptions{})
+	suite.Require().NoError(err)
+	suite.Require().Len(deployments.Items, 1)
+	suite.Require().Equal("true", deployments.Items[0].Spec.Template.Labels["azure.workload.identity/use"])
+}
+
+func (suite *lazyTestSuite) setDefaultFunctionPodLabels(podLabels map[string]string) {
+	suite.client.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodLabels = podLabels
+}
+
+func (suite *lazyTestSuite) getFunctionInstanceWithDefaultPodLabelsTest(functionName string) *nuclioio.NuclioFunction {
+	function := suite.getFunctionInstanceWithDefaultProbes(functionName)
+	function.Namespace = "test-namespace"
+	return function
+}
+
+func (suite *lazyTestSuite) createOrUpdateFunctionResources(function *nuclioio.NuclioFunction) Resources {
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, function)
+	suite.Require().NoError(err)
+	return resources
+}
+
+func (suite *lazyTestSuite) createOrUpdateFunctionDeployment(function *nuclioio.NuclioFunction) *appsv1.Deployment {
+	deployment, err := suite.createOrUpdateFunctionResources(function).Deployment()
+	suite.Require().NoError(err)
+	return deployment
 }
 
 func TestLazyTestSuite(t *testing.T) {

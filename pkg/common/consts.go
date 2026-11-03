@@ -35,6 +35,8 @@ const (
 
 // Nuclio Labels
 
+const NuclioLabelKeyPrefix = "nuclio.io/"
+
 const NuclioResourceLabelKeyProjectName = "nuclio.io/project-name"
 const NuclioResourceLabelKeyFunctionName = "nuclio.io/function-name"
 const NuclioResourceLabelKeyCanaryFunctionName = "nuclio.io/canary-function-name"

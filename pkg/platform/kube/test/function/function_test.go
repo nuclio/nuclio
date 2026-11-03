@@ -666,6 +666,68 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployWithDefaultFunctionPodLabels() {
+	previousDefaultFunctionPodLabels := suite.PlatformConfiguration.Kube.DefaultFunctionPodLabels
+	defer func() {
+		suite.PlatformConfiguration.Kube.DefaultFunctionPodLabels = previousDefaultFunctionPodLabels
+	}()
+
+	suite.PlatformConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
+		"nuclio-test/default-pod-label": "true",
+		"nuclio-test/overridden":        "platform",
+	}
+
+	functionName := "default-function-pod-labels"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio-test/overridden"] = "function"
+
+	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		deploymentInstance := &appsv1.Deployment{}
+		suite.GetResourceAndUnmarshal("deployment",
+			kube.DeploymentNameFromFunctionName(functionName),
+			deploymentInstance)
+
+		// the defaults are on the pod template, with the function label taking precedence
+		templateLabels := deploymentInstance.Spec.Template.Labels
+		suite.Require().Equal("true", templateLabels["nuclio-test/default-pod-label"])
+		suite.Require().Equal("function", templateLabels["nuclio-test/overridden"])
+
+		// the defaults never reach the immutable selector
+		suite.Require().NotContains(deploymentInstance.Spec.Selector.MatchLabels, "nuclio-test/default-pod-label")
+		suite.Require().Equal("function", deploymentInstance.Spec.Selector.MatchLabels["nuclio-test/overridden"])
+
+		pods := suite.GetFunctionPods(functionName)
+		suite.Require().NotEmpty(pods)
+		for _, pod := range pods {
+			suite.Require().Equal("true", pod.Labels["nuclio-test/default-pod-label"])
+			suite.Require().Equal("function", pod.Labels["nuclio-test/overridden"])
+		}
+
+		suite.PlatformConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
+			"nuclio-test/default-pod-label": "true",
+			"nuclio-test/overridden":        "platform",
+			"nuclio-test/added-later":       "true",
+		}
+		return true
+	}
+
+	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		deploymentInstance := &appsv1.Deployment{}
+		suite.GetResourceAndUnmarshal("deployment",
+			kube.DeploymentNameFromFunctionName(functionName),
+			deploymentInstance)
+
+		templateLabels := deploymentInstance.Spec.Template.Labels
+		suite.Require().Equal("true", templateLabels["nuclio-test/added-later"])
+		suite.Require().Equal("true", templateLabels["nuclio-test/default-pod-label"])
+		suite.Require().Equal("function", templateLabels["nuclio-test/overridden"])
+		suite.Require().NotContains(deploymentInstance.Spec.Selector.MatchLabels, "nuclio-test/added-later")
+		return true
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
+}
+
 func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	functionName := "min-max-replicas"
 	two := 2

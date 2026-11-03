@@ -1310,6 +1310,9 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
 			return nil, err
 		}
+
+		// done after the enrichment, which may add labels to the selector that the pod template must have too
+		lc.addDefaultFunctionPodLabels(&deployment.Spec.Template)
 		return lc.kubeClientSet.CreateDeployment(ctx, function.Namespace, deployment)
 	}
 
@@ -1348,6 +1351,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
+		lc.addDefaultFunctionPodLabels(&deployment.Spec.Template)
 		lc.populateDeploymentContainer(ctx, functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
@@ -2076,6 +2080,18 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) label
 	}
 
 	return result
+}
+
+// addDefaultFunctionPodLabels adds the platform default pod labels a function pod template is missing. Existing labels
+// are never overwritten nor removed, as the pod template must keep matching the immutable deployment selector. The
+// labels are replaced with a new set, so the defaults never reach the selector the pod template labels may alias
+func (lc *lazyClient) addDefaultFunctionPodLabels(podTemplate *v1.PodTemplateSpec) {
+	defaultPodLabels := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodLabels
+	if len(defaultPodLabels) == 0 {
+		return
+	}
+
+	podTemplate.Labels = labels.Merge(defaultPodLabels, podTemplate.Labels)
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
