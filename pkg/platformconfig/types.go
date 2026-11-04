@@ -265,6 +265,7 @@ type PlatformKubeConfig struct {
 	// TODO: Move IngressConfig here
 	DefaultServiceType                       corev1.ServiceType      `json:"defaultServiceType,omitempty"`
 	DefaultFunctionNodeSelector              map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultFunctionPodLabels                 map[string]string       `json:"defaultFunctionPodLabels,omitempty"`
 	DefaultHTTPIngressHostTemplate           string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
 	DefaultHTTPIngressAnnotations            map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
 	DefaultHTTPIngressClassName              string                  `json:"defaultHTTPIngressClassName,omitempty"`

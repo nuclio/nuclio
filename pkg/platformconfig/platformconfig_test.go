@@ -73,6 +73,8 @@ kube:
     effect: NoSchedule
   defaultFunctionNodeSelector:
     defaultFunctionNodeSelectorKey: defaultFunctionNodeSelectorValue
+  defaultFunctionPodLabels:
+    azure.workload.identity/use: "true"
 runtime:
   common:
     env:
@@ -164,6 +166,10 @@ metrics:
 
 	expectedConfiguration.Kube.DefaultFunctionNodeSelector = map[string]string{
 		"defaultFunctionNodeSelectorKey": "defaultFunctionNodeSelectorValue",
+	}
+
+	expectedConfiguration.Kube.DefaultFunctionPodLabels = map[string]string{
+		"azure.workload.identity/use": "true",
 	}
 
 	expectedConfiguration.Kube.DefaultFunctionTolerations = []corev1.Toleration{
@@ -1566,6 +1572,67 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigSignInURL() {
 				return
 			}
 			suite.Require().NoError(err)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultFunctionPodLabels() {
+	for _, testCase := range []struct {
+		name          string
+		podLabels     map[string]string
+		expectedError string
+	}{
+		{
+			name: "nil labels accepted",
+		},
+		{
+			name:      "valid prefixed label accepted",
+			podLabels: map[string]string{"azure.workload.identity/use": "true"},
+		},
+		{
+			name:      "empty value accepted",
+			podLabels: map[string]string{"some-label": ""},
+		},
+		{
+			name:      "subdomain of the reserved prefix accepted",
+			podLabels: map[string]string{"sub.nuclio.io/x": "y"},
+		},
+		{
+			name:          "invalid key rejected",
+			podLabels:     map[string]string{"bad key!": "value"},
+			expectedError: "Invalid key: bad key!",
+		},
+		{
+			name:          "invalid value rejected",
+			podLabels:     map[string]string{"some-label": "bad value!"},
+			expectedError: "Invalid value: bad value!",
+		},
+		{
+			name:          "nuclio function name key rejected",
+			podLabels:     map[string]string{common.NuclioResourceLabelKeyFunctionName: "x"},
+			expectedError: "Default function pod label key nuclio.io/function-name uses the reserved prefix",
+		},
+		{
+			name:          "any nuclio prefixed key rejected",
+			podLabels:     map[string]string{"nuclio.io/anything": "x"},
+			expectedError: "Default function pod label key nuclio.io/anything uses the reserved prefix",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			config := &Config{
+				RuntimeBaseImages: map[string]string{"test-runtime": "test-image"},
+				Kube: PlatformKubeConfig{
+					DefaultFunctionPodLabels: testCase.podLabels,
+				},
+			}
+
+			err := config.ValidatePlatformConfig()
+			if testCase.expectedError == "" {
+				suite.Require().NoError(err)
+				return
+			}
+			suite.Require().Error(err)
+			suite.Require().Contains(errors.GetErrorStackString(err, -1), testCase.expectedError)
 		})
 	}
 }
