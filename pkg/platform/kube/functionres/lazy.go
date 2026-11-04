@@ -1300,7 +1300,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        kube.DeploymentNameFromFunctionName(function.Name),
 				Namespace:   function.Namespace,
-				Labels:      functionLabels,
+				Labels:      lc.getDeploymentLabels(functionLabels),
 				Annotations: deploymentAnnotations,
 			},
 			Spec: deploymentSpec,
@@ -1351,6 +1351,14 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 		// done before the annotations, which record the default labels to remove, are replaced
 		lc.removeDefaultFunctionPodLabels(deployment)
+
+		// existing Deployments predate the component label, so set it here too; only this key, as the
+		// update path leaves the other Deployment labels untouched
+		if deployment.Labels == nil {
+			deployment.Labels = map[string]string{}
+		}
+		deployment.Labels[common.KubernetesLabelKeyComponent] = common.NuclioLabelValueFunctionComponent
+
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
@@ -2146,6 +2154,15 @@ func (lc *lazyClient) removeDefaultFunctionPodLabels(deployment *appsv1.Deployme
 		delete(podTemplateLabels, labelKey)
 	}
 	deployment.Spec.Template.Labels = podTemplateLabels
+}
+
+// getDeploymentLabels returns the labels of the function Deployment object itself: the function labels plus
+// the component label, overriding any user value. It returns a copy because functionLabels is also the
+// Deployment selector and the pod labels, and a selector cannot change on an existing Deployment.
+func (lc *lazyClient) getDeploymentLabels(functionLabels labels.Set) labels.Set {
+	return labels.Merge(functionLabels, labels.Set{
+		common.KubernetesLabelKeyComponent: common.NuclioLabelValueFunctionComponent,
+	})
 }
 
 func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[string]string, error) {
