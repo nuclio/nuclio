@@ -2112,6 +2112,12 @@ func (lc *lazyClient) addDefaultFunctionPodLabels(deployment *appsv1.Deployment,
 	if len(addedLabelKeys) == 0 {
 		return
 	}
+
+	// record which labels came from the defaults. The pod template alone can't tell them apart from the selector,
+	// function, augmented config or externally added labels, and a default removed from the platform configuration
+	// can't be derived from it anymore. Without this record, a later reconciliation couldn't remove or change a
+	// default on an existing function without risking the labels it doesn't own. kubectl apply keeps its
+	// last-applied-configuration annotation for the same reason
 	sort.Strings(addedLabelKeys)
 	if deployment.Annotations == nil {
 		deployment.Annotations = map[string]string{}
