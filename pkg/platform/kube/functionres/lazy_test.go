@@ -2594,7 +2594,11 @@ func (suite *lazyTestSuite) TestDefaultFunctionPodLabelsEmpty() {
 
 			deployment := suite.createOrUpdateFunctionDeployment(function)
 			suite.Require().Equal(deployment.Spec.Selector.MatchLabels, deployment.Spec.Template.Labels)
-			suite.Require().Equal(deployment.Labels, deployment.Spec.Template.Labels)
+
+			// the deployment object additionally carries the component label, which never reaches the pod template
+			suite.Require().Equal(map[string]string(labels.Merge(deployment.Spec.Template.Labels, labels.Set{
+				common.KubernetesLabelKeyComponent: common.NuclioLabelValueFunctionComponent,
+			})), deployment.Labels)
 		})
 	}
 }
@@ -2852,6 +2856,59 @@ func (suite *lazyTestSuite) createOrUpdateFunctionDeployment(function *nuclioio.
 	deployment, err := suite.createOrUpdateFunctionResources(function).Deployment()
 	suite.Require().NoError(err)
 	return deployment
+}
+
+func (suite *lazyTestSuite) TestDeploymentComponentLabel() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+	functionInstance.Labels = map[string]string{
+		common.KubernetesLabelKeyComponent: "user-component",
+	}
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+	service, err := resources.Service()
+	suite.Require().NoError(err)
+
+	// the Deployment object carries the component label, overriding the user value
+	suite.Require().Equal(common.NuclioLabelValueFunctionComponent,
+		deployment.Labels[common.KubernetesLabelKeyComponent])
+
+	// selectors and pod labels keep the function labels as they were
+	suite.Require().Equal("user-component",
+		deployment.Spec.Selector.MatchLabels[common.KubernetesLabelKeyComponent])
+	suite.Require().Equal("user-component",
+		deployment.Spec.Template.Labels[common.KubernetesLabelKeyComponent])
+	suite.Require().Equal("user-component",
+		service.Spec.Selector[common.KubernetesLabelKeyComponent])
+}
+
+func (suite *lazyTestSuite) TestDeploymentComponentLabelOnUpdate() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+	deployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	// simulate a Deployment created before the component label existed
+	delete(deployment.Labels, common.KubernetesLabelKeyComponent)
+	_, err = suite.kubeClientSet.AppsV1().
+		Deployments(deployment.Namespace).
+		Update(suite.ctx, deployment, metav1.UpdateOptions{})
+	suite.Require().NoError(err)
+	selectorBeforeUpdate := deployment.Spec.Selector.DeepCopy()
+
+	resources, err = suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+	updatedDeployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(common.NuclioLabelValueFunctionComponent,
+		updatedDeployment.Labels[common.KubernetesLabelKeyComponent])
+	suite.Require().Equal(selectorBeforeUpdate, updatedDeployment.Spec.Selector)
+	suite.Require().NotContains(updatedDeployment.Spec.Template.Labels, common.KubernetesLabelKeyComponent)
 }
 
 func TestLazyTestSuite(t *testing.T) {
