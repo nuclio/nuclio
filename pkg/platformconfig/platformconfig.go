@@ -454,6 +454,28 @@ func (c *Config) ValidatePlatformConfig() error {
 		return errors.Wrap(err, "Failed to validate default cron trigger service account")
 	}
 
+	if err := c.validateDefaultFunctionPodLabels(); err != nil {
+		return errors.Wrap(err, "Failed to validate default function pod labels")
+	}
+
+	return nil
+}
+
+// validateDefaultFunctionPodLabels validates the default function pod labels are valid kubernetes labels,
+// and that none of them uses a key reserved for nuclio
+func (c *Config) validateDefaultFunctionPodLabels() error {
+	if err := utils.ValidateLabels(c.Kube.DefaultFunctionPodLabels); err != nil {
+		return errors.Wrap(err, "Invalid default function pod labels")
+	}
+
+	for labelKey := range c.Kube.DefaultFunctionPodLabels {
+		if strings.HasPrefix(labelKey, common.NuclioLabelKeyPrefix) {
+			return errors.Errorf("Default function pod label key %s uses the reserved prefix %s",
+				labelKey,
+				common.NuclioLabelKeyPrefix)
+		}
+	}
+
 	return nil
 }
 

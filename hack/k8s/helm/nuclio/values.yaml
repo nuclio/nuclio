@@ -659,6 +659,8 @@ platform: {}
 #  kube:
 #    defaultFunctionNodeSelector:
 #      nodeLabelKey: nodeLabelValue
+#    defaultFunctionPodLabels:
+#      podLabelKey: podLabelValue
 #    defaultServiceType: ClusterIP
 #    defaultHTTPIngressHostTemplate: ""
 #    projectSecretTemplate: ""
