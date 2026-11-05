@@ -57,6 +57,11 @@ const NuclioLabelKeyMigrationPrefix = NuclioLabelKeyPrefix + "migration-"
 const NuclioLabelKeyMigrationFunctionAuth = NuclioLabelKeyMigrationPrefix + "function-auth"
 const NuclioLabelValueMigrationApplied = "true"
 
+// Kubernetes well-known labels, and the values Nuclio sets on them
+
+const KubernetesLabelKeyComponent = "app.kubernetes.io/component"
+const NuclioLabelValueFunctionComponent = "nuclio-function"
+
 // Nuclio Annotations
 
 const NuclioAnnotationKeyVersion = "nuclio.io/version"
