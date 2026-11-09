@@ -14,7 +14,8 @@
 #
 name: Dependabot Auto-Merge
 
-# Merges Dependabot patch updates once CI has passed on them.
+# Merges Dependabot updates once CI has passed on them: patch version updates, plus security updates
+# of the nodejs runtime (dev tooling only, fully covered by CI).
 #
 # Runs after every CI run and merges a PR only if:
 #   - CI succeeded on it,
@@ -43,11 +44,13 @@ jobs:
       github.event.workflow_run.pull_requests[0].base.ref == 'development' &&
       (
         startsWith(github.event.workflow_run.head_branch, 'dependabot/github_actions/github-actions-ci-patch-') ||
-        startsWith(github.event.workflow_run.head_branch, 'dependabot/npm_and_yarn/pkg/dashboard/ui/dashboard-ui-patch-')
+        startsWith(github.event.workflow_run.head_branch, 'dependabot/npm_and_yarn/pkg/dashboard/ui/dashboard-ui-patch-') ||
+        startsWith(github.event.workflow_run.head_branch, 'dependabot/npm_and_yarn/pkg/processor/runtime/nodejs/js/nodejs-runtime-security-')
       )
     env:
       PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
       TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
     steps:
       - name: Verify the PR is the tested Dependabot commit
         uses: actions/github-script@v9
@@ -56,7 +59,15 @@ jobs:
             const pull = { ...context.repo, pull_number: process.env.PR_NUMBER }
             const { data: pr } = await github.rest.pulls.get(pull)
             const { data: commits } = await github.rest.pulls.listCommits(pull)
+            const { data: files } = await github.rest.pulls.listFiles({ ...pull, per_page: 100 })
             const [commit] = commits
+
+            // the PR may only touch the dependency manifests of the branch's <ecosystem>/<directory>
+            const [, ecosystem, ...rest] = process.env.BRANCH.split('/')
+            const directory = rest.slice(0, -1).join('/')
+            const isManifest = ecosystem === 'github_actions'
+              ? (path) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(path)
+              : (path) => [`${directory}/package.json`, `${directory}/package-lock.json`].includes(path)
 
             const checks = {
               'open': pr.state === 'open',
@@ -65,6 +76,7 @@ jobs:
               'the commit tested by CI': pr.head.sha === process.env.TESTED_SHA,
               'authored by Dependabot': commit?.author?.login === 'dependabot[bot]',
               'with a verified signature': commit?.commit.verification.verified === true,
+              'changing only dependency manifests': files.length > 0 && files.every((file) => isManifest(file.filename)),
             }
 
             const failed = Object.keys(checks).filter((check) => !checks[check])

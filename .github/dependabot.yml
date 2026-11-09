@@ -88,6 +88,11 @@ updates:
       prefix: "[Dependabot] "
     # security updates only, no version updates
     open-pull-requests-limit: 0
+    groups:
+      nodejs-runtime-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       # eslint and its config/plugins must be upgraded together; separate bumps break npm install
       - dependency-name: "eslint*"
