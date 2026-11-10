@@ -69,7 +69,7 @@ func validateReverseProxyConfiguration(config *Config) error {
 		if config.FunctionConfigPath == "" {
 			return errors.New("Function config path must be provided for 'basicAuth' authentication mode")
 		}
-	case auth.AuthenticationModeNone, "":
+	case auth.AuthenticationModeNone, auth.AuthenticationModeExternal, "":
 		// no additional requirements
 	default:
 		return errors.Errorf("Unknown authentication mode: %s", config.AuthMode)
