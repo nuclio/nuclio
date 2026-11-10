@@ -64,11 +64,22 @@ func (suite *AuthProxyTestSuite) SetupTest() {
 // TestModeNoneAllows verifies none mode admits without calling the auth-url.
 // validateConfiguration permits an empty authURL for ModeNone, so the test reflects that.
 func (suite *AuthProxyTestSuite) TestModeNoneAllows() {
-	authenticator, err := NewReverseProxyAuthenticator(suite.logger, "", "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, "", "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone}, nil)
 	suite.Require().NoError(err)
 
 	recorder := httptest.NewRecorder()
 	suite.Require().True(authenticator.Authenticate(recorder, suite.authenticatedRequest("")))
+}
+
+// TestExternalModeRequiresIssuerConfigReloader verifies external mode cannot be created without a reloader.
+func (suite *AuthProxyTestSuite) TestExternalModeRequiresIssuerConfigReloader() {
+	_, err := NewReverseProxyAuthenticator(suite.logger,
+		"",
+		"",
+		auth.KindIguazioV4,
+		auth.FunctionAuthConfig{Mode: auth.AuthenticationModeExternal},
+		nil)
+	suite.Require().Error(err)
 }
 
 // TestModeAPI verifies api mode: valid credential is admitted (with identity headers), invalid/missing is 401.
@@ -76,7 +87,7 @@ func (suite *AuthProxyTestSuite) TestModeAPI() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI}, nil)
 	suite.Require().NoError(err)
 
 	suite.Run("valid is admitted with identity headers", func() {
@@ -107,7 +118,7 @@ func (suite *AuthProxyTestSuite) TestModeBrowser() {
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, testSigninURL, auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeBrowser})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, testSigninURL, auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeBrowser}, nil)
 	suite.Require().NoError(err)
 
 	suite.Run("invalid redirects to sign-in with rd", func() {
@@ -148,7 +159,8 @@ func (suite *AuthProxyTestSuite) TestModeBasicAuth() {
 		"",
 		"",
 		auth.KindIguazioV4,
-		auth.FunctionAuthConfig{Mode: auth.AuthenticationModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"})
+		auth.FunctionAuthConfig{Mode: auth.AuthenticationModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"},
+		nil)
 	suite.Require().NoError(err)
 
 	suite.Run("valid credentials admitted locally", func() {
@@ -173,7 +185,7 @@ func (suite *AuthProxyTestSuite) TestAuthenticatorKindForwardedAndCannotBypass()
 	stub := suite.newAuthURLStub()
 	defer stub.close()
 
-	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI})
+	authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI}, nil)
 	suite.Require().NoError(err)
 
 	suite.Run("kind forwarded on valid credential", func() {
@@ -201,7 +213,7 @@ func (suite *AuthProxyTestSuite) TestFailClosedOnUpstreamError() {
 		}))
 		defer errorServer.Close()
 
-		authenticator, err := NewReverseProxyAuthenticator(suite.logger, errorServer.URL, "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI})
+		authenticator, err := NewReverseProxyAuthenticator(suite.logger, errorServer.URL, "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI}, nil)
 		suite.Require().NoError(err)
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
@@ -211,7 +223,7 @@ func (suite *AuthProxyTestSuite) TestFailClosedOnUpstreamError() {
 	suite.Run("transport error to auth-url", func() {
 
 		// nothing is listening here -> connection refused
-		authenticator, err := NewReverseProxyAuthenticator(suite.logger, "http://127.0.0.1:1", "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI})
+		authenticator, err := NewReverseProxyAuthenticator(suite.logger, "http://127.0.0.1:1", "", auth.KindIguazioV4, auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI}, nil)
 		suite.Require().NoError(err)
 		recorder := httptest.NewRecorder()
 		suite.Require().False(authenticator.Authenticate(recorder, suite.authenticatedRequest(validToken)))
