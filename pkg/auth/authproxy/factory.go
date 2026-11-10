@@ -18,6 +18,7 @@ package authproxy
 
 import (
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
 	"github.com/nuclio/nuclio/pkg/common"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
@@ -27,7 +28,7 @@ import (
 )
 
 // NewAuthenticator creates the topology-appropriate Authenticator. For reverseProxy mode,
-// staticAuthConfig is used and the kube parameters are ignored. For authOnly mode,
+// staticAuthConfig and issuerConfigReloader are used and the kube parameters are ignored. For authOnly mode,
 // nuclioClientSet, kubeClientSet, and namespace are required.
 func NewAuthenticator(
 	parentLogger logger.Logger,
@@ -36,12 +37,13 @@ func NewAuthenticator(
 	signinURL string,
 	authKind auth.Kind,
 	staticAuthConfig auth.FunctionAuthConfig,
+	issuerConfigReloader *jwtvalidator.IssuerConfigReloader,
 	kubeconfigPath string,
 	namespace string,
 ) (Authenticator, error) {
 	switch mode {
 	case auth.ProxyModeReverseProxy:
-		return NewReverseProxyAuthenticator(parentLogger, authURL, signinURL, authKind, staticAuthConfig)
+		return NewReverseProxyAuthenticator(parentLogger, authURL, signinURL, authKind, staticAuthConfig, issuerConfigReloader)
 	case auth.ProxyModeAuthOnly:
 		clientConfig, err := common.GetClientConfig(kubeconfigPath)
 		if err != nil {

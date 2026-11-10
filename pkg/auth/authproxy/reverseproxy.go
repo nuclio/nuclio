@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -30,7 +31,8 @@ import (
 // rendered into the pod once (per function), so every request uses the same resolved FunctionAuthConfig.
 type reverseProxyAuthenticator struct {
 	*abstractAuthenticator
-	authConfig auth.FunctionAuthConfig
+	authConfig           auth.FunctionAuthConfig
+	issuerConfigReloader *jwtvalidator.IssuerConfigReloader // set only in external mode
 }
 
 // NewReverseProxyAuthenticator creates an Authenticator with a fixed FunctionAuthConfig (function-pod topology).
@@ -38,8 +40,13 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	authURL string,
 	signinURL string,
 	authKind auth.Kind,
-	authConfig auth.FunctionAuthConfig) (Authenticator, error) {
+	authConfig auth.FunctionAuthConfig,
+	issuerConfigReloader *jwtvalidator.IssuerConfigReloader) (Authenticator, error) {
 	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authMode", authConfig.Mode)
+
+	if authConfig.Mode == auth.AuthenticationModeExternal && issuerConfigReloader == nil {
+		return nil, errors.New("Issuer config reloader must be provided for 'external' authentication mode")
+	}
 
 	// If basicAuth is configured, the plaintext password is hashed with bcrypt and discarded so it is never held in memory
 	if authConfig.BasicAuthPassword != "" {
@@ -57,9 +64,15 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	return &reverseProxyAuthenticator{
 		abstractAuthenticator: abstract,
 		authConfig:            authConfig,
+		issuerConfigReloader:  issuerConfigReloader,
 	}, nil
 }
 
 func (a *reverseProxyAuthenticator) Authenticate(responseWriter http.ResponseWriter, request *http.Request) bool {
+	// refresh the issuer entry from the mounted issuer.json file
+	if a.authConfig.Mode == auth.AuthenticationModeExternal {
+		a.issuerConfigReloader.Refresh(request.Context())
+	}
+
 	return a.decide(responseWriter, request, a.authConfig)
 }
