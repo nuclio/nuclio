@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package jwtvalidator validates JWTs issued by an external identity provider for the auth-proxy sidecar.
-package jwtvalidator
+// Package issuerconfig loads the trusted issuer entry (issuer.json) mounted into the auth-proxy sidecar
+// and reloads it when it changes.
+package issuerconfig
 
 import (
 	"context"
@@ -32,50 +33,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IssuerConfig is the content of issuer.json. The issuer name is not part of the file.
-type IssuerConfig struct {
+// DefaultIdentityClaim is the token claim used as the caller identity when issuer.json sets none.
+const DefaultIdentityClaim = "sub"
+
+// Config is the content of issuer.json. The issuer name is not part of the file.
+type Config struct {
 	IssuerURL     string          `json:"issuer_url"`
 	JWKSURL       string          `json:"jwks_url,omitempty"`
 	Audiences     []string        `json:"audiences,omitempty"`
-	IdentityClaim string          `json:"identity_claim,omitempty"` // default "sub"
+	IdentityClaim string          `json:"identity_claim,omitempty"`
 	JWKSCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
 }
 
-// IssuerConfigReloader holds the issuer entry loaded from the mounted issuer file and picks up changes on request,
-// with no goroutine: a request checks the file at most once per check interval.
-type IssuerConfigReloader struct {
-	logger        logger.Logger
-	path          string
-	checkInterval time.Duration
-
-	current     atomic.Pointer[IssuerConfig]
-	lastChecked atomic.Int64 // unix nanoseconds
-
-	// guards the fields below; held only by the request that won the check
-	mutex       sync.Mutex
-	checkedInfo os.FileInfo
-}
-
-// NewIssuerConfigReloader creates the reloader and tries one load. A missing or invalid file is not an error
-// here: it is logged, and the file is picked up by a later Refresh once it is valid.
-func NewIssuerConfigReloader(ctx context.Context,
-	parentLogger logger.Logger,
-	path string,
-	checkInterval time.Duration) *IssuerConfigReloader {
-
-	reloader := &IssuerConfigReloader{
-		logger:        parentLogger.GetChild("issuer-config-reloader"),
-		path:          path,
-		checkInterval: checkInterval,
-	}
-
-	reloader.lastChecked.Store(time.Now().UnixNano())
-	reloader.reload(ctx)
-	return reloader
-}
-
 // Validate checks that the URLs are absolute https URLs.
-func (c *IssuerConfig) Validate() error {
+func (c *Config) Validate() error {
 	if err := validateHTTPSURL(c.IssuerURL); err != nil {
 		return errors.Wrap(err, "Invalid issuer_url")
 	}
@@ -89,58 +60,91 @@ func (c *IssuerConfig) Validate() error {
 	return nil
 }
 
+// Reloader holds the issuer entry loaded from the mounted issuer file and picks up changes on request,
+// with no goroutine: a request checks the file at most once per check interval.
+type Reloader struct {
+	logger        logger.Logger
+	path          string
+	checkInterval time.Duration
+
+	current     atomic.Pointer[Config]
+	lastChecked atomic.Int64 // unix nanoseconds
+
+	// guards the fields below; held only by the request that won the check
+	mutex       sync.Mutex
+	checkedInfo os.FileInfo
+}
+
+// NewReloader creates the reloader and tries one load. A missing or invalid file is not an error
+// here: it is logged, and the file is picked up by a later Refresh once it is valid.
+func NewReloader(ctx context.Context,
+	parentLogger logger.Logger,
+	path string,
+	checkInterval time.Duration) *Reloader {
+
+	reloader := &Reloader{
+		logger:        parentLogger.GetChild("issuer-config-reloader"),
+		path:          path,
+		checkInterval: checkInterval,
+	}
+
+	reloader.lastChecked.Store(time.Now().UnixNano())
+	reloader.reload(ctx)
+	return reloader
+}
+
 // Get returns the current issuer entry, or nil when no valid file was loaded yet. The entry is never
 // modified after it is published, so a request keeps using the one it got.
-func (s *IssuerConfigReloader) Get() *IssuerConfig {
-	return s.current.Load()
+func (r *Reloader) Get() *Config {
+	return r.current.Load()
 }
 
 // Refresh reloads the file when it changed. It returns at once unless the check interval has passed, and
 // only one concurrent caller does the check.
-func (s *IssuerConfigReloader) Refresh(ctx context.Context) {
+func (r *Reloader) Refresh(ctx context.Context) {
 	now := time.Now().UnixNano()
-	last := s.lastChecked.Load()
-	if now-last < s.checkInterval.Nanoseconds() {
+	last := r.lastChecked.Load()
+	if now-last < r.checkInterval.Nanoseconds() {
 		return
 	}
-	if !s.lastChecked.CompareAndSwap(last, now) {
+	if !r.lastChecked.CompareAndSwap(last, now) {
 		return
 	}
 
-	s.reload(ctx)
+	r.reload(ctx)
 }
 
-func (s *IssuerConfigReloader) reload(ctx context.Context) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (r *Reloader) reload(ctx context.Context) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	// the kubelet swaps the ..data symlink to publish a new version, which makes the path resolve to a
 	// different file, so comparing the file identity and its modification time sees every update
-	info, err := os.Stat(s.path)
+	info, err := os.Stat(r.path)
 	if err != nil {
-		s.logger.WarnWithCtx(ctx, "Failed to stat issuer entry", "path", s.path, "err", err.Error())
+		r.logger.WarnWithCtx(ctx, "Failed to stat issuer entry", "path", r.path, "err", err.Error())
 		return
 	}
 
-	if s.checkedInfo != nil && os.SameFile(s.checkedInfo, info) && s.checkedInfo.ModTime().Equal(info.ModTime()) {
+	if r.checkedInfo != nil && os.SameFile(r.checkedInfo, info) && r.checkedInfo.ModTime().Equal(info.ModTime()) {
 		return
 	}
 
-	content, err := os.ReadFile(s.path)
+	content, err := os.ReadFile(r.path)
 	if err != nil {
-		s.logger.WarnWithCtx(ctx, "Failed to read issuer entry", "path", s.path, "err", err.Error())
+		r.logger.WarnWithCtx(ctx, "Failed to read issuer entry", "path", r.path, "err", err.Error())
 		return
 	}
-	s.checkedInfo = info
+	r.checkedInfo = info
 
-	issuerConfig, err := parseIssuerConfig(content)
+	config, err := parseConfig(content)
 	if err != nil {
-		s.logger.WarnWithCtx(ctx, "Issuer entry rejected, keeping last good", "path", s.path, "err", err.Error())
+		r.logger.WarnWithCtx(ctx, "Issuer entry rejected, keeping last good", "path", r.path, "err", err.Error())
 		return
 	}
 
-	previous := s.current.Load()
-	changed := changedFields(previous, issuerConfig)
+	previous := r.current.Load()
+	changed := changedFields(previous, config)
 
 	// a new file can hold the same entry, e.g. a ConfigMap re-applied with the same values but different
 	// whitespace or key order: `{"issuer_url":"https://idp"}` vs `{ "issuer_url": "https://idp" }`
@@ -149,32 +153,36 @@ func (s *IssuerConfigReloader) reload(ctx context.Context) {
 	}
 
 	if previous == nil {
-		s.logger.InfoWithCtx(ctx, "Issuer entry loaded", "fields", changed)
+		r.logger.InfoWithCtx(ctx, "Issuer entry loaded", "fields", changed)
 	} else {
-		s.logger.InfoWithCtx(ctx, "Issuer entry reloaded", "changedFields", changed)
+		r.logger.InfoWithCtx(ctx, "Issuer entry reloaded", "changedFields", changed)
 	}
 
-	s.current.Store(issuerConfig)
+	r.current.Store(config)
 }
 
-func parseIssuerConfig(content []byte) (*IssuerConfig, error) {
-	issuerConfig := &IssuerConfig{}
-	if err := json.Unmarshal(content, issuerConfig); err != nil {
+func parseConfig(content []byte) (*Config, error) {
+	config := &Config{}
+	if err := json.Unmarshal(content, config); err != nil {
 		return nil, errors.Wrap(err, "Failed to parse issuer entry")
 	}
 
-	if err := issuerConfig.Validate(); err != nil {
+	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate issuer entry")
 	}
 
-	return issuerConfig, nil
+	if config.IdentityClaim == "" {
+		config.IdentityClaim = DefaultIdentityClaim
+	}
+
+	return config, nil
 }
 
 // changedFields maps the JSON name of each field that differs to its new value. A nil previous (the first
 // load) is compared as an empty entry, so every field that is set is listed.
-func changedFields(previous, current *IssuerConfig) map[string]interface{} {
+func changedFields(previous, current *Config) map[string]interface{} {
 	if previous == nil {
-		previous = &IssuerConfig{}
+		previous = &Config{}
 	}
 
 	changed := map[string]interface{}{}

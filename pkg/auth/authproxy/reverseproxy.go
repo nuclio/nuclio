@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
+	"github.com/nuclio/nuclio/pkg/auth/issuerconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -32,7 +32,7 @@ import (
 type reverseProxyAuthenticator struct {
 	*abstractAuthenticator
 	authConfig           auth.FunctionAuthConfig
-	issuerConfigReloader *jwtvalidator.IssuerConfigReloader // set only in external mode
+	issuerConfigReloader *issuerconfig.Reloader // set only in external mode
 }
 
 // NewReverseProxyAuthenticator creates an Authenticator with a fixed FunctionAuthConfig (function-pod topology).
@@ -41,7 +41,7 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	signinURL string,
 	authKind auth.Kind,
 	authConfig auth.FunctionAuthConfig,
-	issuerConfigReloader *jwtvalidator.IssuerConfigReloader) (Authenticator, error) {
+	issuerConfigReloader *issuerconfig.Reloader) (Authenticator, error) {
 	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authMode", authConfig.Mode)
 
 	if authConfig.Mode == auth.AuthenticationModeExternal && issuerConfigReloader == nil {

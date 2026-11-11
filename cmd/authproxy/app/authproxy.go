@@ -21,7 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
-	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
+	"github.com/nuclio/nuclio/pkg/auth/issuerconfig"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
@@ -96,12 +96,12 @@ func newAuthenticator(rootLogger logger.Logger,
 	}
 
 	// only an external-mode function has an issuer file
-	var issuerConfigReloader *jwtvalidator.IssuerConfigReloader
+	var issuerConfigReloader *issuerconfig.Reloader
 	if auth.AuthenticationMode(config.AuthMode) == auth.AuthenticationModeExternal {
-		issuerConfigReloader = jwtvalidator.NewIssuerConfigReloader(context.Background(),
+		issuerConfigReloader = issuerconfig.NewReloader(context.Background(),
 			rootLogger,
 			config.IssuerConfigPath,
-			platformConfiguration.Authentication.GetIssuerCheckInterval())
+			platformConfiguration.Authentication.GetIssuerPollInterval())
 	}
 
 	return authproxy.NewAuthenticator(rootLogger,

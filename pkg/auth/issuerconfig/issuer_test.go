@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package jwtvalidator
+package issuerconfig
 
 import (
 	"testing"
@@ -27,27 +27,43 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type IssuerConfigTestSuite struct {
+type ConfigTestSuite struct {
 	suite.Suite
 }
 
-func (suite *IssuerConfigTestSuite) TestParseIssuerConfig() {
+func (suite *ConfigTestSuite) TestParseConfig() {
 	for _, testCase := range []struct {
-		name          string
-		content       string
-		expectedError string
-		expectedTTL   time.Duration
+		name                  string
+		content               string
+		expectedError         string
+		expectedTTL           time.Duration
+		expectedIdentityClaim string
 	}{
-		{name: "minimal", content: `{"issuer_url": "https://idp.example.com"}`},
+		{name: "minimal gets default identity claim", content: `{"issuer_url": "https://idp.example.com"}`, expectedIdentityClaim: "sub"},
 		{
 			name: "all fields",
 			content: `{"issuer_url": "https://idp.example.com", "jwks_url": "https://idp.example.com/keys",
 				"audiences": ["a", "b"], "identity_claim": "email", "jwks_cache_ttl": "1h"}`,
-			expectedTTL: time.Hour,
+			expectedTTL:           time.Hour,
+			expectedIdentityClaim: "email",
 		},
-		{name: "seconds", content: `{"issuer_url": "https://idp.example.com", "jwks_cache_ttl": "30s"}`, expectedTTL: 30 * time.Second},
-		{name: "ttl value is not validated", content: `{"issuer_url": "https://idp.example.com", "jwks_cache_ttl": "-1m"}`, expectedTTL: -time.Minute},
-		{name: "unknown field is ignored", content: `{"issuer_url": "https://idp.example.com", "extra": 1}`},
+		{
+			name:                  "seconds",
+			content:               `{"issuer_url": "https://idp.example.com", "jwks_cache_ttl": "30s"}`,
+			expectedTTL:           30 * time.Second,
+			expectedIdentityClaim: "sub",
+		},
+		{
+			name:                  "ttl value is not validated",
+			content:               `{"issuer_url": "https://idp.example.com", "jwks_cache_ttl": "-1m"}`,
+			expectedTTL:           -time.Minute,
+			expectedIdentityClaim: "sub",
+		},
+		{
+			name:                  "unknown field is ignored",
+			content:               `{"issuer_url": "https://idp.example.com", "extra": 1}`,
+			expectedIdentityClaim: "sub",
+		},
 		{name: "missing issuer url", content: `{}`, expectedError: "Invalid issuer_url"},
 		{name: "http issuer url", content: `{"issuer_url": "http://idp.example.com"}`, expectedError: "Invalid issuer_url"},
 		{name: "relative issuer url", content: `{"issuer_url": "/realms/test"}`, expectedError: "Invalid issuer_url"},
@@ -69,20 +85,21 @@ func (suite *IssuerConfigTestSuite) TestParseIssuerConfig() {
 		{name: "not json", content: `issuer`, expectedError: "Failed to parse issuer entry"},
 	} {
 		suite.Run(testCase.name, func() {
-			issuerConfig, err := parseIssuerConfig([]byte(testCase.content))
+			config, err := parseConfig([]byte(testCase.content))
 			if testCase.expectedError != "" {
 				suite.Require().Error(err)
 				suite.Require().Contains(errors.GetErrorStackString(err, -1), testCase.expectedError)
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Require().Equal(testCase.expectedTTL, issuerConfig.JWKSCacheTTL.Duration)
+			suite.Require().Equal(testCase.expectedTTL, config.JWKSCacheTTL.Duration)
+			suite.Require().Equal(testCase.expectedIdentityClaim, config.IdentityClaim)
 		})
 	}
 }
 
-func (suite *IssuerConfigTestSuite) TestChangedFields() {
-	base := &IssuerConfig{
+func (suite *ConfigTestSuite) TestChangedFields() {
+	base := &Config{
 		IssuerURL:     "https://a.example.com",
 		JWKSURL:       "https://a.example.com/keys",
 		Audiences:     []string{"a"},
@@ -92,14 +109,14 @@ func (suite *IssuerConfigTestSuite) TestChangedFields() {
 
 	for _, testCase := range []struct {
 		name     string
-		previous *IssuerConfig
-		current  *IssuerConfig
+		previous *Config
+		current  *Config
 		expected map[string]interface{}
 	}{
 		{
 			name:     "nothing changed",
 			previous: base,
-			current: &IssuerConfig{
+			current: &Config{
 				IssuerURL:     "https://a.example.com",
 				JWKSURL:       "https://a.example.com/keys",
 				Audiences:     []string{"a"},
@@ -111,7 +128,7 @@ func (suite *IssuerConfigTestSuite) TestChangedFields() {
 		{
 			name:     "everything changed",
 			previous: base,
-			current: &IssuerConfig{
+			current: &Config{
 				IssuerURL:     "https://b.example.com",
 				JWKSURL:       "https://b.example.com/keys",
 				Audiences:     []string{"b"},
@@ -129,7 +146,7 @@ func (suite *IssuerConfigTestSuite) TestChangedFields() {
 		{
 			name:     "no previous lists the fields that are set",
 			previous: nil,
-			current:  &IssuerConfig{IssuerURL: "https://a.example.com", Audiences: []string{"a"}},
+			current:  &Config{IssuerURL: "https://a.example.com", Audiences: []string{"a"}},
 			expected: map[string]interface{}{
 				"issuer_url": "https://a.example.com",
 				"audiences":  []string{"a"},
@@ -137,8 +154,8 @@ func (suite *IssuerConfigTestSuite) TestChangedFields() {
 		},
 		{
 			name:     "empty and missing audiences are the same",
-			previous: &IssuerConfig{},
-			current:  &IssuerConfig{Audiences: []string{}},
+			previous: &Config{},
+			current:  &Config{Audiences: []string{}},
 			expected: map[string]interface{}{},
 		},
 	} {
@@ -148,6 +165,6 @@ func (suite *IssuerConfigTestSuite) TestChangedFields() {
 	}
 }
 
-func TestIssuerConfigTestSuite(t *testing.T) {
-	suite.Run(t, new(IssuerConfigTestSuite))
+func TestConfigTestSuite(t *testing.T) {
+	suite.Run(t, new(ConfigTestSuite))
 }
