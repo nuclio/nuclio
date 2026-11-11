@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package issuerconfig loads the trusted issuer entry (issuer.json) mounted into the auth-proxy sidecar
+// Package configReloader loads the trusted issuer entry (issuer.json) mounted into the auth-proxy sidecar
 // and reloads it when it changes.
-package issuerconfig
+package configReloader
 
 import (
 	"context"

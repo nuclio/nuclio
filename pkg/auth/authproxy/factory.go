@@ -18,7 +18,7 @@ package authproxy
 
 import (
 	"github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/auth/issuerconfig"
+	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 	"github.com/nuclio/nuclio/pkg/common"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
@@ -37,7 +37,7 @@ func NewAuthenticator(
 	signinURL string,
 	authKind auth.Kind,
 	staticAuthConfig auth.FunctionAuthConfig,
-	issuerConfigReloader *issuerconfig.Reloader,
+	issuerConfigReloader *configReloader.Reloader,
 	kubeconfigPath string,
 	namespace string,
 ) (Authenticator, error) {

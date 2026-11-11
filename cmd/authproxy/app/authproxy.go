@@ -21,7 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
-	"github.com/nuclio/nuclio/pkg/auth/issuerconfig"
+	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
@@ -96,9 +96,9 @@ func newAuthenticator(rootLogger logger.Logger,
 	}
 
 	// only an external-mode function has an issuer file
-	var issuerConfigReloader *issuerconfig.Reloader
+	var issuerConfigReloader *configReloader.Reloader
 	if auth.AuthenticationMode(config.AuthMode) == auth.AuthenticationModeExternal {
-		issuerConfigReloader, err = issuerconfig.NewReloader(context.Background(),
+		issuerConfigReloader, err = configReloader.NewReloader(context.Background(),
 			rootLogger,
 			config.IssuerConfigPath,
 			platformConfiguration.Authentication.GetIssuerPollInterval())
