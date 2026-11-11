@@ -75,12 +75,11 @@ type Reloader struct {
 	checkedInfo os.FileInfo
 }
 
-// NewReloader creates the reloader and tries one load. A missing or invalid file is not an error
-// here: it is logged, and the file is picked up by a later Refresh once it is valid.
+// NewReloader creates the reloader and loads the file once
 func NewReloader(ctx context.Context,
 	parentLogger logger.Logger,
 	path string,
-	checkInterval time.Duration) *Reloader {
+	checkInterval time.Duration) (*Reloader, error) {
 
 	reloader := &Reloader{
 		logger:        parentLogger.GetChild("issuer-config-reloader"),
@@ -89,8 +88,10 @@ func NewReloader(ctx context.Context,
 	}
 
 	reloader.lastChecked.Store(time.Now().UnixNano())
-	reloader.reload(ctx)
-	return reloader
+	if err := reloader.reload(ctx); err != nil {
+		return nil, errors.Wrap(err, "Failed to load issuer entry")
+	}
+	return reloader, nil
 }
 
 // Get returns the current issuer entry, or nil when no valid file was loaded yet. The entry is never
@@ -111,10 +112,13 @@ func (r *Reloader) Refresh(ctx context.Context) {
 		return
 	}
 
-	r.reload(ctx)
+	if err := r.reload(ctx); err != nil {
+		r.logger.WarnWithCtx(ctx, "Failed to reload issuer entry, keeping last good",
+			"err", errors.GetErrorStackString(err, -1))
+	}
 }
 
-func (r *Reloader) reload(ctx context.Context) {
+func (r *Reloader) reload(ctx context.Context) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -122,25 +126,22 @@ func (r *Reloader) reload(ctx context.Context) {
 	// different file, so comparing the file identity and its modification time sees every update
 	info, err := os.Stat(r.path)
 	if err != nil {
-		r.logger.WarnWithCtx(ctx, "Failed to stat issuer entry", "path", r.path, "err", err.Error())
-		return
+		return errors.Wrapf(err, "Failed to stat issuer entry '%s'", r.path)
 	}
 
 	if r.checkedInfo != nil && os.SameFile(r.checkedInfo, info) && r.checkedInfo.ModTime().Equal(info.ModTime()) {
-		return
+		return nil
 	}
 
 	content, err := os.ReadFile(r.path)
 	if err != nil {
-		r.logger.WarnWithCtx(ctx, "Failed to read issuer entry", "path", r.path, "err", err.Error())
-		return
+		return errors.Wrapf(err, "Failed to read issuer entry '%s'", r.path)
 	}
 	r.checkedInfo = info
 
 	config, err := parseConfig(content)
 	if err != nil {
-		r.logger.WarnWithCtx(ctx, "Issuer entry rejected, keeping last good", "path", r.path, "err", err.Error())
-		return
+		return errors.Wrapf(err, "Invalid issuer entry '%s'", r.path)
 	}
 
 	previous := r.current.Load()
@@ -149,7 +150,7 @@ func (r *Reloader) reload(ctx context.Context) {
 	// a new file can hold the same entry, e.g. a ConfigMap re-applied with the same values but different
 	// whitespace or key order: `{"issuer_url":"https://idp"}` vs `{ "issuer_url": "https://idp" }`
 	if previous != nil && len(changed) == 0 {
-		return
+		return nil
 	}
 
 	if previous == nil {
@@ -159,6 +160,7 @@ func (r *Reloader) reload(ctx context.Context) {
 	}
 
 	r.current.Store(config)
+	return nil
 }
 
 func parseConfig(content []byte) (*Config, error) {

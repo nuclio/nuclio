@@ -98,10 +98,14 @@ func newAuthenticator(rootLogger logger.Logger,
 	// only an external-mode function has an issuer file
 	var issuerConfigReloader *issuerconfig.Reloader
 	if auth.AuthenticationMode(config.AuthMode) == auth.AuthenticationModeExternal {
-		issuerConfigReloader = issuerconfig.NewReloader(context.Background(),
+		issuerConfigReloader, err = issuerconfig.NewReloader(context.Background(),
 			rootLogger,
 			config.IssuerConfigPath,
 			platformConfiguration.Authentication.GetIssuerPollInterval())
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create issuer config reloader")
+		}
 	}
 
 	return authproxy.NewAuthenticator(rootLogger,
