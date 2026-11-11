@@ -32,9 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IssuerConfigPath is where the sidecar finds the issuer entry; the kubelet keeps the mounted file up to date.
-const IssuerConfigPath = "/etc/nuclio/config/issuer/issuer.json"
-
 // IssuerConfig is the content of issuer.json. The issuer name is not part of the file.
 type IssuerConfig struct {
 	IssuerURL     string          `json:"issuer_url"`
@@ -44,7 +41,7 @@ type IssuerConfig struct {
 	JWKSCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
 }
 
-// IssuerConfigReloader holds the issuer entry loaded from IssuerConfigPath and picks up changes on request,
+// IssuerConfigReloader holds the issuer entry loaded from the mounted issuer file and picks up changes on request,
 // with no goroutine: a request checks the file at most once per check interval.
 type IssuerConfigReloader struct {
 	logger        logger.Logger

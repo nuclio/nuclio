@@ -100,7 +100,7 @@ func newAuthenticator(rootLogger logger.Logger,
 	if auth.AuthenticationMode(config.AuthMode) == auth.AuthenticationModeExternal {
 		issuerConfigReloader = jwtvalidator.NewIssuerConfigReloader(context.Background(),
 			rootLogger,
-			jwtvalidator.IssuerConfigPath,
+			config.IssuerConfigPath,
 			platformConfiguration.Authentication.GetIssuerCheckInterval())
 	}
 

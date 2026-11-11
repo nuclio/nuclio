@@ -31,6 +31,7 @@ type Config struct {
 	SigninURL          string            // the URL of the sign-in service to which requests are redirected for sign-in (browser mode only)
 	AuthMode           string
 	FunctionConfigPath string // path to the mounted function config; credentials are read from it when auth-mode=basicAuth
+	IssuerConfigPath   string // path to the mounted issuer file; read when auth-mode=external
 	Namespace          string
 	KubeconfigPath     string
 	PlatformConfigPath string
@@ -69,7 +70,11 @@ func validateReverseProxyConfiguration(config *Config) error {
 		if config.FunctionConfigPath == "" {
 			return errors.New("Function config path must be provided for 'basicAuth' authentication mode")
 		}
-	case auth.AuthenticationModeNone, auth.AuthenticationModeExternal, "":
+	case auth.AuthenticationModeExternal:
+		if config.IssuerConfigPath == "" {
+			return errors.New("Issuer config path must be provided for 'external' authentication mode")
+		}
+	case auth.AuthenticationModeNone, "":
 		// no additional requirements
 	default:
 		return errors.Errorf("Unknown authentication mode: %s", config.AuthMode)
