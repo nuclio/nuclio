@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.26.10
+go 1.26.11
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.6.0
@@ -18,7 +18,7 @@ require (
 	github.com/elastic/go-elasticsearch/v9 v9.3.4
 	github.com/fatih/color v1.19.0
 	github.com/fatih/structs v1.1.0
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-chi/cors v1.2.2
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gobuffalo/flect v1.0.3
@@ -62,7 +62,7 @@ require (
 	github.com/xdg-go/scram v1.2.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.47.0
-	golang.org/x/net v0.60.0
+	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.43.0
