@@ -2210,6 +2210,10 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.NuclioFunction
 		annotations[annotationKey] = annotationValue
 	}
 
+	annotations[common.NuclioAnnotationKeyReadinessTimeoutSeconds] = strconv.Itoa(
+		lc.platformConfigurationProvider.GetPlatformConfiguration().
+			GetFunctionReadinessTimeoutOrDefault(function.Spec.ReadinessTimeoutSeconds))
+
 	return annotations, nil
 }
 

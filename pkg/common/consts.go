@@ -70,6 +70,10 @@ const NuclioAnnotationKeyVersion = "nuclio.io/version"
 // deployment's pod template, so they can be removed or changed once the defaults change
 const NuclioAnnotationKeyDefaultFunctionPodLabels = "nuclio.io/default-function-pod-labels"
 
+// NuclioAnnotationKeyReadinessTimeoutSeconds holds a function's resolved readiness timeout on its deployment, so
+// external monitoring can tell a function that is still starting from one that failed to start
+const NuclioAnnotationKeyReadinessTimeoutSeconds = "nuclio.io/readiness-timeout-seconds"
+
 // KubernetesDomainLevelMaxLength DNS domain level limitation is 63 chars
 // https://en.wikipedia.org/wiki/Subdomain#Overview
 const KubernetesDomainLevelMaxLength = 63

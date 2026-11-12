@@ -2911,6 +2911,68 @@ func (suite *lazyTestSuite) TestDeploymentComponentLabelOnUpdate() {
 	suite.Require().NotContains(updatedDeployment.Spec.Template.Labels, common.KubernetesLabelKeyComponent)
 }
 
+func (suite *lazyTestSuite) TestDeploymentReadinessTimeoutAnnotation() {
+	for _, testCase := range []struct {
+		name                    string
+		readinessTimeoutSeconds int
+		functionAnnotations     map[string]string
+		expectedValue           string
+	}{
+		{
+			name:                    "function-timeout",
+			readinessTimeoutSeconds: 500,
+			expectedValue:           "500",
+		},
+		{
+			name:          "platform-default",
+			expectedValue: strconv.Itoa(platformconfig.DefaultFunctionReadinessTimeoutSeconds),
+		},
+		{
+			name:                    "user-annotation-overridden",
+			readinessTimeoutSeconds: 500,
+			functionAnnotations: map[string]string{
+				common.NuclioAnnotationKeyReadinessTimeoutSeconds: "1",
+			},
+			expectedValue: "500",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionInstance := suite.getFunctionInstanceWithDefaultProbes(testCase.name)
+			functionInstance.Spec.ReadinessTimeoutSeconds = testCase.readinessTimeoutSeconds
+			functionInstance.Annotations = testCase.functionAnnotations
+
+			resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+			suite.Require().NoError(err)
+			deployment, err := resources.Deployment()
+			suite.Require().NoError(err)
+
+			suite.Require().Equal(testCase.expectedValue,
+				deployment.Annotations[common.NuclioAnnotationKeyReadinessTimeoutSeconds])
+
+			// function annotations are also copied to the pod template, so only check it when there are none
+			if testCase.functionAnnotations == nil {
+				suite.Require().NotContains(deployment.Spec.Template.Annotations,
+					common.NuclioAnnotationKeyReadinessTimeoutSeconds)
+			}
+		})
+	}
+}
+
+func (suite *lazyTestSuite) TestDeploymentReadinessTimeoutAnnotationOnUpdate() {
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
+
+	_, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+
+	functionInstance.Spec.ReadinessTimeoutSeconds = 500
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+	updatedDeployment, err := resources.Deployment()
+	suite.Require().NoError(err)
+
+	suite.Require().Equal("500", updatedDeployment.Annotations[common.NuclioAnnotationKeyReadinessTimeoutSeconds])
+}
+
 func TestLazyTestSuite(t *testing.T) {
 	suite.Run(t, new(lazyTestSuite))
 }
