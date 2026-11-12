@@ -570,6 +570,9 @@ func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp
 	return sfc.SensitiveFieldsRegex
 }
 
+// DefaultIssuerPollInterval is used when IssuerPollInterval is empty or invalid.
+const DefaultIssuerPollInterval = 10 * time.Second
+
 // Authentication holds authentication-related platform configuration.
 type Authentication struct {
 
@@ -596,6 +599,10 @@ type Authentication struct {
 	// DefaultMode is the platform-wide default function-level authentication mode
 	// stamped onto an HTTP trigger when it does not set one explicitly.
 	DefaultMode auth.AuthenticationMode `json:"defaultMode,omitempty"`
+
+	// IssuerPollInterval is how often (e.g. "1s") the auth-proxy sidecar checks its issuer file for changes.
+	// Defaults to DefaultIssuerPollInterval when empty or invalid.
+	IssuerPollInterval string `json:"issuerPollInterval,omitempty"`
 }
 
 // GetAllowedFunctionAuthenticationModes returns the allowed function-level authentication modes.
@@ -610,4 +617,13 @@ func (a *Authentication) GetAllowedFunctionAuthenticationModes() []string {
 		string(auth.AuthenticationModeBrowser),
 		string(auth.AuthenticationModeBasicAuth),
 	}
+}
+
+// GetIssuerPollInterval returns the parsed IssuerPollInterval, or the default.
+func (a *Authentication) GetIssuerPollInterval() time.Duration {
+	interval, err := time.ParseDuration(a.IssuerPollInterval)
+	if err != nil || interval <= 0 {
+		return DefaultIssuerPollInterval
+	}
+	return interval
 }
