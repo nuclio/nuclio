@@ -36,8 +36,9 @@ import (
 // DefaultIdentityClaim is the token claim used as the caller identity when issuer.json sets none.
 const DefaultIdentityClaim = "sub"
 
-// Config is the content of issuer.json. The issuer name is not part of the file.
+// Config is the content of issuer.json.
 type Config struct {
+	IssuerName    string          `json:"issuer_name"` // used for X-Nuclio-Auth-Issuer
 	IssuerURL     string          `json:"issuer_url"`
 	JWKSURL       string          `json:"jwks_url,omitempty"`
 	Audiences     []string        `json:"audiences,omitempty"`
