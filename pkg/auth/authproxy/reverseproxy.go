@@ -60,11 +60,10 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 		authConfig.BasicAuthPasswordHash = hash
 		authConfig.BasicAuthPassword = ""
 	}
-	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind)
+	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind, jwtValidator)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create reverse-proxy authenticator")
 	}
-	abstract.jwtValidator = jwtValidator
 
 	return &reverseProxyAuthenticator{
 		abstractAuthenticator: abstract,

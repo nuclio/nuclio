@@ -320,7 +320,7 @@ func (suite *AuthProxyTestSuite) TestCRDAuthenticatorResolvesFunctionAuthConfig(
 
 // TestRejectBearer verifies a rejected external request is answered with 401, a bearer challenge and an empty body.
 func (suite *AuthProxyTestSuite) TestRejectBearer() {
-	abstract, err := newAbstractAuthenticator(suite.logger, "", "", auth.KindIguazioV4)
+	abstract, err := newAbstractAuthenticator(suite.logger, "", "", auth.KindIguazioV4, nil)
 	suite.Require().NoError(err)
 
 	recorder := httptest.NewRecorder()

@@ -57,18 +57,19 @@ func newAuthInstance(parentLogger logger.Logger, authURL string, authKind auth.K
 // abstractAuthenticator holds the shared authentication logic embedded by every topology. Given a resolved
 // auth.FunctionAuthConfig it verifies basicAuth locally, calls the auth-url for api/browser, and always fails closed on error.
 type abstractAuthenticator struct {
-	logger    logger.Logger
-	auth      auth.Auth
-	signinURL *url.URL
-
-	// used by external mode
-	jwtValidator *jwtvalidator.Validator
+	logger       logger.Logger
+	auth         auth.Auth
+	signinURL    *url.URL
+	jwtValidator *jwtvalidator.Validator // used by external mode
 }
 
 // newAbstractAuthenticator builds the shared decision logic. authURL is guaranteed non-empty by the
 // caller for any mode that delegates to the auth-url (api/browser); basicAuth/none modes never reach
 // callAuthURL so the auth instance is effectively unused for them.
-func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL string, authKind auth.Kind) (*abstractAuthenticator, error) {
+func newAbstractAuthenticator(parentLogger logger.Logger,
+	authURL, signinURL string,
+	authKind auth.Kind,
+	jwtValidator *jwtvalidator.Validator) (*abstractAuthenticator, error) {
 	parsed, err := url.Parse(signinURL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse sign-in URL")
@@ -78,13 +79,13 @@ func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL str
 		return nil, errors.Wrap(err, "Failed to create auth instance")
 	}
 	return &abstractAuthenticator{
-		logger:    parentLogger,
-		auth:      authInstance,
-		signinURL: parsed,
+		logger:       parentLogger,
+		auth:         authInstance,
+		signinURL:    parsed,
+		jwtValidator: jwtValidator,
 	}, nil
 }
 
-// decide applies the verdict for the resolved authConfig, writing the rejection response itself on failure.
 // decide applies the verdict for the resolved authConfig, writing the rejection response itself on failure.
 // issuer is the trusted issuer entry, supplied by the topology that loads it, and is used only by external mode.
 func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig, issuer *configReloader.Config) bool {
@@ -178,11 +179,6 @@ func (a *abstractAuthenticator) verifyExternal(responseWriter http.ResponseWrite
 	// the issuer name is the trusted issuer's name in the project (from issuer.json), so the function knows who authenticated the caller
 	request.Header.Set(headers.NuclioAuthIssuer, issuer.IssuerName)
 	request.Header.Set(headers.NuclioAuthIdentity, identity)
-	a.logger.InfoWithCtx(ctx,
-		"External authentication succeeded, allowing request",
-		"issuer", issuer.IssuerName,
-		"outcome", "allowed",
-		"identity", identity)
 	return true
 }
 
