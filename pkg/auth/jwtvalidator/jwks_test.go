@@ -32,6 +32,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
+	"github.com/nuclio/nuclio/pkg/common/testutils"
 
 	gojose "github.com/go-jose/go-jose/v4"
 	"github.com/nuclio/errors"
@@ -46,42 +47,12 @@ const (
 	testJWKSURL      = "https://idp.example.com/realms/test/protocol/openid-connect/certs"
 )
 
-// extraFields are the web key fields added on top of the key material.
-type extraFields map[string]interface{}
-
-// fakeTransport answers requests from a map of URL to response and records the requested URLs.
-type fakeTransport struct {
-	responses map[string]fakeResponse
-	requests  []string
-}
-
-type fakeResponse struct {
-	status int
-	body   []byte
-}
-
-func (t *fakeTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	t.requests = append(t.requests, request.URL.String())
-
-	response, found := t.responses[request.URL.String()]
-	if !found {
-		return nil, errors.New("Unexpected request")
-	}
-	return &http.Response{
-		StatusCode: response.status,
-		Body:       io.NopCloser(bytes.NewReader(response.body)),
-		Header:     http.Header{},
-		Request:    request,
-	}, nil
-}
-
 type JWKSDownloaderTestSuite struct {
 	suite.Suite
 	logger        logger.Logger
 	rsaKey        *rsa.PrivateKey
 	weakRSAKey    *rsa.PrivateKey
 	ecKey         *ecdsa.PrivateKey
-	transport     *fakeTransport
 	downloader    *JWKSDownloader
 	issuer        *configReloader.Config
 	issuerWithURL *configReloader.Config
@@ -98,22 +69,31 @@ func (suite *JWKSDownloaderTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 	suite.ecKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	suite.Require().NoError(err)
-}
-
-func (suite *JWKSDownloaderTestSuite) SetupTest() {
-	suite.transport = &fakeTransport{responses: map[string]fakeResponse{}}
-	suite.downloader = NewJWKSDownloader(suite.logger)
-	suite.downloader.httpClient = &http.Client{Transport: suite.transport}
 	suite.issuer = &configReloader.Config{IssuerURL: testIssuerURL}
 	suite.issuerWithURL = &configReloader.Config{IssuerURL: testIssuerURL, JwksURL: testJWKSURL}
 }
 
+func (suite *JWKSDownloaderTestSuite) SetupTest() {
+	suite.downloader = NewJWKSDownloader(suite.logger)
+}
+
 func (suite *JWKSDownloaderTestSuite) TestDiscoversKeySetAndReturnsKeys() {
-	suite.serveDiscovery(testJWKSURL)
-	suite.serveKeys(
-		suite.webKey("rsa-key", &suite.rsaKey.PublicKey, extraFields{"alg": "RS256"}),
-		suite.webKey("ec-key", &suite.ecKey.PublicKey, extraFields{"use": "sig"}),
+	discoveryBody := suite.discoveryBody(testJWKSURL)
+	keySetBody := suite.keySetBody(
+		suite.webKey("rsa-key", &suite.rsaKey.PublicKey, map[string]interface{}{"alg": "RS256"}),
+		suite.webKey("ec-key", &suite.ecKey.PublicKey, map[string]interface{}{"use": "sig"}),
 	)
+	suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		switch r.URL.String() {
+		case testDiscoveryURL:
+			return suite.newResponse(http.StatusOK, discoveryBody)
+		case testJWKSURL:
+			return suite.newResponse(http.StatusOK, keySetBody)
+		default:
+			suite.Failf("Unexpected request", "URL: %s", r.URL)
+			return nil
+		}
+	})
 
 	for _, testCase := range []struct {
 		name              string
@@ -132,37 +112,70 @@ func (suite *JWKSDownloaderTestSuite) TestDiscoversKeySetAndReturnsKeys() {
 }
 
 func (suite *JWKSDownloaderTestSuite) TestDiscoveryUrlIgnoresTrailingSlash() {
-	suite.serveDiscovery(testJWKSURL)
-	suite.serveKeys(suite.webKey("rsa-key", &suite.rsaKey.PublicKey, nil))
+	discoveryBody := suite.discoveryBody(testJWKSURL)
+	keySetBody := suite.keySetBody(suite.webKey("rsa-key", &suite.rsaKey.PublicKey, nil))
+	var requestedURLs []string
+	suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		requestedURLs = append(requestedURLs, r.URL.String())
+		switch r.URL.String() {
+		case testDiscoveryURL:
+			return suite.newResponse(http.StatusOK, discoveryBody)
+		case testJWKSURL:
+			return suite.newResponse(http.StatusOK, keySetBody)
+		default:
+			suite.Failf("Unexpected request", "URL: %s", r.URL)
+			return nil
+		}
+	})
 
 	suite.issuer.IssuerURL += "/"
 	_, err := suite.downloader.GetKey(context.Background(), suite.issuer, "rsa-key")
 	suite.Require().NoError(err)
-	suite.Require().Equal([]string{testDiscoveryURL, testJWKSURL}, suite.transport.requests)
+	suite.Require().Equal([]string{testDiscoveryURL, testJWKSURL}, requestedURLs)
 }
 
 func (suite *JWKSDownloaderTestSuite) TestConfiguredKeySetUrlSkipsDiscovery() {
-	suite.serveKeys(suite.webKey("rsa-key", &suite.rsaKey.PublicKey, nil))
+	keySetBody := suite.keySetBody(suite.webKey("rsa-key", &suite.rsaKey.PublicKey, nil))
+	var requestedURLs []string
+	suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		requestedURLs = append(requestedURLs, r.URL.String())
+		switch r.URL.String() {
+		case testJWKSURL:
+			return suite.newResponse(http.StatusOK, keySetBody)
+		default:
+			suite.Failf("Unexpected request", "URL: %s", r.URL)
+			return nil
+		}
+	})
 
 	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rsa-key")
 	suite.Require().NoError(err)
-	suite.Require().Equal([]string{testJWKSURL}, suite.transport.requests)
+	suite.Require().Equal([]string{testJWKSURL}, requestedURLs)
 }
 
 func (suite *JWKSDownloaderTestSuite) TestUnusableKeysAreSkipped() {
-	suite.serveKeys(
+	keySetBody := suite.keySetBody(
 		suite.webKey("good", &suite.rsaKey.PublicKey, nil),
-		suite.webKey("encryption", &suite.rsaKey.PublicKey, extraFields{"use": "enc"}),
-		suite.webKey("no-verify", &suite.rsaKey.PublicKey, extraFields{"key_ops": []string{"encrypt"}}),
+		suite.webKey("encryption", &suite.rsaKey.PublicKey, map[string]interface{}{"use": "enc"}),
+		suite.webKey("no-verify", &suite.rsaKey.PublicKey, map[string]interface{}{"key_ops": []string{"encrypt"}}),
 		suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil),
-		suite.webKey("bad-alg", &suite.rsaKey.PublicKey, extraFields{"alg": "HS256"}),
-		suite.webKey("wrong-type-alg", &suite.rsaKey.PublicKey, extraFields{"alg": "ES256"}),
-		suite.webKey("ec-wrong-alg", &suite.ecKey.PublicKey, extraFields{"alg": "RS256"}),
+		suite.webKey("bad-alg", &suite.rsaKey.PublicKey, map[string]interface{}{"alg": "HS256"}),
+		suite.webKey("wrong-type-alg", &suite.rsaKey.PublicKey, map[string]interface{}{"alg": "ES256"}),
+		suite.webKey("ec-wrong-alg", &suite.ecKey.PublicKey, map[string]interface{}{"alg": "RS256"}),
 		suite.webKey("bad kid", &suite.rsaKey.PublicKey, nil),
 		suite.webKey("private", suite.rsaKey, nil),
 		suite.webKey("symmetric", []byte("shared-secret"), nil),
 		json.RawMessage(`{"kty":"RSA","kid":"broken","n":"!!","e":"AQAB"}`),
 	)
+	suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		switch r.URL.String() {
+		case testJWKSURL:
+			return suite.newResponse(http.StatusOK, keySetBody)
+		default:
+			suite.Failf("Unexpected request", "URL: %s", r.URL)
+			return nil
+		}
+	})
 
 	for _, testCase := range []struct {
 		name     string
@@ -194,7 +207,16 @@ func (suite *JWKSDownloaderTestSuite) TestUnusableKeysAreSkipped() {
 }
 
 func (suite *JWKSDownloaderTestSuite) TestKeySetWithOnlyUnusableKeysIsAnError() {
-	suite.serveKeys(suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil))
+	keySetBody := suite.keySetBody(suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil))
+	suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		switch r.URL.String() {
+		case testJWKSURL:
+			return suite.newResponse(http.StatusOK, keySetBody)
+		default:
+			suite.Failf("Unexpected request", "URL: %s", r.URL)
+			return nil
+		}
+	})
 
 	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "weak")
 	suite.Require().True(errors.Is(err, ErrNoKey), errors.GetErrorStackString(err, -1))
@@ -218,10 +240,10 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 			name: "RSA and EC keys, with and without a declared algorithm",
 			rawKeys: []json.RawMessage{
 				suite.webKey("rsa", &suite.rsaKey.PublicKey, nil),
-				suite.webKey("rsa-rs256", &suite.rsaKey.PublicKey, extraFields{"alg": "RS256"}),
-				suite.webKey("rsa-ps256", &suite.rsaKey.PublicKey, extraFields{"alg": "PS256"}),
+				suite.webKey("rsa-rs256", &suite.rsaKey.PublicKey, map[string]interface{}{"alg": "RS256"}),
+				suite.webKey("rsa-ps256", &suite.rsaKey.PublicKey, map[string]interface{}{"alg": "PS256"}),
 				suite.webKey("ec", &suite.ecKey.PublicKey, nil),
-				suite.webKey("ec-es256", &suite.ecKey.PublicKey, extraFields{"alg": "ES256"}),
+				suite.webKey("ec-es256", &suite.ecKey.PublicKey, map[string]interface{}{"alg": "ES256"}),
 			},
 			expectedAlgorithms: map[string]string{
 				"rsa":       "",
@@ -234,14 +256,14 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 		{
 			name: "key_ops that lists verify among other operations",
 			rawKeys: []json.RawMessage{
-				suite.webKey("sign-and-verify", &suite.rsaKey.PublicKey, extraFields{"key_ops": []string{"sign", "verify"}}),
+				suite.webKey("sign-and-verify", &suite.rsaKey.PublicKey, map[string]interface{}{"key_ops": []string{"sign", "verify"}}),
 			},
 			expectedAlgorithms: map[string]string{"sign-and-verify": ""},
 		},
 		{
 			name: "key_ops that is not a list",
 			rawKeys: []json.RawMessage{
-				suite.webKey("ops-string", &suite.rsaKey.PublicKey, extraFields{"key_ops": "verify"}),
+				suite.webKey("ops-string", &suite.rsaKey.PublicKey, map[string]interface{}{"key_ops": "verify"}),
 			},
 			expectedAlgorithms: map[string]string{},
 		},
@@ -282,7 +304,8 @@ func (suite *JWKSDownloaderTestSuite) TestDownloadIsRejected() {
 	for _, testCase := range []struct {
 		name             string
 		issuer           *configReloader.Config
-		responses        map[string]fakeResponse
+		responseURL      string // the only URL the identity provider answers
+		response         *http.Response
 		expectedRequests int
 	}{
 		{
@@ -296,70 +319,84 @@ func (suite *JWKSDownloaderTestSuite) TestDownloadIsRejected() {
 			expectedRequests: 0,
 		},
 		{
-			name:   "discovery document points to a URL that is not https",
-			issuer: suite.issuer,
-			responses: map[string]fakeResponse{
-				testDiscoveryURL: {status: http.StatusOK, body: []byte(`{"jwks_uri":"http://idp.example.com/certs"}`)},
-			},
+			name:             "discovery document points to a URL that is not https",
+			issuer:           suite.issuer,
+			responseURL:      testDiscoveryURL,
+			response:         suite.newResponse(http.StatusOK, []byte(`{"jwks_uri":"http://idp.example.com/certs"}`)),
 			expectedRequests: 1,
 		},
 		{
-			name:   "key set body over 1 MiB",
-			issuer: suite.issuerWithURL,
-			responses: map[string]fakeResponse{
-				testJWKSURL: {status: http.StatusOK, body: oversizedBody},
-			},
+			name:             "key set body over 1 MiB",
+			issuer:           suite.issuerWithURL,
+			responseURL:      testJWKSURL,
+			response:         suite.newResponse(http.StatusOK, oversizedBody),
 			expectedRequests: 1,
 		},
 		{
-			name:   "key set answers with an error status",
-			issuer: suite.issuerWithURL,
-			responses: map[string]fakeResponse{
-				testJWKSURL: {status: http.StatusInternalServerError, body: []byte(`{}`)},
-			},
+			name:             "key set answers with an error status",
+			issuer:           suite.issuerWithURL,
+			responseURL:      testJWKSURL,
+			response:         suite.newResponse(http.StatusInternalServerError, []byte(`{}`)),
 			expectedRequests: 1,
 		},
 		{
-			name:   "key set is not JSON",
-			issuer: suite.issuerWithURL,
-			responses: map[string]fakeResponse{
-				testJWKSURL: {status: http.StatusOK, body: []byte(`not json`)},
-			},
+			name:             "key set is not JSON",
+			issuer:           suite.issuerWithURL,
+			responseURL:      testJWKSURL,
+			response:         suite.newResponse(http.StatusOK, []byte(`not json`)),
 			expectedRequests: 1,
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.transport.requests = nil
-			suite.transport.responses = testCase.responses
+			requestCount := 0
+			suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+				requestCount++
+				switch r.URL.String() {
+				case testCase.responseURL:
+					return testCase.response
+				default:
+					suite.Failf("Unexpected request", "URL: %s", r.URL)
+					return nil
+				}
+			})
 
 			_, err := suite.downloader.GetKey(context.Background(), testCase.issuer, "rsa-key")
 			suite.Require().Error(err)
-			suite.Require().Len(suite.transport.requests, testCase.expectedRequests)
+			suite.Require().Equal(testCase.expectedRequests, requestCount)
 		})
 	}
 }
 
 // --- test helpers (private, below public functions) ---
 
-func (suite *JWKSDownloaderTestSuite) serveDiscovery(jwksURI string) {
-	body, err := json.Marshal(openIDConfiguration{JwksURI: jwksURI})
-	suite.Require().NoError(err)
-	suite.transport.responses[testDiscoveryURL] = fakeResponse{status: http.StatusOK, body: body}
+// newResponse builds the response an identity provider gives, with a body that can be read once.
+func (suite *JWKSDownloaderTestSuite) newResponse(status int, body []byte) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Body:       io.NopCloser(bytes.NewReader(body)),
+		Header:     http.Header{},
+	}
 }
 
-func (suite *JWKSDownloaderTestSuite) serveKeys(rawKeys ...json.RawMessage) {
+func (suite *JWKSDownloaderTestSuite) discoveryBody(jwksURI string) []byte {
+	body, err := json.Marshal(openIDConfiguration{JwksURI: jwksURI})
+	suite.Require().NoError(err)
+	return body
+}
+
+func (suite *JWKSDownloaderTestSuite) keySetBody(rawKeys ...json.RawMessage) []byte {
 	body, err := json.Marshal(keySet{Keys: rawKeys})
 	suite.Require().NoError(err)
-	suite.transport.responses[testJWKSURL] = fakeResponse{status: http.StatusOK, body: body}
+	return body
 }
 
 // webKey builds the JSON of a web key for key (as go-jose writes it), with extras added on top. Passing a
 // private key or a []byte builds a private or symmetric web key.
-func (suite *JWKSDownloaderTestSuite) webKey(kid string, key interface{}, extras extraFields) json.RawMessage {
+func (suite *JWKSDownloaderTestSuite) webKey(kid string, key interface{}, extras map[string]interface{}) json.RawMessage {
 	marshaled, err := json.Marshal(gojose.JSONWebKey{Key: key, KeyID: kid})
 	suite.Require().NoError(err)
 
-	fields := extraFields{}
+	fields := map[string]interface{}{}
 	suite.Require().NoError(json.Unmarshal(marshaled, &fields))
 	for name, value := range extras {
 		fields[name] = value
