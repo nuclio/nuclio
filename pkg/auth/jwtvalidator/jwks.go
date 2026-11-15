@@ -36,6 +36,7 @@ import (
 	gojose "github.com/go-jose/go-jose/v4"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -48,11 +49,12 @@ const (
 	verifyKeyOperation = "verify"
 )
 
-// JWKSDownloader is a KeyProvider that downloads the identity provider's key set on every call:
-// it keeps no keys and shares nothing between calls.
+// JWKSDownloader is a KeyProvider that downloads the identity provider's key set when asked, and makes
+// concurrent callers share one download.
 type JWKSDownloader struct {
 	logger     logger.Logger
 	httpClient *http.Client
+	flight     singleflight.Group
 }
 
 // NewJWKSDownloader creates a downloader that reaches the identity provider over https only.
@@ -70,12 +72,36 @@ func NewJWKSDownloader(parentLogger logger.Logger) *JWKSDownloader {
 	}
 }
 
-// GetKey downloads the key set of the issuer and returns the usable key with the given key ID.
+// GetKey returns the usable key with the given key ID from the issuer's key set.
 func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Config, kid string) (*Key, error) {
 	if !kidPattern.MatchString(kid) {
 		return nil, errors.Wrapf(ErrNoKey, "Invalid key ID (kid=%s)", kid)
 	}
 
+	// The sidecar has a single issuer entry, so every caller shares one flight.
+	resultChan := d.flight.DoChan("key-set", func() (interface{}, error) {
+		// Detached ctx so one caller giving up doesn't fail every caller sharing the download.
+		return d.download(context.WithoutCancel(ctx), issuer)
+	})
+
+	select {
+	case result := <-resultChan:
+		if result.Err != nil {
+			return nil, result.Err
+		}
+
+		key, found := result.Val.(map[string]*Key)[kid]
+		if !found {
+			return nil, errors.Wrapf(ErrNoKey, "Key set has no usable key for the key ID (kid=%s)", kid)
+		}
+		return key, nil
+	case <-ctx.Done():
+		return nil, errors.Wrap(ctx.Err(), "Failed to wait for key set download")
+	}
+}
+
+// download downloads the key set of the issuer and returns its usable keys by key ID.
+func (d *JWKSDownloader) download(ctx context.Context, issuer *configReloader.Config) (map[string]*Key, error) {
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 
@@ -88,7 +114,7 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 		}
 	}
 
-	d.logger.DebugWithCtx(ctx, "Downloading key set", "issuerURL", issuer.IssuerURL, "jwksURL", jwksURL, "kid", kid)
+	d.logger.DebugWithCtx(ctx, "Downloading key set", "issuerURL", issuer.IssuerURL, "jwksURL", jwksURL)
 
 	var downloaded keySet
 	if err := d.getJSON(ctx, jwksURL, &downloaded); err != nil {
@@ -109,11 +135,7 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 		return nil, errors.Wrap(ErrNoKey, "Key set has no usable key")
 	}
 
-	key, found := keys[kid]
-	if !found {
-		return nil, errors.Wrapf(ErrNoKey, "Key set has no usable key for the key ID (kid=%s)", kid)
-	}
-	return key, nil
+	return keys, nil
 }
 
 func (d *JWKSDownloader) discoverJWKSURL(ctx context.Context, issuerURL string) (string, error) {

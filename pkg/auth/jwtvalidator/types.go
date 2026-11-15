@@ -73,7 +73,7 @@ func (k *Key) Equal(other *Key) bool {
 }
 
 // KeyProvider is the key layer: it owns everything about getting the identity provider's keys (downloading
-// them now, sharing in-flight downloads and caching them later), so the Validator never does I/O.
+// them, sharing in-flight downloads and caching them later), so the Validator never does I/O.
 //
 // GetKey returns the usable key for kid, or an error wrapping ErrNoKey when the identity provider has no
 // usable key for it. A usable key is a public signing key that passes the key policy, so callers do not
