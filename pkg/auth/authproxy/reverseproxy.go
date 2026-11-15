@@ -21,6 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
+	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -32,7 +34,7 @@ import (
 type reverseProxyAuthenticator struct {
 	*abstractAuthenticator
 	authConfig           auth.FunctionAuthConfig
-	issuerConfigReloader *configReloader.Reloader // set only in external mode
+	issuerConfigReloader *configReloader.Reloader // set only in external mode; used for the mounded issuer.json file
 }
 
 // NewReverseProxyAuthenticator creates an Authenticator with a fixed FunctionAuthConfig (function-pod topology).
@@ -41,11 +43,12 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	signinURL string,
 	authKind auth.Kind,
 	authConfig auth.FunctionAuthConfig,
-	issuerConfigReloader *configReloader.Reloader) (Authenticator, error) {
+	issuerConfigReloader *configReloader.Reloader,
+	jwtValidator *jwtvalidator.Validator) (Authenticator, error) {
 	parentLogger.InfoWith("Creating reverse-proxy authenticator", "authURL", authURL, "signinURL", signinURL, "authMode", authConfig.Mode)
 
-	if authConfig.Mode == auth.AuthenticationModeExternal && issuerConfigReloader == nil {
-		return nil, errors.New("Issuer config reloader must be provided for 'external' authentication mode")
+	if authConfig.Mode == auth.AuthenticationModeExternal && (issuerConfigReloader == nil || jwtValidator == nil) {
+		return nil, errors.New("Issuer config reloader and JWT validator must be provided for 'external' authentication mode")
 	}
 
 	// If basicAuth is configured, the plaintext password is hashed with bcrypt and discarded so it is never held in memory
@@ -61,6 +64,8 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create reverse-proxy authenticator")
 	}
+	abstract.jwtValidator = jwtValidator
+
 	return &reverseProxyAuthenticator{
 		abstractAuthenticator: abstract,
 		authConfig:            authConfig,
@@ -69,10 +74,16 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 }
 
 func (a *reverseProxyAuthenticator) Authenticate(responseWriter http.ResponseWriter, request *http.Request) bool {
+	// these headers are set only by the sidecar, so a client-sent copy is never forwarded, regardless the mode
+	request.Header.Del(headers.NuclioAuthIssuer)
+	request.Header.Del(headers.NuclioAuthIdentity)
+
 	// refresh the issuer entry from the mounted issuer.json file
+	var issuer *configReloader.Config
 	if a.authConfig.Mode == auth.AuthenticationModeExternal {
 		a.issuerConfigReloader.Refresh(request.Context())
+		issuer = a.issuerConfigReloader.Get()
 	}
 
-	return a.decide(responseWriter, request, a.authConfig)
+	return a.decide(responseWriter, request, a.authConfig, issuer)
 }

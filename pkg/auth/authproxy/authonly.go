@@ -95,7 +95,7 @@ func (a *authOnlyAuthenticator) authenticateTarget(responseWriter http.ResponseW
 		http.Error(responseWriter, "Forbidden", http.StatusForbidden)
 		return false
 	}
-	return a.decide(responseWriter, request, authConfig)
+	return a.decide(responseWriter, request, authConfig, nil)
 }
 
 // getAuthSpec reads the target function's CRD, extracts its auth config, and (only for basicAuth)

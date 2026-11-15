@@ -21,11 +21,19 @@ import (
 	"crypto"
 	"encoding/json"
 	"regexp"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 
 	gojose "github.com/go-jose/go-jose/v4"
 	"github.com/nuclio/errors"
+)
+
+const (
+	maxTokenSize    = 16 * 1024
+	maxIdentitySize = 1024
+	leeway          = 30 * time.Second
+	bearerScheme    = "Bearer"
 )
 
 // allowedAlgorithms are the only signing algorithms accepted, regardless of what the token or the key says.
@@ -42,8 +50,14 @@ func isAllowedAlgorithm(algorithm string) bool {
 
 var kidPattern = regexp.MustCompile(`^[A-Za-z0-9._~:+/=-]{1,256}$`)
 
-// ErrNoKey is returned when the identity provider has no usable key for a key ID.
-var ErrNoKey = errors.New("No usable key")
+// Errors for the checks the jwt package has no error for. The other checks return the jwt package's errors.
+var (
+	ErrAlgNotAllowed = errors.New("Algorithm not allowed")
+	ErrAlgMismatch   = errors.New("Algorithm does not match key")
+	ErrKid           = errors.New("Invalid key ID")
+	ErrNoKey         = errors.New("No usable key")
+	ErrIdentity      = errors.New("Invalid identity claim")
+)
 
 // Key is a public key of the identity provider.
 type Key struct {

@@ -19,6 +19,7 @@ package authproxy
 import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
+	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
 	"github.com/nuclio/nuclio/pkg/common"
 	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
@@ -43,7 +44,8 @@ func NewAuthenticator(
 ) (Authenticator, error) {
 	switch mode {
 	case auth.ProxyModeReverseProxy:
-		return NewReverseProxyAuthenticator(parentLogger, authURL, signinURL, authKind, staticAuthConfig, issuerConfigReloader)
+		jwtValidator := jwtvalidator.NewValidator(parentLogger)
+		return NewReverseProxyAuthenticator(parentLogger, authURL, signinURL, authKind, staticAuthConfig, issuerConfigReloader, jwtValidator)
 	case auth.ProxyModeAuthOnly:
 		clientConfig, err := common.GetClientConfig(kubeconfigPath)
 		if err != nil {
