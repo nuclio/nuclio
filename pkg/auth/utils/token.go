@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -24,6 +25,21 @@ import (
 )
 
 const BearerPrefix = "Bearer "
+
+// ExtractBearerToken returns the token of an Authorization header value ("Bearer <token>"). The scheme is
+// matched case-insensitively. It returns an error when the header is not a bearer header or has no token.
+func ExtractBearerToken(authorizationHeader string) (string, error) {
+	scheme, token, found := strings.Cut(authorizationHeader, " ")
+
+	// BearerPrefix is the scheme plus the separating space
+	if !found || !strings.EqualFold(scheme+" ", BearerPrefix) {
+		return "", errors.New("Authorization header is not a Bearer token")
+	}
+	if token == "" {
+		return "", errors.New("Bearer token is empty")
+	}
+	return token, nil
+}
 
 // TimeUntilExpiration parses the JWT access token from the Authorization header,
 // extracts the 'exp' claim, and returns the time until expiration.

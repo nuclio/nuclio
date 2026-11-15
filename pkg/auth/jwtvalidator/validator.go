@@ -22,6 +22,7 @@ import (
 	"unicode"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
+	"github.com/nuclio/nuclio/pkg/auth/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/nuclio/errors"
@@ -132,17 +133,12 @@ func (v *Validator) resolveKey(ctx context.Context, token *jwt.Token, issuer *co
 }
 
 func (v *Validator) extractBearerToken(authorizationHeader string) (string, error) {
-	scheme, token, found := strings.Cut(authorizationHeader, " ")
-	if !found || !strings.EqualFold(scheme, bearerScheme) {
-		return "", errors.Wrap(jwt.ErrTokenMalformed, "Authorization header is not a bearer token")
+	token, err := utils.ExtractBearerToken(authorizationHeader)
+	if err != nil {
+		return "", errors.Wrap(jwt.ErrTokenMalformed, err.Error())
 	}
 
-	tokenLen := len(token)
-	if tokenLen == 0 {
-		return "", errors.Wrap(jwt.ErrTokenMalformed, "Token is empty")
-	}
-
-	if tokenLen > maxTokenSize {
+	if len(token) > maxTokenSize {
 		return "", errors.Wrap(jwt.ErrTokenMalformed, "Token is too large")
 	}
 

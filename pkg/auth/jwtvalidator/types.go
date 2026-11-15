@@ -33,7 +33,6 @@ const (
 	maxTokenSize    = 16 * 1024
 	maxIdentitySize = 1024
 	leeway          = 30 * time.Second
-	bearerScheme    = "Bearer"
 )
 
 // allowedAlgorithms are the only signing algorithms accepted, regardless of what the token or the key says.
