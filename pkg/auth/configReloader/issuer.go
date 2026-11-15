@@ -40,7 +40,7 @@ const DefaultIdentityClaim = "sub"
 type Config struct {
 	IssuerName    string          `json:"issuer_name"` // used for X-Nuclio-Auth-Issuer
 	IssuerURL     string          `json:"issuer_url"`
-	JWKSURL       string          `json:"jwks_url,omitempty"`
+	JwksURL       string          `json:"jwks_url,omitempty"`
 	Audiences     []string        `json:"audiences,omitempty"`
 	IdentityClaim string          `json:"identity_claim,omitempty"`
 	JWKSCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
@@ -52,8 +52,8 @@ func (c *Config) Validate() error {
 		return errors.Wrap(err, "Invalid issuer_url")
 	}
 
-	if c.JWKSURL != "" {
-		if err := validateHTTPSURL(c.JWKSURL); err != nil {
+	if c.JwksURL != "" {
+		if err := validateHTTPSURL(c.JwksURL); err != nil {
 			return errors.Wrap(err, "Invalid jwks_url")
 		}
 	}
@@ -192,8 +192,8 @@ func changedFields(previous, current *Config) map[string]interface{} {
 	if previous.IssuerURL != current.IssuerURL {
 		changed["issuer_url"] = current.IssuerURL
 	}
-	if previous.JWKSURL != current.JWKSURL {
-		changed["jwks_url"] = current.JWKSURL
+	if previous.JwksURL != current.JwksURL {
+		changed["jwks_url"] = current.JwksURL
 	}
 	if !slices.Equal(previous.Audiences, current.Audiences) {
 		changed["audiences"] = current.Audiences

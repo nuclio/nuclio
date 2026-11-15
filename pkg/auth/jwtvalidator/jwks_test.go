@@ -105,7 +105,7 @@ func (suite *JWKSDownloaderTestSuite) SetupTest() {
 	suite.downloader = NewJWKSDownloader(suite.logger)
 	suite.downloader.httpClient = &http.Client{Transport: suite.transport}
 	suite.issuer = &configReloader.Config{IssuerURL: testIssuerURL}
-	suite.issuerWithURL = &configReloader.Config{IssuerURL: testIssuerURL, JWKSURL: testJWKSURL}
+	suite.issuerWithURL = &configReloader.Config{IssuerURL: testIssuerURL, JwksURL: testJWKSURL}
 }
 
 func (suite *JWKSDownloaderTestSuite) TestDiscoversKeySetAndReturnsKeys() {
@@ -200,6 +200,82 @@ func (suite *JWKSDownloaderTestSuite) TestKeySetWithOnlyUnusableKeysIsAnError() 
 	suite.Require().True(errors.Is(err, ErrNoKey), errors.GetErrorStackString(err, -1))
 }
 
+func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
+	otherCurveKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	suite.Require().NoError(err)
+
+	for _, testCase := range []struct {
+		name               string
+		rawKeys            []json.RawMessage
+		expectedAlgorithms map[string]string // usable key ID -> algorithm the key declares
+	}{
+		{
+			name:               "no keys",
+			rawKeys:            nil,
+			expectedAlgorithms: map[string]string{},
+		},
+		{
+			name: "RSA and EC keys, with and without a declared algorithm",
+			rawKeys: []json.RawMessage{
+				suite.webKey("rsa", &suite.rsaKey.PublicKey, nil),
+				suite.webKey("rsa-rs256", &suite.rsaKey.PublicKey, extraFields{"alg": "RS256"}),
+				suite.webKey("rsa-ps256", &suite.rsaKey.PublicKey, extraFields{"alg": "PS256"}),
+				suite.webKey("ec", &suite.ecKey.PublicKey, nil),
+				suite.webKey("ec-es256", &suite.ecKey.PublicKey, extraFields{"alg": "ES256"}),
+			},
+			expectedAlgorithms: map[string]string{
+				"rsa":       "",
+				"rsa-rs256": "RS256",
+				"rsa-ps256": "PS256",
+				"ec":        "",
+				"ec-es256":  "ES256",
+			},
+		},
+		{
+			name: "key_ops that lists verify among other operations",
+			rawKeys: []json.RawMessage{
+				suite.webKey("sign-and-verify", &suite.rsaKey.PublicKey, extraFields{"key_ops": []string{"sign", "verify"}}),
+			},
+			expectedAlgorithms: map[string]string{"sign-and-verify": ""},
+		},
+		{
+			name: "key_ops that is not a list",
+			rawKeys: []json.RawMessage{
+				suite.webKey("ops-string", &suite.rsaKey.PublicKey, extraFields{"key_ops": "verify"}),
+			},
+			expectedAlgorithms: map[string]string{},
+		},
+		{
+			name: "EC key on a curve other than P-256",
+			rawKeys: []json.RawMessage{
+				suite.webKey("p384", &otherCurveKey.PublicKey, nil),
+			},
+			expectedAlgorithms: map[string]string{},
+		},
+		{
+			name: "an unusable key does not hide the usable ones",
+			rawKeys: []json.RawMessage{
+				suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil),
+				suite.webKey("first", &suite.rsaKey.PublicKey, nil),
+				json.RawMessage(`"not a key"`),
+				json.RawMessage(`{"kty":"RSA","kid":"broken","n":"!!","e":"AQAB"}`),
+				suite.webKey("second", &suite.ecKey.PublicKey, nil),
+			},
+			expectedAlgorithms: map[string]string{"first": "", "second": ""},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			usableKeys := parseUsableKeys(testCase.rawKeys)
+
+			algorithms := map[string]string{}
+			for keyID, key := range usableKeys {
+				algorithms[keyID] = key.Algorithm
+			}
+			suite.Require().Equal(testCase.expectedAlgorithms, algorithms)
+		})
+	}
+}
+
 func (suite *JWKSDownloaderTestSuite) TestDownloadIsRejected() {
 	oversizedBody := []byte(`{"keys":[],"padding":"` + strings.Repeat("a", maxDownloadBody) + `"}`)
 
@@ -216,7 +292,7 @@ func (suite *JWKSDownloaderTestSuite) TestDownloadIsRejected() {
 		},
 		{
 			name:             "key set URL is not https",
-			issuer:           &configReloader.Config{IssuerURL: testIssuerURL, JWKSURL: "http://idp.example.com/certs"},
+			issuer:           &configReloader.Config{IssuerURL: testIssuerURL, JwksURL: "http://idp.example.com/certs"},
 			expectedRequests: 0,
 		},
 		{
@@ -266,7 +342,7 @@ func (suite *JWKSDownloaderTestSuite) TestDownloadIsRejected() {
 // --- test helpers (private, below public functions) ---
 
 func (suite *JWKSDownloaderTestSuite) serveDiscovery(jwksURI string) {
-	body, err := json.Marshal(openIDConfiguration{JWKSURI: jwksURI})
+	body, err := json.Marshal(openIDConfiguration{JwksURI: jwksURI})
 	suite.Require().NoError(err)
 	suite.transport.responses[testDiscoveryURL] = fakeResponse{status: http.StatusOK, body: body}
 }

@@ -122,7 +122,7 @@ func (suite *ConfigTestSuite) TestParseConfig() {
 func (suite *ConfigTestSuite) TestChangedFields() {
 	base := &Config{
 		IssuerURL:     "https://a.example.com",
-		JWKSURL:       "https://a.example.com/keys",
+		JwksURL:       "https://a.example.com/keys",
 		Audiences:     []string{"a"},
 		IdentityClaim: "sub",
 		JWKSCacheTTL:  metav1.Duration{Duration: time.Minute},
@@ -139,7 +139,7 @@ func (suite *ConfigTestSuite) TestChangedFields() {
 			previous: base,
 			current: &Config{
 				IssuerURL:     "https://a.example.com",
-				JWKSURL:       "https://a.example.com/keys",
+				JwksURL:       "https://a.example.com/keys",
 				Audiences:     []string{"a"},
 				IdentityClaim: "sub",
 				JWKSCacheTTL:  metav1.Duration{Duration: time.Minute},
@@ -151,7 +151,7 @@ func (suite *ConfigTestSuite) TestChangedFields() {
 			previous: base,
 			current: &Config{
 				IssuerURL:     "https://b.example.com",
-				JWKSURL:       "https://b.example.com/keys",
+				JwksURL:       "https://b.example.com/keys",
 				Audiences:     []string{"b"},
 				IdentityClaim: "email",
 				JWKSCacheTTL:  metav1.Duration{Duration: time.Hour},

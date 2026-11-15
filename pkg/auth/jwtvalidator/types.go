@@ -19,6 +19,7 @@ package jwtvalidator
 import (
 	"context"
 	"crypto"
+	"encoding/json"
 	"regexp"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
@@ -61,4 +62,18 @@ type Key struct {
 // issuer is passed on every call, so an implementation that keeps keys can tell when the issuer changed.
 type KeyProvider interface {
 	GetKey(ctx context.Context, issuer *configReloader.Config, kid string) (*Key, error)
+}
+
+type openIDConfiguration struct {
+	JwksURI string `json:"jwks_uri"`
+}
+
+// keySet keeps each key raw, so a key that fails to parse does not fail the whole set.
+type keySet struct {
+	Keys []json.RawMessage `json:"keys"`
+}
+
+// keyOperations reads the key_ops field, which go-jose does not expose.
+type keyOperations struct {
+	KeyOps []string `json:"key_ops"`
 }

@@ -54,20 +54,6 @@ type JWKSDownloader struct {
 	httpClient *http.Client
 }
 
-type openIDConfiguration struct {
-	JWKSURI string `json:"jwks_uri"`
-}
-
-// keySet keeps each key raw, so a key that fails to parse does not fail the whole set.
-type keySet struct {
-	Keys []json.RawMessage `json:"keys"`
-}
-
-// keyOperations reads the key_ops field, which go-jose does not expose.
-type keyOperations struct {
-	KeyOps []string `json:"key_ops"`
-}
-
 // NewJWKSDownloader creates a downloader that reaches the identity provider over https only.
 func NewJWKSDownloader(parentLogger logger.Logger) *JWKSDownloader {
 	return &JWKSDownloader{
@@ -88,7 +74,7 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 
-	jwksURL := issuer.JWKSURL
+	jwksURL := issuer.JwksURL
 	if jwksURL == "" {
 		var err error
 		jwksURL, err = d.discoverJWKSURL(ctx, issuer.IssuerURL)
@@ -128,14 +114,14 @@ func (d *JWKSDownloader) discoverJWKSURL(ctx context.Context, issuerURL string) 
 		return "", errors.Wrap(err, "Failed to download discovery document")
 	}
 
-	parsedURL, err := url.Parse(configuration.JWKSURI)
+	parsedURL, err := url.Parse(configuration.JwksURI)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to parse key set URL from discovery document")
 	}
 	if err := validateHTTPS(parsedURL); err != nil {
 		return "", errors.Wrap(err, "Invalid key set URL in discovery document")
 	}
-	return configuration.JWKSURI, nil
+	return configuration.JwksURI, nil
 }
 
 func (d *JWKSDownloader) getJSON(ctx context.Context, rawURL string, target interface{}) error {
