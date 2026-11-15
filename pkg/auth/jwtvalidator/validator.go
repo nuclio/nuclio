@@ -14,6 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package jwtvalidator verifies JWTs issued by an external identity provider against its public keys.
+// It knows nothing about files, Kubernetes or functions: it gets a token and an issuer entry.
+//
+// The package has two layers:
+//
+//	Validator                the token rules only: header, algorithm, kid, issuer, signature, expiry,
+//	  │                      audience. It asks the KeyProvider for the key and does no other I/O
+//	  └─ KeyProvider         the key layer, an interface: downloads the identity provider's keys and
+//	                         shares in-flight downloads (JWKSDownloader), and later caches them
+//
+// Putting the keys behind an interface lets a different deployment (for example the DLX) use the same
+// Validator with a different KeyProvider, such as one with no cache.
 package jwtvalidator
 
 import (
