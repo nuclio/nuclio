@@ -47,9 +47,14 @@ const (
 
 // fakeKeyProvider serves keys from a map and counts the lookups. When err is set, every lookup fails with it.
 type fakeKeyProvider struct {
-	keys      map[string]*Key
-	callCount int
-	err       error
+	keys       map[string]*Key
+	callCount  int
+	flushCount int
+	err        error
+}
+
+func (p *fakeKeyProvider) FlushKeys() {
+	p.flushCount++
 }
 
 func (p *fakeKeyProvider) GetKey(_ context.Context, _ *configReloader.Config, kid string) (*Key, error) {
@@ -94,7 +99,7 @@ func (suite *ValidatorTestSuite) SetupTest() {
 		"pinned":  {PublicKey: &suite.rsaKey.PublicKey, Algorithm: "RS256"},
 		"pinned2": {PublicKey: &suite.rsaKey.PublicKey, Algorithm: "PS256"},
 	}}
-	suite.validator = NewValidator(suite.logger)
+	suite.validator = NewValidator(suite.logger, testCacheConfig)
 	suite.validator.keyProvider = suite.provider
 	suite.issuer = &configReloader.Config{
 		IssuerURL:     testIssuerURL,
@@ -247,16 +252,41 @@ func (suite *ValidatorTestSuite) TestRejectedTokens() {
 	}
 }
 
-// TestKeyLookupFailure verifies a key provider failure denies the request and stays matchable in the error chain.
-func (suite *ValidatorTestSuite) TestKeyLookupFailure() {
-	providerError := errors.New("Failed to send request")
-	suite.provider.err = providerError
+// TestKeyLookupFailureKeepsCauseChain verifies the reason the key provider failed (for example a TLS error) is
+// still in the error chain, so it is logged when the request is denied.
+func (suite *ValidatorTestSuite) TestKeyLookupFailureKeepsCauseChain() {
+	suite.provider.err = errors.New("Failed to send request")
 	token := suite.signToken(jwt.SigningMethodRS256, suite.rsaKey, testKid, suite.validClaims())
 
 	_, err := suite.validate("Bearer " + token)
 	suite.Require().Error(err)
-	suite.Require().Contains(errors.GetErrorStackString(err, -1), "Failed to get key")
-	suite.Require().True(errors.Is(err, providerError), errors.GetErrorStackString(err, -1))
+
+	stack := errors.GetErrorStackString(err, -1)
+	suite.Require().Contains(stack, "Failed to get key")
+	suite.Require().Contains(stack, "Failed to send request")
+}
+
+func (suite *ValidatorTestSuite) TestKeysAreFlushedWhenKeySetLocationChanges() {
+	withChange := func(change func(issuer *configReloader.Config)) *configReloader.Config {
+		changed := *suite.issuer
+		change(&changed)
+		return &changed
+	}
+
+	// the first entry and the same entry again flush nothing, and neither does a change that is not about
+	// where the keys come from
+	for _, issuer := range []*configReloader.Config{
+		suite.issuer,
+		suite.issuer,
+		withChange(func(issuer *configReloader.Config) { issuer.Audiences = []string{"other-api"} }),
+	} {
+		_ = suite.validator.Validate(context.Background(), "", issuer)
+		suite.Require().Equal(0, suite.provider.flushCount)
+	}
+
+	_ = suite.validator.Validate(context.Background(), "",
+		withChange(func(issuer *configReloader.Config) { issuer.JwksURL = "https://idp.example.com/certs" }))
+	suite.Require().Equal(1, suite.provider.flushCount)
 }
 
 func (suite *ValidatorTestSuite) TestAudience() {

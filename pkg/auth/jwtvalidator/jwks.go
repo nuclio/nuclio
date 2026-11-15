@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
@@ -49,16 +50,20 @@ const (
 	verifyKeyOperation = "verify"
 )
 
-// JWKSDownloader is a KeyProvider that downloads the identity provider's key set when asked, and makes
-// concurrent callers share one download.
+// JWKSDownloader is a KeyProvider that downloads the identity provider's key set when it has no fresh key
+// for a key ID, makes concurrent callers share one download, and caches the keys and the key IDs that
+// have no usable key.
 type JWKSDownloader struct {
-	logger     logger.Logger
-	httpClient *http.Client
-	flight     singleflight.Group
+	logger       logger.Logger
+	httpClient   *http.Client
+	flight       singleflight.Group
+	keyTTL       time.Duration
+	keys         sync.Map // key ID -> *keyEntry
+	rejectedKids rejectedKidCache
 }
 
 // NewJWKSDownloader creates a downloader that reaches the identity provider over https only.
-func NewJWKSDownloader(parentLogger logger.Logger) *JWKSDownloader {
+func NewJWKSDownloader(parentLogger logger.Logger, cacheConfig *CacheConfig) *JWKSDownloader {
 	return &JWKSDownloader{
 		logger: parentLogger.GetChild("jwks-downloader"),
 		httpClient: &http.Client{
@@ -69,20 +74,40 @@ func NewJWKSDownloader(parentLogger logger.Logger) *JWKSDownloader {
 				return common.ValidateHTTPSURL(request.URL)
 			},
 		},
+		keyTTL: cacheConfig.KeyTTL,
+		rejectedKids: rejectedKidCache{
+			ttl:       cacheConfig.RejectedKidTTL,
+			size:      cacheConfig.RejectedKidCacheSize,
+			expiresAt: map[string]time.Time{},
+		},
 	}
 }
 
-// GetKey returns the usable key with the given key ID from the issuer's key set.
+// GetKey returns the usable key with the given key ID: from the cache while it is fresh, otherwise from
+// a download of the issuer's key set.
 func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Config, kid string) (*Key, error) {
 	if !kidPattern.MatchString(kid) {
 		return nil, errors.Wrapf(ErrNoKey, "Invalid key ID (kid=%s)", kid)
+	}
+
+	if d.isRejectedKid(kid) {
+		return nil, errors.Wrapf(ErrNoKey, "Key ID recently had no usable key (kid=%s)", kid)
+	}
+
+	if key := d.cachedKey(issuer, kid); key != nil {
+		return key, nil
 	}
 
 	// The issuer entry can change between requests, so only callers using the same key source share a flight.
 	flightKey := issuer.IssuerURL + "|" + issuer.JwksURL
 	resultChan := d.flight.DoChan(flightKey, func() (interface{}, error) {
 		// Detached ctx so one caller giving up doesn't fail every caller sharing the download.
-		return d.download(context.WithoutCancel(ctx), issuer)
+		keys, err := d.download(context.WithoutCancel(ctx), issuer)
+		if err != nil {
+			return nil, err
+		}
+		d.storeKeys(keys)
+		return nil, nil
 	})
 
 	select {
@@ -91,14 +116,104 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 			return nil, result.Err
 		}
 
-		key, found := result.Val.(map[string]*Key)[kid]
-		if !found {
+		key := d.cachedKey(issuer, kid)
+		if key == nil {
+			d.addRejectedKid(kid)
 			return nil, errors.Wrapf(ErrNoKey, "Key set has no usable key for the key ID (kid=%s)", kid)
 		}
 		return key, nil
 	case <-ctx.Done():
 		return nil, errors.Wrap(ctx.Err(), "Failed to wait for key set download")
 	}
+}
+
+// FlushKeys removes every cached key, so the next request downloads the key set again.
+func (d *JWKSDownloader) FlushKeys() {
+	d.keys.Clear()
+}
+
+// cachedKey returns the key when it is cached and within the TTL.
+func (d *JWKSDownloader) cachedKey(issuer *configReloader.Config, kid string) *Key {
+	value, found := d.keys.Load(kid)
+	if !found {
+		return nil
+	}
+
+	entry := value.(*keyEntry)
+	ttl := issuer.JwksCacheTTL.Duration
+	if ttl <= 0 {
+		ttl = d.keyTTL
+	}
+	if time.Since(entry.downloadedAt) >= ttl {
+		// only this entry: a download may have replaced it with a fresh one in the meantime
+		d.keys.CompareAndDelete(kid, value)
+		return nil
+	}
+	return entry.key
+}
+
+// storeKeys caches the downloaded keys and removes the keys the identity provider no longer has.
+func (d *JWKSDownloader) storeKeys(keys map[string]*Key) {
+	downloadedAt := time.Now()
+	for kid, key := range keys {
+		d.keys.Store(kid, &keyEntry{key: key, downloadedAt: downloadedAt})
+	}
+
+	// remove the keys the identity provider no longer has, so they are not used after their TTL
+	d.keys.Range(func(kid, _ interface{}) bool {
+		if _, kept := keys[kid.(string)]; !kept {
+			d.keys.Delete(kid)
+		}
+		return true
+	})
+}
+
+// isRejectedKid reports whether the key ID is rejected, and removes its entry when it has expired.
+func (d *JWKSDownloader) isRejectedKid(kid string) bool {
+	d.rejectedKids.RLock()
+	expiresAt, found := d.rejectedKids.expiresAt[kid]
+	d.rejectedKids.RUnlock()
+
+	if !found {
+		return false
+	}
+	if time.Now().Before(expiresAt) {
+		return true
+	}
+
+	// the entry expired: release the read lock and take the write lock to remove it, unless it was
+	// renewed in between
+	d.rejectedKids.Lock()
+	defer d.rejectedKids.Unlock()
+	if expiresAt, found := d.rejectedKids.expiresAt[kid]; found && !time.Now().Before(expiresAt) {
+		delete(d.rejectedKids.expiresAt, kid)
+	}
+	return false
+}
+
+// addRejectedKid remembers a key ID that has no usable key. When the cache is full, it drops the expired entries
+// first, and the new key ID is not stored if there is still no room.
+func (d *JWKSDownloader) addRejectedKid(kid string) {
+	// the validator never asks for a key ID in another format, so storing it would only use memory
+	if !kidPattern.MatchString(kid) {
+		return
+	}
+
+	d.rejectedKids.Lock()
+	defer d.rejectedKids.Unlock()
+
+	now := time.Now()
+	if _, exists := d.rejectedKids.expiresAt[kid]; !exists && len(d.rejectedKids.expiresAt) >= d.rejectedKids.size {
+		for rejectedKid, expiresAt := range d.rejectedKids.expiresAt {
+			if !now.Before(expiresAt) {
+				delete(d.rejectedKids.expiresAt, rejectedKid)
+			}
+		}
+		if len(d.rejectedKids.expiresAt) >= d.rejectedKids.size {
+			return
+		}
+	}
+	d.rejectedKids.expiresAt[kid] = now.Add(d.rejectedKids.ttl)
 }
 
 // download downloads the key set of the issuer and returns its usable keys by key ID.

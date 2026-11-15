@@ -32,6 +32,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
@@ -46,19 +47,25 @@ import (
 type Validator struct {
 	logger      logger.Logger
 	keyProvider KeyProvider
+
+	// lastIssuer is the issuer entry the keys were last used with. The reloader publishes a new entry only
+	// when it really changed.
+	lastIssuer atomic.Pointer[configReloader.Config]
 }
 
-// NewValidator creates a validator that downloads the identity provider's keys.
-func NewValidator(parentLogger logger.Logger) *Validator {
+// NewValidator creates a validator that downloads and caches the identity provider's keys.
+func NewValidator(parentLogger logger.Logger, cacheConfig *CacheConfig) *Validator {
 	return &Validator{
-		logger:      parentLogger.GetChild("jwt-validator"),
-		keyProvider: NewJWKSDownloader(parentLogger),
+		logger:      parentLogger.GetChild("validator"),
+		keyProvider: NewJWKSDownloader(parentLogger, cacheConfig),
 	}
 }
 
 // Validate checks an Authorization header value ("Bearer <token>") against the issuer entry and returns the
 // caller's identity. Every check must pass, and any error means the request must be denied.
 func (v *Validator) Validate(ctx context.Context, authorizationHeader string, issuer *configReloader.Config) (string, error) {
+	v.flushKeysOnIssuerChange(ctx, issuer)
+
 	token, err := v.extractJWT(authorizationHeader)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to extract bearer token")
@@ -111,6 +118,28 @@ func (v *Validator) identityFromClaims(claims jwt.MapClaims, identityClaim strin
 		return "", errors.Wrapf(ErrIdentity, "Identity claim has control characters (claim=%s)", identityClaim)
 	}
 	return identity, nil
+}
+
+// flushKeysOnIssuerChange drops the cached keys when the issuer entry points at a different key set. Only
+// the request that swaps the entry in does it. The first entry has nothing to flush.
+func (v *Validator) flushKeysOnIssuerChange(ctx context.Context, issuer *configReloader.Config) {
+	if issuer == nil {
+		v.logger.WarnWithCtx(ctx, "Issuer entry is missing, skipping key flush")
+		return
+	}
+
+	// the reloader publishes a new entry only on a real change, so the same pointer means no change; when
+	// another request swapped the entry in first, it does the flush
+	previous := v.lastIssuer.Load()
+	if previous == issuer || !v.lastIssuer.CompareAndSwap(previous, issuer) {
+		return
+	}
+
+	// no previous entry means this is the first request after the start, when the cache is empty anyway
+	if previous != nil && previous.JwksURL != issuer.JwksURL {
+		v.logger.InfoWithCtx(ctx, "Key set URL changed, flushing cached keys", "jwksURL", issuer.JwksURL)
+		v.keyProvider.FlushKeys()
+	}
 }
 
 // resolveKey runs the checks that need only the unverified token, then returns the key to verify it with.
