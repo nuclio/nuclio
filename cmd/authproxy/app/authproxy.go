@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
@@ -49,7 +50,7 @@ func Run(config *Config) error {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	authenticator, err := newAuthenticator(rootLogger, config)
+	authenticator, err := newAuthenticator(rootLogger, config, platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create authenticator")
 	}
@@ -86,17 +87,34 @@ func newServers(rootLogger logger.Logger,
 }
 
 // newAuthenticator creates kube clients when needed and delegates to the pkg-level factory.
-func newAuthenticator(rootLogger logger.Logger, config *Config) (authproxy.Authenticator, error) {
+func newAuthenticator(rootLogger logger.Logger,
+	config *Config,
+	platformConfiguration *platformconfig.Config) (authproxy.Authenticator, error) {
 	staticAuthConfig, err := resolveStaticFunctionAuthConfig(rootLogger, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve function auth config")
 	}
+
+	// only an external-mode function has an issuer file
+	var issuerConfigReloader *configReloader.Reloader
+	if auth.AuthenticationMode(config.AuthMode) == auth.AuthenticationModeExternal {
+		issuerConfigReloader, err = configReloader.NewReloader(context.Background(),
+			rootLogger,
+			config.IssuerConfigPath,
+			platformConfiguration.Authentication.GetIssuerPollInterval())
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create issuer config reloader")
+		}
+	}
+
 	return authproxy.NewAuthenticator(rootLogger,
 		config.Mode,
 		config.AuthURL,
 		config.SigninURL,
 		config.AuthKind,
 		staticAuthConfig,
+		issuerConfigReloader,
 		config.KubeconfigPath,
 		config.Namespace)
 }

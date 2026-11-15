@@ -35,6 +35,7 @@ const (
 	AuthenticationModeIguazio   AuthenticationMode = "iguazio"
 	AuthenticationModeAPI       AuthenticationMode = "api"
 	AuthenticationModeBrowser   AuthenticationMode = "browser"
+	AuthenticationModeExternal  AuthenticationMode = "external"
 
 	// AttributeAuthenticationMode is the key for the authentication mode in HTTP trigger attributes.
 	AttributeAuthenticationMode = "authenticationMode"
