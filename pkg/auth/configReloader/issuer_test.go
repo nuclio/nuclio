@@ -113,7 +113,7 @@ func (suite *ConfigTestSuite) TestParseConfig() {
 				return
 			}
 			suite.Require().NoError(err)
-			suite.Require().Equal(testCase.expectedTTL, config.JWKSCacheTTL.Duration)
+			suite.Require().Equal(testCase.expectedTTL, config.JwksCacheTTL.Duration)
 			suite.Require().Equal(testCase.expectedIdentityClaim, config.IdentityClaim)
 		})
 	}
@@ -125,7 +125,7 @@ func (suite *ConfigTestSuite) TestChangedFields() {
 		JwksURL:       "https://a.example.com/keys",
 		Audiences:     []string{"a"},
 		IdentityClaim: "sub",
-		JWKSCacheTTL:  metav1.Duration{Duration: time.Minute},
+		JwksCacheTTL:  metav1.Duration{Duration: time.Minute},
 	}
 
 	for _, testCase := range []struct {
@@ -142,7 +142,7 @@ func (suite *ConfigTestSuite) TestChangedFields() {
 				JwksURL:       "https://a.example.com/keys",
 				Audiences:     []string{"a"},
 				IdentityClaim: "sub",
-				JWKSCacheTTL:  metav1.Duration{Duration: time.Minute},
+				JwksCacheTTL:  metav1.Duration{Duration: time.Minute},
 			},
 			expected: map[string]interface{}{},
 		},
@@ -154,7 +154,7 @@ func (suite *ConfigTestSuite) TestChangedFields() {
 				JwksURL:       "https://b.example.com/keys",
 				Audiences:     []string{"b"},
 				IdentityClaim: "email",
-				JWKSCacheTTL:  metav1.Duration{Duration: time.Hour},
+				JwksCacheTTL:  metav1.Duration{Duration: time.Hour},
 			},
 			expected: map[string]interface{}{
 				"issuer_url":     "https://b.example.com",

@@ -43,7 +43,7 @@ type Config struct {
 	JwksURL       string          `json:"jwks_url,omitempty"`
 	Audiences     []string        `json:"audiences,omitempty"`
 	IdentityClaim string          `json:"identity_claim,omitempty"`
-	JWKSCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
+	JwksCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
 }
 
 // Validate checks that the URLs are absolute https URLs.
@@ -201,8 +201,8 @@ func changedFields(previous, current *Config) map[string]interface{} {
 	if previous.IdentityClaim != current.IdentityClaim {
 		changed["identity_claim"] = current.IdentityClaim
 	}
-	if previous.JWKSCacheTTL != current.JWKSCacheTTL {
-		changed["jwks_cache_ttl"] = current.JWKSCacheTTL.Duration.String()
+	if previous.JwksCacheTTL != current.JwksCacheTTL {
+		changed["jwks_cache_ttl"] = current.JwksCacheTTL.Duration.String()
 	}
 	return changed
 }
