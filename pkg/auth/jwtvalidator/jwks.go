@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
+	"github.com/nuclio/nuclio/pkg/common"
 
 	gojose "github.com/go-jose/go-jose/v4"
 	"github.com/nuclio/errors"
@@ -63,7 +64,7 @@ func NewJWKSDownloader(parentLogger logger.Logger) *JWKSDownloader {
 				if len(via) > maxRedirects {
 					return errors.New("Too many redirects")
 				}
-				return validateHTTPS(request.URL)
+				return common.ValidateHTTPSURL(request.URL)
 			},
 		},
 	}
@@ -71,6 +72,10 @@ func NewJWKSDownloader(parentLogger logger.Logger) *JWKSDownloader {
 
 // GetKey downloads the key set of the issuer and returns the usable key with the given key ID.
 func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Config, kid string) (*Key, error) {
+	if !kidPattern.MatchString(kid) {
+		return nil, errors.Wrapf(ErrNoKey, "Invalid key ID (kid=%s)", kid)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 
@@ -90,7 +95,10 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 		return nil, errors.Wrap(err, "Failed to download key set")
 	}
 
-	keys := parseUsableKeys(downloaded.Keys)
+	keys, err := parseUsableKeys(downloaded.Keys)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse key set")
+	}
 	d.logger.DebugWithCtx(ctx,
 		"Downloaded key set",
 		"jwksURL", jwksURL,
@@ -114,11 +122,16 @@ func (d *JWKSDownloader) discoverJWKSURL(ctx context.Context, issuerURL string) 
 		return "", errors.Wrap(err, "Failed to download discovery document")
 	}
 
+	// the document must describe the configured issuer, or its keys would be trusted for another one
+	if strings.TrimSuffix(configuration.Issuer, "/") != strings.TrimSuffix(issuerURL, "/") {
+		return "", errors.Errorf("Discovery document issuer does not match the configured issuer (issuer=%s)", configuration.Issuer)
+	}
+
 	parsedURL, err := url.Parse(configuration.JwksURI)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to parse key set URL from discovery document")
 	}
-	if err := validateHTTPS(parsedURL); err != nil {
+	if err := common.ValidateHTTPSURL(parsedURL); err != nil {
 		return "", errors.Wrap(err, "Invalid key set URL in discovery document")
 	}
 	return configuration.JwksURI, nil
@@ -129,7 +142,7 @@ func (d *JWKSDownloader) getJSON(ctx context.Context, rawURL string, target inte
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse URL")
 	}
-	if err := validateHTTPS(parsedURL); err != nil {
+	if err := common.ValidateHTTPSURL(parsedURL); err != nil {
 		return err
 	}
 
@@ -162,18 +175,10 @@ func (d *JWKSDownloader) getJSON(ctx context.Context, rawURL string, target inte
 	return nil
 }
 
-// validateHTTPS rejects any URL that is not https. It is checked for every URL the downloader is about to
-// fetch and for each redirect.
-func validateHTTPS(parsedURL *url.URL) error {
-	if parsedURL.Scheme != "https" {
-		return errors.Errorf("URL must use https (scheme=%s)", parsedURL.Scheme)
-	}
-	return nil
-}
-
 // parseUsableKeys returns the signing keys that are safe to verify with, by key ID. Each key is parsed on its
-// own, so a key that is malformed or unusable is skipped without failing the rest of the set.
-func parseUsableKeys(rawKeys []json.RawMessage) map[string]*Key {
+// own, so a key that is malformed or unusable is skipped without failing the rest of the set. It fails when
+// two different keys share a key ID, since there is no telling which one signed a token.
+func parseUsableKeys(rawKeys []json.RawMessage) (map[string]*Key, error) {
 	keys := map[string]*Key{}
 	for _, rawKey := range rawKeys {
 		var webKey gojose.JSONWebKey
@@ -186,11 +191,18 @@ func parseUsableKeys(rawKeys []json.RawMessage) map[string]*Key {
 			continue
 		}
 
-		if key, usable := toUsableKey(&webKey, operations.KeyOps); usable {
-			keys[webKey.KeyID] = key
+		key, usable := toUsableKey(&webKey, operations.KeyOps)
+		if !usable {
+			continue
 		}
+
+		// the same key published twice is harmless
+		if existingKeyID, exists := keys[webKey.KeyID]; exists && !existingKeyID.Equal(key) {
+			return nil, errors.Errorf("Key set has different keys under the same key ID (kid=%s)", webKey.KeyID)
+		}
+		keys[webKey.KeyID] = key
 	}
-	return keys
+	return keys, nil
 }
 
 // toUsableKey returns the key when it is a public signing key that fits the allowed algorithms.
@@ -201,7 +213,7 @@ func toUsableKey(webKey *gojose.JSONWebKey, keyOps []string) (*Key, bool) {
 	if webKey.Use != "" && webKey.Use != signingKeyUse {
 		return nil, false
 	}
-	if len(keyOps) > 0 && !slices.Contains(keyOps, verifyKeyOperation) {
+	if keyOps != nil && !slices.Contains(keyOps, verifyKeyOperation) {
 		return nil, false
 	}
 	if webKey.Algorithm != "" && !isAllowedAlgorithm(webKey.Algorithm) {

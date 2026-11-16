@@ -28,6 +28,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -208,12 +210,9 @@ func changedFields(previous, current *Config) map[string]interface{} {
 }
 
 func validateHTTPSURL(rawURL string) error {
-	parsed, err := url.Parse(rawURL)
+	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to parse URL '%s'", rawURL)
 	}
-	if parsed.Scheme != "https" || parsed.Host == "" {
-		return errors.Errorf("URL must be an absolute https URL: %s", rawURL)
-	}
-	return nil
+	return common.ValidateHTTPSURL(parsedURL)
 }

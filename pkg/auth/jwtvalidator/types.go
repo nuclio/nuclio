@@ -53,6 +53,12 @@ type Key struct {
 	Algorithm string
 }
 
+// Equal reports whether other holds the same public key and declares the same algorithm.
+func (k *Key) Equal(other *Key) bool {
+	publicKey, ok := k.PublicKey.(interface{ Equal(crypto.PublicKey) bool })
+	return ok && k.Algorithm == other.Algorithm && publicKey.Equal(other.PublicKey)
+}
+
 // KeyProvider is the key layer: it owns everything about getting the identity provider's keys (downloading
 // them now, sharing in-flight downloads and caching them later), so the Validator never does I/O.
 //
@@ -65,6 +71,7 @@ type KeyProvider interface {
 }
 
 type openIDConfiguration struct {
+	Issuer  string `json:"issuer"`
 	JwksURI string `json:"jwks_uri"`
 }
 
