@@ -35,6 +35,7 @@ func ExtractBearerToken(authorizationHeader string) (string, error) {
 	if !found || !strings.EqualFold(scheme+" ", BearerPrefix) {
 		return "", errors.New("Authorization header is not a Bearer token")
 	}
+	token = strings.TrimLeft(token, " ")
 	if token == "" {
 		return "", errors.New("Bearer token is empty")
 	}

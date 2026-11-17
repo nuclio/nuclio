@@ -264,6 +264,10 @@ func (suite *ServerTestSuite) TestReverseProxyRemovesSidecarHeadersFromClient() 
 			suite.Require().NoError(err)
 			suite.Require().NoError(response.Body.Close())
 
+			// the client's copies must be gone before the authenticator runs
+			suite.Require().Empty(authenticator.receivedIssuer)
+			suite.Require().Empty(authenticator.receivedIdentity)
+
 			suite.Require().NotNil(upstreamRequest)
 			suite.Require().Equal("issuer-a", upstreamRequest.Header.Get(headers.NuclioAuthIssuer))
 			suite.Require().Equal("alice", upstreamRequest.Header.Get(headers.NuclioAuthIdentity))
@@ -316,9 +320,15 @@ func (suite *ServerTestSuite) TestAuthOnlyHandler() {
 }
 
 // headerSettingAuthenticator authorizes every request and sets the sidecar-owned headers, like external mode.
-type headerSettingAuthenticator struct{}
+// It records the values it received first, to tell stripping apart from the later overwrite.
+type headerSettingAuthenticator struct {
+	receivedIssuer   []string
+	receivedIdentity []string
+}
 
 func (a *headerSettingAuthenticator) Authenticate(_ http.ResponseWriter, request *http.Request) bool {
+	a.receivedIssuer = request.Header.Values(headers.NuclioAuthIssuer)
+	a.receivedIdentity = request.Header.Values(headers.NuclioAuthIdentity)
 	request.Header.Set(headers.NuclioAuthIssuer, "issuer-a")
 	request.Header.Set(headers.NuclioAuthIdentity, "alice")
 	return true
