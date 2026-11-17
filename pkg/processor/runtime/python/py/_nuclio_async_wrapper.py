@@ -80,6 +80,12 @@ class AsyncWrapper(AbstractWrapper):
         self.tasks = {}  # Track active asyncio tasks
         self.shutdown_event = asyncio.Event()
 
+        # track events being handled, so termination can wait for them to finish
+        self._events_in_flight = 0
+        self._no_events_in_flight = asyncio.Event()
+        self._no_events_in_flight.set()
+        self._termination_task = None
+
     async def start(self):
         """Start the server."""
         # Create server socket
@@ -161,10 +167,16 @@ class AsyncWrapper(AbstractWrapper):
 
                 # Handle the event
                 if not self._discard_events:
+                    self._events_in_flight += 1
+                    self._no_events_in_flight.clear()
                     try:
                         await self._handle_event(event, sock)
                     except BaseException as exc:
                         await self._on_handle_event_error(exc, sock)
+                    finally:
+                        self._events_in_flight -= 1
+                        if not self._events_in_flight:
+                            self._no_events_in_flight.set()
                 else:
                     self._logger.debug("Event discarded")
 
@@ -210,6 +222,20 @@ class AsyncWrapper(AbstractWrapper):
                 if asyncio.iscoroutine(result):
                     await result
             self._cleanup_connection(sock, cancel_task=False)
+
+    def _on_termination_signal(self, signal_name):
+        super()._on_termination_signal(signal_name)
+
+        # connections wait for the next event with no way to be woken up, so their `finally` block never
+        # runs on an idle worker. call the termination handler from here instead.
+        self._termination_task = asyncio.ensure_future(self._terminate_when_idle())
+
+    async def _terminate_when_idle(self):
+        await self._no_events_in_flight.wait()
+        if self._is_termination_needed:
+            result = self._call_termination_handler()
+            if asyncio.iscoroutine(result):
+                await result
 
     def _cleanup_connection(self, sock, cancel_task=True):
         """Cleanup resources for a disconnected client."""
