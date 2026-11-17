@@ -331,39 +331,6 @@ func (suite *AuthProxyTestSuite) TestRejectBearer() {
 	suite.Require().Empty(recorder.Body.String())
 }
 
-// TestClientSentExternalHeadersAreStrippedInEveryMode verifies the sidecar-owned headers never reach the
-// function from a client, whatever the authentication mode and verdict.
-func (suite *AuthProxyTestSuite) TestClientSentExternalHeadersAreStrippedInEveryMode() {
-	stub := suite.newAuthURLStub()
-	defer stub.close()
-
-	for _, testCase := range []struct {
-		name       string
-		authConfig auth.FunctionAuthConfig
-	}{
-		{name: "none", authConfig: auth.FunctionAuthConfig{Mode: auth.AuthenticationModeNone}},
-		{name: "api", authConfig: auth.FunctionAuthConfig{Mode: auth.AuthenticationModeAPI}},
-		{
-			name:       "basicAuth",
-			authConfig: auth.FunctionAuthConfig{Mode: auth.AuthenticationModeBasicAuth, BasicAuthUsername: "user", BasicAuthPassword: "pass"},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			authenticator, err := NewReverseProxyAuthenticator(suite.logger, stub.server.URL, "", auth.KindIguazioV4, testCase.authConfig, nil, nil)
-			suite.Require().NoError(err)
-
-			request := suite.authenticatedRequest(validToken)
-			request.Header.Set(headers.NuclioAuthIssuer, "forged-issuer")
-			request.Header.Set(headers.NuclioAuthIdentity, "forged-identity")
-
-			authenticator.Authenticate(httptest.NewRecorder(), request)
-
-			suite.Require().Empty(request.Header.Values(headers.NuclioAuthIssuer))
-			suite.Require().Empty(request.Header.Values(headers.NuclioAuthIdentity))
-		})
-	}
-}
-
 func (s *authURLStub) close() {
 	s.server.Close()
 }

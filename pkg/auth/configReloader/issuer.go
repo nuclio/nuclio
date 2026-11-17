@@ -184,7 +184,8 @@ func parseConfig(content []byte) (*Config, error) {
 }
 
 // changedFields maps the JSON name of each field that differs to its new value. A nil previous (the first
-// load) is compared as an empty entry, so every field that is set is listed.
+// load) is compared as an empty entry, so every field that is set is listed. issuer_name is not compared:
+// it is not editable by design, so a change to it alone is ignored.
 func changedFields(previous, current *Config) map[string]interface{} {
 	if previous == nil {
 		previous = &Config{}

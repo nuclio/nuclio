@@ -88,6 +88,11 @@ func (v *Validator) ExtractIdentity(authorizationHeader string, identityClaim st
 		return "", errors.Wrapf(ErrIdentity, "Identity claim is missing, empty or not a string (claim=%s)", identityClaim)
 	}
 
+	// the HTTP transport trims surrounding whitespace from header values, so the forwarded identity would differ from the claim
+	if identity != strings.TrimSpace(identity) {
+		return "", errors.Wrapf(ErrIdentity, "Identity claim has surrounding whitespace (claim=%s)", identityClaim)
+	}
+
 	if len(identity) > maxIdentitySize {
 		return "", errors.Wrapf(ErrIdentity, "Identity claim is too long (claim=%s)", identityClaim)
 	}
@@ -118,7 +123,7 @@ func (v *Validator) resolveKey(ctx context.Context, token *jwt.Token, issuer *co
 	if err != nil {
 		return nil, errors.Wrap(jwt.ErrTokenInvalidIssuer, "Token issuer is malformed")
 	}
-	if tokenIssuer != issuer.IssuerURL {
+	if strings.TrimRight(tokenIssuer, "/") != strings.TrimRight(issuer.IssuerURL, "/") {
 		return nil, errors.Wrap(jwt.ErrTokenInvalidIssuer, "Token issuer does not match the trusted issuer")
 	}
 

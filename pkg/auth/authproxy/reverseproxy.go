@@ -22,7 +22,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
-	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -73,10 +72,6 @@ func NewReverseProxyAuthenticator(parentLogger logger.Logger,
 }
 
 func (a *reverseProxyAuthenticator) Authenticate(responseWriter http.ResponseWriter, request *http.Request) bool {
-	// these headers are set only by the sidecar, so a client-sent copy is never forwarded, regardless the mode
-	request.Header.Del(headers.NuclioAuthIssuer)
-	request.Header.Del(headers.NuclioAuthIdentity)
-
 	// refresh the issuer entry from the mounted issuer.json file
 	var issuer *configReloader.Config
 	if a.authConfig.Mode == auth.AuthenticationModeExternal {

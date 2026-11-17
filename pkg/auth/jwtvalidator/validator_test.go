@@ -155,11 +155,6 @@ func (suite *ValidatorTestSuite) TestRejectedTokens() {
 			expectedError: jwt.ErrTokenInvalidIssuer,
 		},
 		{
-			name:          "issuer with a trailing slash",
-			header:        "Bearer " + suite.signToken(jwt.SigningMethodRS256, suite.rsaKey, testKid, suite.claimsWith("iss", testIssuerURL+"/")),
-			expectedError: jwt.ErrTokenInvalidIssuer,
-		},
-		{
 			name:          "algorithm none",
 			header:        "Bearer " + suite.signNone(suite.validClaims()),
 			expectedError: ErrAlgNotAllowed,
@@ -313,6 +308,9 @@ func (suite *ValidatorTestSuite) TestIdentity() {
 		{name: "empty string", identityClaim: "email", claimValue: ""},
 		{name: "not a string", identityClaim: "email", claimValue: 42},
 		{name: "carriage return and line feed", identityClaim: "email", claimValue: "caller\r\nX-Injected: 1"},
+		{name: "only spaces", identityClaim: "email", claimValue: "   "},
+		{name: "leading space", identityClaim: "email", claimValue: " caller"},
+		{name: "trailing space", identityClaim: "email", claimValue: "caller "},
 		{name: "too long", identityClaim: "email", claimValue: strings.Repeat("a", maxIdentitySize+1)},
 	} {
 		suite.Run(testCase.name, func() {
@@ -333,6 +331,34 @@ func (suite *ValidatorTestSuite) TestIdentity() {
 			suite.Require().Empty(identity)
 		})
 	}
+}
+
+func (suite *ValidatorTestSuite) TestIssuerTrailingSlash() {
+	for _, testCase := range []struct {
+		name        string
+		configured  string
+		tokenIssuer string
+	}{
+		{name: "token issuer has a trailing slash", configured: testIssuerURL, tokenIssuer: testIssuerURL + "/"},
+		{name: "configured issuer has a trailing slash", configured: testIssuerURL + "/", tokenIssuer: testIssuerURL},
+		{name: "both have a trailing slash", configured: testIssuerURL + "/", tokenIssuer: testIssuerURL + "/"},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.issuer.IssuerURL = testCase.configured
+			token := suite.signToken(jwt.SigningMethodRS256, suite.rsaKey, testKid, suite.claimsWith("iss", testCase.tokenIssuer))
+
+			identity, err := suite.validate("Bearer " + token)
+			suite.Require().NoError(err)
+			suite.Require().Equal("caller-1", identity)
+		})
+	}
+
+	suite.Run("different issuer with a trailing slash", func() {
+		token := suite.signToken(jwt.SigningMethodRS256, suite.rsaKey, testKid, suite.claimsWith("iss", "https://other.example.com/"))
+
+		_, err := suite.validate("Bearer " + token)
+		suite.Require().True(errors.Is(err, jwt.ErrTokenInvalidIssuer), errors.GetErrorStackString(err, -1))
+	})
 }
 
 // --- test helpers (private, below public functions) ---
