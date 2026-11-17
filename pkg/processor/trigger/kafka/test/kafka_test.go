@@ -487,10 +487,15 @@ func (suite *testSuite) TestDrainHook() {
 	}
 
 	var rebalanceStartedTime time.Time
+	functionContainerLogs := map[string]string{}
 
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		// the function is ready before its consumer joins the group; wait for it, so that the second function
+		// triggers a rebalance on this one (the only one with the drain hook volume) and not the other way around
+		suite.waitForConsumerGroupToStabilize(suite.consumerGroup, 1)
 
 		// write messages on 4 shards
 		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
@@ -527,6 +532,12 @@ func (suite *testSuite) TestDrainHook() {
 			// to allow the function to run its termination hook before we delete the function
 			<-time.After(time.Until(rebalanceStartedTime.Add(40 * time.Second)))
 
+			// containers are removed once the deploy callbacks return, so grab their logs now
+			for _, options := range []*platform.CreateFunctionOptions{createFunctionOptions, newCreateFunctionOptions} {
+				functionContainerLogs[options.FunctionConfig.Meta.Name] =
+					suite.getFunctionContainerLogs(options.FunctionConfig.Meta.Name)
+			}
+
 			return true
 		})
 
@@ -539,6 +550,10 @@ func (suite *testSuite) TestDrainHook() {
 		filePath := path.Join(tempDir, fmt.Sprintf("drain-hook-%d.txt", workerID))
 		suite.Logger.DebugWith("Reading drain hook file", "filePath", filePath)
 		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			suite.Logger.ErrorWith("Drain hook file is missing, dumping function container logs",
+				"functionContainerLogs", functionContainerLogs)
+		}
 		suite.Require().NoError(err, "Failed to read drain hook file")
 
 		// check that the file is not empty
@@ -870,6 +885,59 @@ func (suite *testSuite) getLenRecodedEventsAndEnsureNoDuplicates(filePath string
 
 	suite.Require().Len(duplicates, 0, fmt.Sprintf("Found duplicate messages: %v", duplicates))
 	return len(matches)
+}
+
+// waitForConsumerGroupToStabilize waits until the group has exactly the given number of members and has finished
+// assigning partitions to them.
+func (suite *testSuite) waitForConsumerGroupToStabilize(consumerGroup string, expectedMembers int) {
+	var lastState string
+	var lastMembers int
+	var lastErr error
+
+	err := common.RetryUntilSuccessful(60*time.Second, 500*time.Millisecond, func() bool {
+		response, err := suite.broker.DescribeGroups(&sarama.DescribeGroupsRequest{Groups: []string{consumerGroup}})
+		if err != nil {
+			lastErr = err
+			return false
+		}
+
+		if len(response.Groups) != 1 {
+			return false
+		}
+
+		lastState = response.Groups[0].State
+		lastMembers = len(response.Groups[0].Members)
+		return errors.Is(response.Groups[0].Err, sarama.ErrNoError) &&
+			lastState == "Stable" &&
+			lastMembers == expectedMembers
+	})
+
+	if err != nil {
+		suite.Logger.ErrorWith("Error waiting for consumer group to stabilize",
+			"consumerGroup", consumerGroup,
+			"lastState", lastState,
+			"lastMembers", lastMembers,
+			"expectedMembers", expectedMembers,
+			"lastErr", lastErr)
+	}
+	suite.Require().NoError(err,
+		fmt.Sprintf("Consumer group did not stabilize (state=%s, members=%d, expected members=%d)",
+			lastState,
+			lastMembers,
+			expectedMembers))
+
+	suite.Logger.DebugWith("Consumer group is stable",
+		"consumerGroup", consumerGroup,
+		"members", lastMembers)
+}
+
+// getFunctionContainerLogs returns the logs of a function's container, or a placeholder if they can't be fetched.
+func (suite *testSuite) getFunctionContainerLogs(functionName string) string {
+	logs, err := suite.DockerClient.GetContainerLogs(fmt.Sprintf("nuclio-default-%s", functionName))
+	if err != nil {
+		return fmt.Sprintf("(failed to get function logs: %v)", err)
+	}
+	return logs
 }
 
 // getZookeeperContainerLogs returns Zookeeper container logs for debugging when the broker fails.
