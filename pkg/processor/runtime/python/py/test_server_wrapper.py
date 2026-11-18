@@ -222,6 +222,38 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         from wrapper_common import Constants
         self.assertIs(True, response['headers'][Constants.stream_event_discarded_header])
 
+    def test_termination_handler_called_when_idle(self):
+        # NUC-1081: an idle worker has no connection loop to wake up on SIGUSR1,
+        # so the termination handler must be called from the signal handler itself
+        self._wrapper._platform._on_signal = unittest.mock.MagicMock(return_value=None)
+
+        async def signal_and_wait():
+            self._wrapper._on_termination_signal('SIGUSR1')
+            await self._wrapper._termination_task
+
+        self._loop.run_until_complete(signal_and_wait())
+
+        self._wrapper._platform._on_signal.assert_called_once_with(callback_type='termination')
+
+    def test_termination_handler_waits_for_in_flight_events(self):
+        # the handler must not run while an event is being handled, and must run once it finishes
+        self._wrapper._platform._on_signal = unittest.mock.MagicMock(return_value=None)
+
+        async def signal_during_event():
+            self._wrapper._events_in_flight = 1
+            self._wrapper._no_events_in_flight.clear()
+            self._wrapper._on_termination_signal('SIGUSR1')
+            await asyncio.sleep(0.05)
+            self._wrapper._platform._on_signal.assert_not_called()
+
+            self._wrapper._events_in_flight = 0
+            self._wrapper._no_events_in_flight.set()
+            await self._wrapper._termination_task
+
+        self._loop.run_until_complete(signal_during_event())
+
+        self._wrapper._platform._on_signal.assert_called_once_with(callback_type='termination')
+
     async def _send_events(self, events, single_connection=True):
         data = []
         if single_connection:
