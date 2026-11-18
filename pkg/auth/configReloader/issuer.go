@@ -28,6 +28,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,10 +42,10 @@ const DefaultIdentityClaim = "sub"
 type Config struct {
 	IssuerName    string          `json:"issuer_name"` // used for X-Nuclio-Auth-Issuer
 	IssuerURL     string          `json:"issuer_url"`
-	JWKSURL       string          `json:"jwks_url,omitempty"`
+	JwksURL       string          `json:"jwks_url,omitempty"`
 	Audiences     []string        `json:"audiences,omitempty"`
 	IdentityClaim string          `json:"identity_claim,omitempty"`
-	JWKSCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
+	JwksCacheTTL  metav1.Duration `json:"jwks_cache_ttl,omitempty"`
 }
 
 // Validate checks that the URLs are absolute https URLs.
@@ -52,8 +54,8 @@ func (c *Config) Validate() error {
 		return errors.Wrap(err, "Invalid issuer_url")
 	}
 
-	if c.JWKSURL != "" {
-		if err := validateHTTPSURL(c.JWKSURL); err != nil {
+	if c.JwksURL != "" {
+		if err := validateHTTPSURL(c.JwksURL); err != nil {
 			return errors.Wrap(err, "Invalid jwks_url")
 		}
 	}
@@ -192,8 +194,8 @@ func changedFields(previous, current *Config) map[string]interface{} {
 	if previous.IssuerURL != current.IssuerURL {
 		changed["issuer_url"] = current.IssuerURL
 	}
-	if previous.JWKSURL != current.JWKSURL {
-		changed["jwks_url"] = current.JWKSURL
+	if previous.JwksURL != current.JwksURL {
+		changed["jwks_url"] = current.JwksURL
 	}
 	if !slices.Equal(previous.Audiences, current.Audiences) {
 		changed["audiences"] = current.Audiences
@@ -201,19 +203,16 @@ func changedFields(previous, current *Config) map[string]interface{} {
 	if previous.IdentityClaim != current.IdentityClaim {
 		changed["identity_claim"] = current.IdentityClaim
 	}
-	if previous.JWKSCacheTTL != current.JWKSCacheTTL {
-		changed["jwks_cache_ttl"] = current.JWKSCacheTTL.Duration.String()
+	if previous.JwksCacheTTL != current.JwksCacheTTL {
+		changed["jwks_cache_ttl"] = current.JwksCacheTTL.Duration.String()
 	}
 	return changed
 }
 
 func validateHTTPSURL(rawURL string) error {
-	parsed, err := url.Parse(rawURL)
+	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to parse URL '%s'", rawURL)
 	}
-	if parsed.Scheme != "https" || parsed.Host == "" {
-		return errors.Errorf("URL must be an absolute https URL: %s", rawURL)
-	}
-	return nil
+	return common.ValidateHTTPSURL(parsedURL)
 }

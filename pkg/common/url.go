@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -78,6 +79,14 @@ func DownloadFile(url string, out *os.File, headers http.Header) error {
 			response.ContentLength)
 	}
 
+	return nil
+}
+
+// ValidateHTTPSURL returns an error unless parsedURL is an absolute https URL
+func ValidateHTTPSURL(parsedURL *url.URL) error {
+	if parsedURL.Scheme != "https" || parsedURL.Host == "" {
+		return errors.Errorf("URL must be an absolute https URL: %s", parsedURL)
+	}
 	return nil
 }
 
