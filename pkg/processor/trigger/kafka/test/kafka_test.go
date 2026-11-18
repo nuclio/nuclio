@@ -75,6 +75,7 @@ type testSuite struct {
 type kafkaDeployOptionsConfig struct {
 	topic         string
 	consumerGroup string
+	initialOffset string
 
 	functionName string
 	functionPath string
@@ -670,6 +671,7 @@ func (suite *testSuite) TestFeatureCombinations() {
 				runtime:              "python",
 				topic:                topic,
 				consumerGroup:        consumerGroup,
+				initialOffset:        "earliest",
 				explicitAck:          testCase.explicitAckMode,
 				workerAllocationMode: testCase.workerAllocationMode,
 			}
@@ -709,6 +711,10 @@ func (suite *testSuite) TestFeatureCombinations() {
 						receivedBodies := suite.resolveReceivedEventBodies(deployResult)
 						return len(receivedBodies) == messagesPerPartitionPerCycle*testCase.partitionNum
 					})
+				if err != nil {
+					suite.Logger.ErrorWith("Failed to get initial events, dumping function container logs",
+						"functionContainerLogs", suite.getFunctionContainerLogs(createFunctionOptions.FunctionConfig.Meta.Name))
+				}
 				suite.Require().NoError(err, "Failed to get initial events")
 
 				// run cycles; each cycle send messages to all partitions and trigger a rebalance by adding a new consumer
@@ -834,13 +840,18 @@ func (suite *testSuite) getBasePlatformSpec() functionconfig.Platform {
 }
 
 func (suite *testSuite) getKafkaTriggerSpec(config *kafkaDeployOptionsConfig) map[string]functionconfig.Trigger {
+	initialOffset := "latest"
+	if config.initialOffset != "" {
+		initialOffset = config.initialOffset
+	}
+
 	kafkaTrigger := functionconfig.Trigger{
 		Kind: "kafka-cluster",
 		URL:  suite.brokerTriggerURL,
 		Attributes: map[string]interface{}{
 			"topics":        []string{config.topic},
 			"consumerGroup": config.consumerGroup,
-			"initialOffset": "latest",
+			"initialOffset": initialOffset,
 		},
 	}
 
