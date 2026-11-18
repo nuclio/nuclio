@@ -29,7 +29,7 @@ import (
 )
 
 // NewAuthenticator creates the topology-appropriate Authenticator. For reverseProxy mode,
-// staticAuthConfig and issuerConfigReloader are used and the kube parameters are ignored. For authOnly mode,
+// staticAuthConfig, issuerConfigReloader and cacheConfig are used and the kube parameters are ignored. For authOnly mode,
 // nuclioClientSet, kubeClientSet, and namespace are required.
 func NewAuthenticator(
 	parentLogger logger.Logger,
@@ -39,12 +39,13 @@ func NewAuthenticator(
 	authKind auth.Kind,
 	staticAuthConfig auth.FunctionAuthConfig,
 	issuerConfigReloader *configReloader.Reloader,
+	jwtCacheConfig *jwtvalidator.CacheConfig,
 	kubeconfigPath string,
 	namespace string,
 ) (Authenticator, error) {
 	switch mode {
 	case auth.ProxyModeReverseProxy:
-		jwtValidator := jwtvalidator.NewValidator(parentLogger)
+		jwtValidator := jwtvalidator.NewValidator(parentLogger, jwtCacheConfig)
 		return NewReverseProxyAuthenticator(parentLogger, authURL, signinURL, authKind, staticAuthConfig, issuerConfigReloader, jwtValidator)
 	case auth.ProxyModeAuthOnly:
 		clientConfig, err := common.GetClientConfig(kubeconfigPath)
