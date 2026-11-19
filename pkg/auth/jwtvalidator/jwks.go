@@ -78,8 +78,9 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 		return nil, errors.Wrapf(ErrNoKey, "Invalid key ID (kid=%s)", kid)
 	}
 
-	// The sidecar has a single issuer entry, so every caller shares one flight.
-	resultChan := d.flight.DoChan("key-set", func() (interface{}, error) {
+	// The issuer entry can change between requests, so only callers using the same key source share a flight.
+	flightKey := issuer.IssuerURL + "|" + issuer.JwksURL
+	resultChan := d.flight.DoChan(flightKey, func() (interface{}, error) {
 		// Detached ctx so one caller giving up doesn't fail every caller sharing the download.
 		return d.download(context.WithoutCancel(ctx), issuer)
 	})
