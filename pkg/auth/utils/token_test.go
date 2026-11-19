@@ -80,6 +80,37 @@ func (suite *TokenUtilsTestSuite) TestTimeUntilExpiration() {
 	}
 }
 
+func (suite *TokenUtilsTestSuite) TestExtractBearerToken() {
+	for _, testCase := range []struct {
+		name          string
+		header        string
+		expectedToken string
+		expectError   bool
+	}{
+		{name: "bearer token", header: "Bearer abc.def.ghi", expectedToken: "abc.def.ghi"},
+		{name: "scheme is case-insensitive", header: "bearer abc", expectedToken: "abc"},
+		{name: "upper-case scheme", header: "BEARER abc", expectedToken: "abc"},
+		{name: "multiple spaces after scheme", header: "Bearer   abc.def.ghi", expectedToken: "abc.def.ghi"},
+		{name: "empty header", header: "", expectError: true},
+		{name: "scheme and spaces only", header: "Bearer    ", expectError: true},
+		{name: "other scheme", header: "Basic abc", expectError: true},
+		{name: "scheme only", header: "Bearer", expectError: true},
+		{name: "scheme and space only", header: "Bearer ", expectError: true},
+		{name: "no space after scheme", header: "Bearerabc", expectError: true},
+		{name: "scheme prefix only", header: "Bear abc", expectError: true},
+	} {
+		suite.Run(testCase.name, func() {
+			token, err := ExtractBearerToken(testCase.header)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+			suite.Require().Equal(testCase.expectedToken, token)
+		})
+	}
+}
+
 func TestTokenUtilsTestSuite(t *testing.T) {
 	suite.Run(t, new(TokenUtilsTestSuite))
 }

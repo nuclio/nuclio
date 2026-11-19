@@ -22,9 +22,11 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/errors"
@@ -113,6 +115,7 @@ func newReverseProxyHandler(parentLogger logger.Logger,
 	}
 
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		removeSidecarHeaders(request)
 
 		// readiness probe is allowlisted (unauthenticated) so the kubelet can reach the processor
 		if request.URL.Path == httptrigger.InternalHealthPath {
@@ -127,6 +130,41 @@ func newReverseProxyHandler(parentLogger logger.Logger,
 
 		reverseProxy.ServeHTTP(responseWriter, request)
 	}), nil
+}
+
+// removeSidecarHeaders drops the headers that only the sidecar sets, so a client-sent copy is never forwarded.
+// Their names are also removed from Connection, because the reverse proxy deletes every header named there
+// when it forwards the request, including the copy the sidecar sets.
+func removeSidecarHeaders(request *http.Request) {
+	sidecarHeaders := map[string]struct{}{
+		http.CanonicalHeaderKey(headers.NuclioAuthIssuer):   {},
+		http.CanonicalHeaderKey(headers.NuclioAuthIdentity): {},
+	}
+	for header := range sidecarHeaders {
+		request.Header.Del(header)
+	}
+
+	connectionValues := request.Header.Values("Connection")
+	if len(connectionValues) == 0 {
+		return
+	}
+
+	var keptTokens []string
+	for _, value := range connectionValues {
+		for _, token := range strings.Split(value, ",") {
+			token = strings.TrimSpace(token)
+			if _, found := sidecarHeaders[http.CanonicalHeaderKey(token)]; token == "" || found {
+				continue
+			}
+			keptTokens = append(keptTokens, token)
+		}
+	}
+
+	if len(keptTokens) == 0 {
+		request.Header.Del("Connection")
+		return
+	}
+	request.Header.Set("Connection", strings.Join(keptTokens, ", "))
 }
 
 // newAuthOnlyHandler serves the DLX decision endpoint, returning the authenticator's response on reject

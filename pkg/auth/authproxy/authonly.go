@@ -53,7 +53,7 @@ func NewAuthOnlyAuthenticator(parentLogger logger.Logger,
 	kubeClientSet kubeclient.Client,
 	namespace string) (Authenticator, error) {
 	parentLogger.InfoWith("Creating auth-only authenticator", "authURL", authURL, "signinURL", signinURL, "namespace", namespace)
-	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind)
+	abstract, err := newAbstractAuthenticator(parentLogger, authURL, signinURL, authKind, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract authenticator")
 	}
@@ -95,7 +95,7 @@ func (a *authOnlyAuthenticator) authenticateTarget(responseWriter http.ResponseW
 		http.Error(responseWriter, "Forbidden", http.StatusForbidden)
 		return false
 	}
-	return a.decide(responseWriter, request, authConfig)
+	return a.decide(responseWriter, request, authConfig, nil)
 }
 
 // getAuthSpec reads the target function's CRD, extracts its auth config, and (only for basicAuth)

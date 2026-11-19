@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/nuclio/logger"
@@ -224,6 +225,71 @@ func (suite *ServerTestSuite) TestReverseProxyReadinessAllowlisted() {
 	suite.Require().Equal(0, authenticator.calls)
 }
 
+// TestReverseProxyRemovesSidecarHeadersFromClient verifies the sidecar-owned headers never reach the upstream
+// from a client, including when the client names them in Connection, and that other Connection tokens survive.
+func (suite *ServerTestSuite) TestReverseProxyRemovesSidecarHeadersFromClient() {
+	for _, testCase := range []struct {
+		name       string
+		connection string
+	}{
+		{name: "no connection header"},
+		{name: "connection names the identity header", connection: headers.NuclioAuthIdentity},
+		{name: "connection names both headers", connection: headers.NuclioAuthIssuer + ", " + headers.NuclioAuthIdentity},
+		{name: "connection names a header in another case", connection: "x-nuclio-auth-identity"},
+	} {
+		suite.Run(testCase.name, func() {
+			var upstreamRequest *http.Request
+			upstream := httptest.NewServer(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+				upstreamRequest = request
+			}))
+			defer upstream.Close()
+
+			// sets the trusted headers the way the external authenticator does, after the handler removed the client's copies
+			authenticator := &headerSettingAuthenticator{}
+			handler, err := newReverseProxyHandler(suite.logger, upstream.URL, authenticator)
+			suite.Require().NoError(err)
+
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			request, err := http.NewRequest(http.MethodGet, server.URL, nil)
+			suite.Require().NoError(err)
+			request.Header.Set(headers.NuclioAuthIssuer, "forged-issuer")
+			request.Header.Set(headers.NuclioAuthIdentity, "forged-identity")
+			if testCase.connection != "" {
+				request.Header.Set("Connection", testCase.connection)
+			}
+
+			response, err := http.DefaultClient.Do(request)
+			suite.Require().NoError(err)
+			suite.Require().NoError(response.Body.Close())
+
+			// the client's copies must be gone before the authenticator runs
+			suite.Require().Empty(authenticator.receivedIssuer)
+			suite.Require().Empty(authenticator.receivedIdentity)
+
+			suite.Require().NotNil(upstreamRequest)
+			suite.Require().Equal("issuer-a", upstreamRequest.Header.Get(headers.NuclioAuthIssuer))
+			suite.Require().Equal("alice", upstreamRequest.Header.Get(headers.NuclioAuthIdentity))
+		})
+	}
+}
+
+// TestRemoveSidecarHeadersKeepsOtherConnectionTokens verifies only the sidecar header names leave Connection.
+func (suite *ServerTestSuite) TestRemoveSidecarHeadersKeepsOtherConnectionTokens() {
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("Connection", "keep-alive, "+headers.NuclioAuthIdentity)
+	request.Header.Add("Connection", headers.NuclioAuthIssuer)
+
+	removeSidecarHeaders(request)
+
+	suite.Require().Equal("keep-alive", request.Header.Get("Connection"))
+
+	request.Header.Set("Connection", headers.NuclioAuthIdentity)
+	removeSidecarHeaders(request)
+	suite.Require().Empty(request.Header.Values("Connection"))
+}
+
 // TestAuthOnlyHandler verifies the decision endpoint returns 200 when authorized and the reject code
 // otherwise, on whatever path the request arrives - the DLX replays the caller's own request line.
 func (suite *ServerTestSuite) TestAuthOnlyHandler() {
@@ -251,6 +317,21 @@ func (suite *ServerTestSuite) TestAuthOnlyHandler() {
 		statusCode, _ := suite.doRequest(handler, "/some/function/path?q=1")
 		suite.Require().Equal(http.StatusUnauthorized, statusCode)
 	})
+}
+
+// headerSettingAuthenticator authorizes every request and sets the sidecar-owned headers, like external mode.
+// It records the values it received first, to tell stripping apart from the later overwrite.
+type headerSettingAuthenticator struct {
+	receivedIssuer   []string
+	receivedIdentity []string
+}
+
+func (a *headerSettingAuthenticator) Authenticate(_ http.ResponseWriter, request *http.Request) bool {
+	a.receivedIssuer = request.Header.Values(headers.NuclioAuthIssuer)
+	a.receivedIdentity = request.Header.Values(headers.NuclioAuthIdentity)
+	request.Header.Set(headers.NuclioAuthIssuer, "issuer-a")
+	request.Header.Set(headers.NuclioAuthIdentity, "alice")
+	return true
 }
 
 func (suite *ServerTestSuite) newTestUpstreamStub() *upstreamStub {
