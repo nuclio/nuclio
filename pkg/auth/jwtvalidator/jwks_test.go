@@ -155,6 +155,27 @@ func (suite *JWKSDownloaderTestSuite) TestCancelledCallerDoesNotFailOthers() {
 	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
 }
 
+func (suite *JWKSDownloaderTestSuite) TestDifferentKeySourcesDoNotShareDownload() {
+	provider := suite.useFakeIdentityProvider()
+
+	errorsChan := make(chan error, 2)
+	for _, issuer := range []*configReloader.Config{suite.issuer, suite.issuerWithURL} {
+		go func() {
+			_, err := suite.downloader.GetKey(context.Background(), issuer, "rsa-key")
+			errorsChan <- err
+		}()
+	}
+
+	// each key source starts its own download, so both requests arrive while the key set is still held
+	<-provider.keySetRequested
+	<-provider.keySetRequested
+	close(provider.releaseKeySet)
+
+	suite.Require().NoError(<-errorsChan)
+	suite.Require().NoError(<-errorsChan)
+	suite.Require().Equal(int32(2), provider.keySetRequests.Load())
+}
+
 func (suite *JWKSDownloaderTestSuite) TestCallerStopsAtItsOwnDeadline() {
 	provider := suite.useFakeIdentityProvider()
 	// the deadline has already passed, so the outcome does not depend on timing: the download is blocked, and
