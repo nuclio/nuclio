@@ -109,6 +109,23 @@ describe('Wrapper', () => {
             assert.strictEqual(context._eventEmitter.listenerCount('callback'), 0)
         })
     })
+    describe('context.Response()', () => {
+        it('should build a response with and without `new`', () => {
+            const context = wrapper.__get__('context')
+            const responseFromOutput = wrapper.__get__('responseFromOutput')
+            const args = ['<h1>hi</h1>', { 'X-test': 't' }, 'text/html', 201]
+
+            // eslint-disable-next-line new-cap
+            for (const response of [new context.Response(...args), context.Response(...args)]) {
+                assert.ok(response instanceof context.Response)
+                const output = responseFromOutput(response)
+                assert.strictEqual(output.body, '<h1>hi</h1>')
+                assert.strictEqual(output.content_type, 'text/html')
+                assert.strictEqual(output.status_code, 201)
+                assert.deepStrictEqual(output.headers, { 'X-test': 't' })
+            }
+        })
+    })
     describe('initContext()', () => {
         it('should mutate context object', async () => {
             const functionModulePath = `${testFunctionsDirPath}/common/context-init/nodejs/contextinit.js`
