@@ -28,10 +28,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"maps"
 	"math/big"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -340,7 +338,6 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 		name               string
 		rawKeys            []json.RawMessage
 		expectedAlgorithms map[string]string // usable key ID -> algorithm the key declares
-		expectedSkipped    []string          // key IDs of the well-formed keys that are not usable
 		expectError        bool
 	}{
 		{
@@ -411,12 +408,19 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 			expectError: true,
 		},
 		{
+			name: "a usable and an unusable key under one key ID",
+			rawKeys: []json.RawMessage{
+				suite.webKey("both", &suite.rsaKey.PublicKey, map[string]interface{}{"use": "enc"}),
+				suite.webKey("both", &suite.rsaKey.PublicKey, nil),
+			},
+			expectedAlgorithms: map[string]string{"both": ""},
+		},
+		{
 			name: "EC key on a curve other than P-256",
 			rawKeys: []json.RawMessage{
 				suite.webKey("p384", &otherCurveKey.PublicKey, nil),
 			},
 			expectedAlgorithms: map[string]string{},
-			expectedSkipped:    []string{"p384"},
 		},
 		{
 			name: "an unusable key does not hide the usable ones",
@@ -428,7 +432,6 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 				suite.webKey("second", &suite.ecKey.PublicKey, nil),
 			},
 			expectedAlgorithms: map[string]string{"first": "", "second": ""},
-			expectedSkipped:    []string{"weak"},
 		},
 		{
 			name: "keys that are not signing keys, and a key ID that is not valid",
@@ -438,12 +441,10 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 				suite.webKey("bad kid", &suite.rsaKey.PublicKey, nil),
 			},
 			expectedAlgorithms: map[string]string{},
-			expectedSkipped:    []string{"encryption", "bad-alg"},
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			downloader := NewJWKSDownloader(suite.logger, testCacheConfig)
-			usableKeys, err := downloader.parseUsableKeys(testCase.rawKeys)
+			usableKeys, err := parseUsableKeys(testCase.rawKeys)
 			if testCase.expectError {
 				suite.Require().Error(err)
 				return
@@ -455,9 +456,6 @@ func (suite *JWKSDownloaderTestSuite) TestParseUsableKeys() {
 				algorithms[keyID] = key.Algorithm
 			}
 			suite.Require().Equal(testCase.expectedAlgorithms, algorithms)
-
-			skippedKeyIDs := slices.Sorted(maps.Keys(downloader.rejectedKids.expiresAt))
-			suite.Require().Equal(slices.Sorted(slices.Values(testCase.expectedSkipped)), skippedKeyIDs)
 		})
 	}
 }
@@ -631,7 +629,7 @@ func (suite *JWKSDownloaderTestSuite) TestKeyIdWithNoKeyIsRejectedUntilItExpires
 	suite.Require().Equal(int32(2), provider.keySetRequests.Load())
 }
 
-func (suite *JWKSDownloaderTestSuite) TestSkippedKeysAreRejectedWithoutAnotherDownload() {
+func (suite *JWKSDownloaderTestSuite) TestUnusableKeyIdIsRejectedAfterItsFirstDownload() {
 	provider := suite.useFakeIdentityProvider(
 		suite.webKey("good", &suite.rsaKey.PublicKey, nil),
 		suite.webKey("encryption", &suite.rsaKey.PublicKey, map[string]interface{}{"use": "enc"}),
@@ -641,12 +639,17 @@ func (suite *JWKSDownloaderTestSuite) TestSkippedKeysAreRejectedWithoutAnotherDo
 
 	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "good")
 	suite.Require().NoError(err)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
 
 	for _, kid := range []string{"encryption", "weak"} {
-		_, err = suite.downloader.GetKey(context.Background(), suite.issuerWithURL, kid)
-		suite.Require().ErrorIs(err, ErrNoKey)
+		for range 3 {
+			_, err = suite.downloader.GetKey(context.Background(), suite.issuerWithURL, kid)
+			suite.Require().ErrorIs(err, ErrNoKey)
+		}
 	}
-	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+
+	// one download for the good key, and one for each unusable key ID the first time it is asked for
+	suite.Require().Equal(int32(3), provider.keySetRequests.Load())
 }
 
 func (suite *JWKSDownloaderTestSuite) TestUnknownKeyIdsDoNotEvictGoodKeys() {

@@ -144,7 +144,8 @@ func (d *JWKSDownloader) cachedKey(issuer *configReloader.Config, kid string) *K
 		ttl = d.keyTTL
 	}
 	if time.Since(entry.downloadedAt) >= ttl {
-		d.keys.Delete(kid)
+		// only this entry: a download may have replaced it with a fresh one in the meantime
+		d.keys.CompareAndDelete(kid, value)
 		return nil
 	}
 	return entry.key
@@ -235,7 +236,7 @@ func (d *JWKSDownloader) download(ctx context.Context, issuer *configReloader.Co
 		return nil, errors.Wrap(err, "Failed to download key set")
 	}
 
-	keys, err := d.parseUsableKeys(downloaded.Keys)
+	keys, err := parseUsableKeys(downloaded.Keys)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse key set")
 	}
@@ -314,7 +315,7 @@ func (d *JWKSDownloader) getJSON(ctx context.Context, rawURL string, target inte
 // parseUsableKeys returns the signing keys that are safe to verify with, by key ID. Each key is parsed on its
 // own, so a key that is malformed or unusable is skipped without failing the rest of the set. It fails when
 // two different keys share a key ID, since there is no telling which one signed a token.
-func (d *JWKSDownloader) parseUsableKeys(rawKeys []json.RawMessage) (map[string]*Key, error) {
+func parseUsableKeys(rawKeys []json.RawMessage) (map[string]*Key, error) {
 	keys := map[string]*Key{}
 	for _, rawKey := range rawKeys {
 		var webKey gojose.JSONWebKey
@@ -329,13 +330,11 @@ func (d *JWKSDownloader) parseUsableKeys(rawKeys []json.RawMessage) (map[string]
 
 		key, usable := toUsableKey(&webKey, operations.KeyOps)
 		if !usable {
-			d.addRejectedKid(webKey.KeyID)
 			continue
 		}
 
 		// the same key published twice is harmless
 		if existingKeyID, exists := keys[webKey.KeyID]; exists && !existingKeyID.Equal(key) {
-			d.addRejectedKid(webKey.KeyID)
 			return nil, errors.Errorf("Key set has different keys under the same key ID (kid=%s)", webKey.KeyID)
 		}
 		keys[webKey.KeyID] = key
