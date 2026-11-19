@@ -96,6 +96,15 @@ type CacheConfig struct {
 
 	// RejectedKidCacheSize is the most key IDs the rejected key ID cache holds.
 	RejectedKidCacheSize int
+
+	// DownloadGap is the least time between two key set downloads.
+	DownloadGap time.Duration
+
+	// FailureBackoff is how long no download starts after a failed one.
+	FailureBackoff time.Duration
+
+	// MaxPendingRequests is the most requests held for a download at once, at least 1.
+	MaxPendingRequests int
 }
 
 type openIDConfiguration struct {
