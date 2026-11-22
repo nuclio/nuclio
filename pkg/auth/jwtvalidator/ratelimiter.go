@@ -52,16 +52,20 @@ func (limiter *downloadRateLimiter) acquirePendingSlot(ctx context.Context) erro
 		return errors.Wrap(err, "Failed to acquire a slot for a key set download")
 	}
 
-	limiter.Lock()
-	backingOff := time.Now().Before(limiter.backoffUntil)
-	limiter.Unlock()
-
 	// a download that failed while this request was queued for a slot started the back-off
-	if backingOff {
+	if limiter.isBackingOff() {
 		limiter.pending.Release(1)
 		return errors.New("Key set download is backing off")
 	}
 	return nil
+}
+
+// isBackingOff reports whether no download may start because the last one failed.
+func (limiter *downloadRateLimiter) isBackingOff() bool {
+	limiter.Lock()
+	defer limiter.Unlock()
+
+	return time.Now().Before(limiter.backoffUntil)
 }
 
 // releasePendingSlot gives back a slot taken by acquirePendingSlot.

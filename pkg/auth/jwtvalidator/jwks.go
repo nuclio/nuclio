@@ -118,6 +118,11 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 		// Detached ctx so one caller giving up doesn't fail every caller sharing the download.
 		detachedCtx := context.WithoutCancel(ctx)
 
+		// a download that failed after this caller got its slot started the back-off, and its flight is already gone
+		if d.rateLimiter.isBackingOff() {
+			return nil, errors.Wrap(ErrNoKey, "Key set download is backing off")
+		}
+
 		// every caller that arrives while the flight is delayed joins this download
 		d.rateLimiter.delayForDownloadGap()
 

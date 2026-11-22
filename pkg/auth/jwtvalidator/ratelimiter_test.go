@@ -119,6 +119,25 @@ func (suite *DownloadRateLimiterTestSuite) TestAcquirePendingSlotRejectsRequestQ
 	suite.Require().True(limiter.pending.TryAcquire(1))
 }
 
+func (suite *DownloadRateLimiterTestSuite) TestIsBackingOff() {
+	for _, testCase := range []struct {
+		name         string
+		backoffUntil time.Time
+		expected     bool
+	}{
+		{name: "never failed"},
+		{name: "backing off", backoffUntil: time.Now().Add(time.Hour), expected: true},
+		{name: "back-off is over", backoffUntil: time.Now().Add(-time.Second)},
+	} {
+		suite.Run(testCase.name, func() {
+			limiter := newDownloadRateLimiter(time.Second, time.Minute, 1)
+			limiter.backoffUntil = testCase.backoffUntil
+
+			suite.Require().Equal(testCase.expected, limiter.isBackingOff())
+		})
+	}
+}
+
 func (suite *DownloadRateLimiterTestSuite) TestReleasePendingSlot() {
 	limiter := newDownloadRateLimiter(time.Second, time.Minute, 1)
 	suite.Require().NoError(limiter.acquirePendingSlot(context.Background()))
