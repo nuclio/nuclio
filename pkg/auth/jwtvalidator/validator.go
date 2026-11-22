@@ -18,6 +18,7 @@ package jwtvalidator
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -31,58 +32,54 @@ import (
 
 // Validator checks the rules a token must meet, taking the identity provider's keys from a KeyProvider.
 type Validator struct {
+	logger      logger.Logger
 	keyProvider KeyProvider
 }
 
 // NewValidator creates a validator that downloads the identity provider's keys.
 func NewValidator(parentLogger logger.Logger) *Validator {
-	return &Validator{keyProvider: NewJWKSDownloader(parentLogger)}
+	return &Validator{
+		logger:      parentLogger.GetChild("jwt-validator"),
+		keyProvider: NewJWKSDownloader(parentLogger),
+	}
 }
 
-// Validate checks an Authorization header value ("Bearer <token>") against the issuer entry. Every check
-// must pass, and any error means the request must be denied.
-func (v *Validator) Validate(ctx context.Context, authorizationHeader string, issuer *configReloader.Config) error {
-	token, err := v.extractBearerToken(authorizationHeader)
+// Validate checks an Authorization header value ("Bearer <token>") against the issuer entry and returns the
+// caller's identity. Every check must pass, and any error means the request must be denied.
+func (v *Validator) Validate(ctx context.Context, authorizationHeader string, issuer *configReloader.Config) (string, error) {
+	token, err := v.extractJWT(authorizationHeader)
 	if err != nil {
-		return errors.Wrap(err, "Failed to extract bearer token")
+		return "", errors.Wrap(err, "Failed to extract bearer token")
 	}
 
 	// the key is looked up while the token is parsed, but only after its algorithm, kid and issuer passed
 	claims := jwt.MapClaims{}
 	parser := jwt.NewParser(jwt.WithLeeway(leeway), jwt.WithExpirationRequired())
 
-	// the parser keeps only the text of the key lookup error, so it is kept here to log the whole cause chain
-	var keyError error
 	if _, err := parser.ParseWithClaims(token, claims, func(parsedToken *jwt.Token) (interface{}, error) {
 		key, err := v.resolveKey(ctx, parsedToken, issuer)
-		keyError = err
+		// log the error to have a detailed stack trace
+		if err != nil {
+			v.logger.WarnWithCtx(ctx, "Failed to resolve key", "err", errors.GetErrorStackString(err, -1))
+		}
 		return key, err
 	}); err != nil {
-		if keyError != nil {
-			err = keyError
-		}
-		return errors.Wrap(err, "Failed to verify token")
+		return "", errors.Wrap(err, "Failed to verify token")
 	}
 
 	if err := v.checkAudience(claims, issuer.Audiences); err != nil {
-		return errors.Wrap(err, "Failed to check token audience")
+		return "", errors.Wrap(err, "Failed to check token audience")
 	}
-	return nil
+
+	identity, err := v.identityFromClaims(claims, issuer.IdentityClaim)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get identity from token")
+	}
+	return identity, nil
 }
 
-// ExtractIdentity returns the caller's identity from an Authorization header value. It does not verify the
-// token, so it must only be called with a header that Validate accepted.
-func (v *Validator) ExtractIdentity(authorizationHeader string, identityClaim string) (string, error) {
-	token, err := v.extractBearerToken(authorizationHeader)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to extract bearer token")
-	}
-
-	claims := jwt.MapClaims{}
-	if _, _, err := jwt.NewParser().ParseUnverified(token, claims); err != nil {
-		return "", errors.Wrap(jwt.ErrTokenMalformed, "Failed to parse token claims")
-	}
-
+// identityFromClaims returns the caller's identity from the claims of a verified token.
+func (v *Validator) identityFromClaims(claims jwt.MapClaims, identityClaim string) (string, error) {
 	identity, ok := claims[identityClaim].(string)
 	if !ok || identity == "" {
 		return "", errors.Wrapf(ErrIdentity, "Identity claim is missing, empty or not a string (claim=%s)", identityClaim)
@@ -137,7 +134,7 @@ func (v *Validator) resolveKey(ctx context.Context, token *jwt.Token, issuer *co
 	return key.PublicKey, nil
 }
 
-func (v *Validator) extractBearerToken(authorizationHeader string) (string, error) {
+func (v *Validator) extractJWT(authorizationHeader string) (string, error) {
 	token, err := utils.ExtractBearerToken(authorizationHeader)
 	if err != nil {
 		return "", errors.Wrap(jwt.ErrTokenMalformed, err.Error())
@@ -165,10 +162,8 @@ func (v *Validator) checkAudience(claims jwt.MapClaims, audiences []string) erro
 	}
 
 	for _, tokenAudience := range tokenAudiences {
-		for _, audience := range audiences {
-			if tokenAudience == audience {
-				return nil
-			}
+		if slices.Contains(audiences, tokenAudience) {
+			return nil
 		}
 	}
 	return errors.Wrap(jwt.ErrTokenInvalidAudience, "Token audience is not trusted")

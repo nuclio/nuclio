@@ -185,13 +185,9 @@ func (a *abstractAuthenticator) verifyExternal(responseWriter http.ResponseWrite
 // validateExternalToken validates the request's bearer token and returns the caller's identity.
 func (a *abstractAuthenticator) validateExternalToken(ctx context.Context, request *http.Request, issuer *configReloader.Config) (string, error) {
 	authorizationHeader := request.Header.Get(headers.AuthorizationHeader)
-	if err := a.jwtValidator.Validate(ctx, authorizationHeader, issuer); err != nil {
-		return "", errors.Wrap(err, "Failed to validate token")
-	}
-
-	identity, err := a.jwtValidator.ExtractIdentity(authorizationHeader, issuer.IdentityClaim)
+	identity, err := a.jwtValidator.Validate(ctx, authorizationHeader, issuer)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to extract identity from token")
+		return "", errors.Wrap(err, "Failed to validate token")
 	}
 	return identity, nil
 }
