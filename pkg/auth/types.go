@@ -111,7 +111,7 @@ type FunctionAuthConfig struct {
 
 // Validate checks mode-specific required fields.
 func (c FunctionAuthConfig) Validate() error {
-	switch c.Mode{
+	switch c.Mode {
 	case AuthenticationModeBasicAuth:
 		if c.BasicAuthUsername == "" {
 			return errors.New("Basic-auth username must be provided")
