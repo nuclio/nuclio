@@ -83,7 +83,7 @@ NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND=list-all-dirs-with-tests
 LIST_TESTS_MAKE_COMMAND := $(if $(LIST_TESTS_MAKE_COMMAND),$(LIST_TESTS_MAKE_COMMAND),$(NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND))
 
 # Docker client cli to be used
-NUCLIO_DOCKER_CLIENT_VERSION ?= 29.8.1
+NUCLIO_DOCKER_CLIENT_VERSION ?= 29.10.0
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
 else ifeq ($(NUCLIO_ARCH), arm64)
@@ -94,19 +94,19 @@ endif
 
 # alpine is commonly used by controller / dlx / autoscaler
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.23
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm32v7/alpine:3.24
 	# NUCLIO_BASE_IMAGE_NAME also feeds hack/docker/build/builder/Dockerfile, which pins
 	# FROM --platform=linux/${NUCLIO_ARCH} - it needs a multi-arch image regardless of
 	# target arch, so no arch-specific prefix here.
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NODE_IMAGE_NAME 				?= arm32v7/node:20
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.23
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= arm64v8/alpine:3.24
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK 		?= arm64v8/eclipse-temurin:25-jdk-noble
 	NODE_IMAGE_NAME 				?= arm64v8/node:20
 else
-	NUCLIO_DOCKER_ALPINE_IMAGE 		?= alpine:3.23
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= alpine:3.24
 	NUCLIO_BASE_IMAGE_NAME 			?= golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= eclipse-temurin:25-jdk-noble
 	NODE_IMAGE_NAME 				?= node:20
