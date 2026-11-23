@@ -31,7 +31,10 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
@@ -60,6 +63,15 @@ type JWKSDownloaderTestSuite struct {
 	issuerWithURL *configReloader.Config
 }
 
+// fakeIdentityProvider counts the requests and holds the key set response until released. It is a separate
+// value per test, so a download still running when its test ends touches nothing of the next test.
+type fakeIdentityProvider struct {
+	discoveryRequests atomic.Int32
+	keySetRequests    atomic.Int32
+	keySetRequested   chan struct{}
+	releaseKeySet     chan struct{}
+}
+
 func (suite *JWKSDownloaderTestSuite) SetupSuite() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("jwks-downloader-test")
@@ -77,6 +89,111 @@ func (suite *JWKSDownloaderTestSuite) SetupSuite() {
 
 func (suite *JWKSDownloaderTestSuite) SetupTest() {
 	suite.downloader = NewJWKSDownloader(suite.logger)
+}
+
+func (suite *JWKSDownloaderTestSuite) TestConcurrentCallsShareOneDownload() {
+	callerCount := 200
+	provider := suite.useFakeIdentityProvider()
+
+	errorsChan := make(chan error, callerCount)
+	var wg sync.WaitGroup
+	for range callerCount {
+		wg.Go(func() {
+			_, err := suite.downloader.GetKey(context.Background(), suite.issuer, "rsa-key")
+			errorsChan <- err
+		})
+	}
+
+	// the download is blocked until every caller had the chance to join it; a caller that joins late would
+	// start a second download, which the request counts below would show
+	<-provider.keySetRequested
+	time.Sleep(200 * time.Millisecond)
+	close(provider.releaseKeySet)
+	wg.Wait()
+	close(errorsChan)
+
+	for err := range errorsChan {
+		suite.Require().NoError(err)
+	}
+	suite.Require().Equal(int32(1), provider.discoveryRequests.Load())
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestCancelledCallerDoesNotFailOthers() {
+	provider := suite.useFakeIdentityProvider()
+	firstCtx, cancelFirst := context.WithCancel(context.Background())
+	defer cancelFirst()
+
+	firstErrorChan := make(chan error, 1)
+	go func() {
+		_, err := suite.downloader.GetKey(firstCtx, suite.issuerWithURL, "rsa-key")
+		firstErrorChan <- err
+	}()
+	<-provider.keySetRequested
+
+	type result struct {
+		key *Key
+		err error
+	}
+	secondResultChan := make(chan result, 1)
+	go func() {
+		key, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rsa-key")
+		secondResultChan <- result{key: key, err: err}
+	}()
+
+	// the second caller must join the download before the first one gives up, otherwise it would start its own
+	time.Sleep(200 * time.Millisecond)
+
+	// the first caller gives up while the download is still blocked, and returns without waiting for it
+	cancelFirst()
+	suite.Require().ErrorIs(<-firstErrorChan, context.Canceled)
+
+	close(provider.releaseKeySet)
+	secondResult := <-secondResultChan
+	suite.Require().NoError(secondResult.err)
+	suite.Require().Equal(&suite.rsaKey.PublicKey, secondResult.key.PublicKey)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestDifferentKeySourcesDoNotShareDownload() {
+	provider := suite.useFakeIdentityProvider()
+
+	errorsChan := make(chan error, 2)
+	for _, issuer := range []*configReloader.Config{suite.issuer, suite.issuerWithURL} {
+		go func() {
+			_, err := suite.downloader.GetKey(context.Background(), issuer, "rsa-key")
+			errorsChan <- err
+		}()
+	}
+
+	// each key source starts its own download, so both requests arrive while the key set is still held
+	<-provider.keySetRequested
+	<-provider.keySetRequested
+	close(provider.releaseKeySet)
+
+	suite.Require().NoError(<-errorsChan)
+	suite.Require().NoError(<-errorsChan)
+	suite.Require().Equal(int32(2), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestCallerStopsAtItsOwnDeadline() {
+	provider := suite.useFakeIdentityProvider()
+	// the deadline has already passed, so the outcome does not depend on timing: the download is blocked, and
+	// the caller must still return at its own deadline
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	_, err := suite.downloader.GetKey(ctx, suite.issuerWithURL, "rsa-key")
+	suite.Require().ErrorIs(err, context.DeadlineExceeded)
+	close(provider.releaseKeySet)
+}
+
+func (suite *JWKSDownloaderTestSuite) TestUnknownKeyIdIsNoKey() {
+	provider := suite.useFakeIdentityProvider()
+	close(provider.releaseKeySet)
+
+	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "other-key")
+	suite.Require().ErrorIs(err, ErrNoKey)
 }
 
 func (suite *JWKSDownloaderTestSuite) TestDiscoversKeySetAndReturnsKeys() {
@@ -439,6 +556,33 @@ func (suite *JWKSDownloaderTestSuite) TestDownloadIsRejected() {
 }
 
 // --- test helpers (private, below public functions) ---
+
+// useFakeIdentityProvider makes the downloader talk to a fake identity provider that answers discovery at
+// once and holds the key set response until its releaseKeySet is closed.
+func (suite *JWKSDownloaderTestSuite) useFakeIdentityProvider() *fakeIdentityProvider {
+	provider := &fakeIdentityProvider{
+		keySetRequested: make(chan struct{}, 1000),
+		releaseKeySet:   make(chan struct{}),
+	}
+	discoveryBody := suite.discoveryBody(testJWKSURL)
+	keySetBody := suite.keySetBody(suite.webKey("rsa-key", &suite.rsaKey.PublicKey, nil))
+	suite.downloader.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+		switch r.URL.String() {
+		case testDiscoveryURL:
+			provider.discoveryRequests.Add(1)
+			return suite.newResponse(http.StatusOK, discoveryBody)
+		case testJWKSURL:
+			provider.keySetRequests.Add(1)
+			provider.keySetRequested <- struct{}{}
+			<-provider.releaseKeySet
+			return suite.newResponse(http.StatusOK, keySetBody)
+		default:
+			suite.Failf("Unexpected request", "URL: %s", r.URL)
+			return nil
+		}
+	})
+	return provider
+}
 
 // newResponse builds the response an identity provider gives, with a body that can be read once.
 func (suite *JWKSDownloaderTestSuite) newResponse(status int, body []byte) *http.Response {
