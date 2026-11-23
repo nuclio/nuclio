@@ -1335,6 +1335,22 @@ func (suite *PlatformConfigTestSuite) TestEnrichAndValidateProjectsLeaderConfigO
 	suite.Require().Equal(DefaultProjectSync2PCEnabled, config.ProjectsLeader.ProjectSync2PCEnabled)
 }
 
+func (suite *PlatformConfigTestSuite) TestGetIssuerConfigMapPrefix() {
+	for _, testCase := range []struct {
+		name           string
+		prefix         string
+		expectedPrefix string
+	}{
+		{name: "default", expectedPrefix: DefaultIssuerConfigMapPrefix},
+		{name: "configured", prefix: "custom-issuers-", expectedPrefix: "custom-issuers-"},
+	} {
+		suite.Run(testCase.name, func() {
+			authentication := &Authentication{IssuerConfigMapPrefix: testCase.prefix}
+			suite.Require().Equal(testCase.expectedPrefix, authentication.GetIssuerConfigMapPrefix())
+		})
+	}
+}
+
 func (suite *PlatformConfigTestSuite) TestEnrichAuthenticationDefaultMode() {
 	for _, testCase := range []struct {
 		name         string
@@ -1362,6 +1378,7 @@ func (suite *PlatformConfigTestSuite) TestValidatePlatformConfigDefaultMode() {
 		{name: "api", mode: auth.AuthenticationModeAPI},
 		{name: "browser", mode: auth.AuthenticationModeBrowser},
 		{name: "basicAuth rejected as default", mode: auth.AuthenticationModeBasicAuth, expectError: true},
+		{name: "external rejected as default", mode: auth.AuthenticationModeExternal, expectError: true},
 		{name: "invalid", mode: "bogus", expectError: true},
 	} {
 		suite.Run(testCase.name, func() {

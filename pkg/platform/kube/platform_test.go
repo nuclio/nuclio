@@ -1611,6 +1611,144 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccountWithDefaul
 	suite.Require().Error(err)
 }
 
+// TestValidateExternalAuthenticationIssuer verifies that an external function selects an issuer that exists in
+// the project's issuer ConfigMap.
+func (suite *FunctionKubePlatformTestSuite) TestValidateExternalAuthenticationIssuer() {
+	const issuerName = "bank-customers"
+	configMapName := auth.IssuerConfigMapName(platformconfig.DefaultIssuerConfigMapPrefix, suite.projectName)
+
+	for _, testCase := range []struct {
+		name                          string
+		functionAuthenticationEnabled bool
+		authenticationMode            auth.AuthenticationMode
+		issuer                        string
+		configMapData                 map[string]string
+		createConfigMap               bool
+		expectedError                 string
+	}{
+		{
+			name:                          "IssuerInConfigMap",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            auth.AuthenticationModeExternal,
+			issuer:                        issuerName,
+			createConfigMap:               true,
+			configMapData:                 map[string]string{issuerName: "{}", "other": "{}"},
+		},
+		{
+			name:                          "ConfigMapMissing",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            auth.AuthenticationModeExternal,
+			issuer:                        issuerName,
+			expectedError:                 "Issuer ConfigMap of the project is missing",
+		},
+		{
+			name:                          "IssuerNotInConfigMap",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            auth.AuthenticationModeExternal,
+			issuer:                        issuerName,
+			createConfigMap:               true,
+			configMapData:                 map[string]string{"other": "{}"},
+			expectedError:                 "Issuer is not defined in the project",
+		},
+		{
+			name:                          "OtherModeSkipsCheck",
+			functionAuthenticationEnabled: true,
+			authenticationMode:            auth.AuthenticationModeAPI,
+		},
+		{
+			name:               "FlagOffSkipsCheck",
+			authenticationMode: auth.AuthenticationModeExternal,
+			issuer:             issuerName,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			oldAuthentication := suite.platform.Config.Authentication
+			suite.platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: testCase.functionAuthenticationEnabled,
+				DefaultMode:                   auth.AuthenticationModeNone,
+			}
+			defer func() { suite.platform.Config.Authentication = oldAuthentication }()
+
+			if testCase.createConfigMap {
+				_, err := suite.kubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(suite.ctx,
+					&v1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{Name: configMapName, Namespace: suite.Namespace},
+						Data:       testCase.configMapData,
+					}, metav1.CreateOptions{})
+				suite.Require().NoError(err)
+				defer suite.kubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Delete(suite.ctx, configMapName, metav1.DeleteOptions{}) //nolint:errcheck
+			}
+
+			attributes := map[string]interface{}{auth.AttributeAuthenticationMode: string(testCase.authenticationMode)}
+			if testCase.issuer != "" {
+				attributes[auth.AttributeAuthentication] = map[string]interface{}{
+					auth.AttributeExternal: map[string]interface{}{auth.AttributeIssuer: testCase.issuer},
+				}
+			}
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Namespace: suite.Namespace,
+					Labels:    map[string]string{common.NuclioResourceLabelKeyProjectName: suite.projectName},
+				},
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http": {Kind: "http", Attributes: attributes},
+					},
+				},
+			}
+
+			err := suite.platform.validateExternalAuthenticationIssuer(suite.ctx, functionConfig)
+			if testCase.expectedError != "" {
+				suite.Require().Error(err)
+				suite.Require().Contains(err.Error(), testCase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+// TestValidateCronTriggersWithExternalAuthentication verifies that a cron trigger is rejected on an external function.
+func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersWithExternalAuthentication() {
+	for _, testCase := range []struct {
+		name                          string
+		functionAuthenticationEnabled bool
+		authenticationMode            auth.AuthenticationMode
+		expectError                   bool
+	}{
+		{name: "ExternalRejected", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeExternal, expectError: true},
+		{name: "APIAllowed", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeAPI},
+		{name: "FlagOffAllowed", authenticationMode: auth.AuthenticationModeExternal},
+	} {
+		suite.Run(testCase.name, func() {
+			oldAuthentication := suite.platform.Config.Authentication
+			suite.platform.Config.Authentication = &platformconfig.Authentication{
+				FunctionAuthenticationEnabled: testCase.functionAuthenticationEnabled,
+			}
+			defer func() { suite.platform.Config.Authentication = oldAuthentication }()
+
+			functionConfig := &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http": {
+							Kind:       "http",
+							Attributes: map[string]interface{}{auth.AttributeAuthenticationMode: string(testCase.authenticationMode)},
+						},
+						"cron": {Kind: "cron"},
+					},
+				},
+			}
+
+			err := suite.platform.validateCronTriggers(functionConfig)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
 // TestValidateCronTriggersServiceAccount verifies that a cron trigger service account is set when needed, a valid
 // Kubernetes name and checked like a function's service account.
 func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersServiceAccount() {
@@ -2947,7 +3085,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetAllowedAuthenticationModesWit
 		{
 			name:           "function auth enabled, default values",
 			config:         &platformconfig.Config{Authentication: &platformconfig.Authentication{FunctionAuthenticationEnabled: true}},
-			expectedResult: []string{string(auth.AuthenticationModeAPI), string(auth.AuthenticationModeBasicAuth), string(auth.AuthenticationModeBrowser), string(auth.AuthenticationModeNone)},
+			expectedResult: []string{string(auth.AuthenticationModeAPI), string(auth.AuthenticationModeBasicAuth), string(auth.AuthenticationModeBrowser), string(auth.AuthenticationModeExternal), string(auth.AuthenticationModeNone)},
 		},
 		{
 			name: "function auth enabled, config values",
