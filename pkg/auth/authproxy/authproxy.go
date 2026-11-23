@@ -28,7 +28,9 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/configReloader"
 	"github.com/nuclio/nuclio/pkg/auth/factory"
+	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/nuclio/errors"
@@ -55,15 +57,19 @@ func newAuthInstance(parentLogger logger.Logger, authURL string, authKind auth.K
 // abstractAuthenticator holds the shared authentication logic embedded by every topology. Given a resolved
 // auth.FunctionAuthConfig it verifies basicAuth locally, calls the auth-url for api/browser, and always fails closed on error.
 type abstractAuthenticator struct {
-	logger    logger.Logger
-	auth      auth.Auth
-	signinURL *url.URL
+	logger       logger.Logger
+	auth         auth.Auth
+	signinURL    *url.URL
+	jwtValidator *jwtvalidator.Validator // used by external mode
 }
 
 // newAbstractAuthenticator builds the shared decision logic. authURL is guaranteed non-empty by the
 // caller for any mode that delegates to the auth-url (api/browser); basicAuth/none modes never reach
 // callAuthURL so the auth instance is effectively unused for them.
-func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL string, authKind auth.Kind) (*abstractAuthenticator, error) {
+func newAbstractAuthenticator(parentLogger logger.Logger,
+	authURL, signinURL string,
+	authKind auth.Kind,
+	jwtValidator *jwtvalidator.Validator) (*abstractAuthenticator, error) {
 	parsed, err := url.Parse(signinURL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse sign-in URL")
@@ -73,14 +79,16 @@ func newAbstractAuthenticator(parentLogger logger.Logger, authURL, signinURL str
 		return nil, errors.Wrap(err, "Failed to create auth instance")
 	}
 	return &abstractAuthenticator{
-		logger:    parentLogger,
-		auth:      authInstance,
-		signinURL: parsed,
+		logger:       parentLogger,
+		auth:         authInstance,
+		signinURL:    parsed,
+		jwtValidator: jwtValidator,
 	}, nil
 }
 
 // decide applies the verdict for the resolved authConfig, writing the rejection response itself on failure.
-func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig) bool {
+// issuer is the trusted issuer entry, supplied by the topology that loads it, and is used only by external mode.
+func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, request *http.Request, authConfig auth.FunctionAuthConfig, issuer *configReloader.Config) bool {
 	switch authConfig.Mode {
 	case auth.AuthenticationModeNone:
 		a.logger.Info("Authentication disabled, allowing request")
@@ -91,6 +99,8 @@ func (a *abstractAuthenticator) decide(responseWriter http.ResponseWriter, reque
 		return a.callAuthURL(responseWriter, request, false)
 	case auth.AuthenticationModeBrowser:
 		return a.callAuthURL(responseWriter, request, true)
+	case auth.AuthenticationModeExternal:
+		return a.verifyExternal(responseWriter, request, issuer)
 	default:
 		a.logger.WarnWith("Unknown authentication mode, failing closed",
 			"mode", authConfig.Mode)
@@ -139,6 +149,53 @@ func (a *abstractAuthenticator) callAuthURL(responseWriter http.ResponseWriter, 
 
 	a.applyIdentityHeaders(request, session)
 	return true
+}
+
+// verifyExternal validates the bearer token locally against the current issuer entry, fast failing.
+func (a *abstractAuthenticator) verifyExternal(responseWriter http.ResponseWriter, request *http.Request, issuer *configReloader.Config) bool {
+	ctx, cancel := context.WithTimeout(request.Context(), AuthTimeout)
+	defer cancel()
+
+	if issuer == nil {
+		a.logger.WarnWithCtx(ctx,
+			"External authentication failed, rejecting request",
+			"outcome", "denied",
+			"err", "No issuer entry available")
+		a.rejectBearer(responseWriter)
+		return false
+	}
+
+	identity, err := a.validateExternalToken(ctx, request, issuer)
+	if err != nil {
+		a.logger.WarnWithCtx(ctx,
+			"External authentication failed, rejecting request",
+			"issuer", issuer.IssuerName,
+			"outcome", "denied",
+			"err", errors.GetErrorStackString(err, -1))
+		a.rejectBearer(responseWriter)
+		return false
+	}
+
+	// the issuer name is the trusted issuer's name in the project (from issuer.json), so the function knows who authenticated the caller
+	request.Header.Set(headers.NuclioAuthIssuer, issuer.IssuerName)
+	request.Header.Set(headers.NuclioAuthIdentity, identity)
+	return true
+}
+
+// validateExternalToken validates the request's bearer token and returns the caller's identity.
+func (a *abstractAuthenticator) validateExternalToken(ctx context.Context, request *http.Request, issuer *configReloader.Config) (string, error) {
+	authorizationHeader := request.Header.Get(headers.AuthorizationHeader)
+	identity, err := a.jwtValidator.Validate(ctx, authorizationHeader, issuer)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to validate token")
+	}
+	return identity, nil
+}
+
+// rejectBearer answers 401 with a bearer challenge and an empty body.
+func (a *abstractAuthenticator) rejectBearer(responseWriter http.ResponseWriter) {
+	responseWriter.Header().Set("WWW-Authenticate", "Bearer")
+	responseWriter.WriteHeader(http.StatusUnauthorized)
 }
 
 // reject writes the mode-appropriate rejection response.
