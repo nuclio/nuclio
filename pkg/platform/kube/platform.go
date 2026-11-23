@@ -2362,13 +2362,31 @@ func (p *Platform) validateSecretIsAllowed(secretName, projectSecretPrefix, proj
 }
 
 func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
+	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) == 0 {
+		return nil
+	}
+
 	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
-		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
 		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
 		return errors.New("Cron trigger in `kube` mode cannot be created when default http trigger " +
 			"creation is disabled and there is no other http trigger. " +
 			"Either enable default http trigger creation or create custom http trigger")
+	}
+
+	if !p.Config.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	if err != nil {
+		// a function without exactly one http trigger has no authentication mode to validate
+		return nil
+	}
+
+	// cron calls authenticate with a service account token, which an external function does not accept
+	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeExternal {
+		return nuclio.NewErrBadRequest("Cron triggers are not supported on a function with external authentication")
 	}
 	return nil
 }
