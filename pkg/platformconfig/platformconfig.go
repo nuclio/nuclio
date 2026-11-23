@@ -541,6 +541,11 @@ func (c *Config) validateAuthentication() error {
 	if c.Authentication.DefaultMode == auth.AuthenticationModeBasicAuth {
 		return errors.New("Default authentication mode cannot be 'basicAuth': basicAuth requires per-function credentials")
 	}
+
+	// external cannot be the platform-wide default either: it requires a per-function issuer.
+	if c.Authentication.DefaultMode == auth.AuthenticationModeExternal {
+		return errors.New("Default authentication mode cannot be 'external': external requires a per-function issuer")
+	}
 	mode := string(c.Authentication.DefaultMode)
 	authModes := c.Authentication.GetAllowedFunctionAuthenticationModes()
 	for _, valid := range authModes {
