@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -80,6 +81,9 @@ const (
 	// env vars carrying a function's basicAuth credentials into its cron job pod; each name is also referenced by curl
 	cronTriggerBasicAuthUsernameEnvVar = "NUCLIO_CRON_TRIGGER_BASIC_AUTH_USERNAME"
 	cronTriggerBasicAuthPasswordEnvVar = "NUCLIO_CRON_TRIGGER_BASIC_AUTH_PASSWORD"
+
+	// issuerVolumeName is the pod volume holding the function's trusted issuer, mounted on the auth-proxy sidecar only
+	issuerVolumeName = "issuer-config-volume"
 )
 
 //
@@ -1582,6 +1586,17 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 		args = append(args, fmt.Sprintf("--auth-kind=%s", platformConfig.Authentication.AuthKind))
 	}
 
+	// external auth mode requires the issuer to be mounted
+	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeExternal {
+		issuerVolume, issuerVolumeMount, err := lc.resolveIssuerVolume(function)
+		if err != nil {
+			return errors.Wrap(err, "Failed to resolve issuer volume")
+		}
+		deploymentSpec.Template.Spec.Volumes = append(deploymentSpec.Template.Spec.Volumes, issuerVolume)
+		volumeMounts = append(volumeMounts, issuerVolumeMount)
+		args = append(args, fmt.Sprintf("--issuer-config=%s", auth.DefaultIssuerConfigPath))
+	}
+
 	container := v1.Container{
 		Name:         abstract.AuthProxySidecarContainerName,
 		Image:        platformConfig.Authentication.AuthSidecarImage,
@@ -1606,6 +1621,47 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 
 	deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, container)
 	return nil
+}
+
+// resolveIssuerVolume builds the volume and mount that expose the function's issuer, a key of the project's
+// issuer ConfigMap, to the auth-proxy as issuer.json. It is a directory mount (not subPath) so that an
+// issuer edit reaches the running sidecar.
+func (lc *lazyClient) resolveIssuerVolume(function *nuclioio.NuclioFunction) (v1.Volume, v1.VolumeMount, error) {
+	projectName, ok := function.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !ok || projectName == "" {
+		return v1.Volume{}, v1.VolumeMount{}, errors.New("Function does not have a project label, cannot mount its authentication issuer")
+	}
+
+	httpTrigger, err := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
+	if err != nil {
+		return v1.Volume{}, v1.VolumeMount{}, errors.Wrap(err, "Failed to get HTTP trigger for issuer volume")
+	}
+	authConfig, err := auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, auth.AuthenticationModeExternal)
+	if err != nil {
+		return v1.Volume{}, v1.VolumeMount{}, errors.Wrap(err, "Failed to decode external authentication config")
+	}
+
+	configMapName := auth.IssuerConfigMapName(
+		lc.platformConfigurationProvider.GetPlatformConfiguration().Authentication.GetIssuerConfigMapPrefix(),
+		projectName)
+
+	volume := v1.Volume{
+		Name: issuerVolumeName,
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: configMapName},
+				Items: []v1.KeyToPath{
+					{Key: authConfig.ExternalIssuer, Path: path.Base(auth.DefaultIssuerConfigPath)},
+				},
+			},
+		},
+	}
+	volumeMount := v1.VolumeMount{
+		Name:      issuerVolumeName,
+		MountPath: path.Dir(auth.DefaultIssuerConfigPath),
+		ReadOnly:  true,
+	}
+	return volume, volumeMount, nil
 }
 
 func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) appsv1.DeploymentStrategyType {
@@ -2665,6 +2721,12 @@ func (lc *lazyClient) buildCronJobAuthComponents(
 			"--expand-header", headers.AuthorizationHeader+": "+authutils.BearerPrefix+"{{token:trim}}",
 			"--header", fmt.Sprintf("%s: %s", headers.IguazioAuthenticatorKind, "sa"),
 		)
+
+	case auth.AuthenticationModeExternal:
+		// cron on an external function is rejected at deploy; a cron job built here would have no way to authenticate
+		lc.logger.WarnWithCtx(ctx,
+			"Cron trigger is not supported on a function with external authentication",
+			"functionName", function.Name)
 
 	case auth.AuthenticationModeBasicAuth:
 		httpTrigger, triggerErr := functionconfig.GetHTTPTrigger(function.Spec.Triggers)
