@@ -1714,13 +1714,19 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateCronTriggersWithExternal
 		name                          string
 		functionAuthenticationEnabled bool
 		authenticationMode            auth.AuthenticationMode
+		cronTriggerCreationMode       platformconfig.CronTriggerCreationMode
 		expectError                   bool
 	}{
-		{name: "ExternalRejected", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeExternal, expectError: true},
-		{name: "APIAllowed", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeAPI},
-		{name: "FlagOffAllowed", authenticationMode: auth.AuthenticationModeExternal},
+		{name: "ExternalRejected", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeExternal, cronTriggerCreationMode: platformconfig.KubeCronTriggerCreationMode, expectError: true},
+		{name: "ExternalAllowedInProcessorMode", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeExternal, cronTriggerCreationMode: platformconfig.ProcessorCronTriggerCreationMode},
+		{name: "APIAllowed", functionAuthenticationEnabled: true, authenticationMode: auth.AuthenticationModeAPI, cronTriggerCreationMode: platformconfig.KubeCronTriggerCreationMode},
+		{name: "FlagOffAllowed", authenticationMode: auth.AuthenticationModeExternal, cronTriggerCreationMode: platformconfig.KubeCronTriggerCreationMode},
 	} {
 		suite.Run(testCase.name, func() {
+			oldCronTriggerCreationMode := suite.platform.Config.CronTriggerCreationMode
+			suite.platform.Config.CronTriggerCreationMode = testCase.cronTriggerCreationMode
+			defer func() { suite.platform.Config.CronTriggerCreationMode = oldCronTriggerCreationMode }()
+
 			oldAuthentication := suite.platform.Config.Authentication
 			suite.platform.Config.Authentication = &platformconfig.Authentication{
 				FunctionAuthenticationEnabled: testCase.functionAuthenticationEnabled,

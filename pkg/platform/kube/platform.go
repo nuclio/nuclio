@@ -2168,10 +2168,10 @@ func (p *Platform) validateExternalAuthenticationIssuer(ctx context.Context, fun
 
 	projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 	if !ok {
-		return errors.New("Function does not have a project label, cannot validate authentication issuer")
+		return nuclio.NewErrBadRequest("Function does not have a project label, cannot validate authentication issuer")
 	}
 	if projectName == "" {
-		return errors.New("Function has an empty project label, cannot validate authentication issuer")
+		return nuclio.NewErrBadRequest("Function has an empty project label, cannot validate authentication issuer")
 	}
 
 	configMapName := auth.IssuerConfigMapName(p.Config.Authentication.GetIssuerConfigMapPrefix(), projectName)
@@ -2384,8 +2384,10 @@ func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) e
 		return nil
 	}
 
-	// cron calls authenticate with a service account token, which an external function does not accept
-	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeExternal {
+	// in kube mode cron calls authenticate with a service account token, which an external function does not accept
+	// (processor mode runs internally and needs no authentication)
+	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeExternal &&
+		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
 		return nuclio.NewErrBadRequest("Cron triggers are not supported on a function with external authentication")
 	}
 	return nil
