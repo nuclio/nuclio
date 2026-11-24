@@ -60,6 +60,11 @@ function Response(body = null,
                   contentType = 'text/plain',
                   statusCode = 200,
                   bodyEncoding = 'text') {
+    // allow `context.Response(...)` without `new`, as in the python runtime
+    if (!(this instanceof Response)) {
+        return new Response(body, headers, contentType, statusCode, bodyEncoding)
+    }
+
     this.body = body
     this.headers = headers
     this.content_type = contentType
