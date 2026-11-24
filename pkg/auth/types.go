@@ -18,11 +18,12 @@ package auth
 
 import (
 	"net/http"
-	"regexp"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // AuthenticationMode is the authentication mode for API gateways and ingress resources.
@@ -47,13 +48,7 @@ const (
 	AttributeBasicAuth      = "basicAuth"
 	AttributeExternal       = "external"
 	AttributeIssuer         = "issuer"
-
-	// maxIssuerNameLength is the ConfigMap key length limit, as the issuer name is the key in the ConfigMap.
-	maxIssuerNameLength = 253
 )
-
-// issuerNamePattern matches the characters allowed in a ConfigMap key.
-var issuerNamePattern = regexp.MustCompile(`^[-._a-zA-Z0-9]+$`)
 
 type Kind string
 
@@ -123,10 +118,9 @@ func (c FunctionAuthConfig) Validate() error {
 		if c.ExternalIssuer == "" {
 			return errors.New("External authentication issuer must be provided")
 		}
-		if len(c.ExternalIssuer) > maxIssuerNameLength || !issuerNamePattern.MatchString(c.ExternalIssuer) {
-			return errors.Errorf("External authentication issuer name must match %s and be at most %d characters: %s",
-				issuerNamePattern.String(),
-				maxIssuerNameLength,
+		if errs := validation.IsDNS1123Subdomain(c.ExternalIssuer); len(errs) > 0 {
+			return errors.Errorf("External authentication issuer name is invalid: %s. Issuer: %s",
+				strings.Join(errs, "; "),
 				c.ExternalIssuer)
 		}
 	default:
