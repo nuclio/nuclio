@@ -932,10 +932,10 @@ func (suite *JWKSDownloaderTestSuite) TestCallerThatStopsReleasesItsPendingSlot(
 func (suite *JWKSDownloaderTestSuite) TestFailedDownloadBacksOff() {
 	suite.downloader.rateLimiter.backoff = time.Hour
 	provider := suite.useFakeIdentityProvider(suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil))
-	suite.downloader.keys.Store("cached", &keyEntry{
+	suite.downloader.keys.entries["cached"] = &keyEntry{
 		key:          &Key{PublicKey: &suite.rsaKey.PublicKey},
 		downloadedAt: time.Now(),
-	})
+	}
 
 	callerCount := 20
 	errorsChan := make(chan error, callerCount)
