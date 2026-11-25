@@ -107,7 +107,7 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 			return nil, err
 		}
 		d.storeKeys(keys)
-		return nil, nil
+		return keys, nil
 	})
 
 	select {
@@ -116,7 +116,8 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 			return nil, result.Err
 		}
 
-		key := d.cachedKey(issuer, kid)
+		// callers sharing the flight may ask for different key IDs, so each picks its own from the key set
+		key := result.Val.(map[string]*Key)[kid]
 		if key == nil {
 			d.addRejectedKid(kid)
 			return nil, errors.Wrapf(ErrNoKey, "Key set has no usable key for the key ID (kid=%s)", kid)
