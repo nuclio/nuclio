@@ -18,10 +18,12 @@ package auth
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // AuthenticationMode is the authentication mode for API gateways and ingress resources.
@@ -40,10 +42,12 @@ const (
 	// AttributeAuthenticationMode is the key for the authentication mode in HTTP trigger attributes.
 	AttributeAuthenticationMode = "authenticationMode"
 
-	// AttributeAuthentication and AttributeBasicAuth are the keys of the mode-specific authentication
-	// config nested inside the HTTP trigger attributes.
+	// AttributeAuthentication, AttributeBasicAuth, AttributeExternal and AttributeIssuer are the keys of the
+	// mode-specific authentication config nested inside the HTTP trigger attributes.
 	AttributeAuthentication = "authentication"
 	AttributeBasicAuth      = "basicAuth"
+	AttributeExternal       = "external"
+	AttributeIssuer         = "issuer"
 )
 
 type Kind string
@@ -95,17 +99,31 @@ type FunctionAuthConfig struct {
 	// BasicAuthPasswordHash is the bcrypt hash of BasicAuthPassword. Set by NewReverseProxyAuthenticator
 	// so the plaintext is never held in memory for the pod's lifetime.
 	BasicAuthPasswordHash []byte
+
+	// ExternalIssuer is the name of the project's trusted issuer selected by an external-mode function.
+	ExternalIssuer string
 }
 
 // Validate checks mode-specific required fields.
 func (c FunctionAuthConfig) Validate() error {
-	if c.Mode == AuthenticationModeBasicAuth {
+	switch c.Mode {
+	case AuthenticationModeBasicAuth:
 		if c.BasicAuthUsername == "" {
 			return errors.New("Basic-auth username must be provided")
 		}
 		if c.BasicAuthPassword == "" {
 			return errors.New("Basic-auth password must be provided")
 		}
+	case AuthenticationModeExternal:
+		if c.ExternalIssuer == "" {
+			return errors.New("External authentication issuer must be provided")
+		}
+		if errs := validation.IsDNS1123Subdomain(c.ExternalIssuer); len(errs) > 0 {
+			return errors.Errorf("External authentication issuer name is invalid: %s. Issuer: %s",
+				strings.Join(errs, "; "),
+				c.ExternalIssuer)
+		}
+	default:
 	}
 	return nil
 }
@@ -118,11 +136,14 @@ type httpTriggerAuthAttrs struct {
 			Username string `mapstructure:"username"`
 			Password string `mapstructure:"password"`
 		} `mapstructure:"basicAuth"`
+		External *struct {
+			Issuer string `mapstructure:"issuer"`
+		} `mapstructure:"external"`
 	} `mapstructure:"authentication"`
 }
 
-// FunctionAuthConfigFromAttributes decodes authenticationMode + authentication.basicAuth from an HTTP
-// trigger's free-form attributes.
+// FunctionAuthConfigFromAttributes decodes authenticationMode + authentication.basicAuth / authentication.external
+// from an HTTP trigger's free-form attributes.
 func FunctionAuthConfigFromAttributes(attributes map[string]interface{}, defaultMode AuthenticationMode) (FunctionAuthConfig, error) {
 	var decoded httpTriggerAuthAttrs
 	if err := mapstructure.Decode(attributes, &decoded); err != nil {
@@ -143,6 +164,10 @@ func FunctionAuthConfigFromAttributes(attributes map[string]interface{}, default
 			authConfig.BasicAuthUsername = decoded.Authentication.BasicAuth.Username
 			authConfig.BasicAuthPassword = decoded.Authentication.BasicAuth.Password
 		}
+	case AuthenticationModeExternal:
+		if decoded.Authentication != nil && decoded.Authentication.External != nil {
+			authConfig.ExternalIssuer = decoded.Authentication.External.Issuer
+		}
 	default:
 		return FunctionAuthConfig{}, errors.Errorf("Unknown authentication mode: %s", decoded.AuthenticationMode)
 	}
@@ -153,14 +178,21 @@ func FunctionAuthConfigFromAttributes(attributes map[string]interface{}, default
 	return authConfig, nil
 }
 
+// IssuerConfigMapName returns the name of the ConfigMap holding a project's trusted issuers, built from the
+// platform-configured prefix. Each issuer is a key in it, named after the issuer.
+func IssuerConfigMapName(prefix string, projectName string) string {
+	return prefix + projectName
+}
+
 // FunctionLevelAuthenticationModes are the authentication modes valid for an HTTP trigger's
-// authenticationMode attribute: mode-based API authentication, browser-redirect authentication, and
-// static basic-auth credentials. AuthenticationModeNone (no additional authentication) is deliberately
-// excluded - it means the function-level auth-proxy gate itself does not apply.
+// authenticationMode attribute: mode-based API authentication, browser-redirect authentication,
+// static basic-auth credentials, and JWTs from an external issuer. AuthenticationModeNone (no additional
+// authentication) is deliberately excluded - it means the function-level auth-proxy gate itself does not apply.
 var FunctionLevelAuthenticationModes = map[AuthenticationMode]struct{}{
 	AuthenticationModeAPI:       {},
 	AuthenticationModeBrowser:   {},
 	AuthenticationModeBasicAuth: {},
+	AuthenticationModeExternal:  {},
 }
 
 // IsFunctionLevelAuthenticationMode reports whether mode is one of FunctionLevelAuthenticationModes.

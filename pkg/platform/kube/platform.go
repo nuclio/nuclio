@@ -1573,6 +1573,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
+	if err := p.validateExternalAuthenticationIssuer(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "External authentication issuer validation failed")
+	}
+
 	if err := p.validateServiceAccount(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Service account validation failed")
 	}
@@ -2140,6 +2144,55 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 	}
 }
 
+// validateExternalAuthenticationIssuer verifies that the project's issuer ConfigMap exists and holds the
+// function's issuer. The ConfigMap is written elsewhere, so a function can only select an issuer that is already in it.
+func (p *Platform) validateExternalAuthenticationIssuer(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if !p.Config.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	httpTrigger, err := functionconfig.GetHTTPTrigger(functionConfig.Spec.Triggers)
+	if err != nil {
+		// a function without exactly one http trigger has no authentication mode to validate
+		return nil
+	}
+
+	authConfig, err := auth.FunctionAuthConfigFromAttributes(httpTrigger.Attributes, p.Config.Authentication.DefaultMode)
+	if err != nil {
+		return errors.Wrap(nuclio.WrapErrBadRequest(err), "Failed to resolve function authentication")
+	}
+	if authConfig.Mode != auth.AuthenticationModeExternal {
+		// issuer validation is only relevant for external authentication mode
+		return nil
+	}
+
+	projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !ok {
+		return nuclio.NewErrBadRequest("Function does not have a project label, cannot validate authentication issuer")
+	}
+	if projectName == "" {
+		return nuclio.NewErrBadRequest("Function has an empty project label, cannot validate authentication issuer")
+	}
+
+	configMapName := auth.IssuerConfigMapName(p.Config.Authentication.GetIssuerConfigMapPrefix(), projectName)
+	configMap, err := p.consumer.KubeClientSet.GetConfigMap(ctx, functionConfig.Meta.Namespace, configMapName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Issuer ConfigMap of the project is missing. Project: %s, ConfigMap: %s",
+				projectName,
+				configMapName))
+		}
+		return errors.Wrapf(err, "Failed to get issuer ConfigMap: %s", configMapName)
+	}
+
+	if _, found := configMap.Data[authConfig.ExternalIssuer]; !found {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Issuer is not defined in the project. Project: %s, Issuer: %s",
+			projectName,
+			authConfig.ExternalIssuer))
+	}
+	return nil
+}
+
 func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
 	// if function does not have service account specified, skip validation
 	if functionConfig.Spec.ServiceAccount == "" {
@@ -2309,13 +2362,33 @@ func (p *Platform) validateSecretIsAllowed(secretName, projectSecretPrefix, proj
 }
 
 func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
+	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) == 0 {
+		return nil
+	}
+
 	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
-		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
 		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
 		return errors.New("Cron trigger in `kube` mode cannot be created when default http trigger " +
 			"creation is disabled and there is no other http trigger. " +
 			"Either enable default http trigger creation or create custom http trigger")
+	}
+
+	if !p.Config.IsFunctionAuthenticationEnabled() {
+		return nil
+	}
+
+	authMode, err := functionconfig.GetHTTPTriggerMode(functionConfig.Spec.Triggers)
+	if err != nil {
+		// a function without exactly one http trigger has no authentication mode to validate
+		return nil
+	}
+
+	// in kube mode cron calls authenticate with a service account token, which an external function does not accept
+	// (processor mode runs internally and needs no authentication)
+	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeExternal &&
+		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		return nuclio.NewErrBadRequest("Cron triggers are not supported on a function with external authentication")
 	}
 	return nil
 }

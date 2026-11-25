@@ -573,6 +573,9 @@ func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp
 // DefaultIssuerPollInterval is used when IssuerPollInterval is empty or invalid.
 const DefaultIssuerPollInterval = 10 * time.Second
 
+// DefaultIssuerConfigMapPrefix is used when IssuerConfigMapPrefix is empty.
+const DefaultIssuerConfigMapPrefix = "nuclio-project-trusted-issuers-"
+
 // Authentication holds authentication-related platform configuration.
 type Authentication struct {
 
@@ -603,6 +606,18 @@ type Authentication struct {
 	// IssuerPollInterval is how often (e.g. "1s") the auth-proxy sidecar checks its issuer file for changes.
 	// Defaults to DefaultIssuerPollInterval when empty or invalid.
 	IssuerPollInterval string `json:"issuerPollInterval,omitempty"`
+
+	// IssuerConfigMapPrefix prefixes the project name to form the name of the ConfigMap that holds the
+	// project's trusted issuers. Defaults to DefaultIssuerConfigMapPrefix when empty.
+	IssuerConfigMapPrefix string `json:"issuerConfigMapPrefix,omitempty"`
+}
+
+// GetIssuerConfigMapPrefix returns the IssuerConfigMapPrefix, or the default.
+func (a *Authentication) GetIssuerConfigMapPrefix() string {
+	if a.IssuerConfigMapPrefix == "" {
+		return DefaultIssuerConfigMapPrefix
+	}
+	return a.IssuerConfigMapPrefix
 }
 
 // GetAllowedFunctionAuthenticationModes returns the allowed function-level authentication modes.
@@ -616,6 +631,7 @@ func (a *Authentication) GetAllowedFunctionAuthenticationModes() []string {
 		string(auth.AuthenticationModeAPI),
 		string(auth.AuthenticationModeBrowser),
 		string(auth.AuthenticationModeBasicAuth),
+		string(auth.AuthenticationModeExternal),
 	}
 }
 

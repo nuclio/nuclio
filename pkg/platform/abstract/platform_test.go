@@ -2963,6 +2963,24 @@ func (suite *AbstractPlatformTestSuite) TestValidateHTTPTriggerAuthentication() 
 				},
 			},
 		},
+		{
+			name:        "external with issuer",
+			flagEnabled: true,
+			attributes: map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(auth.AuthenticationModeExternal),
+				"authentication": map[string]interface{}{
+					"external": map[string]interface{}{
+						"issuer": "bank-customers",
+					},
+				},
+			},
+		},
+		{
+			name:        "external without issuer rejected",
+			flagEnabled: true,
+			attributes:  map[string]interface{}{auth.AttributeAuthenticationMode: string(auth.AuthenticationModeExternal)},
+			expectError: true,
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.Platform.Config.Authentication = &platformconfig.Authentication{
