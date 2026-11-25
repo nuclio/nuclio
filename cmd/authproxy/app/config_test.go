@@ -119,6 +119,49 @@ func (suite *ConfigTestSuite) TestValidateRoutes() {
 	}
 }
 
+// TestValidateReverseProxyConfiguration verifies that only api and browser modes need the auth-url (and sign-in
+// URL), so basicAuth and external sidecars start without them.
+func (suite *ConfigTestSuite) TestValidateReverseProxyConfiguration() {
+	for _, testCase := range []struct {
+		name                 string
+		config               Config
+		expectedErrorMessage string
+	}{
+		{
+			name:   "basicAuth without URLs",
+			config: Config{AuthMode: string(auth.AuthenticationModeBasicAuth), FunctionConfigPath: "/processor.yaml"},
+		},
+		{
+			name:   "external without URLs",
+			config: Config{AuthMode: string(auth.AuthenticationModeExternal), IssuerConfigPath: "/issuer.json"},
+		},
+		{
+			name:   "api with the auth-url",
+			config: Config{AuthMode: string(auth.AuthenticationModeAPI), AuthURL: "http://auth"},
+		},
+		{
+			name:                 "api without the auth-url",
+			config:               Config{AuthMode: string(auth.AuthenticationModeAPI)},
+			expectedErrorMessage: "Auth URL must be provided",
+		},
+		{
+			name:                 "browser without the sign-in URL",
+			config:               Config{AuthMode: string(auth.AuthenticationModeBrowser), AuthURL: "http://auth"},
+			expectedErrorMessage: "Sign-in URL must be provided",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			err := validateReverseProxyConfiguration(&testCase.config)
+			if testCase.expectedErrorMessage == "" {
+				suite.Require().NoError(err)
+				return
+			}
+			suite.Require().Error(err)
+			suite.Require().Contains(err.Error(), testCase.expectedErrorMessage)
+		})
+	}
+}
+
 func TestConfigTestSuite(t *testing.T) {
 	suite.Run(t, new(ConfigTestSuite))
 }

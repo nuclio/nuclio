@@ -1576,18 +1576,21 @@ func (lc *lazyClient) injectAuthProxySidecar(ctx context.Context,
 		fmt.Sprintf("--routes=%s", authproxy.FormatRoutes(routes)),
 		fmt.Sprintf("--auth-mode=%s", authMode),
 	}
-	if platformConfig.Authentication.AuthURL != "" {
-		args = append(args, fmt.Sprintf("--auth-url=%s", platformConfig.Authentication.AuthURL))
-	}
-	if platformConfig.Authentication.SignInURL != "" {
-		args = append(args, fmt.Sprintf("--signin-url=%s", platformConfig.Authentication.SignInURL))
-	}
-	if platformConfig.Authentication.AuthKind != "" {
-		args = append(args, fmt.Sprintf("--auth-kind=%s", platformConfig.Authentication.AuthKind))
-	}
 
-	// external auth mode requires the issuer to be mounted
-	if auth.AuthenticationMode(authMode) == auth.AuthenticationModeExternal {
+	switch auth.AuthenticationMode(authMode) {
+	case auth.AuthenticationModeAPI, auth.AuthenticationModeBrowser:
+		// only api and browser modes delegate to the auth-url
+		if platformConfig.Authentication.AuthURL != "" {
+			args = append(args, fmt.Sprintf("--auth-url=%s", platformConfig.Authentication.AuthURL))
+		}
+		if platformConfig.Authentication.SignInURL != "" {
+			args = append(args, fmt.Sprintf("--signin-url=%s", platformConfig.Authentication.SignInURL))
+		}
+		if platformConfig.Authentication.AuthKind != "" {
+			args = append(args, fmt.Sprintf("--auth-kind=%s", platformConfig.Authentication.AuthKind))
+		}
+	case auth.AuthenticationModeExternal:
+		// external auth mode requires the issuer to be mounted
 		issuerVolume, issuerVolumeMount, err := lc.resolveIssuerVolume(function)
 		if err != nil {
 			return errors.Wrap(err, "Failed to resolve issuer volume")

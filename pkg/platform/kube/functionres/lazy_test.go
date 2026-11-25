@@ -703,6 +703,7 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 		name                string
 		authenticationMode  auth.AuthenticationMode
 		expectedRestoreEnvs []v1.EnvVar
+		expectAuthURLArgs   bool
 	}{
 		{
 			name:               "basicAuth restores config from the mounted secret",
@@ -712,8 +713,13 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			},
 		},
 		{
-			name:               "api mode does not need to restore anything",
+			name:               "external mode neither restores anything nor calls the auth-url",
+			authenticationMode: auth.AuthenticationModeExternal,
+		},
+		{
+			name:               "api mode does not need to restore anything, and calls the auth-url",
 			authenticationMode: auth.AuthenticationModeAPI,
+			expectAuthURLArgs:  true,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -732,9 +738,13 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
 			httpTrigger.Attributes = map[string]interface{}{
 				auth.AttributeAuthenticationMode: string(testCase.authenticationMode),
+				auth.AttributeAuthentication: map[string]interface{}{
+					auth.AttributeExternal: map[string]interface{}{auth.AttributeIssuer: "my-issuer"},
+				},
 			}
 			functionInstance := &nuclioio.NuclioFunction{}
 			functionInstance.Name = "func-name"
+			functionInstance.Labels = map[string]string{common.NuclioResourceLabelKeyProjectName: "my-project"}
 			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
 				"http": httpTrigger,
 			}
@@ -760,9 +770,17 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 				abstract.AuthProxyProcessorListenPort,
 				abstract.FunctionContainerHTTPPort))
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-mode=%s", testCase.authenticationMode))
-			suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
-			suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
-			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
+			if testCase.expectAuthURLArgs {
+				suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
+				suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
+				suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
+			} else {
+				for _, arg := range sidecar.Args {
+					suite.Require().NotContains(arg, "--auth-url")
+					suite.Require().NotContains(arg, "--signin-url")
+					suite.Require().NotContains(arg, "--auth-kind")
+				}
+			}
 			suite.Require().Equal([]v1.ContainerPort{
 				{
 					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxyProcessorListenPort),
