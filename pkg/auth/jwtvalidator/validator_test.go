@@ -252,18 +252,16 @@ func (suite *ValidatorTestSuite) TestRejectedTokens() {
 	}
 }
 
-// TestKeyLookupFailureKeepsCauseChain verifies the reason the key provider failed (for example a TLS error) is
-// still in the error chain, so it is logged when the request is denied.
-func (suite *ValidatorTestSuite) TestKeyLookupFailureKeepsCauseChain() {
-	suite.provider.err = errors.New("Failed to send request")
+// TestKeyLookupFailure verifies a key provider failure denies the request and stays matchable in the error chain.
+func (suite *ValidatorTestSuite) TestKeyLookupFailure() {
+	providerError := errors.New("Failed to send request")
+	suite.provider.err = providerError
 	token := suite.signToken(jwt.SigningMethodRS256, suite.rsaKey, testKid, suite.validClaims())
 
 	_, err := suite.validate("Bearer " + token)
 	suite.Require().Error(err)
-
-	stack := errors.GetErrorStackString(err, -1)
-	suite.Require().Contains(stack, "Failed to get key")
-	suite.Require().Contains(stack, "Failed to send request")
+	suite.Require().Contains(errors.GetErrorStackString(err, -1), "Failed to get key")
+	suite.Require().True(errors.Is(err, providerError), errors.GetErrorStackString(err, -1))
 }
 
 func (suite *ValidatorTestSuite) TestKeysAreFlushedWhenKeySetLocationChanges() {
