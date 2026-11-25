@@ -21,6 +21,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
@@ -78,9 +79,23 @@ func (k *Key) Equal(other *Key) bool {
 // GetKey returns the usable key for kid, or an error wrapping ErrNoKey when the identity provider has no
 // usable key for it. A usable key is a public signing key that passes the key policy, so callers do not
 // re-check it. An implementation must be safe for concurrent use, and must stop when ctx is done.
-// issuer is passed on every call, so an implementation that keeps keys can tell when the issuer changed.
+//
+// FlushKeys drops the keys it keeps. The Validator calls it when the issuer's key set location changed.
 type KeyProvider interface {
 	GetKey(ctx context.Context, issuer *configReloader.Config, kid string) (*Key, error)
+	FlushKeys()
+}
+
+// CacheConfig are the platform-wide settings of the key caches
+type CacheConfig struct {
+	// KeyTTL is how long a downloaded key is used, unless the issuer entry sets its own TTL.
+	KeyTTL time.Duration
+
+	// RejectedKidTTL is how long a key ID with no usable key is rejected without a download.
+	RejectedKidTTL time.Duration
+
+	// RejectedKidCacheSize is the most key IDs the rejected key ID cache holds.
+	RejectedKidCacheSize int
 }
 
 type openIDConfiguration struct {
@@ -96,4 +111,24 @@ type keySet struct {
 // keyOperations reads the key_ops field, which go-jose does not expose.
 type keyOperations struct {
 	KeyOps []string `json:"key_ops"`
+}
+
+// keyEntry is a cached key, with when it was downloaded.
+type keyEntry struct {
+	key          *Key
+	downloadedAt time.Time
+}
+
+// keyCache holds the downloaded keys by key ID.
+type keyCache struct {
+	sync.RWMutex
+	entries map[string]*keyEntry
+}
+
+// rejectedKidCache holds the key IDs that recently had no usable key, with when each stops being rejected.
+type rejectedKidCache struct {
+	sync.RWMutex
+	ttl       time.Duration
+	size      int
+	expiresAt map[string]time.Time
 }

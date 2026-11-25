@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/authproxy"
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
+	"github.com/nuclio/nuclio/pkg/auth/jwtvalidator"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
@@ -115,6 +116,11 @@ func newAuthenticator(rootLogger logger.Logger,
 		config.AuthKind,
 		staticAuthConfig,
 		issuerConfigReloader,
+		&jwtvalidator.CacheConfig{
+			KeyTTL:               platformConfiguration.Authentication.GetJwksCacheTTL(),
+			RejectedKidTTL:       platformConfiguration.Authentication.GetRejectedKidCacheTTL(),
+			RejectedKidCacheSize: platformConfiguration.Authentication.GetRejectedKidCacheSize(),
+		},
 		config.KubeconfigPath,
 		config.Namespace)
 }

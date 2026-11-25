@@ -576,6 +576,13 @@ const DefaultIssuerPollInterval = 10 * time.Second
 // DefaultIssuerConfigMapPrefix is used when IssuerConfigMapPrefix is empty.
 const DefaultIssuerConfigMapPrefix = "nuclio-project-trusted-issuers-"
 
+// Defaults of the auth-proxy sidecar's key caches, used when the matching setting is empty or invalid.
+const (
+	DefaultJwksCacheTTL         = 10 * time.Minute
+	DefaultRejectedKidCacheTTL  = 30 * time.Second
+	DefaultRejectedKidCacheSize = 1000
+)
+
 // Authentication holds authentication-related platform configuration.
 type Authentication struct {
 
@@ -610,6 +617,18 @@ type Authentication struct {
 	// IssuerConfigMapPrefix prefixes the project name to form the name of the ConfigMap that holds the
 	// project's trusted issuers. Defaults to DefaultIssuerConfigMapPrefix when empty.
 	IssuerConfigMapPrefix string `json:"issuerConfigMapPrefix,omitempty"`
+
+	// JwksCacheTTL is how long (e.g. "10m") the auth-proxy sidecar uses downloaded identity provider keys,
+	// unless the issuer entry sets its own. Defaults to DefaultJwksCacheTTL when negative or invalid.
+	JwksCacheTTL string `json:"jwksCacheTTL,omitempty"`
+
+	// RejectedKidCacheTTL is how long (e.g. "30s") a key ID with no usable key is rejected without a download.
+	// Defaults to DefaultRejectedKidCacheTTL when negative or invalid.
+	RejectedKidCacheTTL string `json:"rejectedKidCacheTTL,omitempty"`
+
+	// RejectedKidCacheSize is the most key IDs the rejected key ID cache holds.
+	// Defaults to DefaultRejectedKidCacheSize when not positive.
+	RejectedKidCacheSize int `json:"rejectedKidCacheSize,omitempty"`
 }
 
 // GetIssuerConfigMapPrefix returns the IssuerConfigMapPrefix, or the default.
@@ -642,4 +661,30 @@ func (a *Authentication) GetIssuerPollInterval() time.Duration {
 		return DefaultIssuerPollInterval
 	}
 	return interval
+}
+
+// GetJwksCacheTTL returns the parsed JwksCacheTTL, or the default.
+func (a *Authentication) GetJwksCacheTTL() time.Duration {
+	ttl, err := time.ParseDuration(a.JwksCacheTTL)
+	if err != nil || ttl < 0 {
+		return DefaultJwksCacheTTL
+	}
+	return ttl
+}
+
+// GetRejectedKidCacheTTL returns the parsed RejectedKidCacheTTL, or the default.
+func (a *Authentication) GetRejectedKidCacheTTL() time.Duration {
+	ttl, err := time.ParseDuration(a.RejectedKidCacheTTL)
+	if err != nil || ttl < 0 {
+		return DefaultRejectedKidCacheTTL
+	}
+	return ttl
+}
+
+// GetRejectedKidCacheSize returns RejectedKidCacheSize, or the default.
+func (a *Authentication) GetRejectedKidCacheSize() int {
+	if a.RejectedKidCacheSize <= 0 {
+		return DefaultRejectedKidCacheSize
+	}
+	return a.RejectedKidCacheSize
 }
