@@ -280,11 +280,11 @@ func (suite *ValidatorTestSuite) TestKeysAreFlushedWhenKeySetLocationChanges() {
 		suite.issuer,
 		withChange(func(issuer *configReloader.Config) { issuer.Audiences = []string{"other-api"} }),
 	} {
-		_ = suite.validator.Validate(context.Background(), "", issuer)
+		_, _ = suite.validator.Validate(context.Background(), "", issuer)
 		suite.Require().Equal(0, suite.provider.flushCount)
 	}
 
-	_ = suite.validator.Validate(context.Background(), "",
+	_, _ = suite.validator.Validate(context.Background(), "",
 		withChange(func(issuer *configReloader.Config) { issuer.JwksURL = "https://idp.example.com/certs" }))
 	suite.Require().Equal(1, suite.provider.flushCount)
 }
