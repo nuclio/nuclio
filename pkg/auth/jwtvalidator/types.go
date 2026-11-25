@@ -119,6 +119,12 @@ type keyEntry struct {
 	downloadedAt time.Time
 }
 
+// keyCache holds the downloaded keys by key ID.
+type keyCache struct {
+	sync.RWMutex
+	entries map[string]*keyEntry
+}
+
 // rejectedKidCache holds the key IDs that recently had no usable key, with when each stops being rejected.
 type rejectedKidCache struct {
 	sync.RWMutex

@@ -28,7 +28,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth/configReloader"
@@ -58,7 +57,7 @@ type JWKSDownloader struct {
 	httpClient   *http.Client
 	flight       singleflight.Group
 	keyTTL       time.Duration
-	keys         sync.Map // key ID -> *keyEntry
+	keys         keyCache
 	rejectedKids rejectedKidCache
 }
 
@@ -75,6 +74,7 @@ func NewJWKSDownloader(parentLogger logger.Logger, cacheConfig *CacheConfig) *JW
 			},
 		},
 		keyTTL: cacheConfig.KeyTTL,
+		keys:   keyCache{entries: map[string]*keyEntry{}},
 		rejectedKids: rejectedKidCache{
 			ttl:       cacheConfig.RejectedKidTTL,
 			size:      cacheConfig.RejectedKidCacheSize,
@@ -130,43 +130,49 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 
 // FlushKeys removes every cached key, so the next request downloads the key set again.
 func (d *JWKSDownloader) FlushKeys() {
-	d.keys.Clear()
+	d.keys.Lock()
+	defer d.keys.Unlock()
+	d.keys.entries = map[string]*keyEntry{}
 }
 
 // cachedKey returns the key when it is cached and within the TTL.
 func (d *JWKSDownloader) cachedKey(issuer *configReloader.Config, kid string) *Key {
-	value, found := d.keys.Load(kid)
+	d.keys.RLock()
+	entry, found := d.keys.entries[kid]
+	d.keys.RUnlock()
+
 	if !found {
 		return nil
 	}
 
-	entry := value.(*keyEntry)
 	ttl := issuer.JwksCacheTTL.Duration
 	if ttl <= 0 {
 		ttl = d.keyTTL
 	}
 	if time.Since(entry.downloadedAt) >= ttl {
 		// only this entry: a download may have replaced it with a fresh one in the meantime
-		d.keys.CompareAndDelete(kid, value)
+		d.keys.Lock()
+		if d.keys.entries[kid] == entry {
+			delete(d.keys.entries, kid)
+		}
+		d.keys.Unlock()
 		return nil
 	}
 	return entry.key
 }
 
-// storeKeys caches the downloaded keys and removes the keys the identity provider no longer has.
+// storeKeys replaces the cached keys with the downloaded ones, which drops the keys the identity provider
+// no longer has, so they are not used after their TTL.
 func (d *JWKSDownloader) storeKeys(keys map[string]*Key) {
 	downloadedAt := time.Now()
+	entries := make(map[string]*keyEntry, len(keys))
 	for kid, key := range keys {
-		d.keys.Store(kid, &keyEntry{key: key, downloadedAt: downloadedAt})
+		entries[kid] = &keyEntry{key: key, downloadedAt: downloadedAt}
 	}
 
-	// remove the keys the identity provider no longer has, so they are not used after their TTL
-	d.keys.Range(func(kid, _ interface{}) bool {
-		if _, kept := keys[kid.(string)]; !kept {
-			d.keys.Delete(kid)
-		}
-		return true
-	})
+	d.keys.Lock()
+	defer d.keys.Unlock()
+	d.keys.entries = entries
 }
 
 // isRejectedKid reports whether the key ID is rejected, and removes its entry when it has expired.

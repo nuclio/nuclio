@@ -619,11 +619,11 @@ type Authentication struct {
 	IssuerConfigMapPrefix string `json:"issuerConfigMapPrefix,omitempty"`
 
 	// JwksCacheTTL is how long (e.g. "10m") the auth-proxy sidecar uses downloaded identity provider keys,
-	// unless the issuer entry sets its own. Defaults to DefaultJwksCacheTTL when empty or invalid.
+	// unless the issuer entry sets its own. Defaults to DefaultJwksCacheTTL when negative or invalid.
 	JwksCacheTTL string `json:"jwksCacheTTL,omitempty"`
 
 	// RejectedKidCacheTTL is how long (e.g. "30s") a key ID with no usable key is rejected without a download.
-	// Defaults to DefaultRejectedKidCacheTTL when empty or invalid.
+	// Defaults to DefaultRejectedKidCacheTTL when negative or invalid.
 	RejectedKidCacheTTL string `json:"rejectedKidCacheTTL,omitempty"`
 
 	// RejectedKidCacheSize is the most key IDs the rejected key ID cache holds.
@@ -666,7 +666,7 @@ func (a *Authentication) GetIssuerPollInterval() time.Duration {
 // GetJwksCacheTTL returns the parsed JwksCacheTTL, or the default.
 func (a *Authentication) GetJwksCacheTTL() time.Duration {
 	ttl, err := time.ParseDuration(a.JwksCacheTTL)
-	if err != nil || ttl <= 0 {
+	if err != nil || ttl < 0 {
 		return DefaultJwksCacheTTL
 	}
 	return ttl
@@ -675,7 +675,7 @@ func (a *Authentication) GetJwksCacheTTL() time.Duration {
 // GetRejectedKidCacheTTL returns the parsed RejectedKidCacheTTL, or the default.
 func (a *Authentication) GetRejectedKidCacheTTL() time.Duration {
 	ttl, err := time.ParseDuration(a.RejectedKidCacheTTL)
-	if err != nil || ttl <= 0 {
+	if err != nil || ttl < 0 {
 		return DefaultRejectedKidCacheTTL
 	}
 	return ttl

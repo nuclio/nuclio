@@ -694,10 +694,10 @@ func (suite *JWKSDownloaderTestSuite) TestUnknownKeyIdsDoNotEvictGoodKeys() {
 
 func (suite *JWKSDownloaderTestSuite) TestKnownKeyIsNotBlockedByRunningDownload() {
 	provider := suite.useFakeIdentityProvider()
-	suite.downloader.keys.Store("rsa-key", &keyEntry{
+	suite.downloader.keys.entries["rsa-key"] = &keyEntry{
 		key:          &Key{PublicKey: &suite.rsaKey.PublicKey},
 		downloadedAt: time.Now(),
-	})
+	}
 
 	blockedErrorChan := make(chan error, 1)
 	go func() {
@@ -717,10 +717,10 @@ func (suite *JWKSDownloaderTestSuite) TestKnownKeyIsNotBlockedByRunningDownload(
 func (suite *JWKSDownloaderTestSuite) TestFailedDownloadKeepsCachedKeysAndDoesNotMarkKeyIdAsBad() {
 	provider := suite.useFakeIdentityProvider(suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil))
 	close(provider.releaseKeySet)
-	suite.downloader.keys.Store("cached", &keyEntry{
+	suite.downloader.keys.entries["cached"] = &keyEntry{
 		key:          &Key{PublicKey: &suite.rsaKey.PublicKey},
 		downloadedAt: time.Now(),
-	})
+	}
 
 	for range 2 {
 		_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "unknown")
@@ -737,16 +737,16 @@ func (suite *JWKSDownloaderTestSuite) TestFailedDownloadKeepsCachedKeysAndDoesNo
 func (suite *JWKSDownloaderTestSuite) TestKeysTheIdentityProviderDroppedAreRemoved() {
 	provider := suite.useFakeIdentityProvider()
 	close(provider.releaseKeySet)
-	suite.downloader.keys.Store("dropped", &keyEntry{
+	suite.downloader.keys.entries["dropped"] = &keyEntry{
 		key:          &Key{PublicKey: &suite.rsaKey.PublicKey},
 		downloadedAt: time.Now(),
-	})
+	}
 
 	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rsa-key")
 	suite.Require().NoError(err)
 	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
 
-	_, found := suite.downloader.keys.Load("dropped")
+	_, found := suite.downloader.keys.entries["dropped"]
 	suite.Require().False(found)
 }
 
@@ -847,10 +847,11 @@ func (suite *JWKSDownloaderTestSuite) useFakeIdentityProvider(rawKeys ...json.Ra
 
 // ageCachedKeys makes every cached key look as if it was downloaded age ago, so a test needs no sleep.
 func (suite *JWKSDownloaderTestSuite) ageCachedKeys(age time.Duration) {
-	suite.downloader.keys.Range(func(_, value interface{}) bool {
-		value.(*keyEntry).downloadedAt = time.Now().Add(-age)
-		return true
-	})
+	suite.downloader.keys.Lock()
+	defer suite.downloader.keys.Unlock()
+	for _, entry := range suite.downloader.keys.entries {
+		entry.downloadedAt = time.Now().Add(-age)
+	}
 }
 
 // expireRejectedKid makes the rejected key ID cache entry of kid look expired.
