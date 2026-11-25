@@ -56,7 +56,7 @@ type Validator struct {
 // NewValidator creates a validator that downloads and caches the identity provider's keys.
 func NewValidator(parentLogger logger.Logger, cacheConfig *CacheConfig) *Validator {
 	return &Validator{
-		logger:      parentLogger.GetChild("validator"),
+		logger:      parentLogger.GetChild("jwt-validator"),
 		keyProvider: NewJWKSDownloader(parentLogger, cacheConfig),
 	}
 }
