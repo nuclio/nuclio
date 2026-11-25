@@ -94,6 +94,48 @@ func (suite *utilsTestSuite) TestValidateAnnotations() {
 	}
 }
 
+func (suite *utilsTestSuite) TestValidateLabelsNotForbidden() {
+	listedLabels := []string{"key-a=value-a", "example.com/name=value-a"}
+	for _, testCase := range []struct {
+		name           string
+		labels         map[string]string
+		existingLabels map[string]string
+		expectError    bool
+	}{
+		{name: "noLabels"},
+		{name: "allowedLabels", labels: map[string]string{"team": "a", "my-key-a": "value-a"}},
+		{name: "sameKeyOtherValue", labels: map[string]string{"key-a": "a"}},
+		{name: "listedLabel", labels: map[string]string{"key-a": "value-a"}, expectError: true},
+		{
+			name:        "listedPrefixedLabel",
+			labels:      map[string]string{"example.com/name": "value-a"},
+			expectError: true,
+		},
+		{
+			name:           "unchangedExistingLabel",
+			labels:         map[string]string{"key-a": "value-a"},
+			existingLabels: map[string]string{"key-a": "value-a"},
+		},
+		{
+			name:           "changedExistingLabel",
+			labels:         map[string]string{"key-a": "value-a"},
+			existingLabels: map[string]string{"key-a": "a"},
+			expectError:    true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			err := ValidateLabelsNotForbidden(testCase.labels, testCase.existingLabels, listedLabels)
+			if testCase.expectError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+
+	suite.Require().NoError(ValidateLabelsNotForbidden(map[string]string{"key-a": "value-a"}, nil, nil))
+}
+
 func (suite *utilsTestSuite) TestEnrichDefaultReadinessProbe() {
 	testNum14 := int32(14)
 	testNum17 := int32(17)
