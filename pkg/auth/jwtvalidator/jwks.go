@@ -59,6 +59,7 @@ type JWKSDownloader struct {
 	keyTTL       time.Duration
 	keys         keyCache
 	rejectedKids rejectedKidCache
+	rateLimiter  *downloadRateLimiter
 }
 
 // NewJWKSDownloader creates a downloader that reaches the identity provider over https only.
@@ -80,6 +81,7 @@ func NewJWKSDownloader(parentLogger logger.Logger, cacheConfig *CacheConfig) *JW
 			size:      cacheConfig.RejectedKidCacheSize,
 			expiresAt: map[string]time.Time{},
 		},
+		rateLimiter: newDownloadRateLimiter(cacheConfig.DownloadGap, cacheConfig.FailureBackoff, cacheConfig.MaxPendingRequests),
 	}
 }
 
@@ -90,20 +92,44 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 		return nil, errors.Wrapf(ErrNoKey, "Invalid key ID (kid=%s)", kid)
 	}
 
-	if d.isRejectedKid(kid) {
-		return nil, errors.Wrapf(ErrNoKey, "Key ID recently had no usable key (kid=%s)", kid)
+	if key, err := d.getFromCaches(issuer, kid); key != nil || err != nil {
+		return key, err
 	}
 
-	if key := d.cachedKey(issuer, kid); key != nil {
-		return key, nil
+	// An unknown key ID is held for the next download, since a real key ID that is new looks like a junk one
+	// until the key set is downloaded. When too many requests are held, this one queues for a slot.
+	if err := d.rateLimiter.acquirePendingSlot(ctx); err != nil {
+		if ctx.Err() != nil {
+			return nil, err
+		}
+		d.logger.DebugWithCtx(ctx, "Request is not held for a key set download", "kid", kid, "reason", err.Error())
+		return nil, errors.Wrapf(ErrNoKey, "No usable key for the key ID (kid=%s)", kid)
+	}
+	defer d.rateLimiter.releasePendingSlot()
+
+	// one of key or err is non-nil if the caches already have an answer for the key ID, so the download is not needed
+	if key, err := d.getFromCaches(issuer, kid); key != nil || err != nil {
+		return key, err
 	}
 
 	// The issuer entry can change between requests, so only callers using the same key source share a flight.
 	flightKey := issuer.IssuerURL + "|" + issuer.JwksURL
 	resultChan := d.flight.DoChan(flightKey, func() (interface{}, error) {
 		// Detached ctx so one caller giving up doesn't fail every caller sharing the download.
-		keys, err := d.download(context.WithoutCancel(ctx), issuer)
+		detachedCtx := context.WithoutCancel(ctx)
+
+		// a download that failed after this caller got its slot started the back-off, and its flight is already gone
+		if d.rateLimiter.isBackingOff() {
+			return nil, errors.Wrap(ErrNoKey, "Key set download is backing off")
+		}
+
+		// every caller that arrives while the flight is delayed joins this download
+		d.rateLimiter.delayForDownloadGap()
+
+		keys, err := d.download(detachedCtx, issuer)
+		d.rateLimiter.finishDownload(err)
 		if err != nil {
+			d.logger.WarnWithCtx(detachedCtx, "Key set download failed, backing off", "backoff", d.rateLimiter.backoff.String())
 			return nil, err
 		}
 		d.storeKeys(keys)
@@ -128,11 +154,23 @@ func (d *JWKSDownloader) GetKey(ctx context.Context, issuer *configReloader.Conf
 	}
 }
 
-// FlushKeys removes every cached key, so the next request downloads the key set again.
+// FlushKeys removes every cached key, so the next request downloads the key set again. It also clears the
+// gap and the back-off, so a corrected key set location is tried at once.
 func (d *JWKSDownloader) FlushKeys() {
 	d.keys.Lock()
 	defer d.keys.Unlock()
 	d.keys.entries = map[string]*keyEntry{}
+
+	d.rateLimiter.reset()
+}
+
+// getFromCaches returns the key, or the rejection, that the caches already have for the key ID. Both are nil when
+// the caches know nothing about it.
+func (d *JWKSDownloader) getFromCaches(issuer *configReloader.Config, kid string) (*Key, error) {
+	if d.isRejectedKid(kid) {
+		return nil, errors.Wrapf(ErrNoKey, "Key ID recently had no usable key (kid=%s)", kid)
+	}
+	return d.cachedKey(issuer, kid), nil
 }
 
 // cachedKey returns the key when it is cached and within the TTL.

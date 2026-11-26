@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -53,7 +54,13 @@ const (
 	testJWKSURL      = "https://idp.example.com/realms/test/protocol/openid-connect/certs"
 )
 
-var testCacheConfig = &CacheConfig{KeyTTL: 10 * time.Minute, RejectedKidTTL: 30 * time.Second, RejectedKidCacheSize: 1000}
+// no download gap and no back-off, so a test that needs one sets it on the downloader
+var testCacheConfig = &CacheConfig{
+	KeyTTL:               10 * time.Minute,
+	RejectedKidTTL:       30 * time.Second,
+	RejectedKidCacheSize: 1000,
+	MaxPendingRequests:   256,
+}
 
 type JWKSDownloaderTestSuite struct {
 	suite.Suite
@@ -810,6 +817,177 @@ func (suite *JWKSDownloaderTestSuite) TestFullRejectedKeyIdCacheDropsExpiredKeyI
 	_, err = suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "third")
 	suite.Require().ErrorIs(err, ErrNoKey)
 	suite.Require().Equal(int32(3), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestNewKeyAfterRotationIsDownloaded() {
+	provider := suite.useFakeIdentityProvider()
+	close(provider.releaseKeySet)
+	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rsa-key")
+	suite.Require().NoError(err)
+
+	// the identity provider starts signing with a new key
+	provider = suite.useFakeIdentityProvider(
+		suite.webKey("rsa-key", &suite.rsaKey.PublicKey, nil),
+		suite.webKey("rotated", &suite.ecKey.PublicKey, nil))
+	close(provider.releaseKeySet)
+
+	key, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rotated")
+	suite.Require().NoError(err)
+	suite.Require().Equal(&suite.ecKey.PublicKey, key.PublicKey)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestUnknownKeyIdsInsideTheGapShareOneDownload() {
+	suite.downloader.rateLimiter.gap = 500 * time.Millisecond
+	suite.downloader.rateLimiter.lastDownloadAt = time.Now()
+	provider := suite.useFakeIdentityProvider()
+	close(provider.releaseKeySet)
+
+	junkCount := 100
+	junkErrorsChan := make(chan error, junkCount)
+	realKeyChan := make(chan *Key, 1)
+	var wg sync.WaitGroup
+	for i := range junkCount {
+		wg.Go(func() {
+			_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "junk-"+strconv.Itoa(i))
+			junkErrorsChan <- err
+		})
+	}
+	wg.Go(func() {
+		key, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rsa-key")
+		suite.NoError(err)
+		realKeyChan <- key
+	})
+
+	// the sleeping download holds every caller that joined, so they share it
+	wg.Wait()
+	close(junkErrorsChan)
+
+	for err := range junkErrorsChan {
+		suite.Require().ErrorIs(err, ErrNoKey)
+	}
+	suite.Require().Equal(&suite.rsaKey.PublicKey, (<-realKeyChan).PublicKey)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestRequestsAbovePendingLimitQueueForASlot() {
+	suite.downloader.rateLimiter.pending = semaphore.NewWeighted(1)
+	provider := suite.useFakeIdentityProvider()
+
+	firstErrorChan := make(chan error, 1)
+	go func() {
+		_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "unknown")
+		firstErrorChan <- err
+	}()
+	<-provider.keySetRequested
+
+	queuedKeyChan := make(chan *Key, 1)
+	go func() {
+		key, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "rsa-key")
+		suite.NoError(err)
+		queuedKeyChan <- key
+	}()
+
+	// the sleep only lets the second request reach the queue; the checks below hold wherever it is
+	time.Sleep(200 * time.Millisecond)
+	select {
+	case <-queuedKeyChan:
+		suite.Fail("The request got its key before a slot was free")
+	default:
+	}
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+
+	close(provider.releaseKeySet)
+	suite.Require().ErrorIs(<-firstErrorChan, ErrNoKey)
+
+	// the queued request finds its key in the cache the first download filled, so no second download runs
+	suite.Require().Equal(&suite.rsaKey.PublicKey, (<-queuedKeyChan).PublicKey)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestQueuedRequestStopsAtItsOwnDeadline() {
+	suite.downloader.rateLimiter.pending = semaphore.NewWeighted(1)
+	suite.Require().NoError(suite.downloader.rateLimiter.acquirePendingSlot(context.Background()))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	_, err := suite.downloader.GetKey(ctx, suite.issuerWithURL, "unknown")
+
+	suite.Require().ErrorIs(err, context.DeadlineExceeded)
+}
+
+func (suite *JWKSDownloaderTestSuite) TestCallerThatStopsReleasesItsPendingSlot() {
+	provider := suite.useFakeIdentityProvider()
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	_, err := suite.downloader.GetKey(ctx, suite.issuerWithURL, "unknown")
+	suite.Require().ErrorIs(err, context.DeadlineExceeded)
+
+	// every slot is free again
+	suite.Require().True(suite.downloader.rateLimiter.pending.TryAcquire(int64(testCacheConfig.MaxPendingRequests)))
+	close(provider.releaseKeySet)
+}
+
+func (suite *JWKSDownloaderTestSuite) TestFailedDownloadBacksOff() {
+	suite.downloader.rateLimiter.backoff = time.Hour
+	provider := suite.useFakeIdentityProvider(suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil))
+	suite.downloader.keys.entries["cached"] = &keyEntry{
+		key:          &Key{PublicKey: &suite.rsaKey.PublicKey},
+		downloadedAt: time.Now(),
+	}
+
+	callerCount := 20
+	errorsChan := make(chan error, callerCount)
+	var wg sync.WaitGroup
+	for i := range callerCount {
+		wg.Go(func() {
+			_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "pending-"+strconv.Itoa(i))
+			errorsChan <- err
+		})
+	}
+
+	// the download is blocked until every caller had the chance to join it
+	<-provider.keySetRequested
+	time.Sleep(200 * time.Millisecond)
+	close(provider.releaseKeySet)
+	wg.Wait()
+	close(errorsChan)
+
+	// the callers of the failed download are rejected
+	for err := range errorsChan {
+		suite.Require().ErrorIs(err, ErrNoKey)
+	}
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+
+	// new unknown key IDs are rejected at once and not remembered, known ones keep working
+	for _, kid := range []string{"new-1", "new-2"} {
+		_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, kid)
+		suite.Require().ErrorIs(err, ErrNoKey)
+		suite.Require().False(suite.downloader.isRejectedKid(kid))
+	}
+	key, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "cached")
+	suite.Require().NoError(err)
+	suite.Require().Equal(&suite.rsaKey.PublicKey, key.PublicKey)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+}
+
+func (suite *JWKSDownloaderTestSuite) TestFlushKeysClearsBackoff() {
+	suite.downloader.rateLimiter.backoff = time.Hour
+	provider := suite.useFakeIdentityProvider(suite.webKey("weak", &suite.weakRSAKey.PublicKey, nil))
+	close(provider.releaseKeySet)
+
+	_, err := suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "unknown")
+	suite.Require().ErrorIs(err, ErrNoKey)
+	_, err = suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "unknown")
+	suite.Require().ErrorIs(err, ErrNoKey)
+	suite.Require().Equal(int32(1), provider.keySetRequests.Load())
+
+	suite.downloader.FlushKeys()
+
+	_, err = suite.downloader.GetKey(context.Background(), suite.issuerWithURL, "unknown")
+	suite.Require().ErrorIs(err, ErrNoKey)
+	suite.Require().Equal(int32(2), provider.keySetRequests.Load())
 }
 
 // --- test helpers (private, below public functions) ---

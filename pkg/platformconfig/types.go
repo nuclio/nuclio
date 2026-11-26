@@ -583,6 +583,13 @@ const (
 	DefaultRejectedKidCacheSize = 1000
 )
 
+// Defaults of the auth-proxy sidecar's key set downloads, used when the matching setting is empty or invalid.
+const (
+	DefaultJwksDownloadGap        = time.Second
+	DefaultJwksFailureBackoff     = 30 * time.Second
+	DefaultJwksMaxPendingRequests = 256
+)
+
 // Authentication holds authentication-related platform configuration.
 type Authentication struct {
 
@@ -629,6 +636,18 @@ type Authentication struct {
 	// RejectedKidCacheSize is the most key IDs the rejected key ID cache holds.
 	// Defaults to DefaultRejectedKidCacheSize when not positive.
 	RejectedKidCacheSize int `json:"rejectedKidCacheSize,omitempty"`
+
+	// JwksDownloadGap is the least time (e.g. "1s") between two key set downloads of the auth-proxy sidecar.
+	// Defaults to DefaultJwksDownloadGap when empty or invalid.
+	JwksDownloadGap string `json:"jwksDownloadGap,omitempty"`
+
+	// JwksFailureBackoff is how long (e.g. "30s") the auth-proxy sidecar starts no key set download after a failed one.
+	// Defaults to DefaultJwksFailureBackoff when empty or invalid.
+	JwksFailureBackoff string `json:"jwksFailureBackoff,omitempty"`
+
+	// JwksMaxPendingRequests is the most requests held for a key set download at once.
+	// Defaults to DefaultJwksMaxPendingRequests when not positive.
+	JwksMaxPendingRequests int `json:"jwksMaxPendingRequests,omitempty"`
 }
 
 // GetIssuerConfigMapPrefix returns the IssuerConfigMapPrefix, or the default.
@@ -687,4 +706,30 @@ func (a *Authentication) GetRejectedKidCacheSize() int {
 		return DefaultRejectedKidCacheSize
 	}
 	return a.RejectedKidCacheSize
+}
+
+// GetJwksDownloadGap returns the parsed JwksDownloadGap, or the default.
+func (a *Authentication) GetJwksDownloadGap() time.Duration {
+	gap, err := time.ParseDuration(a.JwksDownloadGap)
+	if err != nil || gap <= 0 {
+		return DefaultJwksDownloadGap
+	}
+	return gap
+}
+
+// GetJwksFailureBackoff returns the parsed JwksFailureBackoff, or the default.
+func (a *Authentication) GetJwksFailureBackoff() time.Duration {
+	backoff, err := time.ParseDuration(a.JwksFailureBackoff)
+	if err != nil || backoff <= 0 {
+		return DefaultJwksFailureBackoff
+	}
+	return backoff
+}
+
+// GetJwksMaxPendingRequests returns JwksMaxPendingRequests, or the default.
+func (a *Authentication) GetJwksMaxPendingRequests() int {
+	if a.JwksMaxPendingRequests <= 0 {
+		return DefaultJwksMaxPendingRequests
+	}
+	return a.JwksMaxPendingRequests
 }
