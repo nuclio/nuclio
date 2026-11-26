@@ -703,6 +703,7 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 		name                string
 		authenticationMode  auth.AuthenticationMode
 		expectedRestoreEnvs []v1.EnvVar
+		expectAuthURLArgs   bool
 	}{
 		{
 			name:               "basicAuth restores config from the mounted secret",
@@ -712,8 +713,13 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			},
 		},
 		{
-			name:               "api mode does not need to restore anything",
+			name:               "external mode neither restores anything nor calls the auth-url",
+			authenticationMode: auth.AuthenticationModeExternal,
+		},
+		{
+			name:               "api mode does not need to restore anything, and calls the auth-url",
 			authenticationMode: auth.AuthenticationModeAPI,
+			expectAuthURLArgs:  true,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -732,9 +738,13 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
 			httpTrigger.Attributes = map[string]interface{}{
 				auth.AttributeAuthenticationMode: string(testCase.authenticationMode),
+				auth.AttributeAuthentication: map[string]interface{}{
+					auth.AttributeExternal: map[string]interface{}{auth.AttributeIssuer: "my-issuer"},
+				},
 			}
 			functionInstance := &nuclioio.NuclioFunction{}
 			functionInstance.Name = "func-name"
+			functionInstance.Labels = map[string]string{common.NuclioResourceLabelKeyProjectName: "my-project"}
 			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
 				"http": httpTrigger,
 			}
@@ -760,9 +770,17 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 				abstract.AuthProxyProcessorListenPort,
 				abstract.FunctionContainerHTTPPort))
 			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-mode=%s", testCase.authenticationMode))
-			suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
-			suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
-			suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
+			if testCase.expectAuthURLArgs {
+				suite.Require().Contains(sidecar.Args, "--auth-url=http://auth.example.com")
+				suite.Require().Contains(sidecar.Args, "--signin-url=http://signin.example.com")
+				suite.Require().Contains(sidecar.Args, fmt.Sprintf("--auth-kind=%s", auth.KindIguazio))
+			} else {
+				for _, arg := range sidecar.Args {
+					suite.Require().NotContains(arg, "--auth-url")
+					suite.Require().NotContains(arg, "--signin-url")
+					suite.Require().NotContains(arg, "--auth-kind")
+				}
+			}
 			suite.Require().Equal([]v1.ContainerPort{
 				{
 					Name:          abstract.AuthProxySidecarPortName(abstract.AuthProxyProcessorListenPort),
@@ -771,6 +789,79 @@ func (suite *lazyTestSuite) TestInjectAuthProxySidecar() {
 				},
 			}, sidecar.Ports)
 			suite.Require().Equal(testCase.expectedRestoreEnvs, sidecar.Env)
+		})
+	}
+}
+
+// TestInjectAuthProxySidecarMountsIssuer verifies that an external-mode function gets the project's issuer ConfigMap
+// mounted on the auth-proxy only (as issuer.json), and that other modes get no issuer volume.
+func (suite *lazyTestSuite) TestInjectAuthProxySidecarMountsIssuer() {
+	for _, testCase := range []struct {
+		name               string
+		authenticationMode auth.AuthenticationMode
+		expectIssuerMount  bool
+	}{
+		{name: "external mounts the issuer", authenticationMode: auth.AuthenticationModeExternal, expectIssuerMount: true},
+		{name: "basicAuth has no issuer", authenticationMode: auth.AuthenticationModeBasicAuth},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					Authentication: &platformconfig.Authentication{
+						FunctionAuthenticationEnabled: true,
+						AuthSidecarImage:              "nuclio/auth-proxy:latest",
+					},
+				},
+			})
+
+			httpTrigger := functionconfig.GetDefaultHTTPTrigger()
+			httpTrigger.Attributes = map[string]interface{}{
+				auth.AttributeAuthenticationMode: string(testCase.authenticationMode),
+				auth.AttributeAuthentication: map[string]interface{}{
+					auth.AttributeExternal: map[string]interface{}{auth.AttributeIssuer: "my-issuer"},
+				},
+			}
+			functionInstance := &nuclioio.NuclioFunction{}
+			functionInstance.Name = "func-name"
+			functionInstance.Labels = map[string]string{common.NuclioResourceLabelKeyProjectName: "my-project"}
+			functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{"http": httpTrigger}
+
+			deploymentSpec := &appsv1.DeploymentSpec{
+				Template: v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{{Name: common.FunctionContainerName}},
+					},
+				},
+			}
+
+			// the processor's mounts, shared with the sidecar
+			processorMounts := []v1.VolumeMount{{Name: "processor-config-volume", MountPath: "/etc/nuclio/config/processor"}}
+			suite.Require().NoError(suite.client.injectAuthProxySidecar(suite.ctx, functionInstance, deploymentSpec, processorMounts))
+
+			sidecar := deploymentSpec.Template.Spec.Containers[1]
+			if !testCase.expectIssuerMount {
+				suite.Require().Empty(deploymentSpec.Template.Spec.Volumes)
+				suite.Require().Equal(processorMounts, sidecar.VolumeMounts)
+				return
+			}
+
+			suite.Require().Equal([]v1.Volume{
+				{
+					Name: issuerVolumeName,
+					VolumeSource: v1.VolumeSource{
+						ConfigMap: &v1.ConfigMapVolumeSource{
+							LocalObjectReference: v1.LocalObjectReference{Name: "nuclio-project-trusted-issuers-my-project"},
+							Items:                []v1.KeyToPath{{Key: "my-issuer", Path: "issuer.json"}},
+						},
+					},
+				},
+			}, deploymentSpec.Template.Spec.Volumes)
+			suite.Require().Contains(sidecar.VolumeMounts,
+				v1.VolumeMount{Name: issuerVolumeName, MountPath: "/etc/nuclio/config/issuer", ReadOnly: true})
+			suite.Require().Contains(sidecar.Args, "--issuer-config="+auth.DefaultIssuerConfigPath)
+
+			// the shared mounts slice is left untouched
+			suite.Require().Len(processorMounts, 1)
 		})
 	}
 }
@@ -2048,6 +2139,25 @@ func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationBrowserMode
 	suite.Require().Contains(container.Args,
 		headers.AuthorizationHeader+": "+authutils.BearerPrefix+"{{token:trim}}")
 	suite.Require().Contains(container.Args, headers.IguazioAuthenticatorKind+": sa")
+}
+
+// TestCronTriggerWithFunctionAuthenticationExternalMode verifies that an external function's CronJob is left
+// without authentication enrichment (the dashboard rejects such a trigger at deploy).
+func (suite *lazyTestSuite) TestCronTriggerWithFunctionAuthenticationExternalMode() {
+	function := suite.newFunctionWithHTTPAndCronTriggers("cron-external", map[string]interface{}{
+		auth.AttributeAuthenticationMode: string(auth.AuthenticationModeExternal),
+		auth.AttributeAuthentication: map[string]interface{}{
+			auth.AttributeExternal: map[string]interface{}{auth.AttributeIssuer: "my-issuer"},
+		},
+	})
+
+	pod := suite.createFunctionCronJob(function).Spec.JobTemplate.Spec.Template.Spec
+	container := pod.Containers[0]
+
+	suite.Require().NotContains(container.Args, "--expand-header")
+	suite.Require().Empty(pod.ServiceAccountName)
+	suite.Require().Nil(pod.AutomountServiceAccountToken)
+	suite.Require().Empty(container.Env)
 }
 
 // TestCronTriggerWithFunctionAuthenticationBasicAuthPlaintextPassword verifies that basicAuth credentials are passed

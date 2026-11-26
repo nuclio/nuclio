@@ -48,6 +48,9 @@ const (
 	AttributeBasicAuth      = "basicAuth"
 	AttributeExternal       = "external"
 	AttributeIssuer         = "issuer"
+
+	// DefaultIssuerConfigPath is where the auth-proxy sidecar reads the mounted issuer file.
+	DefaultIssuerConfigPath = "/etc/nuclio/config/issuer/issuer.json"
 )
 
 type Kind string
