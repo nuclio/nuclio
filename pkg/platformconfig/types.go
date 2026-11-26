@@ -274,6 +274,7 @@ type PlatformKubeConfig struct {
 	DefaultCronTriggerServiceAccount         string                  `json:"defaultCronTriggerServiceAccount,omitempty"`
 	DefaultForbiddenServiceAccounts          []string                `json:"defaultForbiddenServiceAccounts,omitempty"`
 	ValidFunctionPriorityClassNames          []string                `json:"validFunctionPriorityClassNames,omitempty"`
+	ForbiddenFunctionLabels                  []string                `json:"forbiddenFunctionLabels,omitempty"`
 	DefaultFunctionPodResources              PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
 	DefaultSidecarResources                  PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
 	DefaultFunctionTolerations               []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
