@@ -1170,6 +1170,81 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsForbiddenLabels() {
+	suite.Platform.Config.Kube.ForbiddenFunctionLabels = []string{"key-a=value-a"}
+	defer func() {
+		suite.Platform.Config.Kube.ForbiddenFunctionLabels = nil
+	}()
+
+	for _, testCase := range []struct {
+		name                    string
+		labels                  map[string]string
+		existingLabels          map[string]string
+		existingFunction        bool
+		expectValidationFailure bool
+	}{
+		{
+			name:   "newFunctionAllowedLabels",
+			labels: map[string]string{"team": "a", "application": "b"},
+		},
+		{
+			name:   "newFunctionSameKeyOtherValue",
+			labels: map[string]string{"key-a": "a"},
+		},
+		{
+			name:                    "newFunctionListedLabel",
+			labels:                  map[string]string{"key-a": "value-a"},
+			expectValidationFailure: true,
+		},
+		{
+			name:             "existingFunctionUnchangedLabel",
+			labels:           map[string]string{"key-a": "value-a", "team": "b"},
+			existingLabels:   map[string]string{"key-a": "value-a"},
+			existingFunction: true,
+		},
+		{
+			name:                    "existingFunctionChangedValue",
+			labels:                  map[string]string{"key-a": "value-a"},
+			existingLabels:          map[string]string{"key-a": "a"},
+			existingFunction:        true,
+			expectValidationFailure: true,
+		},
+		{
+			name:                    "existingFunctionAddedLabel",
+			labels:                  map[string]string{"key-a": "value-a"},
+			existingLabels:          map[string]string{"team": "b"},
+			existingFunction:        true,
+			expectValidationFailure: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var existingFunction *functionconfig.ConfigWithStatus
+			if testCase.existingFunction {
+				existingFunction = &functionconfig.ConfigWithStatus{
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{Labels: testCase.existingLabels},
+					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateReady,
+					},
+				}
+			}
+			err := suite.Platform.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(suite.ctx,
+				existingFunction,
+				&platform.CreateFunctionOptions{
+					FunctionConfig: functionconfig.Config{
+						Meta: functionconfig.Meta{Labels: testCase.labels},
+					},
+				})
+			if testCase.expectValidationFailure {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestResolveProjectNameFromLabelsStr() {
 	for _, testCase := range []struct {
 		name                string

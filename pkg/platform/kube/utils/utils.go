@@ -64,6 +64,24 @@ func ValidateAnnotations(annotations map[string]string) error {
 	return nil
 }
 
+// ValidateLabelsNotForbidden validates that the labels don't add or change a label listed in the forbidden labels.
+// Forbidden labels are "key=value" strings, and a label is forbidden when both its key and its value match.
+// A forbidden label that exists in the existing labels with the same value is allowed
+func ValidateLabelsNotForbidden(labels map[string]string,
+	existingLabels map[string]string,
+	forbiddenLabels []string) error {
+	for labelKey, labelValue := range labels {
+		if !common.StringInSlice(fmt.Sprintf("%s=%s", labelKey, labelValue), forbiddenLabels) {
+			continue
+		}
+		if existingLabelValue, found := existingLabels[labelKey]; found && existingLabelValue == labelValue {
+			continue
+		}
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Label %s=%s is not allowed", labelKey, labelValue))
+	}
+	return nil
+}
+
 // FilterInvalidLabels filters out invalid kubernetes labels from a map of labels
 func FilterInvalidLabels(labels map[string]string) map[string]string {
 
