@@ -42,7 +42,7 @@
     "gulp-rev-collector": "^1.0.2",
     "gulp-uglify": "^3.0.2",
     "i18next": "^26.5.11",
-    "i18next-browser-languagedetector": "^8.2.3",
+    "i18next-browser-languagedetector": "^8.3.0",
     "i18next-chained-backend": "^5.0.8",
     "i18next-localstorage-backend": "^4.3.3",
     "i18next-xhr-backend": "^3.2.2",
