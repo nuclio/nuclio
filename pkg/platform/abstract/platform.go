@@ -428,6 +428,17 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(c
 			"apiGateways", existingFunctionConfig.Status.APIGateways)
 		return nuclio.NewErrBadRequest("Cannot disable function while used by an API gateway")
 	}
+
+	// only validate labels that are new or changed
+	var existingLabels map[string]string
+	if existingFunctionConfig != nil {
+		existingLabels = existingFunctionConfig.Meta.Labels
+	}
+	if err := utils.ValidateLabelsNotForbidden(createFunctionOptions.FunctionConfig.Meta.Labels,
+		existingLabels,
+		ap.Config.Kube.ForbiddenFunctionLabels); err != nil {
+		return errors.Wrap(err, "Function labels validation failed")
+	}
 	return nil
 }
 
